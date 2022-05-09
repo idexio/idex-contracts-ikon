@@ -16,6 +16,7 @@
     "@types/chai": "^4.2.21",
     "@types/mocha": "^9.0.0",
     "@types/node": "^12.0.0",
+    "@types/uuid": "^8.3.4",
     "@typescript-eslint/eslint-plugin": "^4.29.1",
     "@typescript-eslint/parser": "^4.29.1",
     "chai": "^4.2.0",
@@ -37,6 +38,7 @@
     "solidity-coverage": "^0.7.21",
     "ts-node": "^10.1.0",
     "typechain": "^5.1.2",
-    "typescript": "^4.5.2"
+    "typescript": "^4.5.2",
+    "uuid": "^8.3.2"
   }
 }

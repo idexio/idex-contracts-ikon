@@ -21,7 +21,7 @@ library Withdrawing {
     address feeWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(bytes32 => bool) storage completedWithdrawalHashes
-  ) public returns (int64 newExchangeBalanceInPips) {
+  ) internal returns (int64 newExchangeBalanceInPips) {
     // Validations
     require(
       Validations.isFeeQuantityValid(
