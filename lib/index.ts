@@ -8,6 +8,12 @@ export interface Withdrawal {
   quantity: string; // Decimal string
 }
 
+export interface OraclePrice {
+  baseAssetSymbol: string;
+  timestampInMs: number;
+  priceInAssetUnits: string;
+}
+
 /**
  * Convert decimal quantity string to integer pips as expected by contract structs. Truncates
  * anything beyond 8 decimals
@@ -23,6 +29,14 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
     ['uint128', uuidToUint8Array(withdrawal.nonce)],
     ['address', withdrawal.wallet],
     ['string', withdrawal.quantity],
+  ]);
+};
+
+export const getOraclePriceHash = (oraclePrice: OraclePrice): string => {
+  return solidityHashOfParams([
+    ['string', oraclePrice.baseAssetSymbol],
+    ['uint64', oraclePrice.timestampInMs],
+    ['uint256', oraclePrice.priceInAssetUnits],
   ]);
 };
 
@@ -51,7 +65,7 @@ export const uuidToUint8Array = (uuid: string): Uint8Array =>
 type TypeValuePair =
   | ['string' | 'address', string]
   | ['uint128' | 'uint256', string | Uint8Array]
-  | ['uint8' | 'uint64', number]
+  | ['uint8' | 'uint32' | 'uint64', number]
   | ['bool', boolean];
 
 const solidityHashOfParams = (params: TypeValuePair[]): string => {

@@ -2,6 +2,40 @@
 
 pragma solidity 0.8.13;
 
+struct Market {
+  // Flag to distinguish from empty struct
+  bool exists;
+  // No need to specify quote asset - it is always the same as the collateral asset
+  string baseAssetSymbol;
+  // The margin fraction needed to open a position
+  uint64 initialMarginFractionInBasisPoints;
+  // The margin fraction required to prevent liquidation
+  uint64 maintenanceMarginFractionInBasisPoints;
+  // The increase of initialMarginFraction for each incrementalPositionSize above the
+  // baselinePositionSize
+  uint64 incrementalInitialMarginFractionInBasisPoints;
+  // The max position size in base token before increasing the initial-margin-fraction.
+  uint64 baselinePositionSizeInPips;
+  // The step size (in base token) for increasing the initialMarginFraction by
+  // (incrementalInitialMarginFraction per step)
+  uint64 incrementalPositionSizeInPips;
+  // The max position size in base token
+  uint64 maximumPositionSizeInPips;
+}
+
+// Price data signed by oracle wallet
+struct OraclePrice {
+  string baseAssetSymbol;
+  // Milliseconds since epoch
+  uint64 timestampInMs;
+  // Price of base asset in quote asset units
+  uint256 priceInAssetUnits;
+  // Off-chain derived funding rate
+  int64 fundingRateInPercentagePips;
+  // Signature from oracle wallet
+  bytes signature;
+}
+
 /**
  * @notice Internally used struct capturing wallet order nonce invalidations created via `invalidateOrderNonce`
  */

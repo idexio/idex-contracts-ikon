@@ -4,7 +4,7 @@ pragma solidity 0.8.13;
 
 import { Constants } from './Constants.sol';
 import { Hashing } from './Hashing.sol';
-import { Withdrawal } from './Structs.sol';
+import { OraclePrice, Withdrawal } from './Structs.sol';
 
 library Validations {
   function isFeeQuantityValid(
@@ -14,6 +14,24 @@ library Validations {
   ) internal pure returns (bool) {
     uint64 feeBasisPoints = (fee * Constants.basisPointsInTotal) / total;
     return feeBasisPoints <= max;
+  }
+
+  function validateOraclePriceSignature(
+    OraclePrice memory oraclePrice,
+    address oracleWalletAddress
+  ) internal pure returns (bytes32) {
+    bytes32 oraclePriceHash = Hashing.getOraclePriceHash(oraclePrice);
+
+    require(
+      Hashing.isSignatureValid(
+        oraclePriceHash,
+        oraclePrice.signature,
+        oracleWalletAddress
+      ),
+      'Invalid oracle signature'
+    );
+
+    return oraclePriceHash;
   }
 
   function validateWithdrawalSignature(Withdrawal memory withdrawal)

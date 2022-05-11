@@ -88,7 +88,7 @@ library BalanceTracking {
     Storage storage self,
     address wallet,
     string memory assetSymbol
-  ) private returns (Balance storage) {
+  ) internal returns (Balance storage) {
     Balance storage balance = self.balancesByWalletAssetPair[wallet][
       assetSymbol
     ];

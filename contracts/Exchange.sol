@@ -4,15 +4,17 @@ pragma solidity 0.8.13;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 
+import { AssetUnitConversions } from './libraries/AssetUnitConversions.sol';
 import { BalanceTracking } from './libraries/BalanceTracking.sol';
 import { Constants } from './libraries/Constants.sol';
 import { Depositing } from './libraries/Depositing.sol';
 import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
 import { Owned } from './Owned.sol';
-import { ICustodian, IExchange } from './libraries/Interfaces.sol';
-import { Withdrawal } from './libraries/Structs.sol';
+import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
+import { ICustodian, IExchange } from './libraries/Interfaces.sol';
+import { Market, OraclePrice, Withdrawal } from './libraries/Structs.sol';
 
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
@@ -21,8 +23,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Events //
 
   /**
-   * @notice Emitted when a user deposits ETH with `depositEther` or a token with
-   * `depositTokenByAddress` or `depositTokenBySymbol`
+   * @notice Emitted when a user deposits collateral tokens with `deposit`
    */
   event Deposited(
     uint64 index,
@@ -58,6 +59,16 @@ contract Exchange_v4 is IExchange, Owned {
   ICustodian _custodian;
   // Deposit index
   uint64 public _depositIndex;
+  // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
+  mapping(string => int64[]) _fundingMultipliersByBaseAssetSymbol;
+  // Milliseconds since epoch, always aligned to hour
+  mapping(string => uint64) _lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
+  // All markets TODO Enablement
+  Market[] public _markets;
+  // Markets mapped by symbol TODO Enablement
+  mapping(string => Market) _marketsBySymbol;
+  // TODO Upgrade through Governance
+  address _oracleWalletAddress;
   // CLOB - mapping of wallet => last invalidated timestampInMs
   mapping(address => NonceInvalidation) _nonceInvalidations;
   // CLOB - mapping of order hash => filled quantity in pips
@@ -85,7 +96,8 @@ contract Exchange_v4 is IExchange, Owned {
     address collateralAssetAddress,
     string memory collateralAssetSymbol,
     uint8 collateralAssetDecimals,
-    address feeWallet
+    address feeWallet,
+    address oracleWalletAddress
   ) Owned() {
     require(
       address(balanceMigrationSource) == address(0x0) ||
@@ -103,6 +115,12 @@ contract Exchange_v4 is IExchange, Owned {
     _collateralAssetDecimals = collateralAssetDecimals;
 
     setFeeWallet(feeWallet);
+
+    require(
+      address(oracleWalletAddress) != address(0x0),
+      'Invalid oracle wallet'
+    );
+    _oracleWalletAddress = oracleWalletAddress;
 
     // Deposits must be manually enabled via `setDepositIndex`
     _depositIndex = Constants.depositIndexNotSet;
@@ -318,6 +336,133 @@ contract Exchange_v4 is IExchange, Owned {
       withdrawal.grossQuantityInPips,
       newExchangeBalanceInPips
     );
+  }
+
+  // Market management //
+
+  function addMarket(
+    string calldata baseAssetSymbol,
+    uint64 initialMarginFractionInBasisPoints,
+    uint64 maintenanceMarginFractionInBasisPoints,
+    uint64 incrementalInitialMarginFractionInBasisPoints,
+    uint64 baselinePositionSizeInPips,
+    uint64 incrementalPositionSizeInPips,
+    uint64 maximumPositionSizeInPips
+  ) external onlyAdmin {
+    require(
+      _markets.length < Constants.maxMarketCount,
+      'Max market count reached'
+    );
+    require(!_marketsBySymbol[baseAssetSymbol].exists, 'Market already exists');
+
+    Market memory market = Market({
+      exists: true,
+      baseAssetSymbol: baseAssetSymbol,
+      initialMarginFractionInBasisPoints: initialMarginFractionInBasisPoints,
+      maintenanceMarginFractionInBasisPoints: maintenanceMarginFractionInBasisPoints,
+      incrementalInitialMarginFractionInBasisPoints: incrementalInitialMarginFractionInBasisPoints,
+      baselinePositionSizeInPips: baselinePositionSizeInPips,
+      incrementalPositionSizeInPips: incrementalPositionSizeInPips,
+      maximumPositionSizeInPips: maximumPositionSizeInPips
+    });
+
+    _markets.push(market);
+    _marketsBySymbol[market.baseAssetSymbol] = market;
+  }
+
+  // Oracle price feed //
+
+  /** @notice Validates oracle signature. Validates oracleTimestampInMs is exactly one hour after
+   * _lastFundingRatePublishTimestampInMs. Pushes fundingRate × oraclePrice to
+   * _fundingMultipliersByBaseAssetAddress
+   */
+  function publishFundingMutipliers(OraclePrice[] calldata oraclePrices)
+    external
+  {
+    for (uint8 i = 0; i < oraclePrices.length; i++) {
+      OraclePrice memory oraclePrice = oraclePrices[i];
+
+      Validations.validateOraclePriceSignature(
+        oraclePrice,
+        _oracleWalletAddress
+      );
+
+      uint64 lastPublishTimestampInMs = _lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+          oraclePrice.baseAssetSymbol
+        ];
+      require(
+        lastPublishTimestampInMs > 0
+          ? lastPublishTimestampInMs + Constants.msInOneHour ==
+            oraclePrice.timestampInMs
+          : oraclePrice.timestampInMs % Constants.msInOneHour == 0,
+        'Input price not hour-aligned'
+      );
+
+      // TODO Cleanup typecasts
+      _fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].push(
+        int64(
+          (int256(
+            uint256(
+              AssetUnitConversions.assetUnitsToPips(
+                oraclePrice.priceInAssetUnits,
+                _collateralAssetDecimals
+              )
+            )
+          ) * int256(oraclePrice.fundingRateInPercentagePips)) /
+            int256(uint256(Constants.percentagePipsInTotal))
+        )
+      );
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+        oraclePrice.baseAssetSymbol
+      ] = oraclePrice.timestampInMs;
+    }
+  }
+
+  // True-ups base position funding debits/credits by walking all funding multipliers published
+  // since last position update
+  function updateAccountFunding(address wallet) external {
+    int64 fundingInPips;
+
+    for (uint8 marketIndex = 0; marketIndex < _markets.length; marketIndex++) {
+      Market memory market = _markets[marketIndex];
+      BalanceTracking.Balance storage basePosition = _balanceTracking
+        .loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
+
+      (
+        int64[] storage fundingMultipliers,
+        uint64 lastFundingMultiplierTimestampInMs
+      ) = (
+          _fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol],
+          _lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+            market.baseAssetSymbol
+          ]
+        );
+
+      if (
+        basePosition.balanceInPips > 0 &&
+        basePosition.updatedTimestampInMs < lastFundingMultiplierTimestampInMs
+      ) {
+        uint256 hoursSinceLastUpdate = (lastFundingMultiplierTimestampInMs -
+          basePosition.updatedTimestampInMs) / Constants.msInOneHour;
+
+        for (
+          uint256 multiplierIndex = fundingMultipliers.length -
+            hoursSinceLastUpdate;
+          multiplierIndex < fundingMultipliers.length;
+          multiplierIndex++
+        ) {
+          fundingInPips +=
+            fundingMultipliers[multiplierIndex] *
+            basePosition.balanceInPips;
+        }
+
+        basePosition.updatedTimestampInMs = lastFundingMultiplierTimestampInMs;
+      }
+    }
+
+    BalanceTracking.Balance storage collateralBalance = _balanceTracking
+      .loadBalanceAndMigrateIfNeeded(wallet, _collateralAssetSymbol);
+    collateralBalance.balanceInPips += fundingInPips;
   }
 
   // Wallet exits //

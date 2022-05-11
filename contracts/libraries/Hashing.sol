@@ -4,7 +4,7 @@ pragma solidity 0.8.13;
 
 import { ECDSA } from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 
-import { Withdrawal } from './Structs.sol';
+import { OraclePrice, Withdrawal } from './Structs.sol';
 
 /**
  * @notice Library helpers for building hashes and verifying wallet signatures
@@ -17,6 +17,21 @@ library Hashing {
   ) internal pure returns (bool) {
     return
       ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
+  }
+
+  function getOraclePriceHash(OraclePrice memory oraclePrice)
+    internal
+    pure
+    returns (bytes32)
+  {
+    return
+      keccak256(
+        abi.encodePacked(
+          oraclePrice.baseAssetSymbol,
+          oraclePrice.timestampInMs,
+          oraclePrice.priceInAssetUnits
+        )
+      );
   }
 
   function getWithdrawalHash(Withdrawal memory withdrawal)

@@ -1,53 +1,28 @@
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { v1 as uuidv1 } from 'uuid';
 
-import { decimalToPips, getWithdrawalHash, getWithdrawArguments } from '../lib';
+import {
+  decimalToPips,
+  getOraclePriceHash,
+  getWithdrawalHash,
+  getWithdrawArguments,
+} from '../lib';
 
 const collateralAssetDecimals = 6;
 
+const millisecondsInAnHour = 60 * 60 * 1000;
+
 describe('Exchange', function () {
-  it('Should work', async function () {
-    const USDC = await ethers.getContractFactory('USDC');
-    const Exchange_v4 = await ethers.getContractFactory('Exchange_v4');
-    const Governance = await ethers.getContractFactory('Governance');
-    const Custodian = await ethers.getContractFactory('Custodian');
-
-    const usdc = await (await USDC.deploy()).deployed();
-
-    const [owner, dispatcher, trader] = await ethers.getSigners();
-
-    const [exchange, governance] = await Promise.all([
-      (
-        await Exchange_v4.deploy(
-          ethers.constants.AddressZero,
-          usdc.address,
-          'USDC',
-          collateralAssetDecimals,
-          owner.address,
-        )
-      ).deployed(),
-      (await Governance.deploy(0)).deployed(),
-    ]);
-
-    const custodian = await (
-      await Custodian.deploy(exchange.address, governance.address)
-    ).deployed();
-
-    await Promise.all([
-      (await exchange.setCustodian(custodian.address)).wait(),
-      (await exchange.setDepositIndex()).wait(),
-      (await exchange.setDispatcher(dispatcher.address)).wait(),
-      (await governance.setCustodian(custodian.address)).wait(),
-    ]);
-
-    const depositQuantity = ethers.utils.parseUnits(
-      '1.0',
-      collateralAssetDecimals,
+  it('deposit and withdraw should work', async function () {
+    const [owner, dispatcher, trader, oracle] = await ethers.getSigners();
+    const { exchange } = await deployAndAssociateContracts(
+      owner,
+      dispatcher,
+      trader,
+      oracle,
     );
-    await usdc.transfer(trader.address, depositQuantity);
-    await usdc.connect(trader).approve(exchange.address, depositQuantity);
-    await (await exchange.connect(trader).deposit(depositQuantity)).wait();
 
     const depositedEvents = await exchange.queryFilter(
       exchange.filters.Deposited(),
@@ -75,20 +50,114 @@ describe('Exchange', function () {
       exchange.filters.Withdrawn(),
     );
     expect(withdrawnEvents.length).to.equal(1);
-    expect(depositedEvents.length).to.equal(1);
-    expect(depositedEvents[0].args?.quantityInPips).to.equal(
+    expect(withdrawnEvents.length).to.equal(1);
+    expect(withdrawnEvents[0].args?.quantityInPips).to.equal(
       decimalToPips('1.00000000'),
     );
+  });
 
-    /*
-    expect(await greeter.greet()).to.equal('Hello, world!');
+  it('publishFundingMutipliers should work', async function () {
+    const [owner, dispatcher, trader, oracle] = await ethers.getSigners();
+    const { exchange } = await deployAndAssociateContracts(
+      owner,
+      dispatcher,
+      trader,
+      oracle,
+    );
 
-    const setGreetingTx = await greeter.setGreeting('Hola, mundo!');
+    await (
+      await exchange.addMarket(
+        'ETH',
+        '300',
+        '500',
+        '100',
+        '14000000000',
+        '2800000000',
+        '282000000000',
+      )
+    ).wait();
 
-    // wait until the transaction is mined
-    await setGreetingTx.wait();
+    const oraclePrice = {
+      baseAssetSymbol: 'ETH',
+      timestampInMs: getPastHourInMs(),
+      priceInAssetUnits: '2023630000',
+      fundingRateInPercentagePips: '-161000000',
+    };
+    const signature = await oracle.signMessage(
+      ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
+    );
+    await (
+      await exchange
+        .connect(dispatcher)
+        .publishFundingMutipliers([{ ...oraclePrice, signature }])
+    ).wait();
 
-    expect(await greeter.greet()).to.equal('Hola, mundo!');
-    */
+    console.log(
+      await exchange.loadBalanceInPipsBySymbol(trader.address, 'USDC'),
+    );
+
+    await (await exchange.updateAccountFunding(trader.address)).wait();
+
+    console.log(
+      await exchange.loadBalanceInPipsBySymbol(trader.address, 'USDC'),
+    );
   });
 });
+
+async function deployAndAssociateContracts(
+  owner: SignerWithAddress,
+  dispatcher: SignerWithAddress = owner,
+  trader: SignerWithAddress = owner,
+  oracle: SignerWithAddress = owner,
+) {
+  const USDC = await ethers.getContractFactory('USDC');
+  const Exchange_v4 = await ethers.getContractFactory('Exchange_v4');
+  const Governance = await ethers.getContractFactory('Governance');
+  const Custodian = await ethers.getContractFactory('Custodian');
+
+  const usdc = await (await USDC.deploy()).deployed();
+
+  const [exchange, governance] = await Promise.all([
+    (
+      await Exchange_v4.deploy(
+        ethers.constants.AddressZero,
+        usdc.address,
+        'USDC',
+        collateralAssetDecimals,
+        owner.address,
+        oracle.address,
+      )
+    ).deployed(),
+    (await Governance.deploy(0)).deployed(),
+  ]);
+
+  const custodian = await (
+    await Custodian.deploy(exchange.address, governance.address)
+  ).deployed();
+
+  await Promise.all([
+    (await exchange.setCustodian(custodian.address)).wait(),
+    (await exchange.setDepositIndex()).wait(),
+    (await exchange.setDispatcher(dispatcher.address)).wait(),
+    (await governance.setCustodian(custodian.address)).wait(),
+  ]);
+
+  const depositQuantity = ethers.utils.parseUnits(
+    '1.0',
+    collateralAssetDecimals,
+  );
+  await usdc.transfer(trader.address, depositQuantity);
+  await usdc.connect(trader).approve(exchange.address, depositQuantity);
+  await (await exchange.connect(trader).deposit(depositQuantity)).wait();
+
+  return { custodian, exchange, governance, usdc };
+}
+
+function getPastHourInMs(hoursAgo = 0) {
+  return new Date(
+    Math.round(
+      (new Date().getTime() - hoursAgo * millisecondsInAnHour) /
+        millisecondsInAnHour,
+    ) * millisecondsInAnHour,
+  ).getTime();
+}

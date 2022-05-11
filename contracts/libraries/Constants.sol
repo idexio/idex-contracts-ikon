@@ -12,8 +12,20 @@ library Constants {
 
   uint64 public constant depositIndexNotSet = 2**64 - 1;
 
+  uint8 public constant maxMarketCount = 50;
+
   // 20%
   uint64 public constant maxFeeBasisPoints = 20 * 100;
 
+  uint64 public constant msInOneHour = 1000 * 60 * 60;
+
   uint8 public constant signatureHashVersion = 5;
+
+  // To convert integer pips to a fractional price shift decimal left by the pip precision of 8
+  // decimals places
+  uint64 public constant pipPriceMultiplier = 10**8;
+
+  // To convert percentage pips to a fraction, shift decimal left by the pip precision of 8
+  // decimals places * 100 percent/total
+  uint64 public constant percentagePipsInTotal = 10**8 * 100;
 }
