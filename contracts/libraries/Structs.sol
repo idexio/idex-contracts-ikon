@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.13;
 
+import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderType } from './Enums.sol';
+
 struct Market {
   // Flag to distinguish from empty struct
   bool exists;
@@ -31,9 +33,65 @@ struct OraclePrice {
   // Price of base asset in quote asset units
   uint256 priceInAssetUnits;
   // Off-chain derived funding rate
-  int64 fundingRateInPercentagePips;
+  int64 fundingRateInPips;
   // Signature from oracle wallet
   bytes signature;
+}
+
+/**
+ * @notice Argument type for `Exchange.executeOrderBookTrade` and `Hashing.getOrderWalletHash`
+ */
+struct Order {
+  // Must equal `Constants.signatureHashVersion`
+  uint8 signatureHashVersion;
+  // UUIDv1 unique to wallet
+  uint128 nonce;
+  // Wallet address that placed order and signed hash
+  address walletAddress;
+  // Type of order
+  OrderType orderType;
+  // Order side wallet is on
+  OrderSide side;
+  // Order quantity in base or quote asset terms depending on isQuantityInQuote flag
+  uint64 quantityInPips;
+  // Is quantityInPips in quote terms
+  bool isQuantityInQuote;
+  // For limit orders, price in decimal pips * 10^8 in quote terms
+  uint64 limitPriceInPips;
+  // For stop orders, stop loss or take profit price in decimal pips * 10^8 in quote terms
+  uint64 stopPriceInPips;
+  // Optional custom client order ID
+  string clientOrderId;
+  // TIF option specified by wallet for order
+  OrderTimeInForce timeInForce;
+  // STP behavior specified by wallet for order
+  OrderSelfTradePrevention selfTradePrevention;
+  // Cancellation time specified by wallet for GTT TIF order
+  uint64 cancelAfter;
+  // The ECDSA signature of the order hash as produced by Hashing.getOrderWalletHash
+  bytes walletSignature;
+}
+
+/**
+ * @notice Argument type for `Exchange.executeOrderBookTrade` specifying execution parameters for matching orders
+ */
+struct OrderBookTrade {
+  // Base asset symbol
+  string baseAssetSymbol;
+  // Quote asset symbol
+  string quoteAssetSymbol;
+  // Amount of base asset executed
+  uint64 baseQuantityInPips;
+  // Amount of quote asset executed
+  uint64 quoteQuantityInPips;
+  // Fee paid by liquidity maker in quote (collateral) asset
+  uint64 makerFeeQuantityInPips;
+  // Fee paid by liquidity taker in quote (collateral) assetr
+  uint64 takerFeeQuantityInPips;
+  // Execution price of trade in decimal pips * 10^8 in quote terms
+  uint64 priceInPips;
+  // Which side of the order (buy or sell) the liquidity maker was on
+  OrderSide makerSide;
 }
 
 /**

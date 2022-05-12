@@ -4,7 +4,8 @@ pragma solidity 0.8.13;
 
 import { ECDSA } from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 
-import { OraclePrice, Withdrawal } from './Structs.sol';
+import { Constants } from './Constants.sol';
+import { OraclePrice, Order, Withdrawal } from './Structs.sol';
 
 /**
  * @notice Library helpers for building hashes and verifying wallet signatures
@@ -30,6 +31,52 @@ library Hashing {
           oraclePrice.baseAssetSymbol,
           oraclePrice.timestampInMs,
           oraclePrice.priceInAssetUnits
+        )
+      );
+  }
+
+  /**
+   * @dev As a gas optimization, base and quote symbols are passed in separately and combined to
+   * verify the wallet hash, since this is cheaper than splitting the market symbol into its two
+   * constituent asset symbols
+   */
+  function getOrderHash(
+    Order memory order,
+    string memory baseSymbol,
+    string memory quoteSymbol
+  ) internal pure returns (bytes32) {
+    require(
+      order.signatureHashVersion == Constants.signatureHashVersion,
+      'Signature hash version invalid'
+    );
+    // Placing all the fields in a single `abi.encodePacked` call causes a `stack too deep` error
+    return
+      keccak256(
+        abi.encodePacked(
+          abi.encodePacked(
+            order.signatureHashVersion,
+            order.nonce,
+            order.walletAddress,
+            string(abi.encodePacked(baseSymbol, '-', quoteSymbol)),
+            uint8(order.orderType),
+            uint8(order.side),
+            // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal
+            // values
+            pipToDecimal(order.quantityInPips)
+          ),
+          abi.encodePacked(
+            order.isQuantityInQuote,
+            order.limitPriceInPips > 0
+              ? pipToDecimal(order.limitPriceInPips)
+              : '',
+            order.stopPriceInPips > 0
+              ? pipToDecimal(order.stopPriceInPips)
+              : '',
+            order.clientOrderId,
+            uint8(order.timeInForce),
+            uint8(order.selfTradePrevention),
+            order.cancelAfter
+          )
         )
       );
   }

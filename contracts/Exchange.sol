@@ -10,11 +10,13 @@ import { Constants } from './libraries/Constants.sol';
 import { Depositing } from './libraries/Depositing.sol';
 import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
+import { OrderSide } from './libraries/Enums.sol';
 import { Owned } from './Owned.sol';
+import { Trading } from './libraries/Trading.sol';
 import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
 import { ICustodian, IExchange } from './libraries/Interfaces.sol';
-import { Market, OraclePrice, Withdrawal } from './libraries/Structs.sol';
+import { Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
 
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
@@ -30,6 +32,19 @@ contract Exchange_v4 is IExchange, Owned {
     address wallet,
     uint64 quantityInPips,
     int64 newExchangeBalanceInPips
+  );
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
+   * `executeOrderBookTrade`
+   */
+  event OrderBookTradeExecuted(
+    address buyWallet,
+    address sellWallet,
+    string baseAssetSymbol,
+    string quoteAssetSymbol,
+    uint64 baseQuantityInPips,
+    uint64 quoteQuantityInPips,
+    OrderSide takerSide
   );
   /**
    * @notice Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
@@ -309,6 +324,56 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  // Trades //
+
+  /**
+   * @notice Settles a trade between two orders submitted and matched off-chain
+   *
+   * @param buy An `Order` struct encoding the parameters of the buy-side order (receiving base,
+   * giving quote)
+   * @param sell An `Order` struct encoding the parameters of the sell-side order (giving base,
+   * receiving quote)
+   * @param orderBookTrade An `OrderBookTrade` struct encoding the parameters of this trade
+   * execution of the two orders
+   */
+  function executeOrderBookTrade(
+    Order memory buy,
+    Order memory sell,
+    OrderBookTrade memory orderBookTrade
+  ) external onlyDispatcher {
+    require(
+      !isWalletExitFinalized(buy.walletAddress),
+      'Buy wallet exit finalized'
+    );
+    require(
+      !isWalletExitFinalized(sell.walletAddress),
+      'Sell wallet exit finalized'
+    );
+
+    Trading.executeOrderBookTrade(
+      buy,
+      sell,
+      orderBookTrade,
+      _feeWallet,
+      _balanceTracking,
+      _collateralAssetSymbol,
+      _completedOrderHashes,
+      _marketsBySymbol,
+      _nonceInvalidations,
+      _partiallyFilledOrderQuantitiesInPips
+    );
+
+    emit OrderBookTradeExecuted(
+      buy.walletAddress,
+      sell.walletAddress,
+      orderBookTrade.baseAssetSymbol,
+      orderBookTrade.quoteAssetSymbol,
+      orderBookTrade.baseQuantityInPips,
+      orderBookTrade.quoteQuantityInPips,
+      orderBookTrade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy
+    );
+  }
+
   // Withdrawing //
 
   /**
@@ -408,8 +473,7 @@ contract Exchange_v4 is IExchange, Owned {
                 _collateralAssetDecimals
               )
             )
-          ) * int256(oraclePrice.fundingRateInPercentagePips)) /
-            int256(uint256(Constants.percentagePipsInTotal))
+          ) * int256(oraclePrice.fundingRateInPips))
         )
       );
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol[

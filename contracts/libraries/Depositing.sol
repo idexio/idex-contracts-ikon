@@ -19,7 +19,7 @@ library Depositing {
     uint8 collateralAssetDecimals,
     ICustodian custodian,
     BalanceTracking.Storage storage balanceTracking
-  ) internal returns (uint64 quantityInPips, int64 newExchangeBalanceInPips) {
+  ) public returns (uint64 quantityInPips, int64 newExchangeBalanceInPips) {
     quantityInPips = AssetUnitConversions.assetUnitsToPips(
       quantityInAssetUnits,
       collateralAssetDecimals

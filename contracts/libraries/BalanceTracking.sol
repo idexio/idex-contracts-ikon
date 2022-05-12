@@ -3,7 +3,8 @@
 pragma solidity 0.8.13;
 
 import { IExchange } from './Interfaces.sol';
-import { Withdrawal } from './Structs.sol';
+import { OrderSide } from './Enums.sol';
+import { Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 library BalanceTracking {
   struct Balance {
@@ -35,6 +36,67 @@ library BalanceTracking {
     balance.balanceInPips += int64(quantityInPips);
 
     return balance.balanceInPips;
+  }
+
+  // Trading //
+
+  /**
+   * @dev Updates buyer, seller, and fee wallet balances for both assets in trade pair according to
+   * trade parameters
+   */
+  function updateForOrderBookTrade(
+    Storage storage self,
+    Order memory buy,
+    Order memory sell,
+    OrderBookTrade memory trade,
+    address feeWallet
+  ) internal {
+    Balance storage balance;
+
+    (uint64 buyFeeInPips, uint64 sellFeeInPips) = trade.makerSide ==
+      OrderSide.Buy
+      ? (trade.makerFeeQuantityInPips, trade.takerFeeQuantityInPips)
+      : (trade.takerFeeQuantityInPips, trade.makerFeeQuantityInPips);
+
+    // Seller gives base asset including fees
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      sell.walletAddress,
+      trade.baseAssetSymbol
+    );
+    balance.balanceInPips -= int64(trade.baseQuantityInPips);
+    // Buyer receives base asset minus fees
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      buy.walletAddress,
+      trade.baseAssetSymbol
+    );
+    balance.balanceInPips += int64(trade.baseQuantityInPips);
+
+    // Buyer gives quote asset including fees
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      buy.walletAddress,
+      trade.quoteAssetSymbol
+    );
+    balance.balanceInPips -= int64(trade.quoteQuantityInPips + buyFeeInPips);
+    // Seller receives quote asset minus fees
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      sell.walletAddress,
+      trade.quoteAssetSymbol
+    );
+    balance.balanceInPips += int64(trade.quoteQuantityInPips - sellFeeInPips);
+
+    // Maker fee to fee wallet
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      feeWallet,
+      trade.quoteAssetSymbol
+    );
+    balance.balanceInPips += int64(
+      trade.makerFeeQuantityInPips + trade.takerFeeQuantityInPips
+    );
   }
 
   // Withdrawing //
