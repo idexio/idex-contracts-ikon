@@ -3,10 +3,11 @@
 pragma solidity 0.8.13;
 
 import { Constants } from './Constants.sol';
-import { OrderSide } from './Enums.sol';
 import { Hashing } from './Hashing.sol';
+import { OrderSide } from './Enums.sol';
 import { Math } from './Math.sol';
 import { OrderType } from './Enums.sol';
+import { String } from './String.sol';
 import { UUID } from './UUID.sol';
 import { Validations } from './Validations.sol';
 import { Market, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
@@ -45,12 +46,12 @@ library OrderBookTradeValidations {
     mapping(string => Market) storage marketsBySymbol
   ) internal view {
     require(
-      !isStringEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
+      !String.isStringEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
       'Trade assets must be different'
     );
 
     require(
-      isStringEqual(trade.quoteAssetSymbol, collateralAssetSymbol),
+      String.isStringEqual(trade.quoteAssetSymbol, collateralAssetSymbol),
       'Quote and collateral symbol mismatch'
     );
 
@@ -219,14 +220,5 @@ library OrderBookTradeValidations {
       orderType == OrderType.LimitMaker ||
       orderType == OrderType.StopLossLimit ||
       orderType == OrderType.TakeProfitLimit;
-  }
-
-  // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays
-  function isStringEqual(string memory a, string memory b)
-    private
-    pure
-    returns (bool)
-  {
-    return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
   }
 }

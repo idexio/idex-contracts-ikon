@@ -10,12 +10,12 @@ struct Market {
   // No need to specify quote asset - it is always the same as the collateral asset
   string baseAssetSymbol;
   // The margin fraction needed to open a position
-  uint64 initialMarginFractionInBasisPoints;
+  uint64 initialMarginFractionInPips;
   // The margin fraction required to prevent liquidation
-  uint64 maintenanceMarginFractionInBasisPoints;
+  uint64 maintenanceMarginFractionInPips;
   // The increase of initialMarginFraction for each incrementalPositionSize above the
   // baselinePositionSize
-  uint64 incrementalInitialMarginFractionInBasisPoints;
+  uint64 incrementalInitialMarginFractionInPips;
   // The max position size in base token before increasing the initial-margin-fraction.
   uint64 baselinePositionSizeInPips;
   // The step size (in base token) for increasing the initialMarginFraction by
@@ -32,8 +32,6 @@ struct OraclePrice {
   uint64 timestampInMs;
   // Price of base asset in quote asset units
   uint256 priceInAssetUnits;
-  // Off-chain derived funding rate
-  int64 fundingRateInPips;
   // Signature from oracle wallet
   bytes signature;
 }

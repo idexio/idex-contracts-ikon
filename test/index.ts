@@ -10,6 +10,7 @@ import {
   getOrderHash,
   getWithdrawalHash,
   getWithdrawArguments,
+  OraclePrice,
   Order,
   OrderSide,
   OrderType,
@@ -78,19 +79,13 @@ describe('Exchange', function () {
       oracle,
     );
 
-    const oraclePrice = {
-      baseAssetSymbol: 'ETH',
-      timestampInMs: getPastHourInMs(),
-      priceInAssetUnits: '2023630000',
-      fundingRateInPips: '-16100',
-    };
-    const signature = await oracle.signMessage(
-      ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
-    );
+    const oraclePrice = await buildOraclePrice(oracle);
+    const fundingRateInPips = '-16100';
+
     await (
       await exchange
         .connect(dispatcher)
-        .publishFundingMutipliers([{ ...oraclePrice, signature }])
+        .publishFundingMutipliers([oraclePrice], [fundingRateInPips])
     ).wait();
   });
 
@@ -159,6 +154,7 @@ describe('Exchange', function () {
         )
     ).wait();
 
+    console.log('Trader1');
     console.log(
       await exchange.loadBalanceInPipsBySymbol(trader1.address, 'USDC'),
     );
@@ -166,11 +162,35 @@ describe('Exchange', function () {
       await exchange.loadBalanceInPipsBySymbol(trader1.address, 'ETH'),
     );
     console.log(
+      await exchange.calculateTotalAccountValue(trader1.address, [
+        await buildOraclePrice(oracle),
+      ]),
+    );
+    console.log(
+      await exchange.calculateTotalInitialMarginRequirement(trader1.address, [
+        await buildOraclePrice(oracle),
+      ]),
+    );
+
+    console.log('Trader2');
+    console.log(
       await exchange.loadBalanceInPipsBySymbol(trader2.address, 'USDC'),
     );
     console.log(
       await exchange.loadBalanceInPipsBySymbol(trader2.address, 'ETH'),
     );
+    console.log(
+      await exchange.calculateTotalAccountValue(trader2.address, [
+        await buildOraclePrice(oracle),
+      ]),
+    );
+    console.log(
+      await exchange.calculateTotalInitialMarginRequirement(trader2.address, [
+        await buildOraclePrice(oracle),
+      ]),
+    );
+
+    console.log('Fee');
     console.log(
       await exchange.loadBalanceInPipsBySymbol(feeWallet.address, 'USDC'),
     );
@@ -186,13 +206,15 @@ async function deployAndAssociateContracts(
   oracle: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
 ) {
-  const [Depositing, Trading, Withdrawing] = await Promise.all([
+  const [Depositing, Perpetual, Trading, Withdrawing] = await Promise.all([
     ethers.getContractFactory('Depositing'),
+    ethers.getContractFactory('Perpetual'),
     ethers.getContractFactory('Trading'),
     ethers.getContractFactory('Withdrawing'),
   ]);
-  const [depositing, trading, withdrawing] = await Promise.all([
+  const [depositing, perpetual, trading, withdrawing] = await Promise.all([
     (await Depositing.deploy()).deployed(),
+    (await Perpetual.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
     (await Withdrawing.deploy()).deployed(),
   ]);
@@ -204,6 +226,7 @@ async function deployAndAssociateContracts(
         Depositing: depositing.address,
         Trading: trading.address,
         Withdrawing: withdrawing.address,
+        Perpetual: perpetual.address,
       },
     }),
     ethers.getContractFactory('Governance'),
@@ -249,6 +272,21 @@ async function deployAndAssociateContracts(
   ]);
 
   return { custodian, exchange, governance, usdc };
+}
+async function buildOraclePrice(
+  oracle: SignerWithAddress,
+): Promise<OraclePrice> {
+  const oraclePrice = {
+    baseAssetSymbol: 'ETH',
+    timestampInMs: getPastHourInMs(),
+    priceInAssetUnits: '2000000000',
+    fundingRateInPips: '-16100',
+  };
+  const signature = await oracle.signMessage(
+    ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
+  );
+
+  return { ...oraclePrice, signature };
 }
 
 function getPastHourInMs(hoursAgo = 0) {

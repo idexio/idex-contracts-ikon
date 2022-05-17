@@ -37,6 +37,7 @@ export interface OraclePrice {
   baseAssetSymbol: string;
   timestampInMs: number;
   priceInAssetUnits: string;
+  signature: string;
 }
 
 export interface Order {
@@ -82,7 +83,9 @@ export const decimalToPips = (decimal: string): string =>
     .integerValue(BigNumber.ROUND_DOWN)
     .toFixed(0);
 
-export const getOraclePriceHash = (oraclePrice: OraclePrice): string => {
+export const getOraclePriceHash = (
+  oraclePrice: Omit<OraclePrice, 'signature'>,
+): string => {
   return solidityHashOfParams([
     ['string', oraclePrice.baseAssetSymbol],
     ['uint64', oraclePrice.timestampInMs],

@@ -3,7 +3,6 @@
 pragma solidity 0.8.13;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
-
 import { AssetUnitConversions } from './libraries/AssetUnitConversions.sol';
 import { BalanceTracking } from './libraries/BalanceTracking.sol';
 import { Constants } from './libraries/Constants.sol';
@@ -12,6 +11,8 @@ import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
 import { OrderSide } from './libraries/Enums.sol';
 import { Owned } from './Owned.sol';
+import { Perpetual } from './libraries/Perpetual.sol';
+import { String } from './libraries/String.sol';
 import { Trading } from './libraries/Trading.sol';
 import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
@@ -407,9 +408,9 @@ contract Exchange_v4 is IExchange, Owned {
 
   function addMarket(
     string calldata baseAssetSymbol,
-    uint64 initialMarginFractionInBasisPoints,
-    uint64 maintenanceMarginFractionInBasisPoints,
-    uint64 incrementalInitialMarginFractionInBasisPoints,
+    uint64 initialMarginFractionInPips,
+    uint64 maintenanceMarginFractionInPips,
+    uint64 incrementalInitialMarginFractionInPips,
     uint64 baselinePositionSizeInPips,
     uint64 incrementalPositionSizeInPips,
     uint64 maximumPositionSizeInPips
@@ -423,9 +424,9 @@ contract Exchange_v4 is IExchange, Owned {
     Market memory market = Market({
       exists: true,
       baseAssetSymbol: baseAssetSymbol,
-      initialMarginFractionInBasisPoints: initialMarginFractionInBasisPoints,
-      maintenanceMarginFractionInBasisPoints: maintenanceMarginFractionInBasisPoints,
-      incrementalInitialMarginFractionInBasisPoints: incrementalInitialMarginFractionInBasisPoints,
+      initialMarginFractionInPips: initialMarginFractionInPips,
+      maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
+      incrementalInitialMarginFractionInPips: incrementalInitialMarginFractionInPips,
       baselinePositionSizeInPips: baselinePositionSizeInPips,
       incrementalPositionSizeInPips: incrementalPositionSizeInPips,
       maximumPositionSizeInPips: maximumPositionSizeInPips
@@ -435,98 +436,81 @@ contract Exchange_v4 is IExchange, Owned {
     _marketsBySymbol[market.baseAssetSymbol] = market;
   }
 
-  // Oracle price feed //
+  // Perps //
 
-  /** @notice Validates oracle signature. Validates oracleTimestampInMs is exactly one hour after
+  /**
+   * @notice Validates oracle signature. Validates oracleTimestampInMs is exactly one hour after
    * _lastFundingRatePublishTimestampInMs. Pushes fundingRate × oraclePrice to
    * _fundingMultipliersByBaseAssetAddress
+   * TODO Validate funding rates
    */
-  function publishFundingMutipliers(OraclePrice[] calldata oraclePrices)
-    external
-  {
-    for (uint8 i = 0; i < oraclePrices.length; i++) {
-      OraclePrice memory oraclePrice = oraclePrices[i];
-
-      Validations.validateOraclePriceSignature(
-        oraclePrice,
-        _oracleWalletAddress
-      );
-
-      uint64 lastPublishTimestampInMs = _lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-          oraclePrice.baseAssetSymbol
-        ];
-      require(
-        lastPublishTimestampInMs > 0
-          ? lastPublishTimestampInMs + Constants.msInOneHour ==
-            oraclePrice.timestampInMs
-          : oraclePrice.timestampInMs % Constants.msInOneHour == 0,
-        'Input price not hour-aligned'
-      );
-
-      // TODO Cleanup typecasts
-      _fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].push(
-        int64(
-          (int256(
-            uint256(
-              AssetUnitConversions.assetUnitsToPips(
-                oraclePrice.priceInAssetUnits,
-                _collateralAssetDecimals
-              )
-            )
-          ) * int256(oraclePrice.fundingRateInPips))
-        )
-      );
-      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-        oraclePrice.baseAssetSymbol
-      ] = oraclePrice.timestampInMs;
-    }
+  function publishFundingMutipliers(
+    OraclePrice[] calldata oraclePrices,
+    int64[] calldata fundingRatesInPips
+  ) external {
+    Perpetual.publishFundingMutipliers(
+      oraclePrices,
+      fundingRatesInPips,
+      _collateralAssetDecimals,
+      _oracleWalletAddress,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+    );
   }
 
-  // True-ups base position funding debits/credits by walking all funding multipliers published
-  // since last position update
+  /**
+   * @notice True-ups base position funding debits/credits by walking all funding multipliers
+   * published since last position update
+   * TODO Readonly version
+   */
   function updateAccountFunding(address wallet) external {
-    int64 fundingInPips;
+    Perpetual.updateAccountFunding(
+      wallet,
+      _collateralAssetSymbol,
+      _balanceTracking,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _markets
+    );
+  }
 
-    for (uint8 marketIndex = 0; marketIndex < _markets.length; marketIndex++) {
-      Market memory market = _markets[marketIndex];
-      BalanceTracking.Balance storage basePosition = _balanceTracking
-        .loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
+  /**
+   * @notice Calculate total account value by formula Q + Σ (Si × Pi). Note Q and S can be negative
+   * TODO Apply outstanding funding payments
+   */
+  function calculateTotalAccountValue(
+    address wallet,
+    OraclePrice[] calldata oraclePrices
+  ) external view returns (int64) {
+    return
+      Perpetual.calculateTotalAccountValue(
+        wallet,
+        oraclePrices,
+        _collateralAssetDecimals,
+        _collateralAssetSymbol,
+        _oracleWalletAddress,
+        _balanceTracking,
+        _markets
+      );
+  }
 
-      (
-        int64[] storage fundingMultipliers,
-        uint64 lastFundingMultiplierTimestampInMs
-      ) = (
-          _fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol],
-          _lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-            market.baseAssetSymbol
-          ]
-        );
-
-      if (
-        basePosition.balanceInPips > 0 &&
-        basePosition.updatedTimestampInMs < lastFundingMultiplierTimestampInMs
-      ) {
-        uint256 hoursSinceLastUpdate = (lastFundingMultiplierTimestampInMs -
-          basePosition.updatedTimestampInMs) / Constants.msInOneHour;
-
-        for (
-          uint256 multiplierIndex = fundingMultipliers.length -
-            hoursSinceLastUpdate;
-          multiplierIndex < fundingMultipliers.length;
-          multiplierIndex++
-        ) {
-          fundingInPips +=
-            fundingMultipliers[multiplierIndex] *
-            basePosition.balanceInPips;
-        }
-
-        basePosition.updatedTimestampInMs = lastFundingMultiplierTimestampInMs;
-      }
-    }
-
-    BalanceTracking.Balance storage collateralBalance = _balanceTracking
-      .loadBalanceAndMigrateIfNeeded(wallet, _collateralAssetSymbol);
-    collateralBalance.balanceInPips += fundingInPips;
+  /**
+   * @notice Calculate total account value by formula Σ abs(Si × Pi × Ii). Note S can be negative
+   * TODO Apply outstanding funding payments
+   */
+  function calculateTotalInitialMarginRequirement(
+    address wallet,
+    OraclePrice[] calldata oraclePrices
+  ) external view returns (uint64) {
+    return
+      Perpetual.calculateTotalInitialMarginRequirement(
+        wallet,
+        oraclePrices,
+        _collateralAssetDecimals,
+        _oracleWalletAddress,
+        _balanceTracking,
+        _markets
+      );
   }
 
   // Wallet exits //
