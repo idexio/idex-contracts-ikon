@@ -20,6 +20,17 @@ library Hashing {
       ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 
+  function getDelegateKeyHash(
+    address publicKey,
+    uint64 expirationTimestampInMs,
+    address walletAddress
+  ) internal pure returns (bytes32) {
+    return
+      keccak256(
+        abi.encodePacked(publicKey, expirationTimestampInMs, walletAddress)
+      );
+  }
+
   function getOraclePriceHash(OraclePrice memory oraclePrice)
     internal
     pure

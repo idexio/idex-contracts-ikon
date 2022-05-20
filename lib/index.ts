@@ -57,6 +57,11 @@ export interface Order {
   cancelAfter?: number;
 }
 
+export interface RegisterDelegateKey {
+  wallet: string;
+  delegateKey: string;
+}
+
 export interface Trade {
   baseAssetSymbol: string;
   quoteAssetSymbol: string;
@@ -110,6 +115,15 @@ export const getOrderHash = (order: Order): string =>
     ['uint8', order.selfTradePrevention || 0],
     ['uint64', order.cancelAfter || 0],
   ]);
+
+export const getRegisterDelegateKeyHash = (
+  delegateKey: Omit<RegisterDelegateKey, 'signature'>,
+): string => {
+  return solidityHashOfParams([
+    ['address', delegateKey.wallet],
+    ['address', delegateKey.delegateKey],
+  ]);
+};
 
 export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
   return solidityHashOfParams([

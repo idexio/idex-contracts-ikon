@@ -3,10 +3,13 @@
 pragma solidity 0.8.13;
 
 import { IExchange } from './Interfaces.sol';
+import { DelegateKeys } from './DelegateKeys.sol';
 import { OrderSide } from './Enums.sol';
 import { Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 library BalanceTracking {
+  using DelegateKeys for DelegateKeys.Storage;
+
   struct Balance {
     bool isMigrated;
     int64 balanceInPips;
@@ -49,7 +52,8 @@ library BalanceTracking {
     Order memory buy,
     Order memory sell,
     OrderBookTrade memory trade,
-    address feeWallet
+    address feeWallet,
+    DelegateKeys.Storage storage delegateKeys
   ) internal {
     Balance storage balance;
 
@@ -58,10 +62,13 @@ library BalanceTracking {
       ? (trade.makerFeeQuantityInPips, trade.takerFeeQuantityInPips)
       : (trade.takerFeeQuantityInPips, trade.makerFeeQuantityInPips);
 
+    address sellWalletAddress = delegateKeys.loadWalletAddressByDelegateKey(
+      sell.walletAddress
+    );
     // Seller gives base asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      sell.walletAddress,
+      sellWalletAddress,
       trade.baseAssetSymbol
     );
     balance.balanceInPips -= int64(trade.baseQuantityInPips);
@@ -73,17 +80,20 @@ library BalanceTracking {
     );
     balance.balanceInPips += int64(trade.baseQuantityInPips);
 
+    address buyWalletAddress = delegateKeys.loadWalletAddressByDelegateKey(
+      buy.walletAddress
+    );
     // Buyer gives quote asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      buy.walletAddress,
+      buyWalletAddress,
       trade.quoteAssetSymbol
     );
     balance.balanceInPips -= int64(trade.quoteQuantityInPips + buyFeeInPips);
     // Seller receives quote asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      sell.walletAddress,
+      buyWalletAddress,
       trade.quoteAssetSymbol
     );
     balance.balanceInPips += int64(trade.quoteQuantityInPips - sellFeeInPips);

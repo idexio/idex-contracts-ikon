@@ -8,6 +8,7 @@ import {
   getExecuteOrderBookTradeArguments,
   getOraclePriceHash,
   getOrderHash,
+  getRegisterDelegateKeyHash,
   getWithdrawalHash,
   getWithdrawArguments,
   OraclePrice,
@@ -90,14 +91,25 @@ describe('Exchange', function () {
   });
 
   it.only('executeOrderBookTrade should work', async function () {
-    const [owner, dispatcher, oracle, trader1, trader2, feeWallet] =
-      await ethers.getSigners();
+    const [
+      owner,
+      dispatcher,
+      oracle,
+      trader1,
+      trader2,
+      trader1Delegate,
+      feeWallet,
+    ] = await ethers.getSigners();
     const { exchange } = await deployAndAssociateContracts(
       owner,
       dispatcher,
       oracle,
       feeWallet,
     );
+
+    await exchange
+      .connect(dispatcher)
+      .registerDelegateKey(trader1, trader1Delegate);
 
     const sellOrder: Order = {
       signatureHashVersion,
@@ -110,7 +122,7 @@ describe('Exchange', function () {
       isQuantityInQuote: false,
       price: '2000.00000000',
     };
-    const sellOrderSignature = await trader1.signMessage(
+    const sellOrderSignature = await trader1Delegate.signMessage(
       ethers.utils.arrayify(getOrderHash(sellOrder)),
     );
 
