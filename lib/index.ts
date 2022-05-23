@@ -57,9 +57,11 @@ export interface Order {
   cancelAfter?: number;
 }
 
-export interface RegisterDelegateKey {
-  wallet: string;
-  delegateKey: string;
+export interface DelegatedKeyAuthorization {
+  delegatedPublicKey: string;
+  walletAddress: string;
+  expirationTimestampInMs: number;
+  signature: string;
 }
 
 export interface Trade {
@@ -116,12 +118,13 @@ export const getOrderHash = (order: Order): string =>
     ['uint64', order.cancelAfter || 0],
   ]);
 
-export const getRegisterDelegateKeyHash = (
-  delegateKey: Omit<RegisterDelegateKey, 'signature'>,
+export const getDelegatedKeyAuthorizationHash = (
+  delegateKey: Omit<DelegatedKeyAuthorization, 'signature'>,
 ): string => {
   return solidityHashOfParams([
-    ['address', delegateKey.wallet],
-    ['address', delegateKey.delegateKey],
+    ['address', delegateKey.delegatedPublicKey],
+    ['uint64', delegateKey.expirationTimestampInMs],
+    ['address', delegateKey.walletAddress],
   ]);
 };
 
@@ -139,10 +142,20 @@ export const getExecuteOrderBookTradeArguments = (
   sellOrder: Order,
   sellWalletSignature: string,
   trade: Trade,
+  buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
+  sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
 ): ExchangeV4['executeOrderBookTrade']['arguments'] => {
   return [
-    orderToArgumentStruct(buyOrder, buyWalletSignature),
-    orderToArgumentStruct(sellOrder, sellWalletSignature),
+    orderToArgumentStruct(
+      buyOrder,
+      buyWalletSignature,
+      buyDelegatedKeyAuthorization,
+    ),
+    orderToArgumentStruct(
+      sellOrder,
+      sellWalletSignature,
+      sellDelegatedKeyAuthorization,
+    ),
     tradeToArgumentStruct(trade, buyOrder),
   ] as const;
 };
@@ -181,7 +194,11 @@ const solidityHashOfParams = (params: TypeValuePair[]): string => {
   return ethers.utils.solidityKeccak256(fields, values);
 };
 
-const orderToArgumentStruct = (o: Order, walletSignature: string) => {
+const orderToArgumentStruct = (
+  o: Order,
+  walletSignature: string,
+  delegatedKeyAuthorization?: DelegatedKeyAuthorization,
+) => {
   return {
     signatureHashVersion: o.signatureHashVersion,
     nonce: uuidToHexString(o.nonce),
@@ -197,6 +214,13 @@ const orderToArgumentStruct = (o: Order, walletSignature: string) => {
     selfTradePrevention: o.selfTradePrevention || 0,
     cancelAfter: o.cancelAfter || 0,
     walletSignature,
+    isSignedByDelegatedKey: !!delegatedKeyAuthorization,
+    delegatedKeyAuthorization: delegatedKeyAuthorization || {
+      delegatedPublicKey: ethers.constants.AddressZero,
+      expirationTimestampInMs: 0,
+      walletAddress: ethers.constants.AddressZero,
+      signature: `0x${Buffer.alloc(65).toString('hex')}`,
+    },
   };
 };
 

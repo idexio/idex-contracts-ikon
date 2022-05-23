@@ -6,7 +6,6 @@ import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { AssetUnitConversions } from './libraries/AssetUnitConversions.sol';
 import { BalanceTracking } from './libraries/BalanceTracking.sol';
 import { Constants } from './libraries/Constants.sol';
-import { DelegateKeys } from './libraries/DelegateKeys.sol';
 import { Depositing } from './libraries/Depositing.sol';
 import { Hashing } from './libraries/Hashing.sol';
 import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
@@ -75,8 +74,6 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(bytes32 => bool) _completedWithdrawalHashes;
   // Custodian
   ICustodian _custodian;
-  // Delegate keys
-  DelegateKeys.Storage _delegateKeys;
   // Deposit index
   uint64 public _depositIndex;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
@@ -342,9 +339,9 @@ contract Exchange_v4 is IExchange, Owned {
    * execution of the two orders
    */
   function executeOrderBookTrade(
-    Order memory buy,
-    Order memory sell,
-    OrderBookTrade memory orderBookTrade
+    Order calldata buy,
+    Order calldata sell,
+    OrderBookTrade calldata orderBookTrade
   ) external onlyDispatcher {
     require(
       !isWalletExitFinalized(buy.walletAddress),
@@ -361,7 +358,6 @@ contract Exchange_v4 is IExchange, Owned {
       orderBookTrade,
       _feeWallet,
       _balanceTracking,
-      _delegateKeys,
       _collateralAssetSymbol,
       _completedOrderHashes,
       _marketsBySymbol,
@@ -516,40 +512,6 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _markets
       );
-  }
-
-  // Delegate keys //
-
-  /**
-   * @notice Registers a new delegate key by verifying a signed request and adding a corresponding
-   * entry to _walletsByDelegateKey
-   * TODO Validate funding rates
-   */
-  function registerDelegateKey(
-    address publicKey,
-    uint64 expirationTimestampInMs,
-    address walletAddress,
-    bytes calldata signature
-  ) external {
-    require(
-      Hashing.isSignatureValid(
-        Hashing.getDelegateKeyHash(
-          publicKey,
-          expirationTimestampInMs,
-          walletAddress
-        ),
-        signature,
-        walletAddress
-      ),
-      'Invalid signature'
-    );
-
-    _delegateKeys.delegateKeysByPublicKey[publicKey] = DelegateKeys
-      .DelegateKey({
-        exists: true,
-        expirationTimestampInMs: expirationTimestampInMs,
-        walletAddress: walletAddress
-      });
   }
 
   // Wallet exits //

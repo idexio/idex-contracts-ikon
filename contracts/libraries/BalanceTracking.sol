@@ -3,13 +3,11 @@
 pragma solidity 0.8.13;
 
 import { IExchange } from './Interfaces.sol';
-import { DelegateKeys } from './DelegateKeys.sol';
+import { DelegatedKeys } from './DelegatedKeys.sol';
 import { OrderSide } from './Enums.sol';
 import { Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 library BalanceTracking {
-  using DelegateKeys for DelegateKeys.Storage;
-
   struct Balance {
     bool isMigrated;
     int64 balanceInPips;
@@ -52,8 +50,7 @@ library BalanceTracking {
     Order memory buy,
     Order memory sell,
     OrderBookTrade memory trade,
-    address feeWallet,
-    DelegateKeys.Storage storage delegateKeys
+    address feeWallet
   ) internal {
     Balance storage balance;
 
@@ -62,9 +59,8 @@ library BalanceTracking {
       ? (trade.makerFeeQuantityInPips, trade.takerFeeQuantityInPips)
       : (trade.takerFeeQuantityInPips, trade.makerFeeQuantityInPips);
 
-    address sellWalletAddress = delegateKeys.loadWalletAddressByDelegateKey(
-      sell.walletAddress
-    );
+    address sellWalletAddress = DelegatedKeys
+      .loadWalletAddressOrDelegatedPublicKey(sell);
     // Seller gives base asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
@@ -80,9 +76,8 @@ library BalanceTracking {
     );
     balance.balanceInPips += int64(trade.baseQuantityInPips);
 
-    address buyWalletAddress = delegateKeys.loadWalletAddressByDelegateKey(
-      buy.walletAddress
-    );
+    address buyWalletAddress = DelegatedKeys
+      .loadWalletAddressOrDelegatedPublicKey(buy);
     // Buyer gives quote asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,

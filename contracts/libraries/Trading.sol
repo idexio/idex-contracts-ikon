@@ -3,7 +3,6 @@
 pragma solidity 0.8.13;
 
 import { BalanceTracking } from './BalanceTracking.sol';
-import { DelegateKeys } from './DelegateKeys.sol';
 import { OrderBookTradeValidations } from './OrderBookTradeValidations.sol';
 import { OrderSide, OrderType } from './Enums.sol';
 import { Market, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
@@ -17,7 +16,6 @@ library Trading {
     OrderBookTrade memory orderBookTrade,
     address feeWallet,
     BalanceTracking.Storage storage balanceTracking,
-    DelegateKeys.Storage storage delegateKeys,
     string memory collateralAssetSymbol,
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(string => Market) storage marketsBySymbol,
@@ -48,8 +46,7 @@ library Trading {
       buy,
       sell,
       orderBookTrade,
-      feeWallet,
-      delegateKeys
+      feeWallet
     );
   }
 

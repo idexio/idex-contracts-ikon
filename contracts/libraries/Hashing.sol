@@ -5,7 +5,7 @@ pragma solidity 0.8.13;
 import { ECDSA } from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 
 import { Constants } from './Constants.sol';
-import { OraclePrice, Order, Withdrawal } from './Structs.sol';
+import { DelegatedKeyAuthorization, OraclePrice, Order, Withdrawal } from './Structs.sol';
 
 /**
  * @notice Library helpers for building hashes and verifying wallet signatures
@@ -20,14 +20,16 @@ library Hashing {
       ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 
-  function getDelegateKeyHash(
-    address publicKey,
-    uint64 expirationTimestampInMs,
-    address walletAddress
+  function getDelegatedKeyHash(
+    DelegatedKeyAuthorization memory delegatedKeyAuthorization
   ) internal pure returns (bytes32) {
     return
       keccak256(
-        abi.encodePacked(publicKey, expirationTimestampInMs, walletAddress)
+        abi.encodePacked(
+          delegatedKeyAuthorization.delegatedPublicKey,
+          delegatedKeyAuthorization.expirationTimestampInMs,
+          delegatedKeyAuthorization.walletAddress
+        )
       );
   }
 

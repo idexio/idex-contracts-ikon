@@ -4,6 +4,17 @@ pragma solidity 0.8.13;
 
 import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderType } from './Enums.sol';
 
+struct DelegatedKeyAuthorization {
+  // Public component of ECDSA signing key pair
+  address delegatedPublicKey;
+  // Milliseconds since epoch
+  uint64 expirationTimestampInMs;
+  // Authorizing wallet address associated with delegate key
+  address walletAddress;
+  // ECDSA signature of hash by delegate private key
+  bytes signature;
+}
+
 struct Market {
   // Flag to distinguish from empty struct
   bool exists;
@@ -44,7 +55,7 @@ struct Order {
   uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
-  // Wallet address that placed order and signed hash
+  // Custody wallet address that placed order and (if not using delegate wallet) signed hash
   address walletAddress;
   // Type of order
   OrderType orderType;
@@ -68,6 +79,10 @@ struct Order {
   uint64 cancelAfter;
   // The ECDSA signature of the order hash as produced by Hashing.getOrderWalletHash
   bytes walletSignature;
+  // Asserted when signed by delegated key instead of custody wallet
+  bool isSignedByDelegatedKey;
+  // If non-zero, an authorization for a delegate key signer authorized by the custody wallet
+  DelegatedKeyAuthorization delegatedKeyAuthorization;
 }
 
 /**

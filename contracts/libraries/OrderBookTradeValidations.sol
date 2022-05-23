@@ -143,12 +143,25 @@ library OrderBookTradeValidations {
       quoteAssetSymbol
     );
 
-    require(
-      Hashing.isSignatureValid(
+    bool isSignatureValid = order.isSignedByDelegatedKey
+      ? (Hashing.isSignatureValid(
+        Hashing.getDelegatedKeyHash(order.delegatedKeyAuthorization),
+        order.delegatedKeyAuthorization.signature,
+        order.walletAddress
+      ) &&
+        Hashing.isSignatureValid(
+          orderHash,
+          order.walletSignature,
+          order.delegatedKeyAuthorization.delegatedPublicKey
+        ))
+      : Hashing.isSignatureValid(
         orderHash,
         order.walletSignature,
         order.walletAddress
-      ),
+      );
+
+    require(
+      isSignatureValid,
       order.side == OrderSide.Buy
         ? 'Invalid wallet signature for buy order'
         : 'Invalid wallet signature for sell order'

@@ -5,10 +5,10 @@ import { v1 as uuidv1 } from 'uuid';
 
 import {
   decimalToPips,
+  getDelegatedKeyAuthorizationHash,
   getExecuteOrderBookTradeArguments,
   getOraclePriceHash,
   getOrderHash,
-  getRegisterDelegateKeyHash,
   getWithdrawalHash,
   getWithdrawArguments,
   OraclePrice,
@@ -107,9 +107,20 @@ describe('Exchange', function () {
       feeWallet,
     );
 
-    await exchange
-      .connect(dispatcher)
-      .registerDelegateKey(trader1, trader1Delegate);
+    const trader1DelegatedKeyAuthorization = {
+      delegatedPublicKey: trader1Delegate.address,
+      expirationTimestampInMs: Date.now() + 10000,
+      walletAddress: trader1.address,
+    };
+    const trader1DelegatedKeyAuthorizationSignature = await trader1.signMessage(
+      ethers.utils.arrayify(
+        getDelegatedKeyAuthorizationHash(trader1DelegatedKeyAuthorization),
+      ),
+    );
+    const sellDelegatedKeyAuthorization = {
+      ...trader1DelegatedKeyAuthorization,
+      signature: trader1DelegatedKeyAuthorizationSignature,
+    };
 
     const sellOrder: Order = {
       signatureHashVersion,
@@ -153,17 +164,17 @@ describe('Exchange', function () {
     };
 
     await (
-      await exchange
-        .connect(dispatcher)
-        .executeOrderBookTrade(
-          ...getExecuteOrderBookTradeArguments(
-            buyOrder,
-            buyOrderSignature,
-            sellOrder,
-            sellOrderSignature,
-            trade,
-          ),
-        )
+      await exchange.connect(dispatcher).executeOrderBookTrade(
+        ...getExecuteOrderBookTradeArguments(
+          buyOrder,
+          buyOrderSignature,
+          sellOrder,
+          sellOrderSignature,
+          trade,
+          /*undefined,
+            sellDelegatedKeyAuthorization,*/
+        ),
+      )
     ).wait();
 
     console.log('Trader1');
