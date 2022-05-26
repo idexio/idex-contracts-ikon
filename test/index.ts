@@ -90,7 +90,7 @@ describe('Exchange', function () {
     ).wait();
   });
 
-  it.only('executeOrderBookTrade should work', async function () {
+  it('executeOrderBookTrade should work', async function () {
     const [
       owner,
       dispatcher,
@@ -107,9 +107,11 @@ describe('Exchange', function () {
       feeWallet,
     );
 
+    await (await exchange.setDelegateKeyExpirationPeriod(10000000)).wait();
+
     const trader1DelegatedKeyAuthorization = {
       delegatedPublicKey: trader1Delegate.address,
-      nonce: uuidv1(),
+      nonce: uuidv1({ msecs: new Date().getTime() - 1000 }),
     };
     const trader1DelegatedKeyAuthorizationSignature = await trader1.signMessage(
       ethers.utils.arrayify(
@@ -235,27 +237,32 @@ async function deployAndAssociateContracts(
   oracle: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
 ) {
-  const [Depositing, Perpetual, Trading, Withdrawing] = await Promise.all([
-    ethers.getContractFactory('Depositing'),
-    ethers.getContractFactory('Perpetual'),
-    ethers.getContractFactory('Trading'),
-    ethers.getContractFactory('Withdrawing'),
-  ]);
-  const [depositing, perpetual, trading, withdrawing] = await Promise.all([
-    (await Depositing.deploy()).deployed(),
-    (await Perpetual.deploy()).deployed(),
-    (await Trading.deploy()).deployed(),
-    (await Withdrawing.deploy()).deployed(),
-  ]);
+  const [Depositing, NonceInvalidations, Perpetual, Trading, Withdrawing] =
+    await Promise.all([
+      ethers.getContractFactory('Depositing'),
+      ethers.getContractFactory('NonceInvalidations'),
+      ethers.getContractFactory('Perpetual'),
+      ethers.getContractFactory('Trading'),
+      ethers.getContractFactory('Withdrawing'),
+    ]);
+  const [depositing, nonceInvalidations, perpetual, trading, withdrawing] =
+    await Promise.all([
+      (await Depositing.deploy()).deployed(),
+      (await NonceInvalidations.deploy()).deployed(),
+      (await Perpetual.deploy()).deployed(),
+      (await Trading.deploy()).deployed(),
+      (await Withdrawing.deploy()).deployed(),
+    ]);
 
   const [USDC, Exchange_v4, Governance, Custodian] = await Promise.all([
     ethers.getContractFactory('USDC'),
     ethers.getContractFactory('Exchange_v4', {
       libraries: {
         Depositing: depositing.address,
+        NonceInvalidations: nonceInvalidations.address,
+        Perpetual: perpetual.address,
         Trading: trading.address,
         Withdrawing: withdrawing.address,
-        Perpetual: perpetual.address,
       },
     }),
     ethers.getContractFactory('Governance'),

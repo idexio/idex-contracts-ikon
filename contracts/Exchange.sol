@@ -63,6 +63,15 @@ contract Exchange_v4 is IExchange, Owned {
     OrderSide takerSide
   );
   /**
+   * @notice Emitted when a user invalidates an order nonce with `invalidateOrderNonce`
+   */
+  event OrderNonceInvalidated(
+    address wallet,
+    uint128 nonce,
+    uint128 timestampInMs,
+    uint256 effectiveBlockNumber
+  );
+  /**
    * @notice Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
   event Withdrawn(
@@ -193,7 +202,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @param newDelegateKeyExpirationPeriodInMs The new Delegate Key Expiration Period expressed as milliseconds. Must
    * be less than `Constants.maxDelegateKeyExpirationPeriodInMs`
    */
-  function setDelegateKeyExpirationPeriodInMs(
+  function setDelegateKeyExpirationPeriod(
     uint64 newDelegateKeyExpirationPeriodInMs
   ) external onlyAdmin {
     require(
@@ -588,5 +597,26 @@ contract Exchange_v4 is IExchange, Owned {
   function isWalletExitFinalized(address wallet) internal view returns (bool) {
     WalletExit storage exit = _walletExits[wallet];
     return exit.exists && exit.effectiveBlockNumber <= block.number;
+  }
+
+  // Invalidation //
+
+  /**
+   * @notice Invalidate all order nonces with a timestampInMs lower than the one provided
+   *
+   * @param nonce A Version 1 UUID. After calling and once the Chain Propagation Period has
+   * elapsed, `executeOrderBookTrade` will reject order nonces from this wallet with a
+   * timestampInMs component lower than the one provided
+   */
+  function invalidateOrderNonce(uint128 nonce) external {
+    (uint64 timestampInMs, uint256 effectiveBlockNumber) = _nonceInvalidations
+      .invalidateOrderNonce(nonce, _chainPropagationPeriodInBlocks);
+
+    emit OrderNonceInvalidated(
+      msg.sender,
+      nonce,
+      timestampInMs,
+      effectiveBlockNumber
+    );
   }
 }
