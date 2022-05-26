@@ -27,6 +27,20 @@ contract Exchange_v4 is IExchange, Owned {
   // Events //
 
   /**
+   * @notice Emitted when an admin changes the Chain Propagation Period tunable parameter with
+   * `setChainPropagationPeriod`
+   */
+  event ChainPropagationPeriodChanged(uint256 previousValue, uint256 newValue);
+  /**
+   * @notice Emitted when an admin changes the Delegate Key Expiration Period tunable parameter with
+   * `setDelegateKeyExpirationPeriod`
+   */
+  event DelegateKeyExpirationPeriodChanged(
+    uint256 previousValue,
+    uint256 newValue
+  );
+
+  /**
    * @notice Emitted when a user deposits collateral tokens with `deposit`
    */
   event Deposited(
@@ -98,7 +112,8 @@ contract Exchange_v4 is IExchange, Owned {
   uint8 immutable _collateralAssetDecimals;
 
   // Tunable parameters
-  uint256 _chainPropagationPeriod;
+  uint256 _chainPropagationPeriodInBlocks;
+  uint64 _delegateKeyExpirationPeriodInMs;
   address _dispatcherWallet;
   address _feeWallet;
 
@@ -141,6 +156,59 @@ contract Exchange_v4 is IExchange, Owned {
 
     // Deposits must be manually enabled via `setDepositIndex`
     _depositIndex = Constants.depositIndexNotSet;
+  }
+
+  // Tunable parameters //
+
+  /**
+   * @notice Sets a new Chain Propagation Period - the block delay after which order nonce invalidations
+   * are respected by `executeTrade` and wallet exits are respected by `executeTrade` and `withdraw`
+   *
+   * @param newChainPropagationPeriodInBlocks The new Chain Propagation Period expressed as a number of blocks. Must
+   * be less than `Constants.maxChainPropagationPeriodInBlocks`
+   */
+  function setChainPropagationPeriod(uint256 newChainPropagationPeriodInBlocks)
+    external
+    onlyAdmin
+  {
+    require(
+      newChainPropagationPeriodInBlocks <
+        Constants.maxChainPropagationPeriodInBlocks,
+      'Must be less than 1 week'
+    );
+
+    uint256 oldChainPropagationPeriodInBlocks = _chainPropagationPeriodInBlocks;
+    _chainPropagationPeriodInBlocks = newChainPropagationPeriodInBlocks;
+
+    emit ChainPropagationPeriodChanged(
+      oldChainPropagationPeriodInBlocks,
+      newChainPropagationPeriodInBlocks
+    );
+  }
+
+  /**
+   * @notice Sets a new Delegate Key Expiration Period - the delay following a delegated key's nonce timestamp after
+   * which it cannot be used to sign orders
+   *
+   * @param newDelegateKeyExpirationPeriodInMs The new Delegate Key Expiration Period expressed as milliseconds. Must
+   * be less than `Constants.maxDelegateKeyExpirationPeriodInMs`
+   */
+  function setDelegateKeyExpirationPeriodInMs(
+    uint64 newDelegateKeyExpirationPeriodInMs
+  ) external onlyAdmin {
+    require(
+      newDelegateKeyExpirationPeriodInMs <
+        Constants.maxDelegateKeyExpirationPeriodInMs,
+      'Must be less than 1 week'
+    );
+
+    uint64 oldDelegateKeyExpirationPeriodInMs = _delegateKeyExpirationPeriodInMs;
+    _delegateKeyExpirationPeriodInMs = newDelegateKeyExpirationPeriodInMs;
+
+    emit DelegateKeyExpirationPeriodChanged(
+      oldDelegateKeyExpirationPeriodInMs,
+      newDelegateKeyExpirationPeriodInMs
+    );
   }
 
   /**
@@ -359,6 +427,7 @@ contract Exchange_v4 is IExchange, Owned {
       _feeWallet,
       _balanceTracking,
       _collateralAssetSymbol,
+      _delegateKeyExpirationPeriodInMs,
       _completedOrderHashes,
       _marketsBySymbol,
       _nonceInvalidations,

@@ -3,7 +3,6 @@
 pragma solidity 0.8.13;
 
 import { IExchange } from './Interfaces.sol';
-import { DelegatedKeys } from './DelegatedKeys.sol';
 import { OrderSide } from './Enums.sol';
 import { Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
@@ -59,12 +58,10 @@ library BalanceTracking {
       ? (trade.makerFeeQuantityInPips, trade.takerFeeQuantityInPips)
       : (trade.takerFeeQuantityInPips, trade.makerFeeQuantityInPips);
 
-    address sellWalletAddress = DelegatedKeys
-      .loadWalletAddressOrDelegatedPublicKey(sell);
     // Seller gives base asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      sellWalletAddress,
+      sell.walletAddress,
       trade.baseAssetSymbol
     );
     balance.balanceInPips -= int64(trade.baseQuantityInPips);
@@ -76,19 +73,17 @@ library BalanceTracking {
     );
     balance.balanceInPips += int64(trade.baseQuantityInPips);
 
-    address buyWalletAddress = DelegatedKeys
-      .loadWalletAddressOrDelegatedPublicKey(buy);
     // Buyer gives quote asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      buyWalletAddress,
+      buy.walletAddress,
       trade.quoteAssetSymbol
     );
     balance.balanceInPips -= int64(trade.quoteQuantityInPips + buyFeeInPips);
     // Seller receives quote asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      buyWalletAddress,
+      sell.walletAddress,
       trade.quoteAssetSymbol
     );
     balance.balanceInPips += int64(trade.quoteQuantityInPips - sellFeeInPips);

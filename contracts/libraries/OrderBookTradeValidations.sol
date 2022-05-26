@@ -18,6 +18,7 @@ library OrderBookTradeValidations {
     Order memory sell,
     OrderBookTrade memory trade,
     string memory collateralAssetSymbol,
+    uint64 delegateKeyExpirationPeriodInMs,
     mapping(string => Market) storage marketsBySymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations
   ) internal view returns (bytes32, bytes32) {
@@ -29,7 +30,12 @@ library OrderBookTradeValidations {
     // Order book trade validations
     validateAssetPair(trade, collateralAssetSymbol, marketsBySymbol);
     validateLimitPrices(buy, sell, trade);
-    validateOrderNonces(buy, sell, nonceInvalidations);
+    validateOrderNonces(
+      buy,
+      sell,
+      delegateKeyExpirationPeriodInMs,
+      nonceInvalidations
+    );
     (bytes32 buyHash, bytes32 sellHash) = validateOrderSignatures(
       buy,
       sell,
@@ -99,18 +105,42 @@ library OrderBookTradeValidations {
   function validateOrderNonces(
     Order memory buy,
     Order memory sell,
+    uint64 delegateKeyExpirationPeriodInMs,
     mapping(address => NonceInvalidation) storage nonceInvalidations
   ) internal view {
+    uint64 lastInvalidatedTimestamp = loadLastInvalidatedTimestamp(
+      buy.walletAddress,
+      nonceInvalidations
+    );
     require(
-      UUID.getTimestampInMsFromUuidV1(buy.nonce) >
-        loadLastInvalidatedTimestamp(buy.walletAddress, nonceInvalidations),
+      UUID.getTimestampInMsFromUuidV1(buy.nonce) > lastInvalidatedTimestamp,
       'Buy order nonce timestamp too low'
     );
+    if (buy.isSignedByDelegatedKey) {
+      require(
+        UUID.getTimestampInMsFromUuidV1(buy.delegatedKeyAuthorization.nonce) +
+          delegateKeyExpirationPeriodInMs >
+          lastInvalidatedTimestamp,
+        'Buy order delegated key expired'
+      );
+    }
+
+    lastInvalidatedTimestamp = loadLastInvalidatedTimestamp(
+      sell.walletAddress,
+      nonceInvalidations
+    );
     require(
-      UUID.getTimestampInMsFromUuidV1(sell.nonce) >
-        loadLastInvalidatedTimestamp(sell.walletAddress, nonceInvalidations),
+      UUID.getTimestampInMsFromUuidV1(sell.nonce) > lastInvalidatedTimestamp,
       'Sell order nonce timestamp too low'
     );
+    if (sell.isSignedByDelegatedKey) {
+      require(
+        UUID.getTimestampInMsFromUuidV1(sell.delegatedKeyAuthorization.nonce) +
+          delegateKeyExpirationPeriodInMs >
+          lastInvalidatedTimestamp,
+        'Sell order delegated key expired'
+      );
+    }
   }
 
   function validateOrderSignatures(
@@ -145,7 +175,10 @@ library OrderBookTradeValidations {
 
     bool isSignatureValid = order.isSignedByDelegatedKey
       ? (Hashing.isSignatureValid(
-        Hashing.getDelegatedKeyHash(order.delegatedKeyAuthorization),
+        Hashing.getDelegatedKeyHash(
+          order.walletAddress,
+          order.delegatedKeyAuthorization
+        ),
         order.delegatedKeyAuthorization.signature,
         order.walletAddress
       ) &&

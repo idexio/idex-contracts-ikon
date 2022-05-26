@@ -12,6 +12,14 @@ library Constants {
 
   uint64 public constant depositIndexNotSet = 2**64 - 1;
 
+  // 1 week at 3s/block
+  uint256 public constant maxChainPropagationPeriodInBlocks =
+    (7 * 24 * 60 * 60) / 3;
+
+  // 1 week
+  uint256 public constant maxDelegateKeyExpirationPeriodInMs =
+    7 * 24 * 60 * 60 * 1000;
+
   uint8 public constant maxMarketCount = 50;
 
   // 20%

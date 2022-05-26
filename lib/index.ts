@@ -58,9 +58,8 @@ export interface Order {
 }
 
 export interface DelegatedKeyAuthorization {
+  nonce: string;
   delegatedPublicKey: string;
-  walletAddress: string;
-  expirationTimestampInMs: number;
   signature: string;
 }
 
@@ -100,8 +99,11 @@ export const getOraclePriceHash = (
   ]);
 };
 
-export const getOrderHash = (order: Order): string =>
-  solidityHashOfParams([
+export const getOrderHash = (
+  order: Order,
+  delegatedKeyAuthorization?: DelegatedKeyAuthorization,
+): string => {
+  let params: TypeValuePair[] = [
     ['uint8', order.signatureHashVersion], // Signature hash version - only version 2 supported
     ['uint128', uuidToUint8Array(order.nonce)],
     ['address', order.wallet],
@@ -116,15 +118,27 @@ export const getOrderHash = (order: Order): string =>
     ['uint8', order.timeInForce || 0],
     ['uint8', order.selfTradePrevention || 0],
     ['uint64', order.cancelAfter || 0],
-  ]);
+  ];
+
+  if (delegatedKeyAuthorization) {
+    params = [
+      ...params,
+      ['uint128', uuidToUint8Array(delegatedKeyAuthorization.nonce)],
+      ['address', delegatedKeyAuthorization.delegatedPublicKey],
+    ];
+  }
+
+  return solidityHashOfParams(params);
+};
 
 export const getDelegatedKeyAuthorizationHash = (
-  delegateKey: Omit<DelegatedKeyAuthorization, 'signature'>,
+  walletAddress: string,
+  delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
 ): string => {
   return solidityHashOfParams([
-    ['address', delegateKey.delegatedPublicKey],
-    ['uint64', delegateKey.expirationTimestampInMs],
-    ['address', delegateKey.walletAddress],
+    ['uint128', uuidToUint8Array(delegatedKeyAuthorization.nonce)],
+    ['address', walletAddress],
+    ['address', delegatedKeyAuthorization.delegatedPublicKey],
   ]);
 };
 
@@ -215,12 +229,17 @@ const orderToArgumentStruct = (
     cancelAfter: o.cancelAfter || 0,
     walletSignature,
     isSignedByDelegatedKey: !!delegatedKeyAuthorization,
-    delegatedKeyAuthorization: delegatedKeyAuthorization || {
-      delegatedPublicKey: ethers.constants.AddressZero,
-      expirationTimestampInMs: 0,
-      walletAddress: ethers.constants.AddressZero,
-      signature: `0x${Buffer.alloc(65).toString('hex')}`,
-    },
+    delegatedKeyAuthorization: delegatedKeyAuthorization
+      ? {
+          nonce: uuidToHexString(delegatedKeyAuthorization.nonce),
+          delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
+          signature: delegatedKeyAuthorization.signature,
+        }
+      : {
+          nonce: 0,
+          delegatedPublicKey: ethers.constants.AddressZero,
+          signature: '0x',
+        },
   };
 };
 

@@ -9,7 +9,7 @@ library NonceInvalidations {
   function invalidateOrderNonce(
     mapping(address => NonceInvalidation) storage self,
     uint128 nonce,
-    uint256 chainPropagationPeriod
+    uint256 chainPropagationPeriodInBlocks
   ) external returns (uint64 timestampInMs, uint256 effectiveBlockNumber) {
     timestampInMs = UUID.getTimestampInMsFromUuidV1(nonce);
     // Enforce a maximum skew for invalidating nonce timestamps in the future so the user doesn't
@@ -28,7 +28,7 @@ library NonceInvalidations {
     }
 
     // Changing the Chain Propagation Period will not affect the effectiveBlockNumber for this invalidation
-    effectiveBlockNumber = block.number + chainPropagationPeriod;
+    effectiveBlockNumber = block.number + chainPropagationPeriodInBlocks;
     self[msg.sender] = NonceInvalidation(
       true,
       timestampInMs,

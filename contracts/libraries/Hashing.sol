@@ -21,14 +21,15 @@ library Hashing {
   }
 
   function getDelegatedKeyHash(
+    address walletAddress,
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
   ) internal pure returns (bytes32) {
     return
       keccak256(
         abi.encodePacked(
-          delegatedKeyAuthorization.delegatedPublicKey,
-          delegatedKeyAuthorization.expirationTimestampInMs,
-          delegatedKeyAuthorization.walletAddress
+          delegatedKeyAuthorization.nonce,
+          walletAddress,
+          delegatedKeyAuthorization.delegatedPublicKey
         )
       );
   }
@@ -89,7 +90,13 @@ library Hashing {
             uint8(order.timeInForce),
             uint8(order.selfTradePrevention),
             order.cancelAfter
-          )
+          ),
+          order.isSignedByDelegatedKey
+            ? abi.encodePacked(
+              order.delegatedKeyAuthorization.nonce,
+              order.delegatedKeyAuthorization.delegatedPublicKey
+            )
+            : abi.encodePacked('')
         )
       );
   }

@@ -5,12 +5,10 @@ pragma solidity 0.8.13;
 import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderType } from './Enums.sol';
 
 struct DelegatedKeyAuthorization {
+  // UUIDv1 unique to wallet
+  uint128 nonce;
   // Public component of ECDSA signing key pair
   address delegatedPublicKey;
-  // Milliseconds since epoch
-  uint64 expirationTimestampInMs;
-  // Authorizing wallet address associated with delegate key
-  address walletAddress;
   // ECDSA signature of hash by delegate private key
   bytes signature;
 }

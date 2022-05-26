@@ -109,12 +109,14 @@ describe('Exchange', function () {
 
     const trader1DelegatedKeyAuthorization = {
       delegatedPublicKey: trader1Delegate.address,
-      expirationTimestampInMs: Date.now() + 10000,
-      walletAddress: trader1.address,
+      nonce: uuidv1(),
     };
     const trader1DelegatedKeyAuthorizationSignature = await trader1.signMessage(
       ethers.utils.arrayify(
-        getDelegatedKeyAuthorizationHash(trader1DelegatedKeyAuthorization),
+        getDelegatedKeyAuthorizationHash(
+          trader1.address,
+          trader1DelegatedKeyAuthorization,
+        ),
       ),
     );
     const sellDelegatedKeyAuthorization = {
@@ -134,7 +136,9 @@ describe('Exchange', function () {
       price: '2000.00000000',
     };
     const sellOrderSignature = await trader1Delegate.signMessage(
-      ethers.utils.arrayify(getOrderHash(sellOrder)),
+      ethers.utils.arrayify(
+        getOrderHash(sellOrder, sellDelegatedKeyAuthorization),
+      ),
     );
 
     const buyOrder: Order = {
@@ -164,17 +168,19 @@ describe('Exchange', function () {
     };
 
     await (
-      await exchange.connect(dispatcher).executeOrderBookTrade(
-        ...getExecuteOrderBookTradeArguments(
-          buyOrder,
-          buyOrderSignature,
-          sellOrder,
-          sellOrderSignature,
-          trade,
-          /*undefined,
-            sellDelegatedKeyAuthorization,*/
-        ),
-      )
+      await exchange
+        .connect(dispatcher)
+        .executeOrderBookTrade(
+          ...getExecuteOrderBookTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+            undefined,
+            sellDelegatedKeyAuthorization,
+          ),
+        )
     ).wait();
 
     console.log('Trader1');

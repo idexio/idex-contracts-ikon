@@ -17,6 +17,7 @@ library Trading {
     address feeWallet,
     BalanceTracking.Storage storage balanceTracking,
     string memory collateralAssetSymbol,
+    uint64 delegateKeyExpirationPeriodInMs,
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(string => Market) storage marketsBySymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
@@ -28,6 +29,7 @@ library Trading {
         sell,
         orderBookTrade,
         collateralAssetSymbol,
+        delegateKeyExpirationPeriodInMs,
         marketsBySymbol,
         nonceInvalidations
       );
