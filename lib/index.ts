@@ -2,6 +2,9 @@ import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import { ExchangeV4 } from '../typechain';
 
+/** The fixed number of digits following the decimal in quantities expressed as pips */
+export const pipsDecimals = 8;
+
 export const signatureHashVersion = 5;
 
 export enum OrderSelfTradePrevention {
@@ -79,6 +82,12 @@ export interface Withdrawal {
   wallet: string;
   quantity: string; // Decimal string
 }
+
+export const decimalToAssetUnits = (
+  decimal: string,
+  decimals: number,
+): string => pipsToAssetUnits(decimalToPips(decimal), decimals);
+
 /**
  * Convert decimal quantity string to integer pips as expected by contract structs. Truncates
  * anything beyond 8 decimals
@@ -86,6 +95,15 @@ export interface Withdrawal {
 export const decimalToPips = (decimal: string): string =>
   new BigNumber(decimal)
     .shiftedBy(8)
+    .integerValue(BigNumber.ROUND_DOWN)
+    .toFixed(0);
+
+/**
+ * Convert pips to native token quantity, taking the nunmber of decimals into account
+ */
+export const pipsToAssetUnits = (pips: string, decimals: number): string =>
+  new BigNumber(pips)
+    .shiftedBy(decimals - 8) // This is still correct when decimals < 8
     .integerValue(BigNumber.ROUND_DOWN)
     .toFixed(0);
 
@@ -156,6 +174,7 @@ export const getExecuteOrderBookTradeArguments = (
   sellOrder: Order,
   sellWalletSignature: string,
   trade: Trade,
+  oraclePrices: OraclePrice[],
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
 ): ExchangeV4['executeOrderBookTrade']['arguments'] => {
@@ -171,6 +190,7 @@ export const getExecuteOrderBookTradeArguments = (
       sellDelegatedKeyAuthorization,
     ),
     tradeToArgumentStruct(trade, buyOrder),
+    oraclePrices.map(oraclePriceToArgumentStruct),
   ] as const;
 };
 
@@ -206,6 +226,21 @@ const solidityHashOfParams = (params: TypeValuePair[]): string => {
   const fields = params.map((param) => param[0]);
   const values = params.map((param) => param[1]);
   return ethers.utils.solidityKeccak256(fields, values);
+};
+
+const oraclePriceToArgumentStruct = (
+  o: OraclePrice,
+  collateralAssetDecimals: number,
+) => {
+  return {
+    baseAssetSymbol: o.baseAssetSymbol,
+    timestampInMs: o.timestampInMs,
+    priceInAssetUnits: decimalToAssetUnits(
+      o.priceInAssetUnits,
+      collateralAssetDecimals,
+    ),
+    signature: o.signature,
+  };
 };
 
 const orderToArgumentStruct = (

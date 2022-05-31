@@ -5,50 +5,86 @@ pragma solidity 0.8.13;
 import { BalanceTracking } from './BalanceTracking.sol';
 import { OrderBookTradeValidations } from './OrderBookTradeValidations.sol';
 import { OrderSide, OrderType } from './Enums.sol';
-import { Market, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
+import { Perpetual } from './Perpetual.sol';
+import { Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
 
+  struct ExecuteOrderBookTradeArguments {
+    // External arguments
+    Order buy;
+    Order sell;
+    OrderBookTrade orderBookTrade;
+    OraclePrice[] oraclePrices;
+    // Exchange state
+    uint8 collateralAssetDecimals;
+    string collateralAssetSymbol;
+    uint64 delegateKeyExpirationPeriodInMs;
+    address feeWallet;
+    address oracleWalletAddress;
+  }
+
   function executeOrderBookTrade(
-    Order memory buy,
-    Order memory sell,
-    OrderBookTrade memory orderBookTrade,
-    address feeWallet,
+    ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    string memory collateralAssetSymbol,
-    uint64 delegateKeyExpirationPeriodInMs,
     mapping(bytes32 => bool) storage completedOrderHashes,
+    Market[] storage markets,
     mapping(string => Market) storage marketsBySymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) public {
     (bytes32 buyHash, bytes32 sellHash) = OrderBookTradeValidations
       .validateOrderBookTrade(
-        buy,
-        sell,
-        orderBookTrade,
-        collateralAssetSymbol,
-        delegateKeyExpirationPeriodInMs,
+        arguments.buy,
+        arguments.sell,
+        arguments.orderBookTrade,
+        arguments.collateralAssetSymbol,
+        arguments.delegateKeyExpirationPeriodInMs,
         marketsBySymbol,
         nonceInvalidations
       );
 
     updateOrderFilledQuantities(
-      buy,
+      arguments.buy,
       buyHash,
-      sell,
+      arguments.sell,
       sellHash,
-      orderBookTrade,
+      arguments.orderBookTrade,
       completedOrderHashes,
       partiallyFilledOrderQuantitiesInPips
     );
 
     balanceTracking.updateForOrderBookTrade(
-      buy,
-      sell,
-      orderBookTrade,
-      feeWallet
+      arguments.buy,
+      arguments.sell,
+      arguments.orderBookTrade,
+      arguments.feeWallet
+    );
+
+    require(
+      Perpetual.isInitialMarginRequirementMet(
+        arguments.buy.walletAddress,
+        arguments.oraclePrices,
+        arguments.collateralAssetDecimals,
+        arguments.collateralAssetSymbol,
+        arguments.oracleWalletAddress,
+        balanceTracking,
+        markets
+      ),
+      'Initial margin requirement not met for buy wallet'
+    );
+    require(
+      Perpetual.isInitialMarginRequirementMet(
+        arguments.sell.walletAddress,
+        arguments.oraclePrices,
+        arguments.collateralAssetDecimals,
+        arguments.collateralAssetSymbol,
+        arguments.oracleWalletAddress,
+        balanceTracking,
+        markets
+      ),
+      'Initial margin requirement not met for sell wallet'
     );
   }
 

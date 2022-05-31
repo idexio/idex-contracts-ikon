@@ -1,9 +1,12 @@
+import type { BigNumber as EthersBigNumber } from 'ethers';
+import BigNumber from 'bignumber.js';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { v1 as uuidv1 } from 'uuid';
 
 import {
+  decimalToAssetUnits,
   decimalToPips,
   getDelegatedKeyAuthorizationHash,
   getExecuteOrderBookTradeArguments,
@@ -15,6 +18,7 @@ import {
   Order,
   OrderSide,
   OrderType,
+  pipsDecimals,
   signatureHashVersion,
   Trade,
 } from '../lib';
@@ -90,7 +94,7 @@ describe('Exchange', function () {
     ).wait();
   });
 
-  it('executeOrderBookTrade should work', async function () {
+  it.only('executeOrderBookTrade should work', async function () {
     const [
       owner,
       dispatcher,
@@ -100,12 +104,63 @@ describe('Exchange', function () {
       trader1Delegate,
       feeWallet,
     ] = await ethers.getSigners();
-    const { exchange } = await deployAndAssociateContracts(
+    const { exchange, usdc } = await deployAndAssociateContracts(
       owner,
       dispatcher,
       oracle,
       feeWallet,
     );
+
+    await Promise.all([
+      (
+        await usdc.transfer(
+          trader1.address,
+          decimalToAssetUnits('1000.00000000', collateralAssetDecimals),
+        )
+      ).wait(),
+      (
+        await usdc.transfer(
+          trader2.address,
+          decimalToAssetUnits('1000.00000000', collateralAssetDecimals),
+        )
+      ).wait(),
+    ]);
+
+    await Promise.all([
+      (
+        await usdc
+          .connect(trader1)
+          .approve(
+            exchange.address,
+            decimalToAssetUnits('1000.00000000', collateralAssetDecimals),
+          )
+      ).wait(),
+      (
+        await usdc
+          .connect(trader2)
+          .approve(
+            exchange.address,
+            decimalToAssetUnits('1000.00000000', collateralAssetDecimals),
+          )
+      ).wait(),
+    ]);
+
+    await Promise.all([
+      (
+        await exchange
+          .connect(trader1)
+          .deposit(
+            decimalToAssetUnits('1000.00000000', collateralAssetDecimals),
+          )
+      ).wait(),
+      (
+        await exchange
+          .connect(trader2)
+          .deposit(
+            decimalToAssetUnits('1000.00000000', collateralAssetDecimals),
+          )
+      ).wait(),
+    ]);
 
     await (await exchange.setDelegateKeyExpirationPeriod(10000000)).wait();
 
@@ -169,6 +224,8 @@ describe('Exchange', function () {
       makerSide: OrderSide.Sell,
     };
 
+    const oraclePrice = await buildOraclePrice(oracle);
+
     await (
       await exchange
         .connect(dispatcher)
@@ -179,6 +236,7 @@ describe('Exchange', function () {
             sellOrder,
             sellOrderSignature,
             trade,
+            [oraclePrice],
             undefined,
             sellDelegatedKeyAuthorization,
           ),
@@ -187,46 +245,54 @@ describe('Exchange', function () {
 
     console.log('Trader1');
     console.log(
-      await exchange.loadBalanceInPipsBySymbol(trader1.address, 'USDC'),
+      `USDC balance: ${pipToDecimal(
+        await exchange.loadBalanceInPipsBySymbol(trader1.address, 'USDC'),
+      )}`,
     );
     console.log(
-      await exchange.loadBalanceInPipsBySymbol(trader1.address, 'ETH'),
+      `ETH balance:  ${pipToDecimal(
+        await exchange.loadBalanceInPipsBySymbol(trader1.address, 'ETH'),
+      )}`,
     );
     console.log(
-      await exchange.calculateTotalAccountValue(trader1.address, [
-        await buildOraclePrice(oracle),
-      ]),
+      `Total account value: ${pipToDecimal(
+        await exchange.calculateTotalAccountValue(trader1.address, [
+          await buildOraclePrice(oracle),
+        ]),
+      )}`,
     );
     console.log(
-      await exchange.calculateTotalInitialMarginRequirement(trader1.address, [
-        await buildOraclePrice(oracle),
-      ]),
+      `Initial margin requirement: ${pipToDecimal(
+        await exchange.calculateTotalInitialMarginRequirement(trader1.address, [
+          await buildOraclePrice(oracle),
+        ]),
+      )}`,
     );
 
     console.log('Trader2');
     console.log(
-      await exchange.loadBalanceInPipsBySymbol(trader2.address, 'USDC'),
+      `USDC balance: ${pipToDecimal(
+        await exchange.loadBalanceInPipsBySymbol(trader2.address, 'USDC'),
+      )}`,
     );
     console.log(
-      await exchange.loadBalanceInPipsBySymbol(trader2.address, 'ETH'),
+      `ETH balance:  ${pipToDecimal(
+        await exchange.loadBalanceInPipsBySymbol(trader2.address, 'ETH'),
+      )}`,
     );
     console.log(
-      await exchange.calculateTotalAccountValue(trader2.address, [
-        await buildOraclePrice(oracle),
-      ]),
+      `Total account value: ${pipToDecimal(
+        await exchange.calculateTotalAccountValue(trader2.address, [
+          await buildOraclePrice(oracle),
+        ]),
+      )}`,
     );
     console.log(
-      await exchange.calculateTotalInitialMarginRequirement(trader2.address, [
-        await buildOraclePrice(oracle),
-      ]),
-    );
-
-    console.log('Fee');
-    console.log(
-      await exchange.loadBalanceInPipsBySymbol(feeWallet.address, 'USDC'),
-    );
-    console.log(
-      await exchange.loadBalanceInPipsBySymbol(feeWallet.address, 'ETH'),
+      `Initial margin requirement: ${pipToDecimal(
+        await exchange.calculateTotalInitialMarginRequirement(trader2.address, [
+          await buildOraclePrice(oracle),
+        ]),
+      )}`,
     );
   });
 });
@@ -297,9 +363,9 @@ async function deployAndAssociateContracts(
     (
       await exchange.addMarket(
         'ETH',
-        '300',
-        '500',
-        '100',
+        '5000000',
+        '3000000',
+        '1000000',
         '14000000000',
         '2800000000',
         '282000000000',
@@ -333,3 +399,17 @@ function getPastHourInMs(hoursAgo = 0) {
     ) * millisecondsInAnHour,
   ).getTime();
 }
+
+/**
+ * Returns the given number of pips as a floating point number with 8 decimals.
+ * Examples:
+ * BigInt(12345678) => '0.12345678'
+ * BigInt(123456789) => '1.23456789'
+ * BigInt(100000000) => '1.00000000'
+ * BigInt(120000000) => '1.20000000'
+ * BigInt(1) => '0.00000001'
+ */
+const pipToDecimal = function pipToDecimal(pips: EthersBigNumber): string {
+  const bn = new BigNumber(pips.toString());
+  return bn.shiftedBy(pipsDecimals * -1).toFixed(pipsDecimals);
+};

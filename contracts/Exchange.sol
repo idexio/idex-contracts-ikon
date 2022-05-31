@@ -418,7 +418,8 @@ contract Exchange_v4 is IExchange, Owned {
   function executeOrderBookTrade(
     Order calldata buy,
     Order calldata sell,
-    OrderBookTrade calldata orderBookTrade
+    OrderBookTrade calldata orderBookTrade,
+    OraclePrice[] calldata oraclePrices
   ) external onlyDispatcher {
     require(
       !isWalletExitFinalized(buy.walletAddress),
@@ -429,15 +430,26 @@ contract Exchange_v4 is IExchange, Owned {
       'Sell wallet exit finalized'
     );
 
+    // TODO Move updates into Trading to avoid extra delegate calls
+    updateAccountFunding(buy.walletAddress);
+    updateAccountFunding(sell.walletAddress);
+
     Trading.executeOrderBookTrade(
-      buy,
-      sell,
-      orderBookTrade,
-      _feeWallet,
+      // We wrap the arguments in a struct to avoid 'Stack too deep' errors
+      Trading.ExecuteOrderBookTradeArguments(
+        buy,
+        sell,
+        orderBookTrade,
+        oraclePrices,
+        _collateralAssetDecimals,
+        _collateralAssetSymbol,
+        _delegateKeyExpirationPeriodInMs,
+        _feeWallet,
+        _oracleWalletAddress
+      ),
       _balanceTracking,
-      _collateralAssetSymbol,
-      _delegateKeyExpirationPeriodInMs,
       _completedOrderHashes,
+      _markets,
       _marketsBySymbol,
       _nonceInvalidations,
       _partiallyFilledOrderQuantitiesInPips
@@ -462,16 +474,25 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param withdrawal A `Withdrawal` struct encoding the parameters of the withdrawal
    */
-  function withdraw(Withdrawal memory withdrawal) public onlyDispatcher {
+  function withdraw(
+    Withdrawal memory withdrawal,
+    OraclePrice[] calldata oraclePrices
+  ) public onlyDispatcher {
     require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
 
+    // TODO Move updates into Withdrawing to avoid extra delegate calls
+    updateAccountFunding(withdrawal.walletAddress);
+
     int64 newExchangeBalanceInPips = Withdrawing.withdraw(
-      withdrawal,
-      _collateralAssetAddress,
-      _collateralAssetSymbol,
-      _collateralAssetDecimals,
-      _custodian,
-      _feeWallet,
+      Withdrawing.WithdrawArguments(
+        withdrawal,
+        oraclePrices,
+        _collateralAssetAddress,
+        _collateralAssetDecimals,
+        _collateralAssetSymbol,
+        _custodian,
+        _feeWallet
+      ),
       _balanceTracking,
       _completedWithdrawalHashes
     );
@@ -542,7 +563,7 @@ contract Exchange_v4 is IExchange, Owned {
    * published since last position update
    * TODO Readonly version
    */
-  function updateAccountFunding(address wallet) external {
+  function updateAccountFunding(address wallet) public {
     Perpetual.updateAccountFunding(
       wallet,
       _collateralAssetSymbol,

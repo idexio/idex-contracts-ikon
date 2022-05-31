@@ -6,33 +6,40 @@ import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
 import { ICustodian } from './Interfaces.sol';
-import { Withdrawal } from './Structs.sol';
 import { Validations } from './Validations.sol';
+import { OraclePrice, Withdrawal } from './Structs.sol';
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
 
+  struct WithdrawArguments {
+    // External arguments
+    Withdrawal withdrawal;
+    OraclePrice[] oraclePrices;
+    // Exchange state
+    address collateralAssetAddress;
+    uint8 collateralAssetDecimals;
+    string collateralAssetSymbol;
+    ICustodian custodian;
+    address feeWallet;
+  }
+
   function withdraw(
-    Withdrawal memory withdrawal,
-    address collateralAssetAddress,
-    string memory collateralAssetSymbol,
-    uint8 collateralAssetDecimals,
-    ICustodian custodian,
-    address feeWallet,
+    WithdrawArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(bytes32 => bool) storage completedWithdrawalHashes
   ) public returns (int64 newExchangeBalanceInPips) {
     // Validations
     require(
       Validations.isFeeQuantityValid(
-        withdrawal.gasFeeInPips,
-        withdrawal.grossQuantityInPips,
+        arguments.withdrawal.gasFeeInPips,
+        arguments.withdrawal.grossQuantityInPips,
         Constants.maxFeeBasisPoints
       ),
       'Excessive withdrawal fee'
     );
     bytes32 withdrawalHash = Validations.validateWithdrawalSignature(
-      withdrawal
+      arguments.withdrawal
     );
     require(
       !completedWithdrawalHashes[withdrawalHash],
@@ -41,20 +48,21 @@ library Withdrawing {
 
     // Update wallet balances
     newExchangeBalanceInPips = balanceTracking.updateForWithdrawal(
-      withdrawal,
-      collateralAssetSymbol,
-      feeWallet
+      arguments.withdrawal,
+      arguments.collateralAssetSymbol,
+      arguments.feeWallet
     );
 
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions
       .pipsToAssetUnits(
-        withdrawal.grossQuantityInPips - withdrawal.gasFeeInPips,
-        collateralAssetDecimals
+        arguments.withdrawal.grossQuantityInPips -
+          arguments.withdrawal.gasFeeInPips,
+        arguments.collateralAssetDecimals
       );
-    custodian.withdraw(
-      withdrawal.walletAddress,
-      collateralAssetAddress,
+    arguments.custodian.withdraw(
+      arguments.withdrawal.walletAddress,
+      arguments.collateralAssetAddress,
       netAssetQuantityInAssetUnits
     );
 
