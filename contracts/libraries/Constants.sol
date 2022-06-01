@@ -16,9 +16,9 @@ library Constants {
   uint256 public constant maxChainPropagationPeriodInBlocks =
     (7 * 24 * 60 * 60) / 3;
 
-  // 1 week
+  // 1 year
   uint256 public constant maxDelegateKeyExpirationPeriodInMs =
-    7 * 24 * 60 * 60 * 1000;
+    365 * 24 * 60 * 60 * 1000;
 
   uint8 public constant maxMarketCount = 50;
 

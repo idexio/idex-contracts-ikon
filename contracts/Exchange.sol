@@ -430,10 +430,6 @@ contract Exchange_v4 is IExchange, Owned {
       'Sell wallet exit finalized'
     );
 
-    // TODO Move updates into Trading to avoid extra delegate calls
-    updateAccountFunding(buy.walletAddress);
-    updateAccountFunding(sell.walletAddress);
-
     Trading.executeOrderBookTrade(
       // We wrap the arguments in a struct to avoid 'Stack too deep' errors
       Trading.ExecuteOrderBookTradeArguments(
@@ -449,6 +445,8 @@ contract Exchange_v4 is IExchange, Owned {
       ),
       _balanceTracking,
       _completedOrderHashes,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _markets,
       _marketsBySymbol,
       _nonceInvalidations,
@@ -480,9 +478,6 @@ contract Exchange_v4 is IExchange, Owned {
   ) public onlyDispatcher {
     require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
 
-    // TODO Move updates into Withdrawing to avoid extra delegate calls
-    updateAccountFunding(withdrawal.walletAddress);
-
     int64 newExchangeBalanceInPips = Withdrawing.withdraw(
       Withdrawing.WithdrawArguments(
         withdrawal,
@@ -491,10 +486,14 @@ contract Exchange_v4 is IExchange, Owned {
         _collateralAssetDecimals,
         _collateralAssetSymbol,
         _custodian,
-        _feeWallet
+        _feeWallet,
+        _oracleWalletAddress
       ),
       _balanceTracking,
-      _completedWithdrawalHashes
+      _completedWithdrawalHashes,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _markets
     );
 
     emit Withdrawn(
@@ -563,8 +562,8 @@ contract Exchange_v4 is IExchange, Owned {
    * published since last position update
    * TODO Readonly version
    */
-  function updateAccountFunding(address wallet) public {
-    Perpetual.updateAccountFunding(
+  function updateWalletFunding(address wallet) public {
+    Perpetual.updateWalletFunding(
       wallet,
       _collateralAssetSymbol,
       _balanceTracking,

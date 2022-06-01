@@ -198,6 +198,7 @@ export const getWithdrawArguments = (
   withdrawal: Withdrawal,
   gasFee: string,
   walletSignature: string,
+  oraclePrices: OraclePrice[],
 ): ExchangeV4['withdraw']['arguments'] => {
   return [
     {
@@ -207,6 +208,7 @@ export const getWithdrawArguments = (
       gasFeeInPips: decimalToPips(gasFee),
       walletSignature,
     },
+    oraclePrices,
   ];
 };
 

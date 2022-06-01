@@ -29,6 +29,9 @@ library Trading {
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(bytes32 => bool) storage completedOrderHashes,
+    mapping(string => int64[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     Market[] storage markets,
     mapping(string => Market) storage marketsBySymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
@@ -55,6 +58,18 @@ library Trading {
       partiallyFilledOrderQuantitiesInPips
     );
 
+    // Funding payments must be made prior to updating any position to ensure that the funding is calculated
+    // against the position size at the time of each historic multipler
+    Perpetual.updateWalletsFunding(
+      arguments.buy.walletAddress,
+      arguments.sell.walletAddress,
+      arguments.collateralAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      markets
+    );
+
     balanceTracking.updateForOrderBookTrade(
       arguments.buy,
       arguments.sell,
@@ -62,30 +77,7 @@ library Trading {
       arguments.feeWallet
     );
 
-    require(
-      Perpetual.isInitialMarginRequirementMet(
-        arguments.buy.walletAddress,
-        arguments.oraclePrices,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol,
-        arguments.oracleWalletAddress,
-        balanceTracking,
-        markets
-      ),
-      'Initial margin requirement not met for buy wallet'
-    );
-    require(
-      Perpetual.isInitialMarginRequirementMet(
-        arguments.sell.walletAddress,
-        arguments.oraclePrices,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol,
-        arguments.oracleWalletAddress,
-        balanceTracking,
-        markets
-      ),
-      'Initial margin requirement not met for sell wallet'
-    );
+    validateInitialMarginRequirements(arguments, balanceTracking, markets);
   }
 
   function updateOrderFilledQuantities(
@@ -160,6 +152,37 @@ library Trading {
       delete partiallyFilledOrderQuantitiesInPips[orderHash];
       completedOrderHashes[orderHash] = true;
     }
+  }
+
+  function validateInitialMarginRequirements(
+    ExecuteOrderBookTradeArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    Market[] storage markets
+  ) private {
+    require(
+      Perpetual.isInitialMarginRequirementMet(
+        arguments.buy.walletAddress,
+        arguments.oraclePrices,
+        arguments.collateralAssetDecimals,
+        arguments.collateralAssetSymbol,
+        arguments.oracleWalletAddress,
+        balanceTracking,
+        markets
+      ),
+      'Initial margin requirement not met for buy wallet'
+    );
+    require(
+      Perpetual.isInitialMarginRequirementMet(
+        arguments.sell.walletAddress,
+        arguments.oraclePrices,
+        arguments.collateralAssetDecimals,
+        arguments.collateralAssetSymbol,
+        arguments.oracleWalletAddress,
+        balanceTracking,
+        markets
+      ),
+      'Initial margin requirement not met for sell wallet'
+    );
   }
 
   function isMarketOrderType(OrderType orderType) private pure returns (bool) {

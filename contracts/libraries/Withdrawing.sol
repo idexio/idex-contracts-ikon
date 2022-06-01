@@ -6,8 +6,9 @@ import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
 import { ICustodian } from './Interfaces.sol';
+import { Perpetual } from './Perpetual.sol';
 import { Validations } from './Validations.sol';
-import { OraclePrice, Withdrawal } from './Structs.sol';
+import { Market, OraclePrice, Withdrawal } from './Structs.sol';
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -22,12 +23,17 @@ library Withdrawing {
     string collateralAssetSymbol;
     ICustodian custodian;
     address feeWallet;
+    address oracleWalletAddress;
   }
 
   function withdraw(
     WithdrawArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(bytes32 => bool) storage completedWithdrawalHashes
+    mapping(bytes32 => bool) storage completedWithdrawalHashes,
+    mapping(string => int64[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    Market[] storage markets
   ) public returns (int64 newExchangeBalanceInPips) {
     // Validations
     require(
@@ -51,6 +57,28 @@ library Withdrawing {
       arguments.withdrawal,
       arguments.collateralAssetSymbol,
       arguments.feeWallet
+    );
+
+    Perpetual.updateWalletFundingInternal(
+      arguments.withdrawal.walletAddress,
+      arguments.collateralAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      markets
+    );
+
+    require(
+      Perpetual.isInitialMarginRequirementMet(
+        arguments.withdrawal.walletAddress,
+        arguments.oraclePrices,
+        arguments.collateralAssetDecimals,
+        arguments.collateralAssetSymbol,
+        arguments.oracleWalletAddress,
+        balanceTracking,
+        markets
+      ),
+      'Initial margin requirement not met for buy wallet'
     );
 
     // Transfer funds from Custodian to wallet

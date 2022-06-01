@@ -4,14 +4,15 @@ pragma solidity 0.8.13;
 
 import { IExchange } from './Interfaces.sol';
 import { OrderSide } from './Enums.sol';
+import { UUID } from './UUID.sol';
 import { Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 library BalanceTracking {
   struct Balance {
     bool isMigrated;
     int64 balanceInPips;
-    // The updated timestamp is only relevant for base asset positions
-    uint64 updatedTimestampInMs;
+    // The last funding update timestamp is only relevant for base asset positions
+    uint64 lastUpdateTimestampInMs;
   }
 
   struct Storage {
@@ -53,10 +54,22 @@ library BalanceTracking {
   ) internal {
     Balance storage balance;
 
-    (uint64 buyFeeInPips, uint64 sellFeeInPips) = trade.makerSide ==
-      OrderSide.Buy
-      ? (trade.makerFeeQuantityInPips, trade.takerFeeQuantityInPips)
-      : (trade.takerFeeQuantityInPips, trade.makerFeeQuantityInPips);
+    (
+      uint64 buyFeeInPips,
+      uint64 sellFeeInPips,
+      // Use the taker order nonce timestamp as the time of execution
+      uint64 executionTimestampInMs
+    ) = trade.makerSide == OrderSide.Buy
+        ? (
+          trade.makerFeeQuantityInPips,
+          trade.takerFeeQuantityInPips,
+          UUID.getTimestampInMsFromUuidV1(sell.nonce)
+        )
+        : (
+          trade.takerFeeQuantityInPips,
+          trade.makerFeeQuantityInPips,
+          UUID.getTimestampInMsFromUuidV1(buy.nonce)
+        );
 
     // Seller gives base asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
@@ -65,6 +78,7 @@ library BalanceTracking {
       trade.baseAssetSymbol
     );
     balance.balanceInPips -= int64(trade.baseQuantityInPips);
+    balance.lastUpdateTimestampInMs = executionTimestampInMs;
     // Buyer receives base asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
@@ -72,6 +86,7 @@ library BalanceTracking {
       trade.baseAssetSymbol
     );
     balance.balanceInPips += int64(trade.baseQuantityInPips);
+    balance.lastUpdateTimestampInMs = executionTimestampInMs;
 
     // Buyer gives quote asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
