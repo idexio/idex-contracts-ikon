@@ -95,9 +95,9 @@ struct OrderBookTrade {
   uint64 baseQuantityInPips;
   // Amount of quote asset executed
   uint64 quoteQuantityInPips;
-  // Fee paid by liquidity maker in quote (collateral) asset
-  uint64 makerFeeQuantityInPips;
-  // Fee paid by liquidity taker in quote (collateral) assetr
+  // Fee paid by (or, if negative, rebated to) liquidity maker in quote (collateral) asset
+  int64 makerFeeQuantityInPips;
+  // Fee paid by liquidity taker in quote (collateral) asset
   uint64 takerFeeQuantityInPips;
   // Execution price of trade in decimal pips * 10^8 in quote terms
   uint64 priceInPips;

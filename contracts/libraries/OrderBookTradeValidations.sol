@@ -214,14 +214,21 @@ library OrderBookTradeValidations {
   }
 
   function validateFees(OrderBookTrade memory trade) private pure {
-    require(
-      Validations.isFeeQuantityValid(
-        trade.makerFeeQuantityInPips,
-        trade.quoteQuantityInPips,
-        Constants.maxFeeBasisPoints
-      ),
-      'Excessive maker fee'
-    );
+    if (trade.makerFeeQuantityInPips < 0) {
+      require(
+        Math.abs(trade.makerFeeQuantityInPips) <= trade.takerFeeQuantityInPips,
+        'Excessive maker rebate'
+      );
+    } else {
+      require(
+        Validations.isFeeQuantityValid(
+          uint64(trade.makerFeeQuantityInPips),
+          trade.quoteQuantityInPips,
+          Constants.maxFeeBasisPoints
+        ),
+        'Excessive maker fee'
+      );
+    }
 
     require(
       Validations.isFeeQuantityValid(

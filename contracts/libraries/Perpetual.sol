@@ -96,6 +96,7 @@ library Perpetual {
       ) {
         uint256 hoursSinceLastUpdate = (lastFundingMultiplierTimestampInMs -
           basePosition.lastUpdateTimestampInMs) / Constants.msInOneHour;
+        int64 positionSizeInPips = basePosition.balanceInPips;
 
         for (
           uint256 multiplierIndex = hoursSinceLastUpdate >
@@ -106,7 +107,7 @@ library Perpetual {
           multiplierIndex++
         ) {
           fundingInPips += Math.multiplyPipsByFraction(
-            basePosition.balanceInPips,
+            positionSizeInPips,
             fundingMultipliers[multiplierIndex],
             int64(Constants.pipPriceMultiplier)
           );

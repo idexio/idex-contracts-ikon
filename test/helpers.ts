@@ -1,13 +1,19 @@
-import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import BigNumber from 'bignumber.js';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { v1 as uuidv1 } from 'uuid';
+import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 
 import {
   decimalToAssetUnits,
   getOraclePriceHash,
+  getOrderHash,
   OraclePrice,
+  Order,
+  OrderSide,
+  OrderType,
   pipsDecimals,
+  signatureHashVersion,
 } from '../lib';
 
 export const collateralAssetDecimals = 6;
@@ -47,6 +53,31 @@ export async function buildOraclePrices(
         return { ...oraclePrice, signature };
       }),
   );
+}
+
+export async function buildLimitOrder(
+  signer: SignerWithAddress,
+  side: OrderSide,
+  market = 'ETH-USDC',
+  quantity = '1.00000000',
+  price = '2000.00000000',
+) {
+  const order: Order = {
+    signatureHashVersion,
+    nonce: uuidv1(),
+    wallet: signer.address,
+    market,
+    type: OrderType.Limit,
+    side,
+    quantity,
+    isQuantityInQuote: false,
+    price,
+  };
+  const signature = await signer.signMessage(
+    ethers.utils.arrayify(getOrderHash(order)),
+  );
+
+  return { order, signature };
 }
 
 const fundingRates = ['-16100', '26400', '-28200', '-5000', '10400'];

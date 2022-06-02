@@ -55,18 +55,18 @@ library BalanceTracking {
     Balance storage balance;
 
     (
-      uint64 buyFeeInPips,
-      uint64 sellFeeInPips,
+      int64 buyFeeInPips,
+      int64 sellFeeInPips,
       // Use the taker order nonce timestamp as the time of execution
       uint64 executionTimestampInMs
     ) = trade.makerSide == OrderSide.Buy
         ? (
           trade.makerFeeQuantityInPips,
-          trade.takerFeeQuantityInPips,
+          int64(trade.takerFeeQuantityInPips),
           UUID.getTimestampInMsFromUuidV1(sell.nonce)
         )
         : (
-          trade.takerFeeQuantityInPips,
+          int64(trade.takerFeeQuantityInPips),
           trade.makerFeeQuantityInPips,
           UUID.getTimestampInMsFromUuidV1(buy.nonce)
         );
@@ -94,14 +94,14 @@ library BalanceTracking {
       buy.walletAddress,
       trade.quoteAssetSymbol
     );
-    balance.balanceInPips -= int64(trade.quoteQuantityInPips + buyFeeInPips);
+    balance.balanceInPips -= int64(trade.quoteQuantityInPips) + buyFeeInPips;
     // Seller receives quote asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       sell.walletAddress,
       trade.quoteAssetSymbol
     );
-    balance.balanceInPips += int64(trade.quoteQuantityInPips - sellFeeInPips);
+    balance.balanceInPips += int64(trade.quoteQuantityInPips) - sellFeeInPips;
 
     // Maker fee to fee wallet
     balance = loadBalanceAndMigrateIfNeeded(
@@ -109,9 +109,9 @@ library BalanceTracking {
       feeWallet,
       trade.quoteAssetSymbol
     );
-    balance.balanceInPips += int64(
-      trade.makerFeeQuantityInPips + trade.takerFeeQuantityInPips
-    );
+    balance.balanceInPips +=
+      trade.makerFeeQuantityInPips +
+      int64(trade.takerFeeQuantityInPips);
   }
 
   // Withdrawing //

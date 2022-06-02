@@ -158,7 +158,7 @@ library Trading {
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     Market[] storage markets
-  ) private {
+  ) private view {
     require(
       Perpetual.isInitialMarginRequirementMet(
         arguments.buy.walletAddress,

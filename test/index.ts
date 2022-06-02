@@ -18,6 +18,7 @@ import {
 
 import {
   buildFundingRates,
+  buildLimitOrder,
   buildOraclePrice,
   buildOraclePrices,
   collateralAssetDecimals,
@@ -46,12 +47,11 @@ describe('Exchange', function () {
     const depositedEvents = await exchange.queryFilter(
       exchange.filters.Deposited(),
     );
-    /*
+
     expect(depositedEvents.length).to.equal(1);
     expect(depositedEvents[0].args?.quantityInPips).to.equal(
-      decimalToPips('1.00000000'),
+      decimalToPips('5.00000000'),
     );
-    */
 
     const withdrawal = {
       nonce: uuidv1(),
@@ -89,16 +89,14 @@ describe('Exchange', function () {
         )
     ).wait();
 
-    /*
     const withdrawnEvents = await exchange.queryFilter(
       exchange.filters.Withdrawn(),
     );
-    expect(withdrawnEvents.length).to.equal(1);
-    expect(withdrawnEvents.length).to.equal(1);
+    expect(withdrawnEvents.length).to.equal(2);
+    expect(withdrawnEvents.length).to.equal(2);
     expect(withdrawnEvents[0].args?.quantityInPips).to.equal(
       decimalToPips('1.00000000'),
     );
-    */
   });
 
   it('publishFundingMutipliers should work', async function () {
@@ -119,106 +117,172 @@ describe('Exchange', function () {
     ).wait();
   });
 
-  it.only('executeOrderBookTrade should work', async function () {
-    const [
-      owner,
-      dispatcher,
-      oracle,
-      trader1,
-      trader2,
-      trader1Delegate,
-      feeWallet,
-    ] = await ethers.getSigners();
-    const { exchange, usdc } = await deployAndAssociateContracts(
-      owner,
-      dispatcher,
-      oracle,
-      feeWallet,
-    );
+  describe('executeOrderBookTrade', async function () {
+    it.only('should work with maker rebate', async function () {
+      const [owner, dispatcher, oracle, trader1, trader2, feeWallet] =
+        await ethers.getSigners();
+      const { exchange, usdc } = await deployAndAssociateContracts(
+        owner,
+        dispatcher,
+        oracle,
+        feeWallet,
+      );
 
-    await fundWallets([trader1, trader2], exchange, usdc);
+      await fundWallets([trader1, trader2], exchange, usdc);
 
-    await (await exchange.setDelegateKeyExpirationPeriod(10000000)).wait();
+      const { order: buyOrder, signature: buyOrderSignature } =
+        await buildLimitOrder(
+          trader1,
+          OrderSide.Buy,
+          'ETH-USDC',
+          '1.00000000',
+          '2000.00000000',
+        );
+      const { order: sellOrder, signature: sellOrderSignature } =
+        await buildLimitOrder(
+          trader2,
+          OrderSide.Sell,
+          'ETH-USDC',
+          '1.00000000',
+          '2000.00000000',
+        );
 
-    const trader1DelegatedKeyAuthorization = {
-      delegatedPublicKey: trader1Delegate.address,
-      nonce: uuidv1({ msecs: new Date().getTime() - 1000 }),
-    };
-    const trader1DelegatedKeyAuthorizationSignature = await trader1.signMessage(
-      ethers.utils.arrayify(
-        getDelegatedKeyAuthorizationHash(
-          trader1.address,
-          trader1DelegatedKeyAuthorization,
-        ),
-      ),
-    );
-    const sellDelegatedKeyAuthorization = {
-      ...trader1DelegatedKeyAuthorization,
-      signature: trader1DelegatedKeyAuthorizationSignature,
-    };
+      const trade: Trade = {
+        baseAssetSymbol: 'ETH',
+        quoteAssetSymbol: 'USD',
+        baseQuantity: '1.00000000',
+        quoteQuantity: '2000.00000000',
+        makerFeeQuantity: '-2.00000000',
+        takerFeeQuantity: '4.00000000',
+        price: '1.00000000',
+        makerSide: OrderSide.Sell,
+      };
 
-    const sellOrder: Order = {
-      signatureHashVersion,
-      nonce: uuidv1({ msecs: new Date().getTime() - 12 * 60 * 60 * 1000 }),
-      wallet: trader1.address,
-      market: 'ETH-USDC',
-      type: OrderType.Limit,
-      side: OrderSide.Sell,
-      quantity: '1.00000000',
-      isQuantityInQuote: false,
-      price: '2000.00000000',
-    };
-    const sellOrderSignature = await trader1Delegate.signMessage(
-      ethers.utils.arrayify(
-        getOrderHash(sellOrder, sellDelegatedKeyAuthorization),
-      ),
-    );
+      const oraclePrice = await buildOraclePrice(oracle);
 
-    const buyOrder: Order = {
-      signatureHashVersion,
-      nonce: uuidv1({ msecs: new Date().getTime() - 12 * 60 * 60 * 1000 }),
-      wallet: trader2.address,
-      market: 'ETH-USDC',
-      type: OrderType.Limit,
-      side: OrderSide.Buy,
-      quantity: '1.00000000',
-      isQuantityInQuote: false,
-      price: '2000.00000000',
-    };
-    const buyOrderSignature = await trader2.signMessage(
-      ethers.utils.arrayify(getOrderHash(buyOrder)),
-    );
+      await (
+        await exchange
+          .connect(dispatcher)
+          .executeOrderBookTrade(
+            ...getExecuteOrderBookTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              [oraclePrice],
+            ),
+          )
+      ).wait();
 
-    const trade: Trade = {
-      baseAssetSymbol: 'ETH',
-      quoteAssetSymbol: 'USD',
-      baseQuantity: '1.00000000',
-      quoteQuantity: '2000.00000000',
-      makerFeeQuantity: '2.00000000',
-      takerFeeQuantity: '4.00000000',
-      price: '1.00000000',
-      makerSide: OrderSide.Sell,
-    };
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
 
-    const oraclePrice = await buildOraclePrice(oracle);
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+    });
 
-    await (
-      await exchange
-        .connect(dispatcher)
-        .executeOrderBookTrade(
-          ...getExecuteOrderBookTradeArguments(
-            buyOrder,
-            buyOrderSignature,
-            sellOrder,
-            sellOrderSignature,
-            trade,
-            [oraclePrice],
-            undefined,
-            sellDelegatedKeyAuthorization,
+    it('can haz deebug', async function () {
+      const [
+        owner,
+        dispatcher,
+        oracle,
+        trader1,
+        trader2,
+        trader1Delegate,
+        feeWallet,
+      ] = await ethers.getSigners();
+      const { exchange, usdc } = await deployAndAssociateContracts(
+        owner,
+        dispatcher,
+        oracle,
+        feeWallet,
+      );
+
+      await fundWallets([trader1, trader2], exchange, usdc);
+
+      await (await exchange.setDelegateKeyExpirationPeriod(10000000)).wait();
+
+      const trader1DelegatedKeyAuthorization = {
+        delegatedPublicKey: trader1Delegate.address,
+        nonce: uuidv1({ msecs: new Date().getTime() - 1000 }),
+      };
+      const trader1DelegatedKeyAuthorizationSignature =
+        await trader1.signMessage(
+          ethers.utils.arrayify(
+            getDelegatedKeyAuthorizationHash(
+              trader1.address,
+              trader1DelegatedKeyAuthorization,
+            ),
           ),
-        )
-    ).wait();
-    /*
+        );
+      const sellDelegatedKeyAuthorization = {
+        ...trader1DelegatedKeyAuthorization,
+        signature: trader1DelegatedKeyAuthorizationSignature,
+      };
+
+      const sellOrder: Order = {
+        signatureHashVersion,
+        nonce: uuidv1({ msecs: new Date().getTime() - 12 * 60 * 60 * 1000 }),
+        wallet: trader1.address,
+        market: 'ETH-USDC',
+        type: OrderType.Limit,
+        side: OrderSide.Sell,
+        quantity: '1.00000000',
+        isQuantityInQuote: false,
+        price: '2000.00000000',
+      };
+      const sellOrderSignature = await trader1Delegate.signMessage(
+        ethers.utils.arrayify(
+          getOrderHash(sellOrder, sellDelegatedKeyAuthorization),
+        ),
+      );
+
+      const buyOrder: Order = {
+        signatureHashVersion,
+        nonce: uuidv1({ msecs: new Date().getTime() - 12 * 60 * 60 * 1000 }),
+        wallet: trader2.address,
+        market: 'ETH-USDC',
+        type: OrderType.Limit,
+        side: OrderSide.Buy,
+        quantity: '1.00000000',
+        isQuantityInQuote: false,
+        price: '2000.00000000',
+      };
+      const buyOrderSignature = await trader2.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      );
+
+      const trade: Trade = {
+        baseAssetSymbol: 'ETH',
+        quoteAssetSymbol: 'USD',
+        baseQuantity: '1.00000000',
+        quoteQuantity: '2000.00000000',
+        makerFeeQuantity: '2.00000000',
+        takerFeeQuantity: '4.00000000',
+        price: '1.00000000',
+        makerSide: OrderSide.Sell,
+      };
+
+      const oraclePrice = await buildOraclePrice(oracle);
+
+      await (
+        await exchange
+          .connect(dispatcher)
+          .executeOrderBookTrade(
+            ...getExecuteOrderBookTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              [oraclePrice],
+              undefined,
+              sellDelegatedKeyAuthorization,
+            ),
+          )
+      ).wait();
+      /*
     const withdrawal = {
       nonce: uuidv1(),
       wallet: trader1.address,
@@ -237,15 +301,15 @@ describe('Exchange', function () {
         )
     ).wait();*/
 
-    await (
-      await exchange
-        .connect(dispatcher)
-        .publishFundingMutipliers(
-          await buildOraclePrices(oracle, 10),
-          buildFundingRates(10),
-        )
-    ).wait();
-    /*
+      await (
+        await exchange
+          .connect(dispatcher)
+          .publishFundingMutipliers(
+            await buildOraclePrices(oracle, 10),
+            buildFundingRates(10),
+          )
+      ).wait();
+      /*
     const withdrawal2 = {
       nonce: uuidv1(),
       wallet: trader1.address,
@@ -264,76 +328,77 @@ describe('Exchange', function () {
         )
     ).wait();*/
 
-    console.log('Trader1');
-    await logWalletBalances(trader1.address, exchange, [oraclePrice]);
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
 
-    console.log('Trader2');
-    await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
 
-    const sellOrder2: Order = {
-      signatureHashVersion,
-      nonce: uuidv1(),
-      wallet: trader1.address,
-      market: 'ETH-USDC',
-      type: OrderType.Limit,
-      side: OrderSide.Sell,
-      quantity: '1.00000000',
-      isQuantityInQuote: false,
-      price: '2000.00000000',
-    };
-    const sellOrderSignature2 = await trader1Delegate.signMessage(
-      ethers.utils.arrayify(
-        getOrderHash(sellOrder2, sellDelegatedKeyAuthorization),
-      ),
-    );
+      const sellOrder2: Order = {
+        signatureHashVersion,
+        nonce: uuidv1(),
+        wallet: trader1.address,
+        market: 'ETH-USDC',
+        type: OrderType.Limit,
+        side: OrderSide.Sell,
+        quantity: '1.00000000',
+        isQuantityInQuote: false,
+        price: '2000.00000000',
+      };
+      const sellOrderSignature2 = await trader1Delegate.signMessage(
+        ethers.utils.arrayify(
+          getOrderHash(sellOrder2, sellDelegatedKeyAuthorization),
+        ),
+      );
 
-    const buyOrder2: Order = {
-      signatureHashVersion,
-      nonce: uuidv1(),
-      wallet: trader2.address,
-      market: 'ETH-USDC',
-      type: OrderType.Limit,
-      side: OrderSide.Buy,
-      quantity: '1.00000000',
-      isQuantityInQuote: false,
-      price: '2000.00000000',
-    };
-    const buyOrderSignature2 = await trader2.signMessage(
-      ethers.utils.arrayify(getOrderHash(buyOrder2)),
-    );
+      const buyOrder2: Order = {
+        signatureHashVersion,
+        nonce: uuidv1(),
+        wallet: trader2.address,
+        market: 'ETH-USDC',
+        type: OrderType.Limit,
+        side: OrderSide.Buy,
+        quantity: '1.00000000',
+        isQuantityInQuote: false,
+        price: '2000.00000000',
+      };
+      const buyOrderSignature2 = await trader2.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder2)),
+      );
 
-    const trade2: Trade = {
-      baseAssetSymbol: 'ETH',
-      quoteAssetSymbol: 'USD',
-      baseQuantity: '1.00000000',
-      quoteQuantity: '2000.00000000',
-      makerFeeQuantity: '2.00000000',
-      takerFeeQuantity: '4.00000000',
-      price: '1.00000000',
-      makerSide: OrderSide.Sell,
-    };
+      const trade2: Trade = {
+        baseAssetSymbol: 'ETH',
+        quoteAssetSymbol: 'USD',
+        baseQuantity: '1.00000000',
+        quoteQuantity: '2000.00000000',
+        makerFeeQuantity: '2.00000000',
+        takerFeeQuantity: '4.00000000',
+        price: '1.00000000',
+        makerSide: OrderSide.Sell,
+      };
 
-    await (
-      await exchange
-        .connect(dispatcher)
-        .executeOrderBookTrade(
-          ...getExecuteOrderBookTradeArguments(
-            buyOrder2,
-            buyOrderSignature2,
-            sellOrder2,
-            sellOrderSignature2,
-            trade2,
-            [oraclePrice],
-            undefined,
-            sellDelegatedKeyAuthorization,
-          ),
-        )
-    ).wait();
+      await (
+        await exchange
+          .connect(dispatcher)
+          .executeOrderBookTrade(
+            ...getExecuteOrderBookTradeArguments(
+              buyOrder2,
+              buyOrderSignature2,
+              sellOrder2,
+              sellOrderSignature2,
+              trade2,
+              [oraclePrice],
+              undefined,
+              sellDelegatedKeyAuthorization,
+            ),
+          )
+      ).wait();
 
-    console.log('Trader1');
-    await logWalletBalances(trader1.address, exchange, [oraclePrice]);
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
 
-    console.log('Trader2');
-    await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+    });
   });
 });
