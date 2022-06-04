@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.13;
 
+import { Constants } from './Constants.sol';
 import { IExchange } from './Interfaces.sol';
+import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
 import { UUID } from './UUID.sol';
 import { Order, OrderBookTrade, Withdrawal } from './Structs.sol';
@@ -25,18 +27,68 @@ library BalanceTracking {
 
   function updateForDeposit(
     Storage storage self,
-    address wallet,
+    address walletAddress,
     string memory assetSymbol,
     uint64 quantityInPips
   ) internal returns (int64 newBalanceInPips) {
     Balance storage balance = loadBalanceAndMigrateIfNeeded(
       self,
-      wallet,
+      walletAddress,
       assetSymbol
     );
     balance.balanceInPips += int64(quantityInPips);
 
     return balance.balanceInPips;
+  }
+
+  // Liquidation //
+
+  function updateForLiquidation(
+    Storage storage self,
+    address walletAddress,
+    address insuranceFundWalletAddress,
+    string memory baseAssetSymbol,
+    string memory collateralAssetSymbol,
+    uint64 liquidationPriceInPips
+  ) internal {
+    Balance storage balance;
+
+    // Wallet position goes to zero
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      walletAddress,
+      baseAssetSymbol
+    );
+    int64 positionSizeInPips = balance.balanceInPips;
+    balance.balanceInPips = 0;
+    // Insurance fund position takes on opposite side
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      insuranceFundWalletAddress,
+      baseAssetSymbol
+    );
+    balance.balanceInPips -= positionSizeInPips;
+
+    int64 quoteQuantityInPips = Math.multiplyPipsByFraction(
+      positionSizeInPips,
+      int64(liquidationPriceInPips),
+      int64(Constants.pipPriceMultiplier)
+    );
+
+    // Wallet receives or gives collateral if long or short respectively
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      walletAddress,
+      collateralAssetSymbol
+    );
+    balance.balanceInPips += quoteQuantityInPips;
+    // Insurance receives or gives collateral if wallet short or long respectively
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      insuranceFundWalletAddress,
+      collateralAssetSymbol
+    );
+    balance.balanceInPips += quoteQuantityInPips;
   }
 
   // Trading //

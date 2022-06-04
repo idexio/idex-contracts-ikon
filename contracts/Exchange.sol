@@ -101,6 +101,8 @@ contract Exchange_v4 is IExchange, Owned {
   uint64 public _depositIndex;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => int64[]) _fundingMultipliersByBaseAssetSymbol;
+  // TODO Upgrade through Governance
+  address _insuranceFundWalletAddress;
   // Milliseconds since epoch, always aligned to hour
   mapping(string => uint64) _lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // All markets TODO Enablement
@@ -137,7 +139,8 @@ contract Exchange_v4 is IExchange, Owned {
     address collateralAssetAddress,
     string memory collateralAssetSymbol,
     uint8 collateralAssetDecimals,
-    address feeWallet,
+    address feeWalletAddress,
+    address insuranceFundWalletAddress,
     address oracleWalletAddress
   ) Owned() {
     require(
@@ -155,7 +158,13 @@ contract Exchange_v4 is IExchange, Owned {
     _collateralAssetSymbol = collateralAssetSymbol;
     _collateralAssetDecimals = collateralAssetDecimals;
 
-    setFeeWallet(feeWallet);
+    setFeeWallet(feeWalletAddress);
+
+    require(
+      address(insuranceFundWalletAddress) != address(0x0),
+      'Invalid insurance wallet'
+    );
+    _insuranceFundWalletAddress = insuranceFundWalletAddress;
 
     require(
       address(oracleWalletAddress) != address(0x0),
@@ -461,6 +470,26 @@ contract Exchange_v4 is IExchange, Owned {
       orderBookTrade.baseQuantityInPips,
       orderBookTrade.quoteQuantityInPips,
       orderBookTrade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy
+    );
+  }
+
+  function liquidate(address walletAddress, OraclePrice[] calldata oraclePrices)
+    external
+    onlyDispatcher
+  {
+    Perpetual.liquidate(
+      Perpetual.LiquidateArguments(
+        walletAddress,
+        oraclePrices,
+        _collateralAssetDecimals,
+        _collateralAssetSymbol,
+        _insuranceFundWalletAddress,
+        _oracleWalletAddress
+      ),
+      _balanceTracking,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _markets
     );
   }
 

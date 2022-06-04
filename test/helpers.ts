@@ -55,6 +55,22 @@ export async function buildOraclePrices(
   );
 }
 
+export async function buildOraclePriceWithValue(
+  oracle: SignerWithAddress,
+  priceInAssetUnits: string,
+): Promise<OraclePrice> {
+  const oraclePrice = {
+    baseAssetSymbol: 'ETH',
+    timestampInMs: new Date().getTime(),
+    priceInAssetUnits,
+  };
+  const signature = await oracle.signMessage(
+    ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
+  );
+
+  return { ...oraclePrice, signature };
+}
+
 export async function buildLimitOrder(
   signer: SignerWithAddress,
   side: OrderSide,
@@ -90,8 +106,9 @@ export function buildFundingRates(count = 1): string[] {
 export async function deployAndAssociateContracts(
   owner: SignerWithAddress,
   dispatcher: SignerWithAddress = owner,
-  oracle: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
+  insuranceFund: SignerWithAddress = owner,
+  oracle: SignerWithAddress = owner,
 ) {
   const [Depositing, NonceInvalidations, Perpetual, Trading, Withdrawing] =
     await Promise.all([
@@ -135,6 +152,7 @@ export async function deployAndAssociateContracts(
         'USDC',
         collateralAssetDecimals,
         feeWallet.address,
+        insuranceFund.address,
         oracle.address,
       )
     ).deployed(),

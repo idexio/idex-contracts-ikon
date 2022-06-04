@@ -8,10 +8,152 @@ import { String } from './String.sol';
 import { Validations } from './Validations.sol';
 import { Market, OraclePrice } from './Structs.sol';
 
+import 'hardhat/console.sol';
+
 pragma solidity 0.8.13;
 
+// TODO Gas optimization - several of the functions here iterate over all a wallet's position, potentially these
+// multiple iterations could be combined
 library Perpetual {
   using BalanceTracking for BalanceTracking.Storage;
+
+  struct LiquidateArguments {
+    // External arguments
+    address walletAddress;
+    OraclePrice[] oraclePrices;
+    // Exchange state
+    uint8 collateralAssetDecimals;
+    string collateralAssetSymbol;
+    address insuranceFundWalletAddress;
+    address oracleWalletAddress;
+  }
+
+  function liquidate(
+    LiquidateArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(string => int64[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    Market[] storage markets
+  ) public {
+    Perpetual.updateWalletFundingInternal(
+      arguments.walletAddress,
+      arguments.collateralAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      markets
+    );
+
+    (
+      int64 totalAccountValueInPips,
+      uint64 totalMaintenanceMarginRequirementInPips
+    ) = (
+        calculateTotalAccountValue(
+          arguments.walletAddress,
+          arguments.oraclePrices,
+          arguments.collateralAssetDecimals,
+          arguments.collateralAssetSymbol,
+          arguments.oracleWalletAddress,
+          balanceTracking,
+          markets
+        ),
+        calculateTotalMaintenanceMarginRequirement(
+          arguments.walletAddress,
+          arguments.oraclePrices,
+          arguments.collateralAssetDecimals,
+          arguments.oracleWalletAddress,
+          balanceTracking,
+          markets
+        )
+      );
+
+    require(
+      totalAccountValueInPips <= int64(totalMaintenanceMarginRequirementInPips),
+      'Maintenance margin met'
+    );
+
+    for (uint8 i = 0; i < markets.length; i++) {
+      // FIXME Insurance fund margin requirements
+      liquidateMarket(
+        markets[i],
+        arguments.oraclePrices[i],
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips,
+        arguments,
+        balanceTracking
+      );
+    }
+  }
+
+  function liquidateMarket(
+    Market memory market,
+    OraclePrice memory oraclePrice,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips,
+    LiquidateArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking
+  ) public {
+    uint64 oraclePriceInPips = validateOraclePriceAndConvertToPips(
+      oraclePrice,
+      arguments.collateralAssetDecimals,
+      market,
+      arguments.oracleWalletAddress
+    );
+
+    BalanceTracking.Balance storage basePosition = balanceTracking
+      .loadBalanceAndMigrateIfNeeded(
+        arguments.walletAddress,
+        market.baseAssetSymbol
+      );
+
+    int64 positionSizeInPips = basePosition.balanceInPips;
+    // Gas optimization - move on to next market if wallet has no position in this one
+    if (positionSizeInPips == 0) {
+      return;
+    }
+
+    // TODO Cleanup typecasts
+    // TODO Verify liquidationPriceInPips cannot go negative
+    uint64 liquidationPriceInPips;
+    if (positionSizeInPips < 0) {
+      // Short
+      liquidationPriceInPips = uint64(
+        Math.multiplyPipsByFraction(
+          int64(oraclePriceInPips),
+          (int64(Constants.pipPriceMultiplier) +
+            Math.multiplyPipsByFraction(
+              int64(market.maintenanceMarginFractionInPips),
+              totalAccountValueInPips,
+              int64(totalMaintenanceMarginRequirementInPips)
+            )),
+          int64(Constants.pipPriceMultiplier)
+        )
+      );
+    } else {
+      liquidationPriceInPips = uint64(
+        Math.multiplyPipsByFraction(
+          int64(oraclePriceInPips),
+          (int64(Constants.pipPriceMultiplier) -
+            Math.multiplyPipsByFraction(
+              int64(market.maintenanceMarginFractionInPips),
+              totalAccountValueInPips,
+              int64(totalMaintenanceMarginRequirementInPips)
+            )),
+          int64(Constants.pipPriceMultiplier)
+        )
+      );
+    }
+
+    balanceTracking.updateForLiquidation(
+      arguments.walletAddress,
+      arguments.insuranceFundWalletAddress,
+      market.baseAssetSymbol,
+      arguments.collateralAssetSymbol,
+      liquidationPriceInPips
+    );
+    console.log('Liquidation price is %s', liquidationPriceInPips);
+  }
 
   function publishFundingMutipliers(
     OraclePrice[] memory oraclePrices,
@@ -27,9 +169,9 @@ library Perpetual {
         oraclePrices[i],
         fundingRatesInPips[i]
       );
-
-      Validations.validateOraclePriceSignature(
+      uint64 oraclePriceInPips = validateOraclePriceAndConvertToPips(
         oraclePrice,
+        collateralAssetDecimals,
         oracleWalletAddress
       );
 
@@ -47,12 +189,7 @@ library Perpetual {
       // TODO Cleanup typecasts
       fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].push(
         Math.multiplyPipsByFraction(
-          int64(
-            AssetUnitConversions.assetUnitsToPips(
-              oraclePrice.priceInAssetUnits,
-              collateralAssetDecimals
-            )
-          ),
+          int64(oraclePriceInPips),
           fundingRateInPips,
           int64(Constants.pipPriceMultiplier)
         )
@@ -79,6 +216,13 @@ library Perpetual {
       BalanceTracking.Balance storage basePosition = balanceTracking
         .loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
 
+      int64 positionSizeInPips = basePosition.balanceInPips;
+      // Gas optimization - move on to next market if wallet has no position in this one
+      if (positionSizeInPips == 0) {
+        continue;
+      }
+
+      // Load funding rates and index
       (
         int64[] storage fundingMultipliers,
         uint64 lastFundingMultiplierTimestampInMs
@@ -89,14 +233,13 @@ library Perpetual {
           ]
         );
 
+      // Apply hourly funding payments if new rates were published since this balance was last updated
       if (
-        basePosition.balanceInPips != 0 &&
         basePosition.lastUpdateTimestampInMs <
         lastFundingMultiplierTimestampInMs
       ) {
         uint256 hoursSinceLastUpdate = (lastFundingMultiplierTimestampInMs -
           basePosition.lastUpdateTimestampInMs) / Constants.msInOneHour;
-        int64 positionSizeInPips = basePosition.balanceInPips;
 
         for (
           uint256 multiplierIndex = hoursSinceLastUpdate >
@@ -121,6 +264,132 @@ library Perpetual {
     BalanceTracking.Balance storage collateralBalance = balanceTracking
       .loadBalanceAndMigrateIfNeeded(wallet, collateralAssetSymbol);
     collateralBalance.balanceInPips += fundingInPips;
+  }
+
+  function calculateTotalAccountValue(
+    address wallet,
+    OraclePrice[] memory oraclePrices,
+    uint8 collateralAssetDecimals,
+    string memory collateralAssetSymbol,
+    address oracleWalletAddress,
+    BalanceTracking.Storage storage balanceTracking,
+    Market[] storage markets
+  ) public view returns (int64) {
+    int64 totalAccountValueInPips = balanceTracking
+      .loadBalanceInPipsFromMigrationSourceIfNeeded(
+        wallet,
+        collateralAssetSymbol
+      );
+
+    for (uint8 i = 0; i < markets.length; i++) {
+      Market memory market = markets[i];
+      uint64 oraclePriceInPips = validateOraclePriceAndConvertToPips(
+        oraclePrices[i],
+        collateralAssetDecimals,
+        market,
+        oracleWalletAddress
+      );
+
+      totalAccountValueInPips += Math.multiplyPipsByFraction(
+        balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+          wallet,
+          market.baseAssetSymbol
+        ),
+        int64(oraclePriceInPips),
+        int64(Constants.pipPriceMultiplier)
+      );
+    }
+
+    return totalAccountValueInPips;
+  }
+
+  function calculateTotalInitialMarginRequirement(
+    address wallet,
+    OraclePrice[] memory oraclePrices,
+    uint8 collateralAssetDecimals,
+    address oracleWalletAddress,
+    BalanceTracking.Storage storage balanceTracking,
+    Market[] storage markets
+  ) public view returns (uint64 initialMarginRequirement) {
+    for (uint8 i = 0; i < markets.length; i++) {
+      (Market memory market, OraclePrice memory oraclePrice) = (
+        markets[i],
+        oraclePrices[i]
+      );
+
+      initialMarginRequirement += calculateMarginRequirement(
+        wallet,
+        market.baseAssetSymbol,
+        market.initialMarginFractionInPips,
+        oraclePrice,
+        collateralAssetDecimals,
+        oracleWalletAddress,
+        balanceTracking
+      );
+    }
+  }
+
+  function calculateTotalMaintenanceMarginRequirement(
+    address wallet,
+    OraclePrice[] memory oraclePrices,
+    uint8 collateralAssetDecimals,
+    address oracleWalletAddress,
+    BalanceTracking.Storage storage balanceTracking,
+    Market[] storage markets
+  ) public view returns (uint64 initialMarginRequirement) {
+    for (uint8 i = 0; i < markets.length; i++) {
+      (Market memory market, OraclePrice memory oraclePrice) = (
+        markets[i],
+        oraclePrices[i]
+      );
+
+      initialMarginRequirement += calculateMarginRequirement(
+        wallet,
+        market.baseAssetSymbol,
+        market.maintenanceMarginFractionInPips,
+        oraclePrice,
+        collateralAssetDecimals,
+        oracleWalletAddress,
+        balanceTracking
+      );
+    }
+  }
+
+  function calculateMarginRequirement(
+    address wallet,
+    string memory baseAssetSymbol,
+    uint64 marginFractionInPips,
+    OraclePrice memory oraclePrice,
+    uint8 collateralAssetDecimals,
+    address oracleWalletAddress,
+    BalanceTracking.Storage storage balanceTracking
+  ) public view returns (uint64) {
+    require(
+      String.isStringEqual(baseAssetSymbol, oraclePrice.baseAssetSymbol),
+      'Oracle price mismatch'
+    );
+    Validations.validateOraclePriceSignature(oraclePrice, oracleWalletAddress);
+
+    return
+      Math.abs(
+        Math.multiplyPipsByFraction(
+          Math.multiplyPipsByFraction(
+            balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+              wallet,
+              baseAssetSymbol
+            ),
+            int64(
+              AssetUnitConversions.assetUnitsToPips(
+                oraclePrice.priceInAssetUnits,
+                collateralAssetDecimals
+              )
+            ),
+            int64(Constants.pipPriceMultiplier)
+          ),
+          int64(marginFractionInPips),
+          int64(Constants.pipPriceMultiplier)
+        )
+      );
   }
 
   function updateWalletFundingInternal(
@@ -170,120 +439,6 @@ library Perpetual {
     );
   }
 
-  function calculateTotalAccountValue(
-    address wallet,
-    OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
-    string memory collateralAssetSymbol,
-    address oracleWalletAddress,
-    BalanceTracking.Storage storage balanceTracking,
-    Market[] storage markets
-  ) public view returns (int64) {
-    int64 totalAccountValueInPips = balanceTracking
-      .loadBalanceInPipsFromMigrationSourceIfNeeded(
-        wallet,
-        collateralAssetSymbol
-      );
-
-    for (uint8 i = 0; i < markets.length; i++) {
-      (Market memory market, OraclePrice memory oraclePrice) = (
-        markets[i],
-        oraclePrices[i]
-      );
-
-      require(
-        String.isStringEqual(
-          market.baseAssetSymbol,
-          oraclePrice.baseAssetSymbol
-        ),
-        'Oracle price mismatch'
-      );
-      Validations.validateOraclePriceSignature(
-        oraclePrice,
-        oracleWalletAddress
-      );
-
-      totalAccountValueInPips += Math.multiplyPipsByFraction(
-        balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
-          wallet,
-          market.baseAssetSymbol
-        ),
-        int64(
-          AssetUnitConversions.assetUnitsToPips(
-            oraclePrice.priceInAssetUnits,
-            collateralAssetDecimals
-          )
-        ),
-        int64(Constants.pipPriceMultiplier)
-      );
-    }
-
-    return totalAccountValueInPips;
-  }
-
-  function calculateTotalInitialMarginRequirement(
-    address wallet,
-    OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
-    address oracleWalletAddress,
-    BalanceTracking.Storage storage balanceTracking,
-    Market[] storage markets
-  ) public view returns (uint64 initialMarginRequirement) {
-    for (uint8 i = 0; i < markets.length; i++) {
-      (Market memory market, OraclePrice memory oraclePrice) = (
-        markets[i],
-        oraclePrices[i]
-      );
-
-      initialMarginRequirement += calculateMarginRequirement(
-        wallet,
-        market.baseAssetSymbol,
-        market.initialMarginFractionInPips,
-        oraclePrice,
-        collateralAssetDecimals,
-        oracleWalletAddress,
-        balanceTracking
-      );
-    }
-  }
-
-  function calculateMarginRequirement(
-    address wallet,
-    string memory baseAssetSymbol,
-    uint64 marginFractionInPips,
-    OraclePrice memory oraclePrice,
-    uint8 collateralAssetDecimals,
-    address oracleWalletAddress,
-    BalanceTracking.Storage storage balanceTracking
-  ) public view returns (uint64) {
-    require(
-      String.isStringEqual(baseAssetSymbol, oraclePrice.baseAssetSymbol),
-      'Oracle price mismatch'
-    );
-    Validations.validateOraclePriceSignature(oraclePrice, oracleWalletAddress);
-
-    return
-      Math.abs(
-        Math.multiplyPipsByFraction(
-          Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
-              wallet,
-              baseAssetSymbol
-            ),
-            int64(
-              AssetUnitConversions.assetUnitsToPips(
-                oraclePrice.priceInAssetUnits,
-                collateralAssetDecimals
-              )
-            ),
-            int64(Constants.pipPriceMultiplier)
-          ),
-          int64(marginFractionInPips),
-          int64(Constants.pipPriceMultiplier)
-        )
-      );
-  }
-
   function isInitialMarginRequirementMet(
     address walletAddress,
     OraclePrice[] memory oraclePrices,
@@ -312,6 +467,40 @@ library Perpetual {
           balanceTracking,
           markets
         )
+      );
+  }
+
+  function validateOraclePriceAndConvertToPips(
+    OraclePrice memory oraclePrice,
+    uint8 collateralAssetDecimals,
+    Market memory market,
+    address oracleWalletAddress
+  ) private pure returns (uint64) {
+    require(
+      String.isStringEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol),
+      'Oracle price mismatch'
+    );
+
+    return
+      validateOraclePriceAndConvertToPips(
+        oraclePrice,
+        collateralAssetDecimals,
+        oracleWalletAddress
+      );
+  }
+
+  function validateOraclePriceAndConvertToPips(
+    OraclePrice memory oraclePrice,
+    uint8 collateralAssetDecimals,
+    address oracleWalletAddress
+  ) private pure returns (uint64) {
+    // TODO Validate timestamp recency
+    Validations.validateOraclePriceSignature(oraclePrice, oracleWalletAddress);
+
+    return
+      AssetUnitConversions.assetUnitsToPips(
+        oraclePrice.priceInAssetUnits,
+        collateralAssetDecimals
       );
   }
 }

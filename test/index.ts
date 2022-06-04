@@ -1,3 +1,4 @@
+import BigNumber from 'bn.js';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { v1 as uuidv1 } from 'uuid';
@@ -21,6 +22,7 @@ import {
   buildLimitOrder,
   buildOraclePrice,
   buildOraclePrices,
+  buildOraclePriceWithValue,
   collateralAssetDecimals,
   deployAndAssociateContracts,
   fundWallets,
@@ -29,10 +31,13 @@ import {
 
 describe('Exchange', function () {
   it('deposit and withdraw should work', async function () {
-    const [owner, dispatcher, trader, oracle] = await ethers.getSigners();
+    const [owner, dispatcher, trader, fee, insurance, oracle] =
+      await ethers.getSigners();
     const { exchange, usdc } = await deployAndAssociateContracts(
       owner,
       dispatcher,
+      fee,
+      insurance,
       oracle,
     );
 
@@ -100,10 +105,13 @@ describe('Exchange', function () {
   });
 
   it('publishFundingMutipliers should work', async function () {
-    const [owner, dispatcher, oracle] = await ethers.getSigners();
+    const [owner, dispatcher, fee, insurance, oracle] =
+      await ethers.getSigners();
     const { exchange } = await deployAndAssociateContracts(
       owner,
       dispatcher,
+      fee,
+      insurance,
       oracle,
     );
 
@@ -118,14 +126,15 @@ describe('Exchange', function () {
   });
 
   describe('executeOrderBookTrade', async function () {
-    it.only('should work with maker rebate', async function () {
-      const [owner, dispatcher, oracle, trader1, trader2, feeWallet] =
+    it('should work with maker rebate', async function () {
+      const [owner, dispatcher, fee, insurance, oracle, trader1, trader2] =
         await ethers.getSigners();
       const { exchange, usdc } = await deployAndAssociateContracts(
         owner,
         dispatcher,
+        fee,
+        insurance,
         oracle,
-        feeWallet,
       );
 
       await fundWallets([trader1, trader2], exchange, usdc);
@@ -186,17 +195,19 @@ describe('Exchange', function () {
       const [
         owner,
         dispatcher,
+        fee,
+        insurance,
         oracle,
         trader1,
         trader2,
         trader1Delegate,
-        feeWallet,
       ] = await ethers.getSigners();
       const { exchange, usdc } = await deployAndAssociateContracts(
         owner,
         dispatcher,
+        fee,
+        insurance,
         oracle,
-        feeWallet,
       );
 
       await fundWallets([trader1, trader2], exchange, usdc);
@@ -399,6 +410,125 @@ describe('Exchange', function () {
 
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+    });
+  });
+
+  describe('liquidate', async function () {
+    it.only('should work', async function () {
+      const [owner, dispatcher, fee, insuranceFund, oracle, trader1, trader2] =
+        await ethers.getSigners();
+      const { exchange, usdc } = await deployAndAssociateContracts(
+        owner,
+        dispatcher,
+        fee,
+        insuranceFund,
+        oracle,
+      );
+
+      await fundWallets([trader1, trader2], exchange, usdc);
+
+      const { order: buyOrder, signature: buyOrderSignature } =
+        await buildLimitOrder(
+          trader1,
+          OrderSide.Buy,
+          'ETH-USDC',
+          '1.00000000',
+          '2000.00000000',
+        );
+      const { order: sellOrder, signature: sellOrderSignature } =
+        await buildLimitOrder(
+          trader2,
+          OrderSide.Sell,
+          'ETH-USDC',
+          '1.00000000',
+          '2000.00000000',
+        );
+
+      const trade: Trade = {
+        baseAssetSymbol: 'ETH',
+        quoteAssetSymbol: 'USD',
+        baseQuantity: '1.00000000',
+        quoteQuantity: '2000.00000000',
+        makerFeeQuantity: '2.00000000',
+        takerFeeQuantity: '4.00000000',
+        price: '1.00000000',
+        makerSide: OrderSide.Sell,
+      };
+
+      const oraclePrice = await buildOraclePrice(oracle);
+
+      await (
+        await exchange
+          .connect(dispatcher)
+          .executeOrderBookTrade(
+            ...getExecuteOrderBookTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              [oraclePrice],
+            ),
+          )
+      ).wait();
+
+      const newOracleLowPrice = await buildOraclePriceWithValue(
+        oracle,
+        new BigNumber(oraclePrice.priceInAssetUnits).divn(2).toString(),
+      );
+      const newOracleHighPrice = await buildOraclePriceWithValue(
+        oracle,
+        new BigNumber(oraclePrice.priceInAssetUnits).muln(2).toString(),
+      );
+      console.log(newOracleLowPrice, newOracleHighPrice);
+
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, [newOracleLowPrice]);
+
+      console.log('Insurance fund');
+      await logWalletBalances(insuranceFund.address, exchange, [
+        newOracleLowPrice,
+      ]);
+
+      console.log('--- LIQUIDATE ---');
+
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidate(trader1.address, [newOracleLowPrice])
+      ).wait();
+
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, [newOracleHighPrice]);
+
+      console.log('Insurance fund');
+      await logWalletBalances(insuranceFund.address, exchange, [
+        newOracleLowPrice,
+      ]);
+
+      /*
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [newOracleHighPrice]);
+
+      console.log('Insurance fund');
+      await logWalletBalances(insuranceFund.address, exchange, [
+        newOracleLowPrice,
+      ]);
+      
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidate(trader2.address, [newOracleHighPrice])
+      ).wait();
+
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [newOracleHighPrice]);
+
+      console.log('Insurance fund');
+      await logWalletBalances(insuranceFund.address, exchange, [
+        newOracleLowPrice,
+      ]);
+      */
     });
   });
 });
