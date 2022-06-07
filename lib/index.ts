@@ -230,17 +230,11 @@ const solidityHashOfParams = (params: TypeValuePair[]): string => {
   return ethers.utils.solidityKeccak256(fields, values);
 };
 
-const oraclePriceToArgumentStruct = (
-  o: OraclePrice,
-  collateralAssetDecimals: number,
-) => {
+const oraclePriceToArgumentStruct = (o: OraclePrice) => {
   return {
     baseAssetSymbol: o.baseAssetSymbol,
     timestampInMs: o.timestampInMs,
-    priceInAssetUnits: decimalToAssetUnits(
-      o.priceInAssetUnits,
-      collateralAssetDecimals,
-    ),
+    priceInAssetUnits: o.priceInAssetUnits,
     signature: o.signature,
   };
 };

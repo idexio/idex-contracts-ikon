@@ -414,7 +414,7 @@ describe('Exchange', function () {
   });
 
   describe('liquidate', async function () {
-    it.only('should work', async function () {
+    it.only('can haz diibug', async function () {
       const [owner, dispatcher, fee, insuranceFund, oracle, trader1, trader2] =
         await ethers.getSigners();
       const { exchange, usdc } = await deployAndAssociateContracts(
@@ -424,6 +424,18 @@ describe('Exchange', function () {
         insuranceFund,
         oracle,
       );
+
+      (
+        await exchange.addMarket(
+          'BTC',
+          '5000000',
+          '3000000',
+          '1000000',
+          '14000000000',
+          '2800000000',
+          '282000000000',
+        )
+      ).wait();
 
       await fundWallets([trader1, trader2], exchange, usdc);
 
@@ -451,11 +463,14 @@ describe('Exchange', function () {
         quoteQuantity: '2000.00000000',
         makerFeeQuantity: '2.00000000',
         takerFeeQuantity: '4.00000000',
-        price: '1.00000000',
+        price: buyOrder.price,
         makerSide: OrderSide.Sell,
       };
 
-      const oraclePrice = await buildOraclePrice(oracle);
+      const oraclePrices = await Promise.all([
+        buildOraclePrice(oracle),
+        buildOraclePriceWithValue(oracle, '30000000000', 'BTC'),
+      ]);
 
       await (
         await exchange
@@ -467,45 +482,105 @@ describe('Exchange', function () {
               sellOrder,
               sellOrderSignature,
               trade,
-              [oraclePrice],
+              oraclePrices,
             ),
           )
       ).wait();
 
+      const { order: buyOrder2, signature: buyOrderSignature2 } =
+        await buildLimitOrder(
+          trader1,
+          OrderSide.Buy,
+          'BTC-USDC',
+          '1.00000000',
+          '30000.00000000',
+        );
+      const { order: sellOrder2, signature: sellOrderSignature2 } =
+        await buildLimitOrder(
+          trader2,
+          OrderSide.Sell,
+          'BTC-USDC',
+          '1.00000000',
+          '30000.00000000',
+        );
+      console.log('--- ABOVE WATER ---');
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, oraclePrices);
+
+      const trade2: Trade = {
+        baseAssetSymbol: 'BTC',
+        quoteAssetSymbol: 'USD',
+        baseQuantity: '1.00000000',
+        quoteQuantity: '30000.00000000',
+        makerFeeQuantity: '30.00000000',
+        takerFeeQuantity: '50.00000000',
+        price: buyOrder.price,
+        makerSide: OrderSide.Sell,
+      };
+
+      await (
+        await exchange
+          .connect(dispatcher)
+          .executeOrderBookTrade(
+            ...getExecuteOrderBookTradeArguments(
+              buyOrder2,
+              buyOrderSignature2,
+              sellOrder2,
+              sellOrderSignature2,
+              trade2,
+              oraclePrices,
+            ),
+          )
+      ).wait();
+
+      console.log('--- ABOVE WATER ---');
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, oraclePrices);
+
+      const newOracleLowPrices = await Promise.all([
+        buildOraclePriceWithValue(oracle, '2003000000'),
+        buildOraclePriceWithValue(oracle, '28200000000', 'BTC'),
+      ]);
+
+      console.log('--- BELOW WATER ---');
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidate(
+            trader1.address,
+            ['1993.11863060', '28060.88136940'].map(decimalToPips),
+            newOracleLowPrices,
+          )
+      ).wait();
+
+      console.log('--- LIQUIDATED ---');
+
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+
+      console.log('Insurance fund');
+      await logWalletBalances(
+        insuranceFund.address,
+        exchange,
+        newOracleLowPrices,
+      );
+
+      /*
       const newOracleLowPrice = await buildOraclePriceWithValue(
         oracle,
-        new BigNumber(oraclePrice.priceInAssetUnits).divn(2).toString(),
+        '999000000',
       );
       const newOracleHighPrice = await buildOraclePriceWithValue(
         oracle,
         new BigNumber(oraclePrice.priceInAssetUnits).muln(2).toString(),
       );
-      console.log(newOracleLowPrice, newOracleHighPrice);
 
-      console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, [newOracleLowPrice]);
-
-      console.log('Insurance fund');
-      await logWalletBalances(insuranceFund.address, exchange, [
-        newOracleLowPrice,
-      ]);
-
-      console.log('--- LIQUIDATE ---');
-
-      await (
-        await exchange
-          .connect(dispatcher)
-          .liquidate(trader1.address, [newOracleLowPrice])
-      ).wait();
-
-      console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, [newOracleHighPrice]);
-
-      console.log('Insurance fund');
-      await logWalletBalances(insuranceFund.address, exchange, [
-        newOracleLowPrice,
-      ]);
-
+      
+   
+     */
       /*
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [newOracleHighPrice]);
@@ -514,7 +589,7 @@ describe('Exchange', function () {
       await logWalletBalances(insuranceFund.address, exchange, [
         newOracleLowPrice,
       ]);
-      
+
       await (
         await exchange
           .connect(dispatcher)

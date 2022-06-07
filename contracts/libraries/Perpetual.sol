@@ -20,6 +20,7 @@ library Perpetual {
   struct LiquidateArguments {
     // External arguments
     address walletAddress;
+    int64[] liquidationQuoteQuantitiesInPips;
     OraclePrice[] oraclePrices;
     // Exchange state
     uint8 collateralAssetDecimals;
@@ -77,6 +78,7 @@ library Perpetual {
       // FIXME Insurance fund margin requirements
       liquidateMarket(
         markets[i],
+        arguments.liquidationQuoteQuantitiesInPips[i],
         arguments.oraclePrices[i],
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
@@ -88,6 +90,7 @@ library Perpetual {
 
   function liquidateMarket(
     Market memory market,
+    int64 liquidationQuoteQuantitiesInPips,
     OraclePrice memory oraclePrice,
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
@@ -113,46 +116,28 @@ library Perpetual {
       return;
     }
 
-    // TODO Cleanup typecasts
-    // TODO Verify liquidationPriceInPips cannot go negative
-    uint64 liquidationPriceInPips;
-    if (positionSizeInPips < 0) {
-      // Short
-      liquidationPriceInPips = uint64(
-        Math.multiplyPipsByFraction(
-          int64(oraclePriceInPips),
-          (int64(Constants.pipPriceMultiplier) +
-            Math.multiplyPipsByFraction(
-              int64(market.maintenanceMarginFractionInPips),
-              totalAccountValueInPips,
-              int64(totalMaintenanceMarginRequirementInPips)
-            )),
-          int64(Constants.pipPriceMultiplier)
-        )
+    int64 expectedLiquidationQuoteQuantitiesInPips = calculateLiquidationQuoteQuantityInPips(
+        positionSizeInPips,
+        oraclePriceInPips,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips,
+        market.maintenanceMarginFractionInPips
       );
-    } else {
-      liquidationPriceInPips = uint64(
-        Math.multiplyPipsByFraction(
-          int64(oraclePriceInPips),
-          (int64(Constants.pipPriceMultiplier) -
-            Math.multiplyPipsByFraction(
-              int64(market.maintenanceMarginFractionInPips),
-              totalAccountValueInPips,
-              int64(totalMaintenanceMarginRequirementInPips)
-            )),
-          int64(Constants.pipPriceMultiplier)
-        )
-      );
-    }
+    require(
+      expectedLiquidationQuoteQuantitiesInPips - 1 <=
+        liquidationQuoteQuantitiesInPips &&
+        expectedLiquidationQuoteQuantitiesInPips + 1 >=
+        liquidationQuoteQuantitiesInPips,
+      'Invalid liquidation quote quantity'
+    );
 
     balanceTracking.updateForLiquidation(
       arguments.walletAddress,
       arguments.insuranceFundWalletAddress,
       market.baseAssetSymbol,
       arguments.collateralAssetSymbol,
-      liquidationPriceInPips
+      liquidationQuoteQuantitiesInPips
     );
-    console.log('Liquidation price is %s', liquidationPriceInPips);
   }
 
   function publishFundingMutipliers(
@@ -468,6 +453,33 @@ library Perpetual {
           markets
         )
       );
+  }
+
+  function calculateLiquidationQuoteQuantityInPips(
+    int64 positionSizeInPips,
+    uint64 oraclePriceInPips,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips,
+    uint64 maintenanceMarginFractionInPips
+  ) private view returns (int64) {
+    int256 quoteQuantityInDoublePips = int256(positionSizeInPips) *
+      int64(oraclePriceInPips);
+
+    int256 quotePenaltyInDoublePips = ((
+      positionSizeInPips < 0 ? int256(1) : int256(-1)
+    ) *
+      quoteQuantityInDoublePips *
+      int64(maintenanceMarginFractionInPips) *
+      totalAccountValueInPips) /
+      int64(totalMaintenanceMarginRequirementInPips) /
+      int64(Constants.pipPriceMultiplier);
+
+    int256 quoteQuantityInPips = (quoteQuantityInDoublePips +
+      quotePenaltyInDoublePips) / (int64(Constants.pipPriceMultiplier));
+    require(quoteQuantityInPips < 2**63, 'Pip quantity overflows int64');
+    require(quoteQuantityInPips > -2**63, 'Pip quantity underflows int64');
+
+    return int64(quoteQuantityInPips);
   }
 
   function validateOraclePriceAndConvertToPips(

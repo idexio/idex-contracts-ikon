@@ -473,13 +473,15 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  function liquidate(address walletAddress, OraclePrice[] calldata oraclePrices)
-    external
-    onlyDispatcher
-  {
+  function liquidate(
+    address walletAddress,
+    int64[] calldata liquidationQuoteQuantitiesInPips,
+    OraclePrice[] calldata oraclePrices
+  ) external onlyDispatcher {
     Perpetual.liquidate(
       Perpetual.LiquidateArguments(
         walletAddress,
+        liquidationQuoteQuantitiesInPips,
         oraclePrices,
         _collateralAssetDecimals,
         _collateralAssetSymbol,
@@ -591,7 +593,7 @@ contract Exchange_v4 is IExchange, Owned {
    * published since last position update
    * TODO Readonly version
    */
-  function updateWalletFunding(address wallet) public {
+  function updateWalletFunding(address wallet) public onlyDispatcher {
     Perpetual.updateWalletFunding(
       wallet,
       _collateralAssetSymbol,
@@ -623,7 +625,7 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Calculate total account value by formula Σ abs(Si × Pi × Ii). Note S can be negative
+   * @notice Calculate total initial margin requirement with formula Σ abs(Si × Pi × Ii). Note S can be negative
    * TODO Apply outstanding funding payments
    */
   function calculateTotalInitialMarginRequirement(
@@ -632,6 +634,25 @@ contract Exchange_v4 is IExchange, Owned {
   ) external view returns (uint64) {
     return
       Perpetual.calculateTotalInitialMarginRequirement(
+        wallet,
+        oraclePrices,
+        _collateralAssetDecimals,
+        _oracleWalletAddress,
+        _balanceTracking,
+        _markets
+      );
+  }
+
+  /**
+   * @notice Calculate total maintenance margin requirement by formula Σ abs(Si × Pi × Mi). Note S can be negative
+   * TODO Apply outstanding funding payments
+   */
+  function calculateTotalMaintenanceMarginRequirement(
+    address wallet,
+    OraclePrice[] calldata oraclePrices
+  ) external view returns (uint64) {
+    return
+      Perpetual.calculateTotalMaintenanceMarginRequirement(
         wallet,
         oraclePrices,
         _collateralAssetDecimals,

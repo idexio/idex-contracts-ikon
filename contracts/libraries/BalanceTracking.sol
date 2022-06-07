@@ -49,7 +49,7 @@ library BalanceTracking {
     address insuranceFundWalletAddress,
     string memory baseAssetSymbol,
     string memory collateralAssetSymbol,
-    uint64 liquidationPriceInPips
+    int64 quoteQuantityInPips
   ) internal {
     Balance storage balance;
 
@@ -68,12 +68,6 @@ library BalanceTracking {
       baseAssetSymbol
     );
     balance.balanceInPips -= positionSizeInPips;
-
-    int64 quoteQuantityInPips = Math.multiplyPipsByFraction(
-      positionSizeInPips,
-      int64(liquidationPriceInPips),
-      int64(Constants.pipPriceMultiplier)
-    );
 
     // Wallet receives or gives collateral if long or short respectively
     balance = loadBalanceAndMigrateIfNeeded(

@@ -58,9 +58,10 @@ export async function buildOraclePrices(
 export async function buildOraclePriceWithValue(
   oracle: SignerWithAddress,
   priceInAssetUnits: string,
+  baseAssetSymbol = 'ETH',
 ): Promise<OraclePrice> {
   const oraclePrice = {
-    baseAssetSymbol: 'ETH',
+    baseAssetSymbol,
     timestampInMs: new Date().getTime(),
     priceInAssetUnits,
   };
@@ -188,7 +189,7 @@ export async function fundWallets(
   wallets: SignerWithAddress[],
   exchange: Contract,
   usdc: Contract,
-  quantity = '1000.00000000',
+  quantity = '2000.00000000',
 ) {
   await Promise.all(
     wallets.map(async (wallet) =>
@@ -244,11 +245,18 @@ export async function logWalletBalances(
       await exchange.loadBalanceInPipsBySymbol(walletAddress, 'USDC'),
     )}`,
   );
-  console.log(
-    `ETH balance:  ${pipToDecimal(
-      await exchange.loadBalanceInPipsBySymbol(walletAddress, 'ETH'),
-    )}`,
-  );
+
+  for (const oraclePrice of oraclePrices) {
+    console.log(
+      `${oraclePrice.baseAssetSymbol} balance:  ${pipToDecimal(
+        await exchange.loadBalanceInPipsBySymbol(
+          walletAddress,
+          oraclePrice.baseAssetSymbol,
+        ),
+      )}`,
+    );
+  }
+
   console.log(
     `Total account value: ${pipToDecimal(
       await exchange.calculateTotalAccountValue(walletAddress, oraclePrices),
@@ -257,6 +265,14 @@ export async function logWalletBalances(
   console.log(
     `Initial margin requirement: ${pipToDecimal(
       await exchange.calculateTotalInitialMarginRequirement(
+        walletAddress,
+        oraclePrices,
+      ),
+    )}`,
+  );
+  console.log(
+    `Maintenance margin requirement: ${pipToDecimal(
+      await exchange.calculateTotalMaintenanceMarginRequirement(
         walletAddress,
         oraclePrices,
       ),
