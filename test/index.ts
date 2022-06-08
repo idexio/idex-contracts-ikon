@@ -191,7 +191,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
     });
 
-    it('can haz deebug', async function () {
+    it.only('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
@@ -234,7 +234,7 @@ describe('Exchange', function () {
 
       const sellOrder: Order = {
         signatureHashVersion,
-        nonce: uuidv1({ msecs: new Date().getTime() - 12 * 60 * 60 * 1000 }),
+        nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
         wallet: trader1.address,
         market: 'ETH-USDC',
         type: OrderType.Limit,
@@ -251,7 +251,7 @@ describe('Exchange', function () {
 
       const buyOrder: Order = {
         signatureHashVersion,
-        nonce: uuidv1({ msecs: new Date().getTime() - 12 * 60 * 60 * 1000 }),
+        nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
         wallet: trader2.address,
         market: 'ETH-USDC',
         type: OrderType.Limit,
@@ -316,34 +316,36 @@ describe('Exchange', function () {
         await exchange
           .connect(dispatcher)
           .publishFundingMutipliers(
-            await buildOraclePrices(oracle, 10),
-            buildFundingRates(10),
+            await buildOraclePrices(oracle, 30),
+            buildFundingRates(30),
           )
       ).wait();
-      /*
-    const withdrawal2 = {
-      nonce: uuidv1(),
-      wallet: trader1.address,
-      quantity: '1.00000000',
-    };
-    const signature2 = await trader1.signMessage(
-      ethers.utils.arrayify(getWithdrawalHash(withdrawal2)),
-    );
-    await (
-      await exchange
-        .connect(dispatcher)
-        .withdraw(
-          ...getWithdrawArguments(withdrawal2, '0.01000000', signature2, [
-            await buildOraclePrice(oracle),
-          ]),
-        )
-    ).wait();*/
+
+      const withdrawal2 = {
+        nonce: uuidv1(),
+        wallet: trader1.address,
+        quantity: '1.00000000',
+      };
+      const signature2 = await trader1.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal2)),
+      );
+      await (
+        await exchange
+          .connect(dispatcher)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal2, '0.01000000', signature2, [
+              await buildOraclePrice(oracle),
+            ]),
+          )
+      ).wait();
 
       console.log('Trader1');
       await logWalletBalances(trader1.address, exchange, [oraclePrice]);
 
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+
+      /*
 
       const sellOrder2: Order = {
         signatureHashVersion,
@@ -410,11 +412,12 @@ describe('Exchange', function () {
 
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+      */
     });
   });
 
   describe('liquidate', async function () {
-    it.only('can haz diibug', async function () {
+    it('can haz diibug', async function () {
       const [owner, dispatcher, fee, insuranceFund, oracle, trader1, trader2] =
         await ethers.getSigners();
       const { exchange, usdc } = await deployAndAssociateContracts(
