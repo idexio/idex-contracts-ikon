@@ -18,7 +18,7 @@ import { Trading } from './libraries/Trading.sol';
 import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
 import { ICustodian, IExchange } from './libraries/Interfaces.sol';
-import { Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
+import { FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
 
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
@@ -100,7 +100,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Deposit index
   uint64 public _depositIndex;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
-  mapping(string => int64[]) _fundingMultipliersByBaseAssetSymbol;
+  mapping(string => FundingMultiplierQuartet[]) _fundingMultipliersByBaseAssetSymbol;
   // TODO Upgrade through Governance
   address _insuranceFundWalletAddress;
   // Milliseconds since epoch, always aligned to hour

@@ -13,6 +13,13 @@ struct DelegatedKeyAuthorization {
   bytes signature;
 }
 
+struct FundingMultiplierQuartet {
+  int64 fundingMultiplier0;
+  int64 fundingMultiplier1;
+  int64 fundingMultiplier2;
+  int64 fundingMultiplier3;
+}
+
 struct Market {
   // Flag to distinguish from empty struct
   bool exists;
