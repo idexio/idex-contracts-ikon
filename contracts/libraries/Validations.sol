@@ -2,9 +2,11 @@
 
 pragma solidity 0.8.13;
 
+import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { Constants } from './Constants.sol';
 import { Hashing } from './Hashing.sol';
-import { OraclePrice, Withdrawal } from './Structs.sol';
+import { String } from './String.sol';
+import { Market, OraclePrice, Withdrawal } from './Structs.sol';
 
 library Validations {
   function isFeeQuantityValid(
@@ -14,6 +16,40 @@ library Validations {
   ) internal pure returns (bool) {
     uint64 feeBasisPoints = (fee * Constants.basisPointsInTotal) / total;
     return feeBasisPoints <= max;
+  }
+
+  function validateOraclePriceAndConvertToPips(
+    OraclePrice memory oraclePrice,
+    uint8 collateralAssetDecimals,
+    Market memory market,
+    address oracleWalletAddress
+  ) internal pure returns (uint64) {
+    require(
+      String.isStringEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol),
+      'Oracle price mismatch'
+    );
+
+    return
+      validateOraclePriceAndConvertToPips(
+        oraclePrice,
+        collateralAssetDecimals,
+        oracleWalletAddress
+      );
+  }
+
+  function validateOraclePriceAndConvertToPips(
+    OraclePrice memory oraclePrice,
+    uint8 collateralAssetDecimals,
+    address oracleWalletAddress
+  ) internal pure returns (uint64) {
+    // TODO Validate timestamp recency
+    validateOraclePriceSignature(oraclePrice, oracleWalletAddress);
+
+    return
+      AssetUnitConversions.assetUnitsToPips(
+        oraclePrice.priceInAssetUnits,
+        collateralAssetDecimals
+      );
   }
 
   function validateOraclePriceSignature(
