@@ -6,7 +6,7 @@ import { BalanceTracking } from './BalanceTracking.sol';
 import { OrderBookTradeValidations } from './OrderBookTradeValidations.sol';
 import { OrderSide, OrderType } from './Enums.sol';
 import { Perpetual } from './Perpetual.sol';
-import { FundingMultipliers, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
+import { FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
@@ -29,7 +29,7 @@ library Trading {
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(bytes32 => bool) storage completedOrderHashes,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,

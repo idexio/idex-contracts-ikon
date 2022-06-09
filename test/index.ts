@@ -316,8 +316,8 @@ describe('Exchange', function () {
         await exchange
           .connect(dispatcher)
           .publishFundingMutipliers(
-            await buildOraclePrices(oracle, 30),
-            buildFundingRates(30),
+            await buildOraclePrices(oracle, 10),
+            buildFundingRates(10),
           )
       ).wait();
 
@@ -346,7 +346,6 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
 
       /*
-
       const sellOrder2: Order = {
         signatureHashVersion,
         nonce: uuidv1(),
@@ -412,7 +411,6 @@ describe('Exchange', function () {
 
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
-      */
     });
   });
 

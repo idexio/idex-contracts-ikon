@@ -3,10 +3,11 @@
 import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
+import { FundingMultipliers } from './FundingMultipliers.sol';
 import { Math } from './Math.sol';
 import { String } from './String.sol';
 import { Validations } from './Validations.sol';
-import { FundingMultipliers, Market, OraclePrice } from './Structs.sol';
+import { FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
 import 'hardhat/console.sol';
 
@@ -16,6 +17,7 @@ pragma solidity 0.8.13;
 // multiple iterations could be combined
 library Perpetual {
   using BalanceTracking for BalanceTracking.Storage;
+  using FundingMultipliers for FundingMultiplierQuartet[];
 
   struct LiquidateArguments {
     // External arguments
@@ -32,7 +34,7 @@ library Perpetual {
   function liquidate(
     LiquidateArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -146,7 +148,7 @@ library Perpetual {
     int64[] memory fundingRatesInPips,
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
@@ -183,27 +185,27 @@ library Perpetual {
         fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol]
           .length > 0
       ) {
-        FundingMultipliers
+        FundingMultiplierQuartet
           storage fundingMultipliers = fundingMultipliersByBaseAssetSymbol[
             oraclePrice.baseAssetSymbol
           ][
             fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol]
               .length - 1
           ];
-        if (fundingMultipliers.fundingMultiplier4 != 0) {
+        if (fundingMultipliers.fundingMultiplier3 != 0) {
           fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].push(
-              FundingMultipliers(newFundingMultiplier, 0, 0, 0)
+              FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0)
             );
+        } else if (fundingMultipliers.fundingMultiplier1 == 0) {
+          fundingMultipliers.fundingMultiplier1 = newFundingMultiplier;
         } else if (fundingMultipliers.fundingMultiplier2 == 0) {
           fundingMultipliers.fundingMultiplier2 = newFundingMultiplier;
-        } else if (fundingMultipliers.fundingMultiplier3 == 0) {
-          fundingMultipliers.fundingMultiplier3 = newFundingMultiplier;
         } else {
-          fundingMultipliers.fundingMultiplier4 = newFundingMultiplier;
+          fundingMultipliers.fundingMultiplier3 = newFundingMultiplier;
         }
       } else {
         fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].push(
-          FundingMultipliers(newFundingMultiplier, 0, 0, 0)
+          FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0)
         );
       }
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
@@ -216,7 +218,7 @@ library Perpetual {
     address wallet,
     string memory collateralAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -378,7 +380,7 @@ library Perpetual {
   function calculateWalletFundingForMarket(
     BalanceTracking.Balance memory basePosition,
     Market memory market,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
@@ -388,7 +390,7 @@ library Perpetual {
     returns (int64 fundingInPips, uint64 lastFundingMultiplierTimestampInMs)
   {
     // Load funding rates and index
-    FundingMultipliers[]
+    FundingMultiplierQuartet[]
       storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
         market.baseAssetSymbol
       ];
@@ -401,65 +403,17 @@ library Perpetual {
       basePosition.balanceInPips != 0 &&
       basePosition.lastUpdateTimestampInMs < lastFundingMultiplierTimestampInMs
     ) {
-      uint256 hoursSinceLastUpdate = (lastFundingMultiplierTimestampInMs -
-        basePosition.lastUpdateTimestampInMs) / Constants.msInOneHour;
-      uint256 fundingMultipliersForMarketLength = fundingMultipliersForMarket
-        .length;
+      int64 aggregateFundingMultiplier = fundingMultipliersForMarket
+        .loadAggregateMultiplier(
+          basePosition.lastUpdateTimestampInMs,
+          lastFundingMultiplierTimestampInMs
+        );
 
-      bool isFirstIteration = true;
-      FundingMultipliers memory fundingMultipliers;
-      for (
-        uint256 multipliersIndex = hoursSinceLastUpdate >
-          fundingMultipliersForMarketLength * 4
-          ? 0
-          : fundingMultipliersForMarketLength - (hoursSinceLastUpdate / 4);
-        multipliersIndex < fundingMultipliersForMarketLength;
-        multipliersIndex++
-      ) {
-        fundingMultipliers = fundingMultipliersForMarket[multipliersIndex];
-        if (
-          (!isFirstIteration || hoursSinceLastUpdate % 4 == 0) &&
-          fundingMultipliers.fundingMultiplier1 != 0
-        ) {
-          fundingInPips += Math.multiplyPipsByFraction(
-            basePosition.balanceInPips,
-            fundingMultipliers.fundingMultiplier1,
-            int64(Constants.pipPriceMultiplier)
-          );
-        }
-        if (
-          (!isFirstIteration || hoursSinceLastUpdate % 4 == 3) &&
-          fundingMultipliers.fundingMultiplier2 != 0
-        ) {
-          fundingInPips += Math.multiplyPipsByFraction(
-            basePosition.balanceInPips,
-            fundingMultipliers.fundingMultiplier2,
-            int64(Constants.pipPriceMultiplier)
-          );
-        }
-        if (
-          (!isFirstIteration || hoursSinceLastUpdate % 4 == 2) &&
-          fundingMultipliers.fundingMultiplier3 != 0
-        ) {
-          fundingInPips += Math.multiplyPipsByFraction(
-            basePosition.balanceInPips,
-            fundingMultipliers.fundingMultiplier3,
-            int64(Constants.pipPriceMultiplier)
-          );
-        }
-        if (
-          (!isFirstIteration || hoursSinceLastUpdate % 4 == 1) &&
-          fundingMultipliers.fundingMultiplier4 != 0
-        ) {
-          fundingInPips += Math.multiplyPipsByFraction(
-            basePosition.balanceInPips,
-            fundingMultipliers.fundingMultiplier4,
-            int64(Constants.pipPriceMultiplier)
-          );
-        }
-
-        isFirstIteration = false;
-      }
+      fundingInPips += Math.multiplyPipsByFraction(
+        basePosition.balanceInPips,
+        aggregateFundingMultiplier,
+        int64(Constants.pipPriceMultiplier)
+      );
     }
   }
 
@@ -467,7 +421,7 @@ library Perpetual {
     address walletAddress,
     string memory collateralAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -488,7 +442,7 @@ library Perpetual {
     address wallet2,
     string memory collateralAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,

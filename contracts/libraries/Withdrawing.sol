@@ -8,7 +8,7 @@ import { Constants } from './Constants.sol';
 import { ICustodian } from './Interfaces.sol';
 import { Perpetual } from './Perpetual.sol';
 import { Validations } from './Validations.sol';
-import { FundingMultipliers, Market, OraclePrice, Withdrawal } from './Structs.sol';
+import { FundingMultiplierQuartet, Market, OraclePrice, Withdrawal } from './Structs.sol';
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -30,7 +30,7 @@ library Withdrawing {
     WithdrawArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(bytes32 => bool) storage completedWithdrawalHashes,
-    mapping(string => FundingMultipliers[])
+    mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
