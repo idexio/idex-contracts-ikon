@@ -181,33 +181,10 @@ library Perpetual {
         fundingRateInPips,
         int64(Constants.pipPriceMultiplier)
       );
-      if (
-        fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol]
-          .length > 0
-      ) {
-        FundingMultiplierQuartet
-          storage fundingMultipliers = fundingMultipliersByBaseAssetSymbol[
-            oraclePrice.baseAssetSymbol
-          ][
-            fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol]
-              .length - 1
-          ];
-        if (fundingMultipliers.fundingMultiplier3 != 0) {
-          fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].push(
-              FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0)
-            );
-        } else if (fundingMultipliers.fundingMultiplier1 == 0) {
-          fundingMultipliers.fundingMultiplier1 = newFundingMultiplier;
-        } else if (fundingMultipliers.fundingMultiplier2 == 0) {
-          fundingMultipliers.fundingMultiplier2 = newFundingMultiplier;
-        } else {
-          fundingMultipliers.fundingMultiplier3 = newFundingMultiplier;
-        }
-      } else {
-        fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].push(
-          FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0)
-        );
-      }
+
+      fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol]
+        .publishFundingMultipler(newFundingMultiplier);
+
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
         oraclePrice.baseAssetSymbol
       ] = oraclePrice.timestampInMs;

@@ -8,6 +8,30 @@ pragma solidity 0.8.13;
 import 'hardhat/console.sol';
 
 library FundingMultipliers {
+  function publishFundingMultipler(
+    FundingMultiplierQuartet[] storage self,
+    int64 newFundingMultiplier
+  ) internal {
+    if (self.length > 0) {
+      FundingMultiplierQuartet storage fundingMultiplierQuartet = self[
+        self.length - 1
+      ];
+      if (fundingMultiplierQuartet.fundingMultiplier3 != 0) {
+        // Quartet is fully populated, add new entry
+        self.push(FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0));
+      } else if (fundingMultiplierQuartet.fundingMultiplier1 == 0) {
+        fundingMultiplierQuartet.fundingMultiplier1 = newFundingMultiplier;
+      } else if (fundingMultiplierQuartet.fundingMultiplier2 == 0) {
+        fundingMultiplierQuartet.fundingMultiplier2 = newFundingMultiplier;
+      } else {
+        fundingMultiplierQuartet.fundingMultiplier3 = newFundingMultiplier;
+      }
+    } else {
+      // First multiplier for market, add new entry
+      self.push(FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0));
+    }
+  }
+
   function loadAggregateMultiplier(
     FundingMultiplierQuartet[] storage self,
     uint64 fromTimestampInMs,
