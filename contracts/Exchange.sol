@@ -18,7 +18,7 @@ import { Trading } from './libraries/Trading.sol';
 import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
 import { ICustodian, IExchange } from './libraries/Interfaces.sol';
-import { FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
+import { Balance, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
 
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
@@ -279,6 +279,27 @@ contract Exchange_v4 is IExchange, Owned {
     require(newFeeWallet != _feeWallet, 'Must be different from current');
 
     _feeWallet = newFeeWallet;
+  }
+
+  /**
+   * @notice Load a wallet's balance-tracking struct by asset symbol
+   *
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetSymbol The asset symbol to load the wallet's balance for
+   *
+   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently deposited by `wallet`
+   */
+  function loadBalanceBySymbol(address wallet, string calldata assetSymbol)
+    external
+    view
+    override
+    returns (Balance memory)
+  {
+    return
+      _balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+        wallet,
+        assetSymbol
+      );
   }
 
   /**

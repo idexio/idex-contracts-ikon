@@ -6,7 +6,8 @@ import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
 import { ICustodian } from './Interfaces.sol';
-import { Perpetual } from './Perpetual.sol';
+import { Funding } from './Funding.sol';
+import { Margin } from './Margin.sol';
 import { Validations } from './Validations.sol';
 import { FundingMultiplierQuartet, Market, OraclePrice, Withdrawal } from './Structs.sol';
 
@@ -60,7 +61,7 @@ library Withdrawing {
       arguments.feeWallet
     );
 
-    Perpetual.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.withdrawal.walletAddress,
       arguments.collateralAssetSymbol,
       balanceTracking,
@@ -70,7 +71,7 @@ library Withdrawing {
     );
 
     require(
-      Perpetual.isInitialMarginRequirementMet(
+      Margin.isInitialMarginRequirementMet(
         arguments.withdrawal.walletAddress,
         arguments.oraclePrices,
         arguments.collateralAssetDecimals,

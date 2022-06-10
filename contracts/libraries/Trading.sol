@@ -3,9 +3,11 @@
 pragma solidity 0.8.13;
 
 import { BalanceTracking } from './BalanceTracking.sol';
+import { Funding } from './Funding.sol';
+import { Margin } from './Margin.sol';
 import { OrderBookTradeValidations } from './OrderBookTradeValidations.sol';
-import { OrderSide, OrderType } from './Enums.sol';
 import { Perpetual } from './Perpetual.sol';
+import { OrderSide, OrderType } from './Enums.sol';
 import { FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
 
 library Trading {
@@ -61,8 +63,15 @@ library Trading {
 
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
-    Perpetual.updateWalletsFunding(
+    Funding.updateWalletFunding(
       arguments.buy.walletAddress,
+      arguments.collateralAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      markets
+    );
+    Funding.updateWalletFunding(
       arguments.sell.walletAddress,
       arguments.collateralAssetSymbol,
       balanceTracking,
@@ -161,7 +170,7 @@ library Trading {
     Market[] storage markets
   ) private view {
     require(
-      Perpetual.isInitialMarginRequirementMet(
+      Margin.isInitialMarginRequirementMet(
         arguments.buy.walletAddress,
         arguments.oraclePrices,
         arguments.collateralAssetDecimals,
@@ -173,7 +182,7 @@ library Trading {
       'Initial margin requirement not met for buy wallet'
     );
     require(
-      Perpetual.isInitialMarginRequirementMet(
+      Margin.isInitialMarginRequirementMet(
         arguments.sell.walletAddress,
         arguments.oraclePrices,
         arguments.collateralAssetDecimals,

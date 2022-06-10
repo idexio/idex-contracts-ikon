@@ -7,16 +7,9 @@ import { IExchange } from './Interfaces.sol';
 import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
 import { UUID } from './UUID.sol';
-import { Order, OrderBookTrade, Withdrawal } from './Structs.sol';
+import { Balance, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 library BalanceTracking {
-  struct Balance {
-    bool isMigrated;
-    int64 balanceInPips;
-    // The last funding update timestamp is only relevant for base asset positions
-    uint64 lastUpdateTimestampInMs;
-  }
-
   struct Storage {
     mapping(address => mapping(string => Balance)) balancesByWalletAssetPair;
     // Predecessor Exchange contract from which to lazily migrate balances
@@ -188,19 +181,32 @@ library BalanceTracking {
 
   // Accessors //
 
+  function loadBalanceFromMigrationSourceIfNeeded(
+    Storage storage self,
+    address wallet,
+    string memory assetSymbol
+  ) internal view returns (Balance memory) {
+    Balance memory balance = self.balancesByWalletAssetPair[wallet][
+      assetSymbol
+    ];
+
+    if (!balance.isMigrated && address(self.migrationSource) != address(0x0)) {
+      balance = self.migrationSource.loadBalanceBySymbol(wallet, assetSymbol);
+    }
+
+    return balance;
+  }
+
   function loadBalanceInPipsFromMigrationSourceIfNeeded(
     Storage storage self,
     address wallet,
     string memory assetSymbol
   ) internal view returns (int64) {
-    BalanceTracking.Balance memory balance = self.balancesByWalletAssetPair[
-      wallet
-    ][assetSymbol];
-
-    if (!balance.isMigrated && address(self.migrationSource) != address(0x0)) {
-      return
-        self.migrationSource.loadBalanceInPipsBySymbol(wallet, assetSymbol);
-    }
+    Balance memory balance = loadBalanceFromMigrationSourceIfNeeded(
+      self,
+      wallet,
+      assetSymbol
+    );
 
     return balance.balanceInPips;
   }
@@ -216,12 +222,15 @@ library BalanceTracking {
       assetSymbol
     ];
 
+    Balance memory migratedBalance;
     if (!balance.isMigrated && address(self.migrationSource) != address(0x0)) {
-      balance.balanceInPips = self.migrationSource.loadBalanceInPipsBySymbol(
+      migratedBalance = self.migrationSource.loadBalanceBySymbol(
         wallet,
         assetSymbol
       );
       balance.isMigrated = true;
+      balance.balanceInPips = migratedBalance.balanceInPips;
+      balance.lastUpdateTimestampInMs = migratedBalance.lastUpdateTimestampInMs;
     }
 
     return balance;

@@ -13,6 +13,19 @@ struct DelegatedKeyAuthorization {
   bytes signature;
 }
 
+/**
+ * @notice Internally used struct for tracking wallet balances and funding updates
+ */
+struct Balance {
+  bool isMigrated;
+  int64 balanceInPips;
+  // The last funding update timestamp is only relevant for base asset positions
+  uint64 lastUpdateTimestampInMs;
+}
+
+/**
+ * @notice Internally used struct for storing funding multipliers
+ */
 struct FundingMultiplierQuartet {
   int64 fundingMultiplier0;
   int64 fundingMultiplier1;

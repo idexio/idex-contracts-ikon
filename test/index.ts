@@ -316,8 +316,8 @@ describe('Exchange', function () {
         await exchange
           .connect(dispatcher)
           .publishFundingMutipliers(
-            await buildOraclePrices(oracle, 10),
-            buildFundingRates(10),
+            await buildOraclePrices(oracle, 50),
+            buildFundingRates(50),
           )
       ).wait();
 

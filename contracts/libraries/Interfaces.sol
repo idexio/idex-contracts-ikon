@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.13;
 
+import { Balance } from './Structs.sol';
+
 /**
  * @notice Interface to Custodian contract. Used by Exchange and Governance contracts for internal
  * delegate calls
@@ -74,6 +76,14 @@ interface IExchange {
     address wallet,
     string calldata assetSymbol
   ) external view returns (int64);
+
+  /**
+   * @notice Load a wallet's balance-tracking struct by asset address
+   */
+  function loadBalanceBySymbol(address wallet, string calldata assetSymbol)
+    external
+    view
+    returns (Balance memory);
 
   /**
    * @notice Load the address of the Custodian contract
