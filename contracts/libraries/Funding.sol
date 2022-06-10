@@ -13,7 +13,7 @@ library Funding {
   using BalanceTracking for BalanceTracking.Storage;
   using FundingMultipliers for FundingMultiplierQuartet[];
 
-  function calculateOutstandingWalletFunding(
+  function loadOutstandingWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => FundingMultiplierQuartet[])
@@ -29,7 +29,7 @@ library Funding {
       Balance memory basePosition = balanceTracking
         .loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
 
-      (marketFundingInPips, ) = calculateWalletFundingForMarket(
+      (marketFundingInPips, ) = loadWalletFundingForMarket(
         basePosition,
         market,
         fundingMultipliersByBaseAssetSymbol,
@@ -39,7 +39,7 @@ library Funding {
     }
   }
 
-  function calculateWalletFundingForMarket(
+  function loadWalletFundingForMarket(
     Balance memory basePosition,
     Market memory market,
     mapping(string => FundingMultiplierQuartet[])
@@ -150,7 +150,7 @@ library Funding {
       (
         marketFundingInPips,
         lastFundingMultiplierTimestampInMs
-      ) = calculateWalletFundingForMarket(
+      ) = loadWalletFundingForMarket(
         basePosition,
         market,
         fundingMultipliersByBaseAssetSymbol,

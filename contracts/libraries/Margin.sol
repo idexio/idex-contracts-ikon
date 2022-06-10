@@ -13,7 +13,7 @@ pragma solidity 0.8.13;
 library Margin {
   using BalanceTracking for BalanceTracking.Storage;
 
-  function calculateTotalAccountValue(
+  function loadTotalAccountValue(
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 collateralAssetDecimals,
@@ -51,7 +51,7 @@ library Margin {
     return totalAccountValueInPips;
   }
 
-  function calculateTotalInitialMarginRequirement(
+  function loadTotalInitialMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 collateralAssetDecimals,
@@ -65,7 +65,7 @@ library Margin {
         oraclePrices[i]
       );
 
-      initialMarginRequirement += calculateMarginRequirement(
+      initialMarginRequirement += loadMarginRequirement(
         wallet,
         market.baseAssetSymbol,
         market.initialMarginFractionInPips,
@@ -77,21 +77,21 @@ library Margin {
     }
   }
 
-  function calculateTotalMaintenanceMarginRequirement(
+  function loadTotalMaintenanceMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
     Market[] storage markets
-  ) public view returns (uint64 initialMarginRequirement) {
+  ) internal view returns (uint64 initialMarginRequirement) {
     for (uint8 i = 0; i < markets.length; i++) {
       (Market memory market, OraclePrice memory oraclePrice) = (
         markets[i],
         oraclePrices[i]
       );
 
-      initialMarginRequirement += calculateMarginRequirement(
+      initialMarginRequirement += loadMarginRequirement(
         wallet,
         market.baseAssetSymbol,
         market.maintenanceMarginFractionInPips,
@@ -103,7 +103,7 @@ library Margin {
     }
   }
 
-  function calculateMarginRequirement(
+  function loadMarginRequirement(
     address wallet,
     string memory baseAssetSymbol,
     uint64 marginFractionInPips,
@@ -111,7 +111,7 @@ library Margin {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking
-  ) public view returns (uint64) {
+  ) internal view returns (uint64) {
     require(
       String.isStringEqual(baseAssetSymbol, oraclePrice.baseAssetSymbol),
       'Oracle price mismatch'
@@ -150,7 +150,7 @@ library Margin {
     Market[] storage markets
   ) internal view returns (bool) {
     return
-      calculateTotalAccountValue(
+      loadTotalAccountValue(
         walletAddress,
         oraclePrices,
         collateralAssetDecimals,
@@ -160,7 +160,7 @@ library Margin {
         markets
       ) >=
       int64(
-        calculateTotalInitialMarginRequirement(
+        loadTotalInitialMarginRequirement(
           walletAddress,
           oraclePrices,
           collateralAssetDecimals,
