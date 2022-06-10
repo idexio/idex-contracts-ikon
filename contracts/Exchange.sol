@@ -626,35 +626,53 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Calculate total account value by formula Q + Σ (Si × Pi). Note Q and S can be negative
-   * TODO Apply outstanding funding payments
+   * @notice Calculate total outstanding funding payments
    */
-  function calculateTotalAccountValue(
+  function loadOutstandingWalletFunding(address wallet)
+    external
+    view
+    returns (int64)
+  {
+    return
+      Perpetual.loadOutstandingWalletFunding(
+        wallet,
+        _balanceTracking,
+        _fundingMultipliersByBaseAssetSymbol,
+        _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        _markets
+      );
+  }
+
+  /**
+   * @notice Calculate total account value by formula Q + Σ (Si × Pi). Note Q and S can be negative
+   */
+  function loadTotalAccountValue(
     address wallet,
     OraclePrice[] calldata oraclePrices
   ) external view returns (int64) {
     return
-      Perpetual.calculateTotalAccountValue(
+      Perpetual.loadTotalAccountValueIncludingOutstandingWalletFunding(
         wallet,
         oraclePrices,
         _collateralAssetDecimals,
         _collateralAssetSymbol,
         _oracleWalletAddress,
         _balanceTracking,
+        _fundingMultipliersByBaseAssetSymbol,
+        _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         _markets
       );
   }
 
   /**
    * @notice Calculate total initial margin requirement with formula Σ abs(Si × Pi × Ii). Note S can be negative
-   * TODO Apply outstanding funding payments
    */
-  function calculateTotalInitialMarginRequirement(
+  function loadTotalInitialMarginRequirement(
     address wallet,
     OraclePrice[] calldata oraclePrices
   ) external view returns (uint64) {
     return
-      Perpetual.calculateTotalInitialMarginRequirement(
+      Perpetual.loadTotalInitialMarginRequirement(
         wallet,
         oraclePrices,
         _collateralAssetDecimals,
@@ -666,14 +684,13 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total maintenance margin requirement by formula Σ abs(Si × Pi × Mi). Note S can be negative
-   * TODO Apply outstanding funding payments
    */
-  function calculateTotalMaintenanceMarginRequirement(
+  function loadTotalMaintenanceMarginRequirement(
     address wallet,
     OraclePrice[] calldata oraclePrices
   ) external view returns (uint64) {
     return
-      Perpetual.calculateTotalMaintenanceMarginRequirement(
+      Perpetual.loadTotalMaintenanceMarginRequirement(
         wallet,
         oraclePrices,
         _collateralAssetDecimals,

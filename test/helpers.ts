@@ -259,12 +259,17 @@ export async function logWalletBalances(
 
   console.log(
     `Total account value: ${pipToDecimal(
-      await exchange.calculateTotalAccountValue(walletAddress, oraclePrices),
+      await exchange.loadTotalAccountValue(walletAddress, oraclePrices),
+    )}`,
+  );
+  console.log(
+    `Outstanding funding payments: ${pipToDecimal(
+      await exchange.loadOutstandingWalletFunding(walletAddress),
     )}`,
   );
   console.log(
     `Initial margin requirement: ${pipToDecimal(
-      await exchange.calculateTotalInitialMarginRequirement(
+      await exchange.loadTotalInitialMarginRequirement(
         walletAddress,
         oraclePrices,
       ),
@@ -272,7 +277,7 @@ export async function logWalletBalances(
   );
   console.log(
     `Maintenance margin requirement: ${pipToDecimal(
-      await exchange.calculateTotalMaintenanceMarginRequirement(
+      await exchange.loadTotalMaintenanceMarginRequirement(
         walletAddress,
         oraclePrices,
       ),

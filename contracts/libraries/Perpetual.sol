@@ -30,7 +30,7 @@ library Perpetual {
     address oracleWalletAddress;
   }
 
-  function calculateOutstandingWalletFunding(
+  function loadOutstandingWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => FundingMultiplierQuartet[])
@@ -40,7 +40,7 @@ library Perpetual {
     Market[] storage markets
   ) public view returns (int64 fundingInPips) {
     return
-      Funding.calculateOutstandingWalletFunding(
+      Funding.loadOutstandingWalletFunding(
         wallet,
         balanceTracking,
         fundingMultipliersByBaseAssetSymbol,
@@ -49,17 +49,21 @@ library Perpetual {
       );
   }
 
-  function calculateTotalAccountValue(
+  function loadTotalAccountValueIncludingOutstandingWalletFunding(
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 collateralAssetDecimals,
     string memory collateralAssetSymbol,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     Market[] storage markets
   ) public view returns (int64) {
     return
-      Margin.calculateTotalAccountValue(
+      Margin.loadTotalAccountValue(
         wallet,
         oraclePrices,
         collateralAssetDecimals,
@@ -67,10 +71,17 @@ library Perpetual {
         oracleWalletAddress,
         balanceTracking,
         markets
+      ) +
+      loadOutstandingWalletFunding(
+        wallet,
+        balanceTracking,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        markets
       );
   }
 
-  function calculateTotalInitialMarginRequirement(
+  function loadTotalInitialMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 collateralAssetDecimals,
@@ -79,7 +90,7 @@ library Perpetual {
     Market[] storage markets
   ) public view returns (uint64 initialMarginRequirement) {
     return
-      Margin.calculateTotalInitialMarginRequirement(
+      Margin.loadTotalInitialMarginRequirement(
         wallet,
         oraclePrices,
         collateralAssetDecimals,
@@ -89,7 +100,7 @@ library Perpetual {
       );
   }
 
-  function calculateTotalMaintenanceMarginRequirement(
+  function loadTotalMaintenanceMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 collateralAssetDecimals,
@@ -98,7 +109,7 @@ library Perpetual {
     Market[] storage markets
   ) public view returns (uint64 initialMarginRequirement) {
     return
-      Margin.calculateTotalMaintenanceMarginRequirement(
+      Margin.loadTotalMaintenanceMarginRequirement(
         wallet,
         oraclePrices,
         collateralAssetDecimals,
@@ -130,7 +141,7 @@ library Perpetual {
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
     ) = (
-        Margin.calculateTotalAccountValue(
+        Margin.loadTotalAccountValue(
           arguments.walletAddress,
           arguments.oraclePrices,
           arguments.collateralAssetDecimals,
@@ -139,7 +150,7 @@ library Perpetual {
           balanceTracking,
           markets
         ),
-        Margin.calculateTotalMaintenanceMarginRequirement(
+        Margin.loadTotalMaintenanceMarginRequirement(
           arguments.walletAddress,
           arguments.oraclePrices,
           arguments.collateralAssetDecimals,
