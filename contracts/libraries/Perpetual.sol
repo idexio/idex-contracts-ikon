@@ -9,7 +9,7 @@ import { Margin } from './Margin.sol';
 import { Math } from './Math.sol';
 import { String } from './String.sol';
 import { Validations } from './Validations.sol';
-import { FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
+import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
 pragma solidity 0.8.13;
 
@@ -28,6 +28,25 @@ library Perpetual {
     string collateralAssetSymbol;
     address insuranceFundWalletAddress;
     address oracleWalletAddress;
+  }
+
+  function calculateOutstandingWalletFunding(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    Market[] storage markets
+  ) public view returns (int64 fundingInPips) {
+    return
+      Funding.calculateOutstandingWalletFunding(
+        wallet,
+        balanceTracking,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        markets
+      );
   }
 
   function calculateTotalAccountValue(
@@ -165,7 +184,7 @@ library Perpetual {
       arguments.oracleWalletAddress
     );
 
-    BalanceTracking.Balance storage basePosition = balanceTracking
+    Balance storage basePosition = balanceTracking
       .loadBalanceAndMigrateIfNeeded(
         arguments.walletAddress,
         market.baseAssetSymbol

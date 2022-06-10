@@ -5,7 +5,7 @@ import { Constants } from './Constants.sol';
 import { FundingMultipliers } from './FundingMultipliers.sol';
 import { Math } from './Math.sol';
 import { Validations } from './Validations.sol';
-import { FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
+import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
 pragma solidity 0.8.13;
 
@@ -13,8 +13,34 @@ library Funding {
   using BalanceTracking for BalanceTracking.Storage;
   using FundingMultipliers for FundingMultiplierQuartet[];
 
+  function calculateOutstandingWalletFunding(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    Market[] storage markets
+  ) internal view returns (int64 fundingInPips) {
+    int64 marketFundingInPips;
+
+    for (uint8 marketIndex = 0; marketIndex < markets.length; marketIndex++) {
+      Market memory market = markets[marketIndex];
+      Balance memory basePosition = balanceTracking
+        .loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
+
+      (marketFundingInPips, ) = calculateWalletFundingForMarket(
+        basePosition,
+        market,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+      );
+      fundingInPips += marketFundingInPips;
+    }
+  }
+
   function calculateWalletFundingForMarket(
-    BalanceTracking.Balance memory basePosition,
+    Balance memory basePosition,
     Market memory market,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
@@ -118,7 +144,7 @@ library Funding {
 
     for (uint8 marketIndex = 0; marketIndex < markets.length; marketIndex++) {
       Market memory market = markets[marketIndex];
-      BalanceTracking.Balance storage basePosition = balanceTracking
+      Balance storage basePosition = balanceTracking
         .loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
 
       (
@@ -134,7 +160,7 @@ library Funding {
       basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
     }
 
-    BalanceTracking.Balance storage collateralBalance = balanceTracking
+    Balance storage collateralBalance = balanceTracking
       .loadBalanceAndMigrateIfNeeded(wallet, collateralAssetSymbol);
     collateralBalance.balanceInPips += fundingInPips;
   }
