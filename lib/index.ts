@@ -2,6 +2,10 @@ import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import { ExchangeV4 } from '../typechain';
 
+import * as contracts from './contracts';
+
+export { contracts };
+
 /** The fixed number of digits following the decimal in quantities expressed as pips */
 export const pipsDecimals = 8;
 
