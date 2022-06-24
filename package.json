@@ -1,7 +1,7 @@
 {
   "name": "@idexio/idex-contracts-ikon",
   "license": "UNLICENSED",
-  "version": "0.0.2",
+  "version": "0.0.8",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Ethereum contracts",
   "homepage": "https://github.com/idexio/idex-contracts-silverton",
   "main": "build/lib/index.js",
@@ -10,13 +10,13 @@
     "lib": "build/lib"
   },
   "files": [
-    "build/contracts/Depositing.json",
-    "build/contracts/NonceInvalidations.json",
-    "build/contracts/Perpetual.json",
-    "build/contracts/Trading.json",
-    "build/contracts/Withdrawing.json",
+    "artifacts/contracts/libraries/Depositing.sol/Depositing.json",
+    "artifacts/contracts/libraries/NonceInvalidations.sol/NonceInvalidations.json",
+    "artifacts/contracts/libraries/Perpetual.sol/Perpetual.json",
+    "artifacts/contracts/libraries/Trading.sol/Trading.json",
+    "artifacts/contracts/libraries/Withdrawing.sol/Withdrawing.json",
     "build/lib",
-    "build/types"
+    "build/typechain"
   ],
   "scripts": {
     "build": "yarn build:sol && yarn build:ts",

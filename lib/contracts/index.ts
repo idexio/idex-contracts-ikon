@@ -4,10 +4,19 @@ import { ethers } from 'ethers';
 
 import { initRpcApi, loadProvider } from './utils';
 
+import CustodianContract from './CustodianContract';
 import ExchangeContract from './ExchangeContract';
+import GovernanceContract from './GovernanceContract';
 import USDCContract from './USDCContract';
 
-export { initRpcApi, ExchangeContract, USDCContract };
+export {
+  initRpcApi,
+  loadProvider,
+  CustodianContract,
+  ExchangeContract,
+  GovernanceContract,
+  USDCContract,
+};
 
 export type LibraryName =
   | 'Depositing'
@@ -39,7 +48,17 @@ function loadLibraryBytecode(name: LibraryName): string {
     const { bytecode } = JSON.parse(
       fs
         .readFileSync(
-          path.join(__dirname, '..', '..', 'contracts', `${name}.json`),
+          path.join(
+            __dirname,
+            '..',
+            '..',
+            '..',
+            'artifacts',
+            'contracts',
+            'libraries',
+            `${name}.sol`,
+            `${name}.json`,
+          ),
         )
         .toString('utf8'),
     );
