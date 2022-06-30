@@ -3,12 +3,12 @@ import { ethers } from 'ethers';
 import * as utils from './utils';
 import BaseContract from './BaseContract';
 
-import { ExchangeV4, ExchangeV4__factory } from '../../typechain';
+import { Exchange_v4, Exchange_v4__factory } from '../../typechain-types';
 
-export default class ExchangeContract extends BaseContract<ExchangeV4> {
+export default class ExchangeContract extends BaseContract<Exchange_v4> {
   public constructor(address: string, signerWalletPrivateKey?: string) {
     super(
-      ExchangeV4__factory.connect(
+      Exchange_v4__factory.connect(
         address,
         signerWalletPrivateKey
           ? new ethers.Wallet(signerWalletPrivateKey, utils.loadProvider())
@@ -18,7 +18,7 @@ export default class ExchangeContract extends BaseContract<ExchangeV4> {
   }
 
   public static async deploy(
-    args: Parameters<ExchangeV4__factory['deploy']>,
+    args: Parameters<Exchange_v4__factory['deploy']>,
     libraryAddresses: {
       depositing: string;
       nonceInvalidations: string;
@@ -29,7 +29,7 @@ export default class ExchangeContract extends BaseContract<ExchangeV4> {
     ownerWalletPrivateKey: string,
   ): Promise<ExchangeContract> {
     const linkLibraryAddresses: ConstructorParameters<
-      typeof ExchangeV4__factory
+      typeof Exchange_v4__factory
     >[0] = {
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
@@ -47,7 +47,7 @@ export default class ExchangeContract extends BaseContract<ExchangeV4> {
       utils.loadProvider(),
     );
 
-    const contract = await new ExchangeV4__factory(
+    const contract = await new Exchange_v4__factory(
       linkLibraryAddresses,
       owner,
     ).deploy(...args);

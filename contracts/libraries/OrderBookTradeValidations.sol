@@ -52,12 +52,12 @@ library OrderBookTradeValidations {
     mapping(string => Market) storage marketsBySymbol
   ) internal view {
     require(
-      !String.isStringEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
+      !String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
       'Trade assets must be different'
     );
 
     require(
-      String.isStringEqual(trade.quoteAssetSymbol, collateralAssetSymbol),
+      String.isEqual(trade.quoteAssetSymbol, collateralAssetSymbol),
       'Quote and collateral symbol mismatch'
     );
 

@@ -25,7 +25,7 @@ library Validations {
     address oracleWalletAddress
   ) internal pure returns (uint64) {
     require(
-      String.isStringEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol),
+      String.isEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol),
       'Oracle price mismatch'
     );
 

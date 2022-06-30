@@ -20,12 +20,20 @@ library Funding {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) internal view returns (int64 fundingInPips) {
     int64 marketFundingInPips;
 
-    for (uint8 marketIndex = 0; marketIndex < markets.length; marketIndex++) {
-      Market memory market = markets[marketIndex];
+    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+      wallet
+    ];
+    for (
+      uint8 marketIndex = 0;
+      marketIndex < marketSymbols.length;
+      marketIndex++
+    ) {
+      Market memory market = marketsBySymbol[marketSymbols[marketIndex]];
       Balance memory basePosition = balanceTracking
         .loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
 
@@ -136,14 +144,22 @@ library Funding {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) internal {
     int64 fundingInPips;
     int64 marketFundingInPips;
     uint64 lastFundingMultiplierTimestampInMs;
 
-    for (uint8 marketIndex = 0; marketIndex < markets.length; marketIndex++) {
-      Market memory market = markets[marketIndex];
+    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+      wallet
+    ];
+    for (
+      uint8 marketIndex = 0;
+      marketIndex < marketSymbols.length;
+      marketIndex++
+    ) {
+      Market memory market = marketsBySymbol[marketSymbols[marketIndex]];
       Balance storage basePosition = balanceTracking
         .loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
 

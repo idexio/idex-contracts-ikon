@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import * as utils from './utils';
 import BaseContract from './BaseContract';
 
-import { Custodian, Custodian__factory } from '../../typechain';
+import { Custodian, Custodian__factory } from '../../typechain-types';
 
 export default class CustodianContract extends BaseContract<Custodian> {
   public constructor(address: string, signerWalletPrivateKey?: string) {

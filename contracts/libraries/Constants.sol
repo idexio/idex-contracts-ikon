@@ -20,8 +20,6 @@ library Constants {
   uint256 public constant maxDelegateKeyExpirationPeriodInMs =
     365 * 24 * 60 * 60 * 1000;
 
-  uint8 public constant maxMarketCount = 50;
-
   // 20%
   uint64 public constant maxFeeBasisPoints = 20 * 100;
 

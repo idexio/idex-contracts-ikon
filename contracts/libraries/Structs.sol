@@ -52,6 +52,8 @@ struct Market {
   uint64 incrementalPositionSizeInPips;
   // The max position size in base token
   uint64 maximumPositionSizeInPips;
+  // The timestamp of the latest oracle price provided for this market
+  uint64 lastOraclePriceTimestampInMs;
 }
 
 // Price data signed by oracle wallet
