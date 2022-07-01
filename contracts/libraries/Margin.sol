@@ -8,7 +8,7 @@ import { String } from './String.sol';
 import { Validations } from './Validations.sol';
 import { Market, OraclePrice } from './Structs.sol';
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 library Margin {
   using BalanceTracking for BalanceTracking.Storage;

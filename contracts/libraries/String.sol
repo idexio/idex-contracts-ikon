@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 library String {
   // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays

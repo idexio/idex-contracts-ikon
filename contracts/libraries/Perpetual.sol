@@ -11,7 +11,7 @@ import { String } from './String.sol';
 import { Validations } from './Validations.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 // TODO Gas optimization - several of the functions here iterate over all a wallet's position, potentially these
 // multiple iterations could be combined
