@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
@@ -35,7 +35,8 @@ library Withdrawing {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public returns (int64 newExchangeBalanceInPips) {
     // Validations
     require(
@@ -67,7 +68,8 @@ library Withdrawing {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      markets
+      marketsBySymbol,
+      marketSymbolsWithOpenPositionsByWallet
     );
 
     require(
@@ -78,7 +80,8 @@ library Withdrawing {
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,
         balanceTracking,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       ),
       'Initial margin requirement not met for buy wallet'
     );

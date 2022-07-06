@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import * as utils from './utils';
 import BaseContract from './BaseContract';
 
-import { Governance, Governance__factory } from '../../typechain';
+import { Governance, Governance__factory } from '../../typechain-types';
 
 export default class GovernanceContract extends BaseContract<Governance> {
   public constructor(address: string, signerWalletPrivateKey?: string) {

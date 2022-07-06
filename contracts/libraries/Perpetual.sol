@@ -11,7 +11,7 @@ import { String } from './String.sol';
 import { Validations } from './Validations.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 // TODO Gas optimization - several of the functions here iterate over all a wallet's position, potentially these
 // multiple iterations could be combined
@@ -37,7 +37,8 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public view returns (int64 fundingInPips) {
     return
       Funding.loadOutstandingWalletFunding(
@@ -45,7 +46,8 @@ library Perpetual {
         balanceTracking,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -60,7 +62,8 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public view returns (int64) {
     return
       Margin.loadTotalAccountValue(
@@ -70,14 +73,16 @@ library Perpetual {
         collateralAssetSymbol,
         oracleWalletAddress,
         balanceTracking,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       ) +
       loadOutstandingWalletFunding(
         wallet,
         balanceTracking,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -87,7 +92,8 @@ library Perpetual {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public view returns (uint64 initialMarginRequirement) {
     return
       Margin.loadTotalInitialMarginRequirement(
@@ -96,7 +102,8 @@ library Perpetual {
         collateralAssetDecimals,
         oracleWalletAddress,
         balanceTracking,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -106,7 +113,8 @@ library Perpetual {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public view returns (uint64 initialMarginRequirement) {
     return
       Margin.loadTotalMaintenanceMarginRequirement(
@@ -115,7 +123,8 @@ library Perpetual {
         collateralAssetDecimals,
         oracleWalletAddress,
         balanceTracking,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -126,7 +135,8 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public {
     Funding.updateWalletFunding(
       arguments.walletAddress,
@@ -134,7 +144,8 @@ library Perpetual {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      markets
+      marketsBySymbol,
+      marketSymbolsWithOpenPositionsByWallet
     );
 
     (
@@ -148,7 +159,8 @@ library Perpetual {
           arguments.collateralAssetSymbol,
           arguments.oracleWalletAddress,
           balanceTracking,
-          markets
+          marketsBySymbol,
+          marketSymbolsWithOpenPositionsByWallet
         ),
         Margin.loadTotalMaintenanceMarginRequirement(
           arguments.walletAddress,
@@ -156,7 +168,8 @@ library Perpetual {
           arguments.collateralAssetDecimals,
           arguments.oracleWalletAddress,
           balanceTracking,
-          markets
+          marketsBySymbol,
+          marketSymbolsWithOpenPositionsByWallet
         )
       );
 
@@ -165,16 +178,20 @@ library Perpetual {
       'Maintenance margin met'
     );
 
-    for (uint8 i = 0; i < markets.length; i++) {
+    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+      arguments.walletAddress
+    ];
+    for (uint8 i = 0; i < marketSymbols.length; i++) {
       // FIXME Insurance fund margin requirements
       liquidateMarket(
-        markets[i],
+        marketsBySymbol[marketSymbols[i]],
         arguments.liquidationQuoteQuantitiesInPips[i],
         arguments.oraclePrices[i],
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
         arguments,
-        balanceTracking
+        balanceTracking,
+        marketSymbolsWithOpenPositionsByWallet
       );
     }
   }
@@ -186,27 +203,22 @@ library Perpetual {
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
     LiquidateArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public {
+    int64 positionSizeInPips = balanceTracking
+      .loadBalanceAndMigrateIfNeeded(
+        arguments.walletAddress,
+        market.baseAssetSymbol
+      )
+      .balanceInPips;
+
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       oraclePrice,
       arguments.collateralAssetDecimals,
       market,
       arguments.oracleWalletAddress
     );
-
-    Balance storage basePosition = balanceTracking
-      .loadBalanceAndMigrateIfNeeded(
-        arguments.walletAddress,
-        market.baseAssetSymbol
-      );
-
-    int64 positionSizeInPips = basePosition.balanceInPips;
-    // Gas optimization - move on to next market if wallet has no position in this one
-    if (positionSizeInPips == 0) {
-      return;
-    }
-
     int64 expectedLiquidationQuoteQuantitiesInPips = calculateLiquidationQuoteQuantityInPips(
         positionSizeInPips,
         oraclePriceInPips,
@@ -227,7 +239,8 @@ library Perpetual {
       arguments.insuranceFundWalletAddress,
       market.baseAssetSymbol,
       arguments.collateralAssetSymbol,
-      liquidationQuoteQuantitiesInPips
+      liquidationQuoteQuantitiesInPips,
+      marketSymbolsWithOpenPositionsByWallet
     );
   }
 
@@ -259,7 +272,8 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public {
     Funding.updateWalletFunding(
       wallet,
@@ -267,7 +281,8 @@ library Perpetual {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      markets
+      marketsBySymbol,
+      marketSymbolsWithOpenPositionsByWallet
     );
   }
 

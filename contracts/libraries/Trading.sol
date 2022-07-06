@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Funding } from './Funding.sol';
@@ -35,8 +35,8 @@ library Trading {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    Market[] storage markets,
     mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) public {
@@ -69,7 +69,8 @@ library Trading {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      markets
+      marketsBySymbol,
+      marketSymbolsWithOpenPositionsByWallet
     );
     Funding.updateWalletFunding(
       arguments.sell.walletAddress,
@@ -77,17 +78,26 @@ library Trading {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      markets
+      marketsBySymbol,
+      marketSymbolsWithOpenPositionsByWallet
     );
 
     balanceTracking.updateForOrderBookTrade(
       arguments.buy,
       arguments.sell,
       arguments.orderBookTrade,
-      arguments.feeWallet
+      arguments.feeWallet,
+      marketSymbolsWithOpenPositionsByWallet
     );
 
-    validateInitialMarginRequirements(arguments, balanceTracking, markets);
+    validateInitialMarginRequirements(
+      arguments,
+      balanceTracking,
+      marketsBySymbol,
+      marketSymbolsWithOpenPositionsByWallet
+    );
+
+    // TODO Update market lastOraclePriceTimestampInMs
   }
 
   function updateOrderFilledQuantities(
@@ -167,7 +177,8 @@ library Trading {
   function validateInitialMarginRequirements(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    Market[] storage markets
+    mapping(string => Market) storage marketsBySymbol,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) private view {
     require(
       Margin.isInitialMarginRequirementMet(
@@ -177,7 +188,8 @@ library Trading {
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,
         balanceTracking,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       ),
       'Initial margin requirement not met for buy wallet'
     );
@@ -189,7 +201,8 @@ library Trading {
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,
         balanceTracking,
-        markets
+        marketsBySymbol,
+        marketSymbolsWithOpenPositionsByWallet
       ),
       'Initial margin requirement not met for sell wallet'
     );

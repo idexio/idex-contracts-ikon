@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 import { Constants } from './Constants.sol';
 import { Hashing } from './Hashing.sol';
@@ -52,12 +52,12 @@ library OrderBookTradeValidations {
     mapping(string => Market) storage marketsBySymbol
   ) internal view {
     require(
-      !String.isStringEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
+      !String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
       'Trade assets must be different'
     );
 
     require(
-      String.isStringEqual(trade.quoteAssetSymbol, collateralAssetSymbol),
+      String.isEqual(trade.quoteAssetSymbol, collateralAssetSymbol),
       'Quote and collateral symbol mismatch'
     );
 

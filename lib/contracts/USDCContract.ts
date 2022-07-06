@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import * as utils from './utils';
 import BaseContract from './BaseContract';
 
-import { USDC, USDC__factory } from '../../typechain';
+import { USDC, USDC__factory } from '../../typechain-types';
 
 export default class USDCContract extends BaseContract<USDC> {
   public constructor(address: string, signerWalletPrivateKey?: string) {

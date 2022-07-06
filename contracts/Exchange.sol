@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { AssetUnitConversions } from './libraries/AssetUnitConversions.sol';
@@ -102,17 +102,17 @@ contract Exchange_v4 is IExchange, Owned {
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => FundingMultiplierQuartet[]) _fundingMultipliersByBaseAssetSymbol;
   // TODO Upgrade through Governance
-  address _insuranceFundWalletAddress;
+  address _insuranceFundWallet;
   // Milliseconds since epoch, always aligned to hour
   mapping(string => uint64) _lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
-  // All markets TODO Enablement
-  Market[] public _markets;
   // Markets mapped by symbol TODO Enablement
   mapping(string => Market) _marketsBySymbol;
+  // Mapping of wallet => list of market symbols with open positions
+  mapping(address => string[]) _marketSymbolsWithOpenPositionsByWallet;
   // TODO Upgrade through Governance
-  address _oracleWalletAddress;
+  address _oracleWallet;
   // CLOB - mapping of wallet => last invalidated timestampInMs
-  mapping(address => NonceInvalidation) _nonceInvalidations;
+  mapping(address => NonceInvalidation) _nonceInvalidationsByWallet;
   // CLOB - mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) _partiallyFilledOrderQuantitiesInPips;
   // Exits
@@ -139,9 +139,9 @@ contract Exchange_v4 is IExchange, Owned {
     address collateralAssetAddress,
     string memory collateralAssetSymbol,
     uint8 collateralAssetDecimals,
-    address feeWalletAddress,
-    address insuranceFundWalletAddress,
-    address oracleWalletAddress
+    address feeWallet,
+    address insuranceFundWallet,
+    address oracleWallet
   ) Owned() {
     require(
       address(balanceMigrationSource) == address(0x0) ||
@@ -158,19 +158,16 @@ contract Exchange_v4 is IExchange, Owned {
     _collateralAssetSymbol = collateralAssetSymbol;
     _collateralAssetDecimals = collateralAssetDecimals;
 
-    setFeeWallet(feeWalletAddress);
+    setFeeWallet(feeWallet);
 
     require(
-      address(insuranceFundWalletAddress) != address(0x0),
+      address(insuranceFundWallet) != address(0x0),
       'Invalid insurance wallet'
     );
-    _insuranceFundWalletAddress = insuranceFundWalletAddress;
+    _insuranceFundWallet = insuranceFundWallet;
 
-    require(
-      address(oracleWalletAddress) != address(0x0),
-      'Invalid oracle wallet'
-    );
-    _oracleWalletAddress = oracleWalletAddress;
+    require(address(oracleWallet) != address(0x0), 'Invalid oracle wallet');
+    _oracleWallet = oracleWallet;
 
     // Deposits must be manually enabled via `setDepositIndex`
     _depositIndex = Constants.depositIndexNotSet;
@@ -471,15 +468,15 @@ contract Exchange_v4 is IExchange, Owned {
         _collateralAssetSymbol,
         _delegateKeyExpirationPeriodInMs,
         _feeWallet,
-        _oracleWalletAddress
+        _oracleWallet
       ),
       _balanceTracking,
       _completedOrderHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _markets,
       _marketsBySymbol,
-      _nonceInvalidations,
+      _marketSymbolsWithOpenPositionsByWallet,
+      _nonceInvalidationsByWallet,
       _partiallyFilledOrderQuantitiesInPips
     );
 
@@ -495,24 +492,25 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   function liquidate(
-    address walletAddress,
+    address wallet,
     int64[] calldata liquidationQuoteQuantitiesInPips,
     OraclePrice[] calldata oraclePrices
   ) external onlyDispatcher {
     Perpetual.liquidate(
       Perpetual.LiquidateArguments(
-        walletAddress,
+        wallet,
         liquidationQuoteQuantitiesInPips,
         oraclePrices,
         _collateralAssetDecimals,
         _collateralAssetSymbol,
-        _insuranceFundWalletAddress,
-        _oracleWalletAddress
+        _insuranceFundWallet,
+        _oracleWallet
       ),
       _balanceTracking,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _markets
+      _marketsBySymbol,
+      _marketSymbolsWithOpenPositionsByWallet
     );
   }
 
@@ -539,13 +537,14 @@ contract Exchange_v4 is IExchange, Owned {
         _collateralAssetSymbol,
         _custodian,
         _feeWallet,
-        _oracleWalletAddress
+        _oracleWallet
       ),
       _balanceTracking,
       _completedWithdrawalHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _markets
+      _marketsBySymbol,
+      _marketSymbolsWithOpenPositionsByWallet
     );
 
     emit Withdrawn(
@@ -566,10 +565,6 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 incrementalPositionSizeInPips,
     uint64 maximumPositionSizeInPips
   ) external onlyAdmin {
-    require(
-      _markets.length < Constants.maxMarketCount,
-      'Max market count reached'
-    );
     require(!_marketsBySymbol[baseAssetSymbol].exists, 'Market already exists');
 
     Market memory market = Market({
@@ -580,10 +575,10 @@ contract Exchange_v4 is IExchange, Owned {
       incrementalInitialMarginFractionInPips: incrementalInitialMarginFractionInPips,
       baselinePositionSizeInPips: baselinePositionSizeInPips,
       incrementalPositionSizeInPips: incrementalPositionSizeInPips,
-      maximumPositionSizeInPips: maximumPositionSizeInPips
+      maximumPositionSizeInPips: maximumPositionSizeInPips,
+      lastOraclePriceTimestampInMs: 0
     });
 
-    _markets.push(market);
     _marketsBySymbol[market.baseAssetSymbol] = market;
   }
 
@@ -603,7 +598,7 @@ contract Exchange_v4 is IExchange, Owned {
       oraclePrices,
       fundingRatesInPips,
       _collateralAssetDecimals,
-      _oracleWalletAddress,
+      _oracleWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol
     );
@@ -621,7 +616,8 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _markets
+      _marketsBySymbol,
+      _marketSymbolsWithOpenPositionsByWallet
     );
   }
 
@@ -639,7 +635,8 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _fundingMultipliersByBaseAssetSymbol,
         _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _markets
+        _marketsBySymbol,
+        _marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -656,11 +653,12 @@ contract Exchange_v4 is IExchange, Owned {
         oraclePrices,
         _collateralAssetDecimals,
         _collateralAssetSymbol,
-        _oracleWalletAddress,
+        _oracleWallet,
         _balanceTracking,
         _fundingMultipliersByBaseAssetSymbol,
         _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _markets
+        _marketsBySymbol,
+        _marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -676,9 +674,10 @@ contract Exchange_v4 is IExchange, Owned {
         wallet,
         oraclePrices,
         _collateralAssetDecimals,
-        _oracleWalletAddress,
+        _oracleWallet,
         _balanceTracking,
-        _markets
+        _marketsBySymbol,
+        _marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -694,9 +693,10 @@ contract Exchange_v4 is IExchange, Owned {
         wallet,
         oraclePrices,
         _collateralAssetDecimals,
-        _oracleWalletAddress,
+        _oracleWallet,
         _balanceTracking,
-        _markets
+        _marketsBySymbol,
+        _marketSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -717,8 +717,13 @@ contract Exchange_v4 is IExchange, Owned {
    * timestampInMs component lower than the one provided
    */
   function invalidateOrderNonce(uint128 nonce) external {
-    (uint64 timestampInMs, uint256 effectiveBlockNumber) = _nonceInvalidations
-      .invalidateOrderNonce(nonce, _chainPropagationPeriodInBlocks);
+    (
+      uint64 timestampInMs,
+      uint256 effectiveBlockNumber
+    ) = _nonceInvalidationsByWallet.invalidateOrderNonce(
+        nonce,
+        _chainPropagationPeriodInBlocks
+      );
 
     emit OrderNonceInvalidated(
       msg.sender,

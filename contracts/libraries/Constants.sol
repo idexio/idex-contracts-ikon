@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.13;
+pragma solidity 0.8.15;
 
 /**
  * @dev See GOVERNANCE.md for descriptions of fixed parameters and fees
@@ -19,8 +19,6 @@ library Constants {
   // 1 year
   uint256 public constant maxDelegateKeyExpirationPeriodInMs =
     365 * 24 * 60 * 60 * 1000;
-
-  uint8 public constant maxMarketCount = 50;
 
   // 20%
   uint64 public constant maxFeeBasisPoints = 20 * 100;

@@ -1,9 +1,9 @@
 {
   "name": "@idexio/idex-contracts-ikon",
   "license": "UNLICENSED",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Ethereum contracts",
-  "homepage": "https://github.com/idexio/idex-contracts-silverton",
+  "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "main": "build/lib/index.js",
   "types": "build/lib/index.d.ts",
   "directories": {
@@ -16,12 +16,13 @@
     "artifacts/contracts/libraries/Trading.sol/Trading.json",
     "artifacts/contracts/libraries/Withdrawing.sol/Withdrawing.json",
     "build/lib",
-    "build/typechain"
+    "build/typechain-types"
   ],
   "scripts": {
     "build": "yarn build:sol && yarn build:ts",
     "build:sol": "hardhat compile",
-    "build:ts": "tsc -p ."
+    "build:ts": "tsc -p .",
+    "test": "hardhat test"
   },
   "repository": "https://github.com/idexio/idex-contracts-ikon",
   "dependencies": {
@@ -58,7 +59,7 @@
     "solhint": "^3.3.6",
     "solidity-coverage": "^0.7.21",
     "ts-node": "^10.1.0",
-    "typechain": "^5.1.2",
+    "typechain": "8.1.0",
     "typescript": "^4.5.2"
   }
 }

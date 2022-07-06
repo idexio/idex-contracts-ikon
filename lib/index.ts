@@ -1,6 +1,12 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
-import { ExchangeV4 } from '../typechain';
+import { Exchange_v4 } from '../typechain-types';
+import {
+  OraclePriceStruct,
+  OrderBookTradeStruct,
+  OrderStruct,
+  WithdrawalStruct,
+} from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
 
 import * as contracts from './contracts';
 
@@ -181,7 +187,7 @@ export const getExecuteOrderBookTradeArguments = (
   oraclePrices: OraclePrice[],
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
-): ExchangeV4['executeOrderBookTrade']['arguments'] => {
+): [OrderStruct, OrderStruct, OrderBookTradeStruct, OraclePrice[]] => {
   return [
     orderToArgumentStruct(
       buyOrder,
@@ -195,7 +201,7 @@ export const getExecuteOrderBookTradeArguments = (
     ),
     tradeToArgumentStruct(trade, buyOrder),
     oraclePrices.map(oraclePriceToArgumentStruct),
-  ] as const;
+  ];
 };
 
 export const getWithdrawArguments = (
@@ -203,7 +209,7 @@ export const getWithdrawArguments = (
   gasFee: string,
   walletSignature: string,
   oraclePrices: OraclePrice[],
-): ExchangeV4['withdraw']['arguments'] => {
+): [WithdrawalStruct, OraclePriceStruct[]] => {
   return [
     {
       nonce: uuidToHexString(withdrawal.nonce),
