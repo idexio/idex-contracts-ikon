@@ -190,7 +190,8 @@ library Perpetual {
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
         arguments,
-        balanceTracking
+        balanceTracking,
+        marketSymbolsWithOpenPositionsByWallet
       );
     }
   }
@@ -202,27 +203,22 @@ library Perpetual {
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
     LiquidateArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) public {
+    int64 positionSizeInPips = balanceTracking
+      .loadBalanceAndMigrateIfNeeded(
+        arguments.walletAddress,
+        market.baseAssetSymbol
+      )
+      .balanceInPips;
+
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       oraclePrice,
       arguments.collateralAssetDecimals,
       market,
       arguments.oracleWalletAddress
     );
-
-    Balance storage basePosition = balanceTracking
-      .loadBalanceAndMigrateIfNeeded(
-        arguments.walletAddress,
-        market.baseAssetSymbol
-      );
-
-    int64 positionSizeInPips = basePosition.balanceInPips;
-    // Gas optimization - move on to next market if wallet has no position in this one
-    if (positionSizeInPips == 0) {
-      return;
-    }
-
     int64 expectedLiquidationQuoteQuantitiesInPips = calculateLiquidationQuoteQuantityInPips(
         positionSizeInPips,
         oraclePriceInPips,
@@ -243,7 +239,8 @@ library Perpetual {
       arguments.insuranceFundWalletAddress,
       market.baseAssetSymbol,
       arguments.collateralAssetSymbol,
-      liquidationQuoteQuantitiesInPips
+      liquidationQuoteQuantitiesInPips,
+      marketSymbolsWithOpenPositionsByWallet
     );
   }
 

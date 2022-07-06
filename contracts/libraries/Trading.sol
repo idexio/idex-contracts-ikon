@@ -86,7 +86,8 @@ library Trading {
       arguments.buy,
       arguments.sell,
       arguments.orderBookTrade,
-      arguments.feeWallet
+      arguments.feeWallet,
+      marketSymbolsWithOpenPositionsByWallet
     );
 
     validateInitialMarginRequirements(

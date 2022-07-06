@@ -21,7 +21,8 @@
   "scripts": {
     "build": "yarn build:sol && yarn build:ts",
     "build:sol": "hardhat compile",
-    "build:ts": "tsc -p ."
+    "build:ts": "tsc -p .",
+    "test": "hardhat test"
   },
   "repository": "https://github.com/idexio/idex-contracts-ikon",
   "dependencies": {

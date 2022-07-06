@@ -6,10 +6,13 @@ import { Constants } from './Constants.sol';
 import { IExchange } from './Interfaces.sol';
 import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
+import { StringArray } from './StringArray.sol';
 import { UUID } from './UUID.sol';
 import { Balance, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 library BalanceTracking {
+  using StringArray for string[];
+
   struct Storage {
     mapping(address => mapping(string => Balance)) balancesByWalletAssetPair;
     // Predecessor Exchange contract from which to lazily migrate balances
@@ -39,10 +42,11 @@ library BalanceTracking {
   function updateForLiquidation(
     Storage storage self,
     address walletAddress,
-    address insuranceFundWalletAddress,
+    address insuranceFundWallet,
     string memory baseAssetSymbol,
     string memory collateralAssetSymbol,
-    int64 quoteQuantityInPips
+    int64 quoteQuantityInPips,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) internal {
     Balance storage balance;
 
@@ -54,13 +58,25 @@ library BalanceTracking {
     );
     int64 positionSizeInPips = balance.balanceInPips;
     balance.balanceInPips = 0;
+    updateOpenPositionsForWallet(
+      walletAddress,
+      baseAssetSymbol,
+      balance.balanceInPips,
+      marketSymbolsWithOpenPositionsByWallet
+    );
     // Insurance fund position takes on opposite side
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      insuranceFundWalletAddress,
+      insuranceFundWallet,
       baseAssetSymbol
     );
     balance.balanceInPips -= positionSizeInPips;
+    updateOpenPositionsForWallet(
+      insuranceFundWallet,
+      baseAssetSymbol,
+      balance.balanceInPips,
+      marketSymbolsWithOpenPositionsByWallet
+    );
 
     // Wallet receives or gives collateral if long or short respectively
     balance = loadBalanceAndMigrateIfNeeded(
@@ -72,7 +88,7 @@ library BalanceTracking {
     // Insurance receives or gives collateral if wallet short or long respectively
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      insuranceFundWalletAddress,
+      insuranceFundWallet,
       collateralAssetSymbol
     );
     balance.balanceInPips += quoteQuantityInPips;
@@ -89,7 +105,8 @@ library BalanceTracking {
     Order memory buy,
     Order memory sell,
     OrderBookTrade memory trade,
-    address feeWallet
+    address feeWallet,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
   ) internal {
     Balance storage balance;
 
@@ -118,6 +135,12 @@ library BalanceTracking {
     );
     balance.balanceInPips -= int64(trade.baseQuantityInPips);
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
+    updateOpenPositionsForWallet(
+      sell.walletAddress,
+      trade.baseAssetSymbol,
+      balance.balanceInPips,
+      marketSymbolsWithOpenPositionsByWallet
+    );
     // Buyer receives base asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
@@ -126,6 +149,12 @@ library BalanceTracking {
     );
     balance.balanceInPips += int64(trade.baseQuantityInPips);
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
+    updateOpenPositionsForWallet(
+      buy.walletAddress,
+      trade.baseAssetSymbol,
+      balance.balanceInPips,
+      marketSymbolsWithOpenPositionsByWallet
+    );
 
     // Buyer gives quote asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
@@ -234,5 +263,18 @@ library BalanceTracking {
     }
 
     return balance;
+  }
+
+  function updateOpenPositionsForWallet(
+    address wallet,
+    string memory assetSymbol,
+    int64 balanceInPips,
+    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+  ) internal {
+    marketSymbolsWithOpenPositionsByWallet[wallet] = balanceInPips == 0
+      ? marketSymbolsWithOpenPositionsByWallet[wallet].remove(assetSymbol)
+      : marketSymbolsWithOpenPositionsByWallet[wallet].insertSorted(
+        assetSymbol
+      );
   }
 }
