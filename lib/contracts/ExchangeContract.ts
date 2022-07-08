@@ -55,4 +55,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
 
     return new this(contract.address);
   }
+
+  public getEthersContract(): Exchange_v4 {
+    return this.contract;
+  }
 }

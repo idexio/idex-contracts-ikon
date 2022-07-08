@@ -31,4 +31,8 @@ export default class CustodianContract extends BaseContract<Custodian> {
 
     return new this(contract.address);
   }
+
+  public getEthersContract(): Custodian {
+    return this.contract;
+  }
 }

@@ -31,4 +31,8 @@ export default class USDCContract extends BaseContract<USDC> {
 
     return new this(contract.address);
   }
+
+  public getEthersContract(): USDC {
+    return this.contract;
+  }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@idexio/idex-contracts-ikon",
   "license": "UNLICENSED",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Ethereum contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "main": "build/lib/index.js",
@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "build": "yarn build:sol && yarn build:ts",
+    "build:clean": "rm -rf build && rm -rf artifacts && rm -rf typechain-types",
     "build:sol": "hardhat compile",
     "build:ts": "tsc -p .",
     "test": "hardhat test"

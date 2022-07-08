@@ -31,4 +31,8 @@ export default class GovernanceContract extends BaseContract<Governance> {
 
     return new this(contract.address);
   }
+
+  public getEthersContract(): Governance {
+    return this.contract;
+  }
 }
