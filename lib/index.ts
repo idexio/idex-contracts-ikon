@@ -1,6 +1,5 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
-import { Exchange_v4 } from '../typechain-types';
 import {
   OraclePriceStruct,
   OrderBookTradeStruct,
@@ -9,6 +8,13 @@ import {
 } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
 
 import * as contracts from './contracts';
+
+export {
+  OraclePriceStruct,
+  OrderBookTradeStruct,
+  OrderStruct,
+  WithdrawalStruct,
+};
 
 export { contracts };
 
@@ -184,10 +190,17 @@ export const getExecuteOrderBookTradeArguments = (
   sellOrder: Order,
   sellWalletSignature: string,
   trade: Trade,
-  oraclePrices: OraclePrice[],
+  buyOraclePrices: OraclePrice[],
+  sellOraclePrices: OraclePrice[],
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
-): [OrderStruct, OrderStruct, OrderBookTradeStruct, OraclePrice[]] => {
+): [
+  OrderStruct,
+  OrderStruct,
+  OrderBookTradeStruct,
+  OraclePrice[],
+  OraclePrice[],
+] => {
   return [
     orderToArgumentStruct(
       buyOrder,
@@ -200,7 +213,8 @@ export const getExecuteOrderBookTradeArguments = (
       sellDelegatedKeyAuthorization,
     ),
     tradeToArgumentStruct(trade, buyOrder),
-    oraclePrices.map(oraclePriceToArgumentStruct),
+    buyOraclePrices.map(oraclePriceToArgumentStruct),
+    sellOraclePrices.map(oraclePriceToArgumentStruct),
   ];
 };
 
@@ -221,6 +235,12 @@ export const getWithdrawArguments = (
     oraclePrices,
   ];
 };
+
+export const compareMarketSymbols = (a: string, b: string): number =>
+  Buffer.compare(
+    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [a])),
+    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [b])),
+  );
 
 export const uuidToHexString = (uuid: string): string =>
   `0x${uuid.replace(/-/g, '')}`;

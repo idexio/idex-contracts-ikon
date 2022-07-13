@@ -180,6 +180,7 @@ describe('Exchange', function () {
               sellOrderSignature,
               trade,
               [oraclePrice],
+              [oraclePrice],
             ),
           )
       ).wait();
@@ -287,6 +288,7 @@ describe('Exchange', function () {
               sellOrder,
               sellOrderSignature,
               trade,
+              [oraclePrice],
               [oraclePrice],
               undefined,
               sellDelegatedKeyAuthorization,

@@ -18,7 +18,8 @@ library Trading {
     Order buy;
     Order sell;
     OrderBookTrade orderBookTrade;
-    OraclePrice[] oraclePrices;
+    OraclePrice[] buyOraclePrices;
+    OraclePrice[] sellOraclePrices;
     // Exchange state
     uint8 collateralAssetDecimals;
     string collateralAssetSymbol;
@@ -183,7 +184,7 @@ library Trading {
     require(
       Margin.isInitialMarginRequirementMet(
         arguments.buy.walletAddress,
-        arguments.oraclePrices,
+        arguments.buyOraclePrices,
         arguments.collateralAssetDecimals,
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,
@@ -196,7 +197,7 @@ library Trading {
     require(
       Margin.isInitialMarginRequirementMet(
         arguments.sell.walletAddress,
-        arguments.oraclePrices,
+        arguments.sellOraclePrices,
         arguments.collateralAssetDecimals,
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,

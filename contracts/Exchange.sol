@@ -446,7 +446,8 @@ contract Exchange_v4 is IExchange, Owned {
     Order calldata buy,
     Order calldata sell,
     OrderBookTrade calldata orderBookTrade,
-    OraclePrice[] calldata oraclePrices
+    OraclePrice[] calldata buyOraclePrices,
+    OraclePrice[] calldata sellOraclePrices
   ) external onlyDispatcher {
     require(
       !isWalletExitFinalized(buy.walletAddress),
@@ -463,7 +464,8 @@ contract Exchange_v4 is IExchange, Owned {
         buy,
         sell,
         orderBookTrade,
-        oraclePrices,
+        buyOraclePrices,
+        sellOraclePrices,
         _collateralAssetDecimals,
         _collateralAssetSymbol,
         _delegateKeyExpirationPeriodInMs,
