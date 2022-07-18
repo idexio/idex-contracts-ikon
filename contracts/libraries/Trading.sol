@@ -91,14 +91,12 @@ library Trading {
       marketSymbolsWithOpenPositionsByWallet
     );
 
-    validateInitialMarginRequirements(
+    validateInitialMarginRequirementsAndUpdateLastOraclePrice(
       arguments,
       balanceTracking,
       marketsBySymbol,
       marketSymbolsWithOpenPositionsByWallet
     );
-
-    // TODO Update market lastOraclePriceTimestampInMs
   }
 
   function updateOrderFilledQuantities(
@@ -175,14 +173,14 @@ library Trading {
     }
   }
 
-  function validateInitialMarginRequirements(
+  function validateInitialMarginRequirementsAndUpdateLastOraclePrice(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => Market) storage marketsBySymbol,
     mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
-  ) private view {
+  ) private {
     require(
-      Margin.isInitialMarginRequirementMet(
+      Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
         arguments.buy.walletAddress,
         arguments.buyOraclePrices,
         arguments.collateralAssetDecimals,
@@ -195,7 +193,7 @@ library Trading {
       'Initial margin requirement not met for buy wallet'
     );
     require(
-      Margin.isInitialMarginRequirementMet(
+      Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
         arguments.sell.walletAddress,
         arguments.sellOraclePrices,
         arguments.collateralAssetDecimals,

@@ -152,7 +152,7 @@ library Perpetual {
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
     ) = (
-        Margin.loadTotalAccountValue(
+        Margin.loadTotalAccountValueAndUpdateLastOraclePrice(
           arguments.walletAddress,
           arguments.oraclePrices,
           arguments.collateralAssetDecimals,
@@ -162,7 +162,7 @@ library Perpetual {
           marketsBySymbol,
           marketSymbolsWithOpenPositionsByWallet
         ),
-        Margin.loadTotalMaintenanceMarginRequirement(
+        Margin.loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
           arguments.walletAddress,
           arguments.oraclePrices,
           arguments.collateralAssetDecimals,

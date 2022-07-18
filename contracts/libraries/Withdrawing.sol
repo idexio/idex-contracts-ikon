@@ -73,7 +73,7 @@ library Withdrawing {
     );
 
     require(
-      Margin.isInitialMarginRequirementMet(
+      Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
         arguments.withdrawal.walletAddress,
         arguments.oraclePrices,
         arguments.collateralAssetDecimals,

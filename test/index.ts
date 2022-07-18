@@ -192,7 +192,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
     });
 
-    it('can haz deebug', async function () {
+    it.only('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
@@ -295,6 +295,9 @@ describe('Exchange', function () {
             ),
           )
       ).wait();
+
+      console.log(await exchange.loadBalanceBySymbol(trader1.address, 'ETH'));
+      console.log(await exchange.loadBalanceBySymbol(trader2.address, 'ETH'));
       /*
     const withdrawal = {
       nonce: uuidv1(),

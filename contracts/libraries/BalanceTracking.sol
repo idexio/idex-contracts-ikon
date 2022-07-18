@@ -58,6 +58,7 @@ library BalanceTracking {
     );
     int64 positionSizeInPips = balance.balanceInPips;
     balance.balanceInPips = 0;
+    balance.costBasisInPips = 0;
     updateOpenPositionsForWallet(
       walletAddress,
       baseAssetSymbol,
@@ -134,6 +135,7 @@ library BalanceTracking {
       trade.baseAssetSymbol
     );
     balance.balanceInPips -= int64(trade.baseQuantityInPips);
+    balance.costBasisInPips += int64(trade.quoteQuantityInPips);
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
       sell.walletAddress,
@@ -148,6 +150,7 @@ library BalanceTracking {
       trade.baseAssetSymbol
     );
     balance.balanceInPips += int64(trade.baseQuantityInPips);
+    balance.costBasisInPips -= int64(trade.quoteQuantityInPips);
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
       buy.walletAddress,
@@ -163,6 +166,7 @@ library BalanceTracking {
       trade.quoteAssetSymbol
     );
     balance.balanceInPips -= int64(trade.quoteQuantityInPips) + buyFeeInPips;
+
     // Seller receives quote asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,

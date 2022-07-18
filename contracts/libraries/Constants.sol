@@ -25,7 +25,7 @@ library Constants {
 
   uint64 public constant msInOneHour = 1000 * 60 * 60;
 
-  uint8 public constant signatureHashVersion = 5;
+  uint8 public constant signatureHashVersion = 105;
 
   // To convert integer pips to a fractional price shift decimal left by the pip precision of 8
   // decimals places

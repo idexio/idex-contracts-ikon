@@ -19,8 +19,9 @@ struct DelegatedKeyAuthorization {
 struct Balance {
   bool isMigrated;
   int64 balanceInPips;
-  // The last funding update timestamp is only relevant for base asset positions
+  // The last funding update timestamp and cost basis are only relevant for base asset positions
   uint64 lastUpdateTimestampInMs;
+  int64 costBasisInPips;
 }
 
 /**

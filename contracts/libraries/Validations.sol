@@ -18,6 +18,23 @@ library Validations {
     return feeBasisPoints <= max;
   }
 
+  function validateAndUpdateOraclePriceAndConvertToPips(
+    OraclePrice memory oraclePrice,
+    uint8 collateralAssetDecimals,
+    Market storage market,
+    address oracleWalletAddress
+  ) internal returns (uint64) {
+    market.lastOraclePriceTimestampInMs = oraclePrice.timestampInMs;
+
+    return
+      validateOraclePriceAndConvertToPips(
+        oraclePrice,
+        collateralAssetDecimals,
+        market,
+        oracleWalletAddress
+      );
+  }
+
   function validateOraclePriceAndConvertToPips(
     OraclePrice memory oraclePrice,
     uint8 collateralAssetDecimals,
@@ -27,6 +44,11 @@ library Validations {
     require(
       String.isEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol),
       'Oracle price mismatch'
+    );
+
+    require(
+      market.lastOraclePriceTimestampInMs <= oraclePrice.timestampInMs,
+      'Outdated oracle price'
     );
 
     return
