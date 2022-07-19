@@ -298,7 +298,7 @@ library BalanceTracking {
         balance.balanceInPips;
     }
 
-    balance.balanceInPips += int64(baseQuantityInPips);
+    balance.balanceInPips = newBalanceInPips;
   }
 
   function subtractFromPosition(
@@ -326,7 +326,7 @@ library BalanceTracking {
         balance.balanceInPips;
     }
 
-    balance.balanceInPips -= int64(baseQuantityInPips);
+    balance.balanceInPips = newBalanceInPips;
   }
 
   function updateOpenPositionsForWallet(
