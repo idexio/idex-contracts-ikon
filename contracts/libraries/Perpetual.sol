@@ -152,7 +152,7 @@ library Perpetual {
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
     ) = (
-        Margin.loadTotalAccountValueAndUpdateLastOraclePrice(
+        Margin.loadTotalAccountValue(
           arguments.walletAddress,
           arguments.oraclePrices,
           arguments.collateralAssetDecimals,

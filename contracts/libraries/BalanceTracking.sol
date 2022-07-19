@@ -134,8 +134,11 @@ library BalanceTracking {
       sell.walletAddress,
       trade.baseAssetSymbol
     );
-    balance.balanceInPips -= int64(trade.baseQuantityInPips);
-    balance.costBasisInPips += int64(trade.quoteQuantityInPips);
+    subtractFromPosition(
+      balance,
+      trade.baseQuantityInPips,
+      trade.quoteQuantityInPips
+    );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
       sell.walletAddress,
@@ -149,8 +152,7 @@ library BalanceTracking {
       buy.walletAddress,
       trade.baseAssetSymbol
     );
-    balance.balanceInPips += int64(trade.baseQuantityInPips);
-    balance.costBasisInPips -= int64(trade.quoteQuantityInPips);
+    addToPosition(balance, trade.baseQuantityInPips, trade.quoteQuantityInPips);
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
       buy.walletAddress,
@@ -267,6 +269,64 @@ library BalanceTracking {
     }
 
     return balance;
+  }
+
+  // Position updates //
+
+  function addToPosition(
+    Balance storage balance,
+    uint64 baseQuantityInPips,
+    uint64 quoteQuantityInPips
+  ) private {
+    int64 newBalanceInPips = balance.balanceInPips + int64(baseQuantityInPips);
+
+    if (balance.balanceInPips >= 0) {
+      // Increase position
+      balance.costBasisInPips += int64(quoteQuantityInPips);
+    } else if (balance.balanceInPips + int64(baseQuantityInPips) > 0) {
+      /*
+       * Going from negative to positive. Only the portion of the quote qty
+       * that contributed to the new, positive balance is its cost.
+       */
+      balance.costBasisInPips =
+        (int64(quoteQuantityInPips) * newBalanceInPips) /
+        int64(baseQuantityInPips);
+    } else {
+      // Reduce cost basis proportional to reduction of position
+      balance.costBasisInPips +=
+        (balance.costBasisInPips * int64(baseQuantityInPips)) /
+        balance.balanceInPips;
+    }
+
+    balance.balanceInPips = newBalanceInPips;
+  }
+
+  function subtractFromPosition(
+    Balance storage balance,
+    uint64 baseQuantityInPips,
+    uint64 quoteQuantityInPips
+  ) private {
+    int64 newBalanceInPips = balance.balanceInPips - int64(baseQuantityInPips);
+
+    if (balance.balanceInPips <= 0) {
+      // Increase position
+      balance.costBasisInPips -= int64(quoteQuantityInPips);
+    } else if (balance.balanceInPips - int64(baseQuantityInPips) < 0) {
+      /*
+       * Going from negative to positive. Only the portion of the quote qty
+       * that contributed to the new, positive balance is its cost.
+       */
+      balance.costBasisInPips =
+        (int64(quoteQuantityInPips) * newBalanceInPips) /
+        int64(baseQuantityInPips);
+    } else {
+      // Reduce cost basis proportional to reduction of position
+      balance.costBasisInPips -=
+        (balance.costBasisInPips * int64(baseQuantityInPips)) /
+        balance.balanceInPips;
+    }
+
+    balance.balanceInPips = newBalanceInPips;
   }
 
   function updateOpenPositionsForWallet(
