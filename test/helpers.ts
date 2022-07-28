@@ -107,6 +107,7 @@ export function buildFundingRates(count = 1): string[] {
 export async function deployAndAssociateContracts(
   owner: SignerWithAddress,
   dispatcher: SignerWithAddress = owner,
+  exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
   oracle: SignerWithAddress = owner,
@@ -152,6 +153,7 @@ export async function deployAndAssociateContracts(
         usdc.address,
         'USDC',
         collateralAssetDecimals,
+        exitFundWallet.address,
         feeWallet.address,
         insuranceFund.address,
         oracle.address,

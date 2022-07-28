@@ -71,7 +71,19 @@ library BalanceTracking {
       insuranceFundWallet,
       baseAssetSymbol
     );
-    balance.balanceInPips -= positionSizeInPips;
+    if (positionSizeInPips > 0) {
+      subtractFromPosition(
+        balance,
+        Math.abs(positionSizeInPips),
+        Math.abs(quoteQuantityInPips)
+      );
+    } else {
+      addToPosition(
+        balance,
+        Math.abs(positionSizeInPips),
+        Math.abs(quoteQuantityInPips)
+      );
+    }
     updateOpenPositionsForWallet(
       insuranceFundWallet,
       baseAssetSymbol,
@@ -277,7 +289,7 @@ library BalanceTracking {
     Balance storage balance,
     uint64 baseQuantityInPips,
     uint64 quoteQuantityInPips
-  ) private {
+  ) internal {
     int64 newBalanceInPips = balance.balanceInPips + int64(baseQuantityInPips);
 
     if (balance.balanceInPips >= 0) {
@@ -305,7 +317,7 @@ library BalanceTracking {
     Balance storage balance,
     uint64 baseQuantityInPips,
     uint64 quoteQuantityInPips
-  ) private {
+  ) internal {
     int64 newBalanceInPips = balance.balanceInPips - int64(baseQuantityInPips);
 
     if (balance.balanceInPips <= 0) {

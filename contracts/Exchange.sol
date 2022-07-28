@@ -8,6 +8,7 @@ import { BalanceTracking } from './libraries/BalanceTracking.sol';
 import { Constants } from './libraries/Constants.sol';
 import { Depositing } from './libraries/Depositing.sol';
 import { Hashing } from './libraries/Hashing.sol';
+import { Liquidation } from './libraries/Liquidation.sol';
 import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
 import { OrderSide } from './libraries/Enums.sol';
@@ -49,6 +50,20 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 quantityInPips,
     int64 newExchangeBalanceInPips
   );
+  /**
+   * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
+   */
+  event WalletExited(address wallet, uint256 effectiveBlockNumber);
+  /**
+   * @notice Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with
+   * `withdrawExit`
+   */
+  event WalletExitWithdrawn(address wallet, uint64 quantityInPips);
+  /**
+   * @notice Emitted when a user clears the exited status of a wallet previously exited with
+   * `exitWallet`
+   */
+  event WalletExitCleared(address wallet);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
    * `executeOrderBookTrade`
@@ -99,6 +114,8 @@ contract Exchange_v4 is IExchange, Owned {
   ICustodian _custodian;
   // Deposit index
   uint64 public _depositIndex;
+  // TODO Upgrade through Governance
+  address _exitFundWallet;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => FundingMultiplierQuartet[]) _fundingMultipliersByBaseAssetSymbol;
   // TODO Upgrade through Governance
@@ -139,6 +156,7 @@ contract Exchange_v4 is IExchange, Owned {
     address collateralAssetAddress,
     string memory collateralAssetSymbol,
     uint8 collateralAssetDecimals,
+    address exitFundWallet,
     address feeWallet,
     address insuranceFundWallet,
     address oracleWallet
@@ -159,6 +177,12 @@ contract Exchange_v4 is IExchange, Owned {
     _collateralAssetDecimals = collateralAssetDecimals;
 
     setFeeWallet(feeWallet);
+
+    require(
+      address(exitFundWallet) != address(0x0),
+      'Invalid exit fund wallet'
+    );
+    _exitFundWallet = exitFundWallet;
 
     require(
       address(insuranceFundWallet) != address(0x0),
@@ -499,7 +523,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata oraclePrices
   ) external onlyDispatcher {
     Perpetual.liquidate(
-      Perpetual.LiquidateArguments(
+      Liquidation.LiquidateArguments(
         wallet,
         liquidationQuoteQuantitiesInPips,
         oraclePrices,
@@ -595,7 +619,7 @@ contract Exchange_v4 is IExchange, Owned {
   function publishFundingMutipliers(
     OraclePrice[] calldata oraclePrices,
     int64[] calldata fundingRatesInPips
-  ) external {
+  ) external onlyDispatcher {
     Perpetual.publishFundingMutipliers(
       oraclePrices,
       fundingRatesInPips,
@@ -703,6 +727,66 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   // Wallet exits //
+
+  /**
+   * @notice Flags the sending wallet as exited, immediately disabling deposits and on-chain
+   * intitiation of liquidity changes upon mining. After the Chain Propagation Period passes
+   * trades, withdrawals, and liquidity change executions are also disabled for the wallet,
+   * and assets may then be withdrawn one at a time via `withdrawExit`
+   */
+  function exitWallet() external {
+    require(!_walletExits[msg.sender].exists, 'Wallet already exited');
+
+    _walletExits[msg.sender] = WalletExit(
+      true,
+      block.number + _chainPropagationPeriodInBlocks
+    );
+
+    emit WalletExited(
+      msg.sender,
+      block.number + _chainPropagationPeriodInBlocks
+    );
+  }
+
+  /**
+   * @notice Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation
+   * Period must have already passed since calling `exitWallet`
+   *
+   */
+  function withdrawExit(OraclePrice[] calldata oraclePrices) external {
+    require(isWalletExitFinalized(msg.sender), 'Wallet exit not finalized');
+
+    uint64 quantityInPips = Withdrawing.withdrawExit(
+      Withdrawing.WithdrawExitArguments(
+        oraclePrices,
+        _collateralAssetAddress,
+        _collateralAssetDecimals,
+        _collateralAssetSymbol,
+        _custodian,
+        _exitFundWallet,
+        _oracleWallet
+      ),
+      _balanceTracking,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketsBySymbol,
+      _marketSymbolsWithOpenPositionsByWallet
+    );
+
+    emit WalletExitWithdrawn(msg.sender, quantityInPips);
+  }
+
+  /**
+   * @notice Clears exited status of sending wallet. Upon mining immediately enables
+   * deposits, trades, and withdrawals by sending wallet
+   */
+  function clearWalletExit() external {
+    require(isWalletExitFinalized(msg.sender), 'Wallet exit not finalized');
+
+    delete _walletExits[msg.sender];
+
+    emit WalletExitCleared(msg.sender);
+  }
 
   function isWalletExitFinalized(address wallet) internal view returns (bool) {
     WalletExit storage exit = _walletExits[wallet];

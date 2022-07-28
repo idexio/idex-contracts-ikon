@@ -20,11 +20,11 @@ interface ICustodian {
    * @dev No balance checking performed
    *
    * @param wallet The wallet to which assets will be returned
-   * @param asset The address of the asset to withdraw (native asset or ERC-20 contract)
+   * @param asset The address of the asset to withdraw (ERC-20 contract)
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
   function withdraw(
-    address payable wallet,
+    address wallet,
     address asset,
     uint256 quantityInAssetUnits
   ) external;

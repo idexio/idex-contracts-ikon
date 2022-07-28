@@ -66,7 +66,7 @@ contract Custodian is ICustodian, Owned {
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
   function withdraw(
-    address payable wallet,
+    address wallet,
     address asset,
     uint256 quantityInAssetUnits
   ) external override onlyExchange {
