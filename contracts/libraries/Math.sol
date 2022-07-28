@@ -7,6 +7,14 @@ library Math {
     return uint64(signed < 0 ? -1 * signed : signed);
   }
 
+  function max(int64 a, int64 b) internal pure returns (int64) {
+    return a >= b ? a : b;
+  }
+
+  function min(int64 a, int64 b) internal pure returns (int64) {
+    return a <= b ? a : b;
+  }
+
   function multiplyPipsByFraction(
     uint64 multiplicand,
     uint64 fractionDividend,

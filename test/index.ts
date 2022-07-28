@@ -31,11 +31,12 @@ import {
 
 describe('Exchange', function () {
   it('deposit and withdraw should work', async function () {
-    const [owner, dispatcher, trader, fee, insurance, oracle] =
+    const [owner, dispatcher, trader, exitFund, fee, insurance, oracle] =
       await ethers.getSigners();
     const { exchange, usdc } = await deployAndAssociateContracts(
       owner,
       dispatcher,
+      exitFund,
       fee,
       insurance,
       oracle,
@@ -105,11 +106,12 @@ describe('Exchange', function () {
   });
 
   it('publishFundingMutipliers should work', async function () {
-    const [owner, dispatcher, fee, insurance, oracle] =
+    const [owner, dispatcher, exitFund, fee, insurance, oracle] =
       await ethers.getSigners();
     const { exchange } = await deployAndAssociateContracts(
       owner,
       dispatcher,
+      exitFund,
       fee,
       insurance,
       oracle,
@@ -127,11 +129,20 @@ describe('Exchange', function () {
 
   describe('executeOrderBookTrade', async function () {
     it('should work with maker rebate', async function () {
-      const [owner, dispatcher, fee, insurance, oracle, trader1, trader2] =
-        await ethers.getSigners();
+      const [
+        owner,
+        dispatcher,
+        exitFund,
+        fee,
+        insurance,
+        oracle,
+        trader1,
+        trader2,
+      ] = await ethers.getSigners();
       const { exchange, usdc } = await deployAndAssociateContracts(
         owner,
         dispatcher,
+        exitFund,
         fee,
         insurance,
         oracle,
@@ -196,6 +207,7 @@ describe('Exchange', function () {
       const [
         owner,
         dispatcher,
+        exitFund,
         fee,
         insurance,
         oracle,
@@ -203,9 +215,10 @@ describe('Exchange', function () {
         trader2,
         trader1Delegate,
       ] = await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
+      const { custodian, exchange, usdc } = await deployAndAssociateContracts(
         owner,
         dispatcher,
+        exitFund,
         fee,
         insurance,
         oracle,
@@ -298,6 +311,7 @@ describe('Exchange', function () {
 
       console.log(await exchange.loadBalanceBySymbol(trader1.address, 'ETH'));
       console.log(await exchange.loadBalanceBySymbol(trader2.address, 'ETH'));
+
       /*
     const withdrawal = {
       nonce: uuidv1(),
@@ -350,6 +364,12 @@ describe('Exchange', function () {
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
 
+      console.log(await usdc.balanceOf(custodian.address));
+
+      await exchange.connect(trader1).exitWallet();
+      await exchange.connect(trader1).withdrawExit([oraclePrice]);
+
+      console.log(await usdc.balanceOf(custodian.address));
       /*
       const sellOrder2: Order = {
         signatureHashVersion,
