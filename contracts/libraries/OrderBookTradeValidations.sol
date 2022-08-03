@@ -19,7 +19,7 @@ library OrderBookTradeValidations {
     OrderBookTrade memory trade,
     string memory collateralAssetSymbol,
     uint64 delegateKeyExpirationPeriodInMs,
-    mapping(string => Market) storage marketsBySymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations
   ) internal view returns (bytes32, bytes32) {
     require(
@@ -28,7 +28,7 @@ library OrderBookTradeValidations {
     );
 
     // Order book trade validations
-    validateAssetPair(trade, collateralAssetSymbol, marketsBySymbol);
+    validateAssetPair(trade, collateralAssetSymbol, marketsByBaseAssetSymbol);
     validateLimitPrices(buy, sell, trade);
     validateOrderNonces(
       buy,
@@ -49,7 +49,7 @@ library OrderBookTradeValidations {
   function validateAssetPair(
     OrderBookTrade memory trade,
     string memory collateralAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view {
     require(
       !String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
@@ -62,7 +62,7 @@ library OrderBookTradeValidations {
     );
 
     require(
-      marketsBySymbol[trade.baseAssetSymbol].exists,
+      marketsByBaseAssetSymbol[trade.baseAssetSymbol].exists,
       'Invalid base asset symbol'
     );
   }

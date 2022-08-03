@@ -53,8 +53,9 @@ library Liquidation {
   function liquidate(
     LiquidateArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal {
     (
       int64 totalAccountValueInPips,
@@ -67,8 +68,8 @@ library Liquidation {
           arguments.collateralAssetSymbol,
           arguments.oracleWalletAddress,
           balanceTracking,
-          marketsBySymbol,
-          marketSymbolsWithOpenPositionsByWallet
+          marketsByBaseAssetSymbol,
+          baseAssetSymbolsWithOpenPositionsByWallet
         ),
         Margin.loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
           arguments.walletAddress,
@@ -76,8 +77,8 @@ library Liquidation {
           arguments.collateralAssetDecimals,
           arguments.oracleWalletAddress,
           balanceTracking,
-          marketsBySymbol,
-          marketSymbolsWithOpenPositionsByWallet
+          marketsByBaseAssetSymbol,
+          baseAssetSymbolsWithOpenPositionsByWallet
         )
       );
 
@@ -86,20 +87,20 @@ library Liquidation {
       'Maintenance margin met'
     );
 
-    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
       arguments.walletAddress
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       // FIXME Insurance fund margin requirements
       liquidateMarket(
-        marketsBySymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[marketSymbols[i]],
         arguments.liquidationQuoteQuantitiesInPips[i],
         arguments.oraclePrices[i],
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
         arguments,
         balanceTracking,
-        marketSymbolsWithOpenPositionsByWallet
+        baseAssetSymbolsWithOpenPositionsByWallet
       );
     }
   }
@@ -112,7 +113,8 @@ library Liquidation {
     uint64 totalMaintenanceMarginRequirementInPips,
     LiquidateArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) private {
     int64 positionSizeInPips = balanceTracking
       .loadBalanceAndMigrateIfNeeded(
@@ -149,7 +151,7 @@ library Liquidation {
       market.baseAssetSymbol,
       arguments.collateralAssetSymbol,
       liquidationQuoteQuantitiesInPips,
-      marketSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 }

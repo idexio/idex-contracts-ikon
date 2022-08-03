@@ -20,8 +20,9 @@ library Margin {
     string memory collateralAssetSymbol,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal view returns (int64) {
     int64 totalAccountValueInPips = balanceTracking
       .loadBalanceInPipsFromMigrationSourceIfNeeded(
@@ -29,11 +30,11 @@ library Margin {
         collateralAssetSymbol
       );
 
-    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
       wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
-      Market memory market = marketsBySymbol[marketSymbols[i]];
+      Market memory market = marketsByBaseAssetSymbol[marketSymbols[i]];
       uint64 oraclePriceInPips = Validations
         .validateOraclePriceAndConvertToPips(
           oraclePrices[i],
@@ -61,15 +62,16 @@ library Margin {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal view returns (uint64 initialMarginRequirement) {
-    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
       wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       (Market memory market, OraclePrice memory oraclePrice) = (
-        marketsBySymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[marketSymbols[i]],
         oraclePrices[i]
       );
 
@@ -91,15 +93,16 @@ library Margin {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal returns (uint64 initialMarginRequirement) {
-    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
       wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       (Market storage market, OraclePrice memory oraclePrice) = (
-        marketsBySymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[marketSymbols[i]],
         oraclePrices[i]
       );
 
@@ -121,15 +124,16 @@ library Margin {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal view returns (uint64 initialMarginRequirement) {
-    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
       wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       (Market memory market, OraclePrice memory oraclePrice) = (
-        marketsBySymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[marketSymbols[i]],
         oraclePrices[i]
       );
 
@@ -151,15 +155,16 @@ library Margin {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal returns (uint64 initialMarginRequirement) {
-    string[] memory marketSymbols = marketSymbolsWithOpenPositionsByWallet[
+    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
       wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       (Market storage market, OraclePrice memory oraclePrice) = (
-        marketsBySymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[marketSymbols[i]],
         oraclePrices[i]
       );
 
@@ -264,8 +269,9 @@ library Margin {
     string memory collateralAssetSymbol,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal returns (bool) {
     return
       loadTotalAccountValue(
@@ -275,8 +281,8 @@ library Margin {
         collateralAssetSymbol,
         oracleWalletAddress,
         balanceTracking,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       ) >=
       int64(
         loadTotalInitialMarginRequirementAndUpdateLastOraclePrice(
@@ -285,8 +291,8 @@ library Margin {
           collateralAssetDecimals,
           oracleWalletAddress,
           balanceTracking,
-          marketsBySymbol,
-          marketSymbolsWithOpenPositionsByWallet
+          marketsByBaseAssetSymbol,
+          baseAssetSymbolsWithOpenPositionsByWallet
         )
       );
   }

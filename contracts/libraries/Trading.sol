@@ -36,8 +36,9 @@ library Trading {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) public {
@@ -48,7 +49,7 @@ library Trading {
         arguments.orderBookTrade,
         arguments.collateralAssetSymbol,
         arguments.delegateKeyExpirationPeriodInMs,
-        marketsBySymbol,
+        marketsByBaseAssetSymbol,
         nonceInvalidations
       );
 
@@ -70,8 +71,8 @@ library Trading {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
     Funding.updateWalletFunding(
       arguments.sell.walletAddress,
@@ -79,8 +80,8 @@ library Trading {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     balanceTracking.updateForOrderBookTrade(
@@ -88,14 +89,14 @@ library Trading {
       arguments.sell,
       arguments.orderBookTrade,
       arguments.feeWallet,
-      marketSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     validateInitialMarginRequirementsAndUpdateLastOraclePrice(
       arguments,
       balanceTracking,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 
@@ -176,8 +177,9 @@ library Trading {
   function validateInitialMarginRequirementsAndUpdateLastOraclePrice(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) private {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
@@ -187,8 +189,8 @@ library Trading {
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,
         balanceTracking,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       ),
       'Initial margin requirement not met for buy wallet'
     );
@@ -200,8 +202,8 @@ library Trading {
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,
         balanceTracking,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       ),
       'Initial margin requirement not met for sell wallet'
     );

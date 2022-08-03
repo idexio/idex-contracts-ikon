@@ -26,8 +26,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public view returns (int64 fundingInPips) {
     return
       Funding.loadOutstandingWalletFunding(
@@ -35,8 +36,8 @@ library Perpetual {
         balanceTracking,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -51,8 +52,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public view returns (int64) {
     return
       Margin.loadTotalAccountValue(
@@ -62,16 +64,16 @@ library Perpetual {
         collateralAssetSymbol,
         oracleWalletAddress,
         balanceTracking,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       ) +
       loadOutstandingWalletFunding(
         wallet,
         balanceTracking,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -81,8 +83,9 @@ library Perpetual {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public view returns (uint64 initialMarginRequirement) {
     return
       Margin.loadTotalInitialMarginRequirement(
@@ -91,8 +94,8 @@ library Perpetual {
         collateralAssetDecimals,
         oracleWalletAddress,
         balanceTracking,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -102,8 +105,9 @@ library Perpetual {
     uint8 collateralAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public view returns (uint64 initialMarginRequirement) {
     return
       Margin.loadTotalMaintenanceMarginRequirement(
@@ -112,8 +116,8 @@ library Perpetual {
         collateralAssetDecimals,
         oracleWalletAddress,
         balanceTracking,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -124,8 +128,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public {
     Funding.updateWalletFunding(
       arguments.walletAddress,
@@ -133,15 +138,15 @@ library Perpetual {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     Liquidation.liquidate(
       arguments,
       balanceTracking,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 
@@ -173,8 +178,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public {
     Funding.updateWalletFunding(
       wallet,
@@ -182,8 +188,8 @@ library Perpetual {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 }
