@@ -46,7 +46,8 @@ library BalanceTracking {
     string memory baseAssetSymbol,
     string memory collateralAssetSymbol,
     int64 quoteQuantityInPips,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal {
     Balance storage balance;
 
@@ -63,7 +64,7 @@ library BalanceTracking {
       walletAddress,
       baseAssetSymbol,
       balance.balanceInPips,
-      marketSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
     // Insurance fund position takes on opposite side
     balance = loadBalanceAndMigrateIfNeeded(
@@ -88,7 +89,7 @@ library BalanceTracking {
       insuranceFundWallet,
       baseAssetSymbol,
       balance.balanceInPips,
-      marketSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Wallet receives or gives collateral if long or short respectively
@@ -119,7 +120,8 @@ library BalanceTracking {
     Order memory sell,
     OrderBookTrade memory trade,
     address feeWallet,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal {
     Balance storage balance;
 
@@ -156,7 +158,7 @@ library BalanceTracking {
       sell.walletAddress,
       trade.baseAssetSymbol,
       balance.balanceInPips,
-      marketSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
     // Buyer receives base asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
@@ -170,7 +172,7 @@ library BalanceTracking {
       buy.walletAddress,
       trade.baseAssetSymbol,
       balance.balanceInPips,
-      marketSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Buyer gives quote asset including fees
@@ -345,11 +347,12 @@ library BalanceTracking {
     address wallet,
     string memory assetSymbol,
     int64 balanceInPips,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal {
-    marketSymbolsWithOpenPositionsByWallet[wallet] = balanceInPips == 0
-      ? marketSymbolsWithOpenPositionsByWallet[wallet].remove(assetSymbol)
-      : marketSymbolsWithOpenPositionsByWallet[wallet].insertSorted(
+    baseAssetSymbolsWithOpenPositionsByWallet[wallet] = balanceInPips == 0
+      ? baseAssetSymbolsWithOpenPositionsByWallet[wallet].remove(assetSymbol)
+      : baseAssetSymbolsWithOpenPositionsByWallet[wallet].insertSorted(
         assetSymbol
       );
   }

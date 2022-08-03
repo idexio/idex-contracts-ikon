@@ -49,8 +49,9 @@ library Withdrawing {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public returns (int64 newExchangeBalanceInPips) {
     // Validations
     require(
@@ -75,8 +76,8 @@ library Withdrawing {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Update wallet balances
@@ -94,8 +95,8 @@ library Withdrawing {
         arguments.collateralAssetSymbol,
         arguments.oracleWalletAddress,
         balanceTracking,
-        marketsBySymbol,
-        marketSymbolsWithOpenPositionsByWallet
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
       ),
       'Initial margin requirement not met for buy wallet'
     );
@@ -125,8 +126,9 @@ library Withdrawing {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) public returns (uint64) {
     Funding.updateWalletFunding(
       msg.sender,
@@ -134,15 +136,15 @@ library Withdrawing {
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     int64 quoteQuantityInPips = updatePositionsForExit(
       arguments,
       balanceTracking,
-      marketsBySymbol,
-      marketSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
@@ -169,8 +171,9 @@ library Withdrawing {
   function updatePositionsForExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsBySymbol,
-    mapping(address => string[]) storage marketSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
   ) private returns (int64 quoteQuantityInPips) {
     (
       int64 totalAccountValueInPips,
@@ -183,8 +186,8 @@ library Withdrawing {
           arguments.collateralAssetSymbol,
           arguments.oracleWalletAddress,
           balanceTracking,
-          marketsBySymbol,
-          marketSymbolsWithOpenPositionsByWallet
+          marketsByBaseAssetSymbol,
+          baseAssetSymbolsWithOpenPositionsByWallet
         ),
         Margin.loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
           msg.sender,
@@ -192,24 +195,26 @@ library Withdrawing {
           arguments.collateralAssetDecimals,
           arguments.oracleWalletAddress,
           balanceTracking,
-          marketsBySymbol,
-          marketSymbolsWithOpenPositionsByWallet
+          marketsByBaseAssetSymbol,
+          baseAssetSymbolsWithOpenPositionsByWallet
         )
       );
 
     for (
       uint8 i = 0;
-      i < marketSymbolsWithOpenPositionsByWallet[msg.sender].length;
+      i < baseAssetSymbolsWithOpenPositionsByWallet[msg.sender].length;
       i++
     ) {
       quoteQuantityInPips += updateMarketPositionsForExit(
         arguments.exitFundWallet,
-        marketsBySymbol[marketSymbolsWithOpenPositionsByWallet[msg.sender][i]],
+        marketsByBaseAssetSymbol[
+          baseAssetSymbolsWithOpenPositionsByWallet[msg.sender][i]
+        ],
         Validations.validateOraclePriceAndConvertToPips(
           arguments.oraclePrices[i],
           arguments.collateralAssetDecimals,
-          marketsBySymbol[
-            marketSymbolsWithOpenPositionsByWallet[msg.sender][i]
+          marketsByBaseAssetSymbol[
+            baseAssetSymbolsWithOpenPositionsByWallet[msg.sender][i]
           ],
           arguments.oracleWalletAddress
         ),

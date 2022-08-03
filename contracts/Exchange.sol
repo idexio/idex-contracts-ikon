@@ -123,9 +123,10 @@ contract Exchange_v4 is IExchange, Owned {
   // Milliseconds since epoch, always aligned to hour
   mapping(string => uint64) _lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // Markets mapped by symbol TODO Enablement
-  mapping(string => Market) _marketsBySymbol;
-  // Mapping of wallet => list of market symbols with open positions
-  mapping(address => string[]) _marketSymbolsWithOpenPositionsByWallet;
+  mapping(string => Market) _marketsByBaseAssetSymbol;
+  // Mapping of wallet => list of base asset symbols with open positions
+  mapping(address => string[])
+    public _baseAssetSymbolsWithOpenPositionsByWallet;
   // TODO Upgrade through Governance
   address _oracleWallet;
   // CLOB - mapping of wallet => last invalidated timestampInMs
@@ -500,8 +501,8 @@ contract Exchange_v4 is IExchange, Owned {
       _completedOrderHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsBySymbol,
-      _marketSymbolsWithOpenPositionsByWallet,
+      _marketsByBaseAssetSymbol,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
       _nonceInvalidationsByWallet,
       _partiallyFilledOrderQuantitiesInPips
     );
@@ -535,8 +536,8 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsBySymbol,
-      _marketSymbolsWithOpenPositionsByWallet
+      _marketsByBaseAssetSymbol,
+      _baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 
@@ -569,8 +570,8 @@ contract Exchange_v4 is IExchange, Owned {
       _completedWithdrawalHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsBySymbol,
-      _marketSymbolsWithOpenPositionsByWallet
+      _marketsByBaseAssetSymbol,
+      _baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     emit Withdrawn(
@@ -591,7 +592,10 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 incrementalPositionSizeInPips,
     uint64 maximumPositionSizeInPips
   ) external onlyAdmin {
-    require(!_marketsBySymbol[baseAssetSymbol].exists, 'Market already exists');
+    require(
+      !_marketsByBaseAssetSymbol[baseAssetSymbol].exists,
+      'Market already exists'
+    );
 
     Market memory market = Market({
       exists: true,
@@ -605,7 +609,7 @@ contract Exchange_v4 is IExchange, Owned {
       lastOraclePriceTimestampInMs: 0
     });
 
-    _marketsBySymbol[market.baseAssetSymbol] = market;
+    _marketsByBaseAssetSymbol[market.baseAssetSymbol] = market;
   }
 
   // Perps //
@@ -642,8 +646,8 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsBySymbol,
-      _marketSymbolsWithOpenPositionsByWallet
+      _marketsByBaseAssetSymbol,
+      _baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 
@@ -661,8 +665,8 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _fundingMultipliersByBaseAssetSymbol,
         _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsBySymbol,
-        _marketSymbolsWithOpenPositionsByWallet
+        _marketsByBaseAssetSymbol,
+        _baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -683,8 +687,8 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _fundingMultipliersByBaseAssetSymbol,
         _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsBySymbol,
-        _marketSymbolsWithOpenPositionsByWallet
+        _marketsByBaseAssetSymbol,
+        _baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -702,8 +706,8 @@ contract Exchange_v4 is IExchange, Owned {
         _collateralAssetDecimals,
         _oracleWallet,
         _balanceTracking,
-        _marketsBySymbol,
-        _marketSymbolsWithOpenPositionsByWallet
+        _marketsByBaseAssetSymbol,
+        _baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -721,8 +725,8 @@ contract Exchange_v4 is IExchange, Owned {
         _collateralAssetDecimals,
         _oracleWallet,
         _balanceTracking,
-        _marketsBySymbol,
-        _marketSymbolsWithOpenPositionsByWallet
+        _marketsByBaseAssetSymbol,
+        _baseAssetSymbolsWithOpenPositionsByWallet
       );
   }
 
@@ -769,8 +773,8 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsBySymbol,
-      _marketSymbolsWithOpenPositionsByWallet
+      _marketsByBaseAssetSymbol,
+      _baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     emit WalletExitWithdrawn(msg.sender, quantityInPips);
