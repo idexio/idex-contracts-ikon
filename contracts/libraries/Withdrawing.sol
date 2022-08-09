@@ -44,14 +44,16 @@ library Withdrawing {
   function withdraw(
     WithdrawArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedWithdrawalHashes,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) public returns (int64 newExchangeBalanceInPips) {
     // Validations
     require(
@@ -89,14 +91,17 @@ library Withdrawing {
 
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        arguments.withdrawal.walletAddress,
-        arguments.oraclePrices,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol,
-        arguments.oracleWalletAddress,
+        Margin.LoadMarginRequirementArguments(
+          arguments.withdrawal.walletAddress,
+          arguments.oraclePrices,
+          arguments.oracleWalletAddress,
+          arguments.collateralAssetDecimals,
+          arguments.collateralAssetSymbol
+        ),
         balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         marketsByBaseAssetSymbol,
-        baseAssetSymbolsWithOpenPositionsByWallet
+        marketOverridesByBaseAssetSymbolAndWallet
       ),
       'Initial margin requirement not met for buy wallet'
     );
@@ -122,13 +127,15 @@ library Withdrawing {
   function withdrawExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) public returns (uint64) {
     Funding.updateWalletFunding(
       msg.sender,
@@ -143,8 +150,9 @@ library Withdrawing {
     int64 quoteQuantityInPips = updatePositionsForExit(
       arguments,
       balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      marketOverridesByBaseAssetSymbolAndWallet
     );
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
@@ -171,32 +179,40 @@ library Withdrawing {
   function updatePositionsForExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) private returns (int64 quoteQuantityInPips) {
     (
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
     ) = (
         Margin.loadTotalAccountValue(
-          msg.sender,
-          arguments.oraclePrices,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol,
-          arguments.oracleWalletAddress,
+          Margin.LoadMarginRequirementArguments(
+            msg.sender,
+            arguments.oraclePrices,
+            arguments.oracleWalletAddress,
+            arguments.collateralAssetDecimals,
+            arguments.collateralAssetSymbol
+          ),
           balanceTracking,
-          marketsByBaseAssetSymbol,
-          baseAssetSymbolsWithOpenPositionsByWallet
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketsByBaseAssetSymbol
         ),
         Margin.loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
-          msg.sender,
-          arguments.oraclePrices,
-          arguments.collateralAssetDecimals,
-          arguments.oracleWalletAddress,
+          Margin.LoadMarginRequirementArguments(
+            msg.sender,
+            arguments.oraclePrices,
+            arguments.oracleWalletAddress,
+            arguments.collateralAssetDecimals,
+            arguments.collateralAssetSymbol
+          ),
           balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
           marketsByBaseAssetSymbol,
-          baseAssetSymbolsWithOpenPositionsByWallet
+          marketOverridesByBaseAssetSymbolAndWallet
         )
       );
 
@@ -252,11 +268,13 @@ library Withdrawing {
       int64(Constants.pipPriceMultiplier)
     );
 
+    // Quote value is the lesser of the oracle price or entry price...
     quoteQuantityInPips = Math.min(
       quoteQuantityInPips,
       balance.costBasisInPips
     );
 
+    // ...but never less than the bankruptcy price
     quoteQuantityInPips = Math.max(
       quoteQuantityInPips,
       Liquidation.calculateLiquidationQuoteQuantityInPips(

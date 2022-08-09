@@ -8,25 +8,10 @@ import { Margin } from './Margin.sol';
 import { OrderBookTradeValidations } from './OrderBookTradeValidations.sol';
 import { Perpetual } from './Perpetual.sol';
 import { OrderSide, OrderType } from './Enums.sol';
-import { FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
+import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
-
-  struct ExecuteOrderBookTradeArguments {
-    // External arguments
-    Order buy;
-    Order sell;
-    OrderBookTrade orderBookTrade;
-    OraclePrice[] buyOraclePrices;
-    OraclePrice[] sellOraclePrices;
-    // Exchange state
-    uint8 collateralAssetDecimals;
-    string collateralAssetSymbol;
-    uint64 delegateKeyExpirationPeriodInMs;
-    address feeWallet;
-    address oracleWalletAddress;
-  }
 
   function executeOrderBookTrade(
     ExecuteOrderBookTradeArguments memory arguments,
@@ -36,6 +21,8 @@ library Trading {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -44,21 +31,15 @@ library Trading {
   ) public {
     (bytes32 buyHash, bytes32 sellHash) = OrderBookTradeValidations
       .validateOrderBookTrade(
-        arguments.buy,
-        arguments.sell,
-        arguments.orderBookTrade,
-        arguments.collateralAssetSymbol,
-        arguments.delegateKeyExpirationPeriodInMs,
+        arguments,
         marketsByBaseAssetSymbol,
         nonceInvalidations
       );
 
     updateOrderFilledQuantities(
-      arguments.buy,
+      arguments,
       buyHash,
-      arguments.sell,
       sellHash,
-      arguments.orderBookTrade,
       completedOrderHashes,
       partiallyFilledOrderQuantitiesInPips
     );
@@ -85,45 +66,41 @@ library Trading {
     );
 
     balanceTracking.updateForOrderBookTrade(
-      arguments.buy,
-      arguments.sell,
-      arguments.orderBookTrade,
-      arguments.feeWallet,
+      arguments,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     validateInitialMarginRequirementsAndUpdateLastOraclePrice(
       arguments,
       balanceTracking,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 
   function updateOrderFilledQuantities(
-    Order memory buy,
+    ExecuteOrderBookTradeArguments memory arguments,
     bytes32 buyHash,
-    Order memory sell,
     bytes32 sellHash,
-    OrderBookTrade memory orderBookTrade,
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) private {
     // Buy side
     updateOrderFilledQuantity(
-      buy,
+      arguments.buy,
       buyHash,
-      orderBookTrade.baseQuantityInPips,
-      orderBookTrade.quoteQuantityInPips,
+      arguments.orderBookTrade.baseQuantityInPips,
+      arguments.orderBookTrade.quoteQuantityInPips,
       completedOrderHashes,
       partiallyFilledOrderQuantitiesInPips
     );
     // Sell side
     updateOrderFilledQuantity(
-      sell,
+      arguments.sell,
       sellHash,
-      orderBookTrade.baseQuantityInPips,
-      orderBookTrade.quoteQuantityInPips,
+      arguments.orderBookTrade.baseQuantityInPips,
+      arguments.orderBookTrade.quoteQuantityInPips,
       completedOrderHashes,
       partiallyFilledOrderQuantitiesInPips
     );
@@ -177,33 +154,41 @@ library Trading {
   function validateInitialMarginRequirementsAndUpdateLastOraclePrice(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet
   ) private {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        arguments.buy.walletAddress,
-        arguments.buyOraclePrices,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol,
-        arguments.oracleWalletAddress,
+        Margin.LoadMarginRequirementArguments(
+          arguments.buy.walletAddress,
+          arguments.buyOraclePrices,
+          arguments.oracleWalletAddress,
+          arguments.collateralAssetDecimals,
+          arguments.collateralAssetSymbol
+        ),
         balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         marketsByBaseAssetSymbol,
-        baseAssetSymbolsWithOpenPositionsByWallet
+        marketOverridesByBaseAssetSymbolAndWallet
       ),
       'Initial margin requirement not met for buy wallet'
     );
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        arguments.sell.walletAddress,
-        arguments.sellOraclePrices,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol,
-        arguments.oracleWalletAddress,
+        Margin.LoadMarginRequirementArguments(
+          arguments.sell.walletAddress,
+          arguments.sellOraclePrices,
+          arguments.oracleWalletAddress,
+          arguments.collateralAssetDecimals,
+          arguments.collateralAssetSymbol
+        ),
         balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         marketsByBaseAssetSymbol,
-        baseAssetSymbolsWithOpenPositionsByWallet
+        marketOverridesByBaseAssetSymbolAndWallet
       ),
       'Initial margin requirement not met for sell wallet'
     );

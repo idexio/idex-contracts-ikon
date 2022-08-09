@@ -9,6 +9,7 @@ import { Constants } from './libraries/Constants.sol';
 import { Depositing } from './libraries/Depositing.sol';
 import { Hashing } from './libraries/Hashing.sol';
 import { Liquidation } from './libraries/Liquidation.sol';
+import { Margin } from './libraries/Margin.sol';
 import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
 import { OrderSide } from './libraries/Enums.sol';
@@ -19,7 +20,7 @@ import { Trading } from './libraries/Trading.sol';
 import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
 import { ICustodian, IExchange } from './libraries/Interfaces.sol';
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
+import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
 
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
@@ -106,6 +107,9 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Balance tracking
   BalanceTracking.Storage _balanceTracking;
+  // Mapping of wallet => list of base asset symbols with open positions
+  mapping(address => string[])
+    public _baseAssetSymbolsWithOpenPositionsByWallet;
   // CLOB - mapping of order wallet hash => isComplete
   mapping(bytes32 => bool) _completedOrderHashes;
   // Withdrawals - mapping of withdrawal wallet hash => isComplete
@@ -123,10 +127,9 @@ contract Exchange_v4 is IExchange, Owned {
   // Milliseconds since epoch, always aligned to hour
   mapping(string => uint64) _lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // Markets mapped by symbol TODO Enablement
+  mapping(string => mapping(address => Market)) _marketOverridesByBaseAssetSymbolAndWallet;
+  // Markets mapped by symbol TODO Enablement
   mapping(string => Market) _marketsByBaseAssetSymbol;
-  // Mapping of wallet => list of base asset symbols with open positions
-  mapping(address => string[])
-    public _baseAssetSymbolsWithOpenPositionsByWallet;
   // TODO Upgrade through Governance
   address _oracleWallet;
   // CLOB - mapping of wallet => last invalidated timestampInMs
@@ -485,7 +488,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     Trading.executeOrderBookTrade(
       // We wrap the arguments in a struct to avoid 'Stack too deep' errors
-      Trading.ExecuteOrderBookTradeArguments(
+      ExecuteOrderBookTradeArguments(
         buy,
         sell,
         orderBookTrade,
@@ -501,6 +504,7 @@ contract Exchange_v4 is IExchange, Owned {
       _completedOrderHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet,
       _marketsByBaseAssetSymbol,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _nonceInvalidationsByWallet,
@@ -534,10 +538,11 @@ contract Exchange_v4 is IExchange, Owned {
         _oracleWallet
       ),
       _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketsByBaseAssetSymbol,
-      _baseAssetSymbolsWithOpenPositionsByWallet
+      _marketOverridesByBaseAssetSymbolAndWallet
     );
   }
 
@@ -567,11 +572,12 @@ contract Exchange_v4 is IExchange, Owned {
         _oracleWallet
       ),
       _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
       _completedWithdrawalHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketsByBaseAssetSymbol,
-      _baseAssetSymbolsWithOpenPositionsByWallet
+      _marketOverridesByBaseAssetSymbolAndWallet
     );
 
     emit Withdrawn(
@@ -663,10 +669,10 @@ contract Exchange_v4 is IExchange, Owned {
       Perpetual.loadOutstandingWalletFunding(
         wallet,
         _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
         _fundingMultipliersByBaseAssetSymbol,
         _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol,
-        _baseAssetSymbolsWithOpenPositionsByWallet
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -679,16 +685,18 @@ contract Exchange_v4 is IExchange, Owned {
   ) external view returns (int64) {
     return
       Perpetual.loadTotalAccountValueIncludingOutstandingWalletFunding(
-        wallet,
-        oraclePrices,
-        _collateralAssetDecimals,
-        _collateralAssetSymbol,
-        _oracleWallet,
+        Margin.LoadMarginRequirementArguments(
+          wallet,
+          oraclePrices,
+          _oracleWallet,
+          _collateralAssetDecimals,
+          _collateralAssetSymbol
+        ),
         _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
         _fundingMultipliersByBaseAssetSymbol,
         _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol,
-        _baseAssetSymbolsWithOpenPositionsByWallet
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -771,10 +779,11 @@ contract Exchange_v4 is IExchange, Owned {
         _oracleWallet
       ),
       _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketsByBaseAssetSymbol,
-      _baseAssetSymbolsWithOpenPositionsByWallet
+      _marketOverridesByBaseAssetSymbolAndWallet
     );
 
     emit WalletExitWithdrawn(msg.sender, quantityInPips);

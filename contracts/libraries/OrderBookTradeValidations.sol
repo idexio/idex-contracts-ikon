@@ -10,38 +10,42 @@ import { OrderType } from './Enums.sol';
 import { String } from './String.sol';
 import { UUID } from './UUID.sol';
 import { Validations } from './Validations.sol';
-import { Market, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
+import { ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
 
 library OrderBookTradeValidations {
   function validateOrderBookTrade(
-    Order memory buy,
-    Order memory sell,
-    OrderBookTrade memory trade,
-    string memory collateralAssetSymbol,
-    uint64 delegateKeyExpirationPeriodInMs,
+    ExecuteOrderBookTradeArguments memory arguments,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations
   ) internal view returns (bytes32, bytes32) {
     require(
-      buy.walletAddress != sell.walletAddress,
+      arguments.buy.walletAddress != arguments.sell.walletAddress,
       'Self-trading not allowed'
     );
 
     // Order book trade validations
-    validateAssetPair(trade, collateralAssetSymbol, marketsByBaseAssetSymbol);
-    validateLimitPrices(buy, sell, trade);
+    validateAssetPair(
+      arguments.orderBookTrade,
+      arguments.collateralAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+    validateLimitPrices(
+      arguments.buy,
+      arguments.sell,
+      arguments.orderBookTrade
+    );
     validateOrderNonces(
-      buy,
-      sell,
-      delegateKeyExpirationPeriodInMs,
+      arguments.buy,
+      arguments.sell,
+      arguments.delegateKeyExpirationPeriodInMs,
       nonceInvalidations
     );
     (bytes32 buyHash, bytes32 sellHash) = validateOrderSignatures(
-      buy,
-      sell,
-      trade
+      arguments.buy,
+      arguments.sell,
+      arguments.orderBookTrade
     );
-    validateFees(trade);
+    validateFees(arguments.orderBookTrade);
 
     return (buyHash, sellHash);
   }
