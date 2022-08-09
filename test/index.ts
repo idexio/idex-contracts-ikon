@@ -253,7 +253,7 @@ describe('Exchange', function () {
         market: 'ETH-USDC',
         type: OrderType.Limit,
         side: OrderSide.Sell,
-        quantity: '1.00000000',
+        quantity: '10.00000000',
         isQuantityInQuote: false,
         price: '2000.00000000',
       };
@@ -270,7 +270,7 @@ describe('Exchange', function () {
         market: 'ETH-USDC',
         type: OrderType.Limit,
         side: OrderSide.Buy,
-        quantity: '1.00000000',
+        quantity: '10.00000000',
         isQuantityInQuote: false,
         price: '2000.00000000',
       };
@@ -281,15 +281,30 @@ describe('Exchange', function () {
       const trade: Trade = {
         baseAssetSymbol: 'ETH',
         quoteAssetSymbol: 'USD',
-        baseQuantity: '1.00000000',
-        quoteQuantity: '2000.00000000',
-        makerFeeQuantity: '2.00000000',
-        takerFeeQuantity: '4.00000000',
-        price: '1.00000000',
+        baseQuantity: '10.00000000',
+        quoteQuantity: '20000.00000000',
+        makerFeeQuantity: '20.00000000',
+        takerFeeQuantity: '40.00000000',
+        price: '2000.00000000',
         makerSide: OrderSide.Sell,
       };
 
       const oraclePrice = await buildOraclePrice(oracle);
+
+      /*
+      await (
+        await exchange.setMarketOverrides(
+          trader1.address,
+          'ETH',
+          '10000000',
+          '3000000',
+          '1000000',
+          '14000000000',
+          '2800000000',
+          '282000000000',
+        )
+      ).wait();
+      */
 
       await (
         await exchange

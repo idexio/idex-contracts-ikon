@@ -589,6 +589,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Market management //
 
+  // TODO Validations
   function addMarket(
     string calldata baseAssetSymbol,
     uint64 initialMarginFractionInPips,
@@ -616,6 +617,41 @@ contract Exchange_v4 is IExchange, Owned {
     });
 
     _marketsByBaseAssetSymbol[market.baseAssetSymbol] = market;
+  }
+
+  // TODO Update market
+
+  // TODO Validations
+  function setMarketOverrides(
+    address wallet,
+    string calldata baseAssetSymbol,
+    uint64 initialMarginFractionInPips,
+    uint64 maintenanceMarginFractionInPips,
+    uint64 incrementalInitialMarginFractionInPips,
+    uint64 baselinePositionSizeInPips,
+    uint64 incrementalPositionSizeInPips,
+    uint64 maximumPositionSizeInPips
+  ) external onlyAdmin {
+    require(
+      _marketsByBaseAssetSymbol[baseAssetSymbol].exists,
+      'Market does not exist'
+    );
+
+    Market memory market = Market({
+      exists: true,
+      baseAssetSymbol: baseAssetSymbol,
+      initialMarginFractionInPips: initialMarginFractionInPips,
+      maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
+      incrementalInitialMarginFractionInPips: incrementalInitialMarginFractionInPips,
+      baselinePositionSizeInPips: baselinePositionSizeInPips,
+      incrementalPositionSizeInPips: incrementalPositionSizeInPips,
+      maximumPositionSizeInPips: maximumPositionSizeInPips,
+      lastOraclePriceTimestampInMs: 0
+    });
+
+    _marketOverridesByBaseAssetSymbolAndWallet[market.baseAssetSymbol][
+      wallet
+    ] = market;
   }
 
   // Perps //
