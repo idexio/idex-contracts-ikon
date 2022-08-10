@@ -8,7 +8,7 @@ import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
 import { StringArray } from './StringArray.sol';
 import { UUID } from './UUID.sol';
-import { Balance, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
+import { Balance, ExecuteOrderBookTradeArguments, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 library BalanceTracking {
   using StringArray for string[];
@@ -116,10 +116,7 @@ library BalanceTracking {
    */
   function updateForOrderBookTrade(
     Storage storage self,
-    Order memory buy,
-    Order memory sell,
-    OrderBookTrade memory trade,
-    address feeWallet,
+    ExecuteOrderBookTradeArguments memory arguments,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal {
@@ -130,47 +127,51 @@ library BalanceTracking {
       int64 sellFeeInPips,
       // Use the taker order nonce timestamp as the time of execution
       uint64 executionTimestampInMs
-    ) = trade.makerSide == OrderSide.Buy
+    ) = arguments.orderBookTrade.makerSide == OrderSide.Buy
         ? (
-          trade.makerFeeQuantityInPips,
-          int64(trade.takerFeeQuantityInPips),
-          UUID.getTimestampInMsFromUuidV1(sell.nonce)
+          arguments.orderBookTrade.makerFeeQuantityInPips,
+          int64(arguments.orderBookTrade.takerFeeQuantityInPips),
+          UUID.getTimestampInMsFromUuidV1(arguments.sell.nonce)
         )
         : (
-          int64(trade.takerFeeQuantityInPips),
-          trade.makerFeeQuantityInPips,
-          UUID.getTimestampInMsFromUuidV1(buy.nonce)
+          int64(arguments.orderBookTrade.takerFeeQuantityInPips),
+          arguments.orderBookTrade.makerFeeQuantityInPips,
+          UUID.getTimestampInMsFromUuidV1(arguments.buy.nonce)
         );
 
     // Seller gives base asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      sell.walletAddress,
-      trade.baseAssetSymbol
+      arguments.sell.walletAddress,
+      arguments.orderBookTrade.baseAssetSymbol
     );
     subtractFromPosition(
       balance,
-      trade.baseQuantityInPips,
-      trade.quoteQuantityInPips
+      arguments.orderBookTrade.baseQuantityInPips,
+      arguments.orderBookTrade.quoteQuantityInPips
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
-      sell.walletAddress,
-      trade.baseAssetSymbol,
+      arguments.sell.walletAddress,
+      arguments.orderBookTrade.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
     // Buyer receives base asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      buy.walletAddress,
-      trade.baseAssetSymbol
+      arguments.buy.walletAddress,
+      arguments.orderBookTrade.baseAssetSymbol
     );
-    addToPosition(balance, trade.baseQuantityInPips, trade.quoteQuantityInPips);
+    addToPosition(
+      balance,
+      arguments.orderBookTrade.baseQuantityInPips,
+      arguments.orderBookTrade.quoteQuantityInPips
+    );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
-      buy.walletAddress,
-      trade.baseAssetSymbol,
+      arguments.buy.walletAddress,
+      arguments.orderBookTrade.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
@@ -178,28 +179,32 @@ library BalanceTracking {
     // Buyer gives quote asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      buy.walletAddress,
-      trade.quoteAssetSymbol
+      arguments.buy.walletAddress,
+      arguments.orderBookTrade.quoteAssetSymbol
     );
-    balance.balanceInPips -= int64(trade.quoteQuantityInPips) + buyFeeInPips;
+    balance.balanceInPips -=
+      int64(arguments.orderBookTrade.quoteQuantityInPips) +
+      buyFeeInPips;
 
     // Seller receives quote asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      sell.walletAddress,
-      trade.quoteAssetSymbol
+      arguments.sell.walletAddress,
+      arguments.orderBookTrade.quoteAssetSymbol
     );
-    balance.balanceInPips += int64(trade.quoteQuantityInPips) - sellFeeInPips;
+    balance.balanceInPips +=
+      int64(arguments.orderBookTrade.quoteQuantityInPips) -
+      sellFeeInPips;
 
     // Maker fee to fee wallet
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      feeWallet,
-      trade.quoteAssetSymbol
+      arguments.feeWallet,
+      arguments.orderBookTrade.quoteAssetSymbol
     );
     balance.balanceInPips +=
-      trade.makerFeeQuantityInPips +
-      int64(trade.takerFeeQuantityInPips);
+      arguments.orderBookTrade.makerFeeQuantityInPips +
+      int64(arguments.orderBookTrade.takerFeeQuantityInPips);
   }
 
   // Withdrawing //

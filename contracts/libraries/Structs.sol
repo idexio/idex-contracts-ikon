@@ -25,6 +25,24 @@ struct Balance {
 }
 
 /**
+ * @notice Internally used struct for passing arguments to executeOrderBookTrade without hitting stack limit
+ */
+struct ExecuteOrderBookTradeArguments {
+  // External arguments
+  Order buy;
+  Order sell;
+  OrderBookTrade orderBookTrade;
+  OraclePrice[] buyOraclePrices;
+  OraclePrice[] sellOraclePrices;
+  // Exchange state
+  uint8 collateralAssetDecimals;
+  string collateralAssetSymbol;
+  uint64 delegateKeyExpirationPeriodInMs;
+  address feeWallet;
+  address oracleWalletAddress;
+}
+
+/**
  * @notice Internally used struct for storing funding multipliers
  */
 struct FundingMultiplierQuartet {

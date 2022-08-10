@@ -53,32 +53,40 @@ library Liquidation {
   function liquidate(
     LiquidateArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     (
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
     ) = (
         Margin.loadTotalAccountValue(
-          arguments.walletAddress,
-          arguments.oraclePrices,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol,
-          arguments.oracleWalletAddress,
+          Margin.LoadMarginRequirementArguments(
+            arguments.walletAddress,
+            arguments.oraclePrices,
+            arguments.oracleWalletAddress,
+            arguments.collateralAssetDecimals,
+            arguments.collateralAssetSymbol
+          ),
           balanceTracking,
-          marketsByBaseAssetSymbol,
-          baseAssetSymbolsWithOpenPositionsByWallet
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketsByBaseAssetSymbol
         ),
         Margin.loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
-          arguments.walletAddress,
-          arguments.oraclePrices,
-          arguments.collateralAssetDecimals,
-          arguments.oracleWalletAddress,
+          Margin.LoadMarginRequirementArguments(
+            arguments.walletAddress,
+            arguments.oraclePrices,
+            arguments.oracleWalletAddress,
+            arguments.collateralAssetDecimals,
+            arguments.collateralAssetSymbol
+          ),
           balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
           marketsByBaseAssetSymbol,
-          baseAssetSymbolsWithOpenPositionsByWallet
+          marketOverridesByBaseAssetSymbolAndWallet
         )
       );
 

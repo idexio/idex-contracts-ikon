@@ -13,39 +13,43 @@ pragma solidity 0.8.15;
 library Margin {
   using BalanceTracking for BalanceTracking.Storage;
 
+  struct LoadMarginRequirementArguments {
+    address wallet;
+    OraclePrice[] oraclePrices;
+    address oracleWalletAddress;
+    uint8 collateralAssetDecimals;
+    string collateralAssetSymbol;
+  }
+
   function loadTotalAccountValue(
-    address wallet,
-    OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
-    string memory collateralAssetSymbol,
-    address oracleWalletAddress,
+    LoadMarginRequirementArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64) {
     int64 totalAccountValueInPips = balanceTracking
       .loadBalanceInPipsFromMigrationSourceIfNeeded(
-        wallet,
-        collateralAssetSymbol
+        arguments.wallet,
+        arguments.collateralAssetSymbol
       );
 
     string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      wallet
+      arguments.wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[marketSymbols[i]];
       uint64 oraclePriceInPips = Validations
         .validateOraclePriceAndConvertToPips(
-          oraclePrices[i],
-          collateralAssetDecimals,
+          arguments.oraclePrices[i],
+          arguments.collateralAssetDecimals,
           market,
-          oracleWalletAddress
+          arguments.oracleWalletAddress
         );
 
       totalAccountValueInPips += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
-          wallet,
+          arguments.wallet,
           market.baseAssetSymbol
         ),
         int64(oraclePriceInPips),
@@ -88,31 +92,32 @@ library Margin {
   }
 
   function loadTotalInitialMarginRequirementAndUpdateLastOraclePrice(
-    address wallet,
-    OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
-    address oracleWalletAddress,
+    LoadMarginRequirementArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (uint64 initialMarginRequirement) {
     string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      wallet
+      arguments.wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       (Market storage market, OraclePrice memory oraclePrice) = (
         marketsByBaseAssetSymbol[marketSymbols[i]],
-        oraclePrices[i]
+        arguments.oraclePrices[i]
       );
 
       initialMarginRequirement += loadMarginRequirementAndUpdateLastOraclePrice(
-        wallet,
+        arguments,
         market,
-        market.initialMarginFractionInPips,
+        loadInitialMarginFractionInPips(
+          market,
+          arguments.wallet,
+          marketOverridesByBaseAssetSymbolAndWallet
+        ),
         oraclePrice,
-        collateralAssetDecimals,
-        oracleWalletAddress,
         balanceTracking
       );
     }
@@ -150,31 +155,32 @@ library Margin {
   }
 
   function loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
-    address wallet,
-    OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
-    address oracleWalletAddress,
+    LoadMarginRequirementArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (uint64 initialMarginRequirement) {
     string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      wallet
+      arguments.wallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       (Market storage market, OraclePrice memory oraclePrice) = (
         marketsByBaseAssetSymbol[marketSymbols[i]],
-        oraclePrices[i]
+        arguments.oraclePrices[i]
       );
 
       initialMarginRequirement += loadMarginRequirementAndUpdateLastOraclePrice(
-        wallet,
+        arguments,
         market,
-        market.maintenanceMarginFractionInPips,
+        loadMaintenanceMarginFractionInPips(
+          market,
+          arguments.wallet,
+          marketOverridesByBaseAssetSymbolAndWallet
+        ),
         oraclePrice,
-        collateralAssetDecimals,
-        oracleWalletAddress,
         balanceTracking
       );
     }
@@ -222,12 +228,10 @@ library Margin {
    * mutability and avoid redundant looping
    */
   function loadMarginRequirementAndUpdateLastOraclePrice(
-    address wallet,
+    LoadMarginRequirementArguments memory arguments,
     Market storage market,
     uint64 marginFractionInPips,
     OraclePrice memory oraclePrice,
-    uint8 collateralAssetDecimals,
-    address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking
   ) internal returns (uint64) {
     require(
@@ -237,9 +241,9 @@ library Margin {
     uint64 oraclePriceInPips = Validations
       .validateAndUpdateOraclePriceAndConvertToPips(
         oraclePrice,
-        collateralAssetDecimals,
+        arguments.collateralAssetDecimals,
         market,
-        oracleWalletAddress
+        arguments.oracleWalletAddress
       );
 
     return
@@ -247,7 +251,7 @@ library Margin {
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
-              wallet,
+              arguments.wallet,
               market.baseAssetSymbol
             ),
             int64(oraclePriceInPips),
@@ -263,37 +267,62 @@ library Margin {
    * @dev Utterly crass naming
    */
   function isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-    address walletAddress,
-    OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
-    string memory collateralAssetSymbol,
-    address oracleWalletAddress,
+    LoadMarginRequirementArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (bool) {
     return
       loadTotalAccountValue(
-        walletAddress,
-        oraclePrices,
-        collateralAssetDecimals,
-        collateralAssetSymbol,
-        oracleWalletAddress,
+        arguments,
         balanceTracking,
-        marketsByBaseAssetSymbol,
-        baseAssetSymbolsWithOpenPositionsByWallet
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
       ) >=
       int64(
         loadTotalInitialMarginRequirementAndUpdateLastOraclePrice(
-          walletAddress,
-          oraclePrices,
-          collateralAssetDecimals,
-          oracleWalletAddress,
+          arguments,
           balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
           marketsByBaseAssetSymbol,
-          baseAssetSymbolsWithOpenPositionsByWallet
+          marketOverridesByBaseAssetSymbolAndWallet
         )
       );
+  }
+
+  function loadInitialMarginFractionInPips(
+    Market memory market,
+    address wallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) internal view returns (uint64 initialMarginFractionInPips) {
+    initialMarginFractionInPips = market.initialMarginFractionInPips;
+
+    Market memory overrideMarket = marketOverridesByBaseAssetSymbolAndWallet[
+      market.baseAssetSymbol
+    ][wallet];
+    if (overrideMarket.exists) {
+      initialMarginFractionInPips = overrideMarket.initialMarginFractionInPips;
+    }
+  }
+
+  function loadMaintenanceMarginFractionInPips(
+    Market memory market,
+    address wallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) internal view returns (uint64 maintenanceMarginFractionInPips) {
+    maintenanceMarginFractionInPips = market.maintenanceMarginFractionInPips;
+
+    Market memory overrideMarket = marketOverridesByBaseAssetSymbolAndWallet[
+      market.baseAssetSymbol
+    ][wallet];
+    if (overrideMarket.exists) {
+      maintenanceMarginFractionInPips = overrideMarket
+        .maintenanceMarginFractionInPips;
+    }
   }
 }
