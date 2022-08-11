@@ -4,6 +4,7 @@ pragma solidity 0.8.15;
 
 import { Constants } from './Constants.sol';
 import { IExchange } from './Interfaces.sol';
+import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
 import { StringArray } from './StringArray.sol';
@@ -106,6 +107,72 @@ library BalanceTracking {
       collateralAssetSymbol
     );
     balance.balanceInPips += quoteQuantityInPips;
+  }
+
+  // Wallet exits //
+
+  function updateForExit(
+    Storage storage self,
+    address wallet,
+    string memory baseAssetSymbol,
+    address exitFundWallet,
+    uint64 maintenanceMarginFractionInPips,
+    uint64 oraclePriceInPips,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips
+  ) internal returns (int64 quoteQuantityInPips) {
+    Balance storage balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      wallet,
+      baseAssetSymbol
+    );
+    int64 positionSizeInPips = balance.balanceInPips;
+
+    quoteQuantityInPips = Math.multiplyPipsByFraction(
+      positionSizeInPips,
+      int64(oraclePriceInPips),
+      int64(Constants.pipPriceMultiplier)
+    );
+
+    // Quote value is the lesser of the oracle price or entry price...
+    quoteQuantityInPips = Math.min(
+      quoteQuantityInPips,
+      balance.costBasisInPips
+    );
+
+    // ...but never less than the bankruptcy price
+    quoteQuantityInPips = Math.max(
+      quoteQuantityInPips,
+      LiquidationValidations.calculateLiquidationQuoteQuantityInPips(
+        maintenanceMarginFractionInPips,
+        oraclePriceInPips,
+        positionSizeInPips,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      )
+    );
+
+    balance.balanceInPips = 0;
+    balance.costBasisInPips = 0;
+
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      exitFundWallet,
+      baseAssetSymbol
+    );
+    if (positionSizeInPips > 0) {
+      BalanceTracking.subtractFromPosition(
+        balance,
+        Math.abs(positionSizeInPips),
+        Math.abs(quoteQuantityInPips)
+      );
+    } else {
+      BalanceTracking.addToPosition(
+        balance,
+        Math.abs(positionSizeInPips),
+        Math.abs(quoteQuantityInPips)
+      );
+    }
   }
 
   // Trading //

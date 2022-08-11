@@ -546,6 +546,34 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  function liquidationAcquisitionDeleverage(
+    string calldata baseAssetSymbol,
+    address deleveragingWallet,
+    address liquidatingWallet,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata oraclePrices
+  ) external onlyDispatcher {
+    Perpetual.liquidationAcquisitionDeleverage(
+      Liquidation.DeleverageArguments(
+        baseAssetSymbol,
+        deleveragingWallet,
+        liquidatingWallet,
+        liquidationQuoteQuantityInPips,
+        oraclePrices,
+        _collateralAssetDecimals,
+        _collateralAssetSymbol,
+        _insuranceFundWallet,
+        _oracleWallet
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
   // Withdrawing //
 
   /**

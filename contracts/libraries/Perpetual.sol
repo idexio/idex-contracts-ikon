@@ -127,7 +127,7 @@ library Perpetual {
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) public {
     Funding.updateWalletFunding(
-      arguments.walletAddress,
+      arguments.wallet,
       arguments.collateralAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -137,6 +137,47 @@ library Perpetual {
     );
 
     Liquidation.liquidate(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function liquidationAcquisitionDeleverage(
+    Liquidation.DeleverageArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) public {
+    Funding.updateWalletFunding(
+      arguments.deleveragingWallet,
+      arguments.collateralAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+    Funding.updateWalletFunding(
+      arguments.liquidatingWallet,
+      arguments.collateralAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    Liquidation.liquidationAcquisitionDeleverage(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
