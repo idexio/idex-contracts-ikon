@@ -48,7 +48,7 @@ library Trading {
     // against the position size at the time of each historic multipler
     Funding.updateWalletFunding(
       arguments.buy.walletAddress,
-      arguments.collateralAssetSymbol,
+      arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -57,7 +57,7 @@ library Trading {
     );
     Funding.updateWalletFunding(
       arguments.sell.walletAddress,
-      arguments.collateralAssetSymbol,
+      arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -166,8 +166,8 @@ library Trading {
           arguments.buy.walletAddress,
           arguments.buyOraclePrices,
           arguments.oracleWalletAddress,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -182,8 +182,8 @@ library Trading {
           arguments.sell.walletAddress,
           arguments.sellOraclePrices,
           arguments.oracleWalletAddress,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,

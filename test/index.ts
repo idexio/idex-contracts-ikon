@@ -23,7 +23,7 @@ import {
   buildOraclePrice,
   buildOraclePrices,
   buildOraclePriceWithValue,
-  collateralAssetDecimals,
+  quoteAssetDecimals,
   deployAndAssociateContracts,
   fundWallets,
   logWalletBalances,
@@ -42,10 +42,7 @@ describe('Exchange', function () {
       oracle,
     );
 
-    const depositQuantity = ethers.utils.parseUnits(
-      '5.0',
-      collateralAssetDecimals,
-    );
+    const depositQuantity = ethers.utils.parseUnits('5.0', quoteAssetDecimals);
     await usdc.transfer(trader.address, depositQuantity);
     await usdc.connect(trader).approve(exchange.address, depositQuantity);
     await (await exchange.connect(trader).deposit(depositQuantity)).wait();

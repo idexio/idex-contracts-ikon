@@ -20,21 +20,21 @@ library Liquidation {
     int64 liquidationQuoteQuantityInPips;
     OraclePrice[] oraclePrices;
     // Exchange state
-    uint8 collateralAssetDecimals;
-    string collateralAssetSymbol;
-    address insuranceFundWalletAddress;
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
+    address insuranceFundWallet;
     address oracleWalletAddress;
   }
 
   struct LiquidateArguments {
     // External arguments
-    address wallet;
+    address liquidatingWallet;
     int64[] liquidationQuoteQuantitiesInPips;
     OraclePrice[] oraclePrices;
     // Exchange state
-    uint8 collateralAssetDecimals;
-    string collateralAssetSymbol;
-    address insuranceFundWalletAddress;
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
+    address insuranceFundWallet;
     address oracleWalletAddress;
   }
 
@@ -48,6 +48,7 @@ library Liquidation {
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     // FIXME Do not allow liquidation of insurance or exit funds
+    // FIXME Allow liquidation of exited wallets without margin check
 
     (
       int64 totalAccountValueInPips,
@@ -66,11 +67,11 @@ library Liquidation {
     );
 
     string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      arguments.wallet
+      arguments.liquidatingWallet
     ];
     for (uint8 i = 0; i < marketSymbols.length; i++) {
       // FIXME Insurance fund margin requirements
-      liquidateMarket(
+      liquidatePosition(
         arguments,
         marketsByBaseAssetSymbol[marketSymbols[i]],
         arguments.liquidationQuoteQuantitiesInPips[i],
@@ -81,6 +82,12 @@ library Liquidation {
         baseAssetSymbolsWithOpenPositionsByWallet
       );
     }
+
+    balanceTracking.updateQuoteForLiquidation(
+      arguments.quoteAssetSymbol,
+      arguments.insuranceFundWallet,
+      arguments.liquidatingWallet
+    );
   }
 
   function liquidationAcquisitionDeleverage(
@@ -104,15 +111,24 @@ library Liquidation {
       );
 
     require(
-      totalAccountValueInPips <= int64(totalMaintenanceMarginRequirementInPips),
+      totalAccountValueInPips < int64(totalMaintenanceMarginRequirementInPips),
       'Maintenance margin met'
+    );
+
+    balanceTracking.updatePositionForLiquidation(
+      arguments.baseAssetSymbol,
+      arguments.quoteAssetSymbol,
+      arguments.deleveragingWallet,
+      arguments.liquidatingWallet,
+      arguments.liquidationQuoteQuantityInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 
-  function liquidateMarket(
+  function liquidatePosition(
     LiquidateArguments memory arguments,
     Market memory market,
-    int64 liquidationQuoteQuantitiesInPips,
+    int64 liquidationQuoteQuantityInPips,
     OraclePrice memory oraclePrice,
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
@@ -121,12 +137,15 @@ library Liquidation {
       storage baseAssetSymbolsWithOpenPositionsByWallet
   ) private {
     int64 positionSizeInPips = balanceTracking
-      .loadBalanceAndMigrateIfNeeded(arguments.wallet, market.baseAssetSymbol)
+      .loadBalanceAndMigrateIfNeeded(
+        arguments.liquidatingWallet,
+        market.baseAssetSymbol
+      )
       .balanceInPips;
 
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       oraclePrice,
-      arguments.collateralAssetDecimals,
+      arguments.quoteAssetDecimals,
       market,
       arguments.oracleWalletAddress
     );
@@ -140,18 +159,18 @@ library Liquidation {
       );
     require(
       expectedLiquidationQuoteQuantitiesInPips - 1 <=
-        liquidationQuoteQuantitiesInPips &&
+        liquidationQuoteQuantityInPips &&
         expectedLiquidationQuoteQuantitiesInPips + 1 >=
-        liquidationQuoteQuantitiesInPips,
+        liquidationQuoteQuantityInPips,
       'Invalid liquidation quote quantity'
     );
 
-    balanceTracking.updateForLiquidation(
-      arguments.wallet,
-      arguments.insuranceFundWalletAddress,
+    balanceTracking.updatePositionForLiquidation(
       market.baseAssetSymbol,
-      arguments.collateralAssetSymbol,
-      liquidationQuoteQuantitiesInPips,
+      arguments.quoteAssetSymbol,
+      arguments.insuranceFundWallet,
+      arguments.liquidatingWallet,
+      liquidationQuoteQuantityInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
@@ -167,11 +186,11 @@ library Liquidation {
   ) private returns (int64, uint64) {
     int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
       Margin.LoadMarginRequirementArguments(
-        arguments.wallet,
+        arguments.liquidatingWallet,
         arguments.oraclePrices,
         arguments.oracleWalletAddress,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -181,11 +200,11 @@ library Liquidation {
     uint64 totalMaintenanceMarginRequirementInPips = Margin
       .loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
         Margin.LoadMarginRequirementArguments(
-          arguments.wallet,
+          arguments.liquidatingWallet,
           arguments.oraclePrices,
           arguments.oracleWalletAddress,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -210,8 +229,8 @@ library Liquidation {
         arguments.liquidatingWallet,
         arguments.oraclePrices,
         arguments.oracleWalletAddress,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -224,8 +243,8 @@ library Liquidation {
           arguments.liquidatingWallet,
           arguments.oraclePrices,
           arguments.oracleWalletAddress,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,

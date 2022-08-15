@@ -26,7 +26,7 @@ library OrderBookTradeValidations {
     // Order book trade validations
     validateAssetPair(
       arguments.orderBookTrade,
-      arguments.collateralAssetSymbol,
+      arguments.quoteAssetSymbol,
       marketsByBaseAssetSymbol
     );
     validateLimitPrices(
@@ -52,7 +52,7 @@ library OrderBookTradeValidations {
 
   function validateAssetPair(
     OrderBookTrade memory trade,
-    string memory collateralAssetSymbol,
+    string memory quoteAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view {
     require(
@@ -61,8 +61,8 @@ library OrderBookTradeValidations {
     );
 
     require(
-      String.isEqual(trade.quoteAssetSymbol, collateralAssetSymbol),
-      'Quote and collateral symbol mismatch'
+      String.isEqual(trade.quoteAssetSymbol, quoteAssetSymbol),
+      'Quote and quote symbol mismatch'
     );
 
     require(

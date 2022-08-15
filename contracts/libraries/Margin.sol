@@ -17,8 +17,8 @@ library Margin {
     address wallet;
     OraclePrice[] oraclePrices;
     address oracleWalletAddress;
-    uint8 collateralAssetDecimals;
-    string collateralAssetSymbol;
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
   }
 
   function loadTotalAccountValue(
@@ -31,7 +31,7 @@ library Margin {
     int64 totalAccountValueInPips = balanceTracking
       .loadBalanceInPipsFromMigrationSourceIfNeeded(
         arguments.wallet,
-        arguments.collateralAssetSymbol
+        arguments.quoteAssetSymbol
       );
 
     string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
@@ -42,7 +42,7 @@ library Margin {
       uint64 oraclePriceInPips = Validations
         .validateOraclePriceAndConvertToPips(
           arguments.oraclePrices[i],
-          arguments.collateralAssetDecimals,
+          arguments.quoteAssetDecimals,
           market,
           arguments.oracleWalletAddress
         );
@@ -63,7 +63,7 @@ library Margin {
   function loadTotalInitialMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
@@ -84,7 +84,7 @@ library Margin {
         market.baseAssetSymbol,
         market.initialMarginFractionInPips,
         oraclePrice,
-        collateralAssetDecimals,
+        quoteAssetDecimals,
         oracleWalletAddress,
         balanceTracking
       );
@@ -126,7 +126,7 @@ library Margin {
   function loadTotalMaintenanceMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
@@ -147,7 +147,7 @@ library Margin {
         market.baseAssetSymbol,
         market.maintenanceMarginFractionInPips,
         oraclePrice,
-        collateralAssetDecimals,
+        quoteAssetDecimals,
         oracleWalletAddress,
         balanceTracking
       );
@@ -191,7 +191,7 @@ library Margin {
     string memory baseAssetSymbol,
     uint64 marginFractionInPips,
     OraclePrice memory oraclePrice,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking
   ) internal view returns (uint64) {
@@ -212,7 +212,7 @@ library Margin {
             int64(
               AssetUnitConversions.assetUnitsToPips(
                 oraclePrice.priceInAssetUnits,
-                collateralAssetDecimals
+                quoteAssetDecimals
               )
             ),
             int64(Constants.pipPriceMultiplier)
@@ -241,7 +241,7 @@ library Margin {
     uint64 oraclePriceInPips = Validations
       .validateAndUpdateOraclePriceAndConvertToPips(
         oraclePrice,
-        arguments.collateralAssetDecimals,
+        arguments.quoteAssetDecimals,
         market,
         arguments.oracleWalletAddress
       );

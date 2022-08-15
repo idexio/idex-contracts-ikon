@@ -16,7 +16,7 @@ import {
   signatureHashVersion,
 } from '../lib';
 
-export const collateralAssetDecimals = 6;
+export const quoteAssetDecimals = 6;
 
 const millisecondsInAnHour = 60 * 60 * 1000;
 
@@ -152,7 +152,7 @@ export async function deployAndAssociateContracts(
         ethers.constants.AddressZero,
         usdc.address,
         'USDC',
-        collateralAssetDecimals,
+        quoteAssetDecimals,
         exitFundWallet.address,
         feeWallet.address,
         insuranceFund.address,
@@ -198,7 +198,7 @@ export async function fundWallets(
       (
         await usdc.transfer(
           wallet.address,
-          decimalToAssetUnits(quantity, collateralAssetDecimals),
+          decimalToAssetUnits(quantity, quoteAssetDecimals),
         )
       ).wait(),
     ),
@@ -211,7 +211,7 @@ export async function fundWallets(
           .connect(wallet)
           .approve(
             exchange.address,
-            decimalToAssetUnits(quantity, collateralAssetDecimals),
+            decimalToAssetUnits(quantity, quoteAssetDecimals),
           )
       ).wait(),
     ),
@@ -222,7 +222,7 @@ export async function fundWallets(
       (
         await exchange
           .connect(wallet)
-          .deposit(decimalToAssetUnits(quantity, collateralAssetDecimals))
+          .deposit(decimalToAssetUnits(quantity, quoteAssetDecimals))
       ).wait(),
     ),
   );

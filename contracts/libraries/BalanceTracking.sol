@@ -40,12 +40,12 @@ library BalanceTracking {
 
   // Liquidation //
 
-  function updateForLiquidation(
+  function updatePositionForLiquidation(
     Storage storage self,
-    address walletAddress,
-    address insuranceFundWallet,
     string memory baseAssetSymbol,
-    string memory collateralAssetSymbol,
+    string memory quoteAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet,
     int64 quoteQuantityInPips,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet
@@ -55,58 +55,85 @@ library BalanceTracking {
     // Wallet position goes to zero
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      walletAddress,
+      liquidatingWallet,
       baseAssetSymbol
     );
     int64 positionSizeInPips = balance.balanceInPips;
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;
     updateOpenPositionsForWallet(
-      walletAddress,
+      liquidatingWallet,
       baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
-    // Insurance fund position takes on opposite side
+    // Counterparty position takes on opposite side
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      insuranceFundWallet,
+      counterpartyWallet,
       baseAssetSymbol
     );
     if (positionSizeInPips > 0) {
-      subtractFromPosition(
+      addToPosition(
         balance,
         Math.abs(positionSizeInPips),
         Math.abs(quoteQuantityInPips)
       );
     } else {
-      addToPosition(
+      subtractFromPosition(
         balance,
         Math.abs(positionSizeInPips),
         Math.abs(quoteQuantityInPips)
       );
     }
     updateOpenPositionsForWallet(
-      insuranceFundWallet,
+      counterpartyWallet,
       baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    // Wallet receives or gives collateral if long or short respectively
+    // Wallet receives or gives quote if long or short respectively
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      walletAddress,
-      collateralAssetSymbol
+      liquidatingWallet,
+      quoteAssetSymbol
     );
     balance.balanceInPips += quoteQuantityInPips;
-    // Insurance receives or gives collateral if wallet short or long respectively
+    // Insurance receives or gives quote if wallet short or long respectively
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      insuranceFundWallet,
-      collateralAssetSymbol
+      counterpartyWallet,
+      quoteAssetSymbol
     );
     balance.balanceInPips += quoteQuantityInPips;
+  }
+
+  function updateQuoteForLiquidation(
+    Storage storage self,
+    string memory quoteAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet
+  ) internal {
+    Balance storage balance;
+
+    // Liquidating wallet quote balance goes to zero
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      liquidatingWallet,
+      quoteAssetSymbol
+    );
+    int64 quoteQuantityInPips = balance.balanceInPips;
+    balance.balanceInPips = 0;
+    // Counterparty wallet takes any remaining quote from liquidating wallet
+    if (quoteQuantityInPips > 0) {
+      balance = loadBalanceAndMigrateIfNeeded(
+        self,
+        counterpartyWallet,
+        quoteAssetSymbol
+      );
+      balance.balanceInPips += quoteQuantityInPips;
+    }
   }
 
   // Wallet exits //

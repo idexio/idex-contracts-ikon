@@ -20,7 +20,7 @@ library Validations {
 
   function validateAndUpdateOraclePriceAndConvertToPips(
     OraclePrice memory oraclePrice,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     Market storage market,
     address oracleWalletAddress
   ) internal returns (uint64) {
@@ -29,7 +29,7 @@ library Validations {
     return
       validateOraclePriceAndConvertToPips(
         oraclePrice,
-        collateralAssetDecimals,
+        quoteAssetDecimals,
         market,
         oracleWalletAddress
       );
@@ -37,7 +37,7 @@ library Validations {
 
   function validateOraclePriceAndConvertToPips(
     OraclePrice memory oraclePrice,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     Market memory market,
     address oracleWalletAddress
   ) internal pure returns (uint64) {
@@ -54,14 +54,14 @@ library Validations {
     return
       validateOraclePriceAndConvertToPips(
         oraclePrice,
-        collateralAssetDecimals,
+        quoteAssetDecimals,
         oracleWalletAddress
       );
   }
 
   function validateOraclePriceAndConvertToPips(
     OraclePrice memory oraclePrice,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress
   ) internal pure returns (uint64) {
     // TODO Validate timestamp recency
@@ -70,7 +70,7 @@ library Validations {
     return
       AssetUnitConversions.assetUnitsToPips(
         oraclePrice.priceInAssetUnits,
-        collateralAssetDecimals
+        quoteAssetDecimals
       );
   }
 

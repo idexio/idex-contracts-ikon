@@ -21,9 +21,9 @@ library Withdrawing {
     Withdrawal withdrawal;
     OraclePrice[] oraclePrices;
     // Exchange state
-    address collateralAssetAddress;
-    uint8 collateralAssetDecimals;
-    string collateralAssetSymbol;
+    address quoteAssetAddress;
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
     ICustodian custodian;
     address feeWallet;
     address oracleWalletAddress;
@@ -33,9 +33,9 @@ library Withdrawing {
     // External arguments
     OraclePrice[] oraclePrices;
     // Exchange state
-    address collateralAssetAddress;
-    uint8 collateralAssetDecimals;
-    string collateralAssetSymbol;
+    address quoteAssetAddress;
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
     ICustodian custodian;
     address exitFundWallet;
     address oracleWalletAddress;
@@ -74,7 +74,7 @@ library Withdrawing {
 
     Funding.updateWalletFunding(
       arguments.withdrawal.walletAddress,
-      arguments.collateralAssetSymbol,
+      arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -85,7 +85,7 @@ library Withdrawing {
     // Update wallet balances
     newExchangeBalanceInPips = balanceTracking.updateForWithdrawal(
       arguments.withdrawal,
-      arguments.collateralAssetSymbol,
+      arguments.quoteAssetSymbol,
       arguments.feeWallet
     );
 
@@ -95,8 +95,8 @@ library Withdrawing {
           arguments.withdrawal.walletAddress,
           arguments.oraclePrices,
           arguments.oracleWalletAddress,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -111,11 +111,11 @@ library Withdrawing {
       .pipsToAssetUnits(
         arguments.withdrawal.grossQuantityInPips -
           arguments.withdrawal.gasFeeInPips,
-        arguments.collateralAssetDecimals
+        arguments.quoteAssetDecimals
       );
     arguments.custodian.withdraw(
       arguments.withdrawal.walletAddress,
-      arguments.collateralAssetAddress,
+      arguments.quoteAssetAddress,
       netAssetQuantityInAssetUnits
     );
 
@@ -138,7 +138,7 @@ library Withdrawing {
   ) public returns (uint64) {
     Funding.updateWalletFunding(
       msg.sender,
-      arguments.collateralAssetSymbol,
+      arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -156,19 +156,19 @@ library Withdrawing {
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       msg.sender,
-      arguments.collateralAssetSymbol
+      arguments.quoteAssetSymbol
     );
     quoteQuantityInPips += balance.balanceInPips;
     balance.balanceInPips = 0;
 
-    require(quoteQuantityInPips > 0, 'Negative collateral after exit');
+    require(quoteQuantityInPips > 0, 'Negative quote after exit');
 
     arguments.custodian.withdraw(
       msg.sender,
-      arguments.collateralAssetAddress,
+      arguments.quoteAssetAddress,
       AssetUnitConversions.pipsToAssetUnits(
         uint64(quoteQuantityInPips),
-        arguments.collateralAssetDecimals
+        arguments.quoteAssetDecimals
       )
     );
 
@@ -214,7 +214,7 @@ library Withdrawing {
         ),
         Validations.validateOraclePriceAndConvertToPips(
           arguments.oraclePrices[i],
-          arguments.collateralAssetDecimals,
+          arguments.quoteAssetDecimals,
           market,
           arguments.oracleWalletAddress
         ),
@@ -226,7 +226,7 @@ library Withdrawing {
     // Quote out from exit fund wallet
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.exitFundWallet,
-      arguments.collateralAssetSymbol
+      arguments.quoteAssetSymbol
     );
     balance.balanceInPips -= quoteQuantityInPips;
   }
@@ -245,8 +245,8 @@ library Withdrawing {
         msg.sender,
         arguments.oraclePrices,
         arguments.oracleWalletAddress,
-        arguments.collateralAssetDecimals,
-        arguments.collateralAssetSymbol
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -259,8 +259,8 @@ library Withdrawing {
           msg.sender,
           arguments.oraclePrices,
           arguments.oracleWalletAddress,
-          arguments.collateralAssetDecimals,
-          arguments.collateralAssetSymbol
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
