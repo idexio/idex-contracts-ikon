@@ -522,16 +522,18 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  function liquidate(
+  function liquidateWallet(
     address wallet,
     int64[] calldata liquidationQuoteQuantitiesInPips,
-    OraclePrice[] calldata oraclePrices
+    OraclePrice[] calldata insuranceFundOraclePrices,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidate(
-      Liquidation.LiquidateArguments(
+    Perpetual.liquidateWallet(
+      Liquidation.LiquidateWalletArguments(
         wallet,
         liquidationQuoteQuantitiesInPips,
-        oraclePrices,
+        insuranceFundOraclePrices,
+        liquidatingWalletOraclePrices,
         _quoteAssetDecimals,
         _quoteAssetSymbol,
         _insuranceFundWallet,
@@ -551,15 +553,17 @@ contract Exchange_v4 is IExchange, Owned {
     address deleveragingWallet,
     address liquidatingWallet,
     int64 liquidationQuoteQuantityInPips,
-    OraclePrice[] calldata oraclePrices
+    OraclePrice[] calldata deleveragingWalletOraclePrices,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
     Perpetual.liquidationAcquisitionDeleverage(
-      Liquidation.DeleverageArguments(
+      Liquidation.DeleveragePositionArguments(
         baseAssetSymbol,
         deleveragingWallet,
         liquidatingWallet,
         liquidationQuoteQuantityInPips,
-        oraclePrices,
+        deleveragingWalletOraclePrices,
+        liquidatingWalletOraclePrices,
         _quoteAssetDecimals,
         _quoteAssetSymbol,
         _insuranceFundWallet,
@@ -749,7 +753,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) external view returns (int64) {
     return
       Perpetual.loadTotalAccountValueIncludingOutstandingWalletFunding(
-        Margin.LoadMarginRequirementArguments(
+        Margin.LoadArguments(
           wallet,
           oraclePrices,
           _oracleWallet,

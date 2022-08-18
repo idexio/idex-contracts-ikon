@@ -11,6 +11,8 @@ import { StringArray } from './StringArray.sol';
 import { UUID } from './UUID.sol';
 import { Balance, ExecuteOrderBookTradeArguments, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
+import 'hardhat/console.sol';
+
 library BalanceTracking {
   using StringArray for string[];
 
@@ -126,7 +128,7 @@ library BalanceTracking {
     int64 quoteQuantityInPips = balance.balanceInPips;
     balance.balanceInPips = 0;
     // Counterparty wallet takes any remaining quote from liquidating wallet
-    if (quoteQuantityInPips > 0) {
+    if (quoteQuantityInPips != 0) {
       balance = loadBalanceAndMigrateIfNeeded(
         self,
         counterpartyWallet,
@@ -401,14 +403,18 @@ library BalanceTracking {
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasisInPips =
-        (int64(quoteQuantityInPips) * newBalanceInPips) /
-        int64(baseQuantityInPips);
+      balance.costBasisInPips = Math.multiplyPipsByFraction(
+        int64(quoteQuantityInPips),
+        newBalanceInPips,
+        int64(baseQuantityInPips)
+      );
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasisInPips +=
-        (balance.costBasisInPips * int64(baseQuantityInPips)) /
-        balance.balanceInPips;
+      balance.costBasisInPips += Math.multiplyPipsByFraction(
+        balance.costBasisInPips,
+        int64(baseQuantityInPips),
+        balance.balanceInPips
+      );
     }
 
     balance.balanceInPips = newBalanceInPips;
@@ -429,14 +435,18 @@ library BalanceTracking {
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasisInPips =
-        (int64(quoteQuantityInPips) * newBalanceInPips) /
-        int64(baseQuantityInPips);
+      balance.costBasisInPips = Math.multiplyPipsByFraction(
+        int64(quoteQuantityInPips),
+        newBalanceInPips,
+        int64(baseQuantityInPips)
+      );
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasisInPips -=
-        (balance.costBasisInPips * int64(baseQuantityInPips)) /
-        balance.balanceInPips;
+      balance.costBasisInPips -= Math.multiplyPipsByFraction(
+        balance.costBasisInPips,
+        int64(baseQuantityInPips),
+        balance.balanceInPips
+      );
     }
 
     balance.balanceInPips = newBalanceInPips;

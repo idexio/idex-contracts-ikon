@@ -13,7 +13,7 @@ pragma solidity 0.8.15;
 library Margin {
   using BalanceTracking for BalanceTracking.Storage;
 
-  struct LoadMarginRequirementArguments {
+  struct LoadArguments {
     address wallet;
     OraclePrice[] oraclePrices;
     address oracleWalletAddress;
@@ -22,7 +22,7 @@ library Margin {
   }
 
   function loadTotalAccountValue(
-    LoadMarginRequirementArguments memory arguments,
+    LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -92,7 +92,7 @@ library Margin {
   }
 
   function loadTotalInitialMarginRequirementAndUpdateLastOraclePrice(
-    LoadMarginRequirementArguments memory arguments,
+    LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -155,7 +155,7 @@ library Margin {
   }
 
   function loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
-    LoadMarginRequirementArguments memory arguments,
+    LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -228,7 +228,7 @@ library Margin {
    * mutability and avoid redundant looping
    */
   function loadMarginRequirementAndUpdateLastOraclePrice(
-    LoadMarginRequirementArguments memory arguments,
+    LoadArguments memory arguments,
     Market storage market,
     uint64 marginFractionInPips,
     OraclePrice memory oraclePrice,
@@ -267,7 +267,7 @@ library Margin {
    * @dev Utterly crass naming
    */
   function isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-    LoadMarginRequirementArguments memory arguments,
+    LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,

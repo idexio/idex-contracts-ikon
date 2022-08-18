@@ -42,7 +42,7 @@ library Perpetual {
   }
 
   function loadTotalAccountValueIncludingOutstandingWalletFunding(
-    Margin.LoadMarginRequirementArguments memory arguments,
+    Margin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -113,8 +113,8 @@ library Perpetual {
       );
   }
 
-  function liquidate(
-    Liquidation.LiquidateArguments memory arguments,
+  function liquidateWallet(
+    Liquidation.LiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -136,7 +136,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidate(
+    Liquidation.liquidateWallet(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -146,7 +146,7 @@ library Perpetual {
   }
 
   function liquidationAcquisitionDeleverage(
-    Liquidation.DeleverageArguments memory arguments,
+    Liquidation.DeleveragePositionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,

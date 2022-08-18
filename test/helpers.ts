@@ -257,6 +257,16 @@ export async function logWalletBalances(
         ),
       )}`,
     );
+    console.log(
+      `${oraclePrice.baseAssetSymbol} cost basis: ${pipToDecimal(
+        (
+          await exchange.loadBalanceBySymbol(
+            walletAddress,
+            oraclePrice.baseAssetSymbol,
+          )
+        ).costBasisInPips,
+      )}`,
+    );
   }
 
   console.log(

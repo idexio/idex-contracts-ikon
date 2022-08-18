@@ -91,7 +91,7 @@ library Withdrawing {
 
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadMarginRequirementArguments(
+        Margin.LoadArguments(
           arguments.withdrawal.walletAddress,
           arguments.oraclePrices,
           arguments.oracleWalletAddress,
@@ -241,7 +241,7 @@ library Withdrawing {
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) private returns (int64, uint64) {
     int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
-      Margin.LoadMarginRequirementArguments(
+      Margin.LoadArguments(
         msg.sender,
         arguments.oraclePrices,
         arguments.oracleWalletAddress,
@@ -255,7 +255,7 @@ library Withdrawing {
 
     uint64 totalMaintenanceMarginRequirementInPips = Margin
       .loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
-        Margin.LoadMarginRequirementArguments(
+        Margin.LoadArguments(
           msg.sender,
           arguments.oraclePrices,
           arguments.oracleWalletAddress,

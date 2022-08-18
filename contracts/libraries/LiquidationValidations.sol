@@ -31,4 +31,29 @@ library LiquidationValidations {
 
     return int64(quoteQuantityInPips);
   }
+
+  function validateLiquidationQuoteQuantity(
+    int64 liquidationQuoteQuantityInPips,
+    uint64 marginFractionInPips,
+    uint64 oraclePriceInPips,
+    int64 positionSizeInPips,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips
+  ) internal pure {
+    int64 expectedLiquidationQuoteQuantitiesInPips = LiquidationValidations
+      .calculateLiquidationQuoteQuantityInPips(
+        marginFractionInPips,
+        oraclePriceInPips,
+        positionSizeInPips,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      );
+    require(
+      expectedLiquidationQuoteQuantitiesInPips - 1 <=
+        liquidationQuoteQuantityInPips &&
+        expectedLiquidationQuoteQuantitiesInPips + 1 >=
+        liquidationQuoteQuantityInPips,
+      'Invalid liquidation quote quantity'
+    );
+  }
 }

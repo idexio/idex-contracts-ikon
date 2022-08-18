@@ -162,7 +162,7 @@ library Trading {
   ) private {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadMarginRequirementArguments(
+        Margin.LoadArguments(
           arguments.buy.walletAddress,
           arguments.buyOraclePrices,
           arguments.oracleWalletAddress,
@@ -178,7 +178,7 @@ library Trading {
     );
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadMarginRequirementArguments(
+        Margin.LoadArguments(
           arguments.sell.walletAddress,
           arguments.sellOraclePrices,
           arguments.oracleWalletAddress,
