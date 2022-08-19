@@ -554,6 +554,7 @@ contract Exchange_v4 is IExchange, Owned {
     address liquidatingWallet,
     int64 liquidationQuoteQuantityInPips,
     OraclePrice[] calldata deleveragingWalletOraclePrices,
+    OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
     Perpetual.liquidationAcquisitionDeleverage(
@@ -563,6 +564,7 @@ contract Exchange_v4 is IExchange, Owned {
         liquidatingWallet,
         liquidationQuoteQuantityInPips,
         deleveragingWalletOraclePrices,
+        insuranceFundOraclePrices,
         liquidatingWalletOraclePrices,
         _quoteAssetDecimals,
         _quoteAssetSymbol,

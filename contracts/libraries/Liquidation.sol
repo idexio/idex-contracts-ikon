@@ -20,6 +20,7 @@ library Liquidation {
     address liquidatingWallet;
     int64 liquidationQuoteQuantityInPips;
     OraclePrice[] deleveragingWalletOraclePrices;
+    OraclePrice[] insuranceFundOraclePrices;
     OraclePrice[] liquidatingWalletOraclePrices;
     // Exchange state
     uint8 quoteAssetDecimals;
@@ -138,14 +139,19 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
-    require(
-      balanceTracking
-        .loadBalanceAndMigrateIfNeeded(
-          arguments.insuranceFundWallet,
-          arguments.quoteAssetSymbol
-        )
-        .balanceInPips < arguments.liquidationQuoteQuantityInPips,
-      'Insurance fund can acquire'
+    validateInsuranceFundCannotAcquirePosition(
+      arguments,
+      Margin.LoadArguments(
+        arguments.insuranceFundWallet,
+        arguments.insuranceFundOraclePrices,
+        arguments.oracleWallet,
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol
+      ),
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
     );
 
     (
@@ -344,5 +350,78 @@ library Liquidation {
     }
 
     require(market.exists, 'Invalid market');
+  }
+
+  function validateInsuranceFundCannotAcquirePosition(
+    DeleveragePositionArguments memory deleverageArguments,
+    Margin.LoadArguments memory marginArguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private {
+    (
+      Balance storage insuranceFundQuoteBalance,
+      Balance storage insuranceFundPosition,
+      int64 liquidatingPositionSizeInPips
+    ) = (
+        balanceTracking.loadBalanceAndMigrateIfNeeded(
+          deleverageArguments.insuranceFundWallet,
+          deleverageArguments.quoteAssetSymbol
+        ),
+        balanceTracking.loadBalanceAndMigrateIfNeeded(
+          deleverageArguments.insuranceFundWallet,
+          deleverageArguments.baseAssetSymbol
+        ),
+        balanceTracking
+          .loadBalanceAndMigrateIfNeeded(
+            deleverageArguments.liquidatingWallet,
+            deleverageArguments.baseAssetSymbol
+          )
+          .balanceInPips
+      );
+
+    // Temporarily update IF balances for margin check
+    insuranceFundQuoteBalance.balanceInPips -= deleverageArguments
+      .liquidationQuoteQuantityInPips;
+    insuranceFundPosition.balanceInPips += liquidatingPositionSizeInPips;
+    BalanceTracking.updateOpenPositionsForWallet(
+      deleverageArguments.insuranceFundWallet,
+      deleverageArguments.baseAssetSymbol,
+      insuranceFundPosition.balanceInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
+      marginArguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+    uint64 totalInitialMarginRequirementInPips = Margin
+      .loadTotalInitialMarginRequirementAndUpdateLastOraclePrice(
+        marginArguments,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol,
+        marketOverridesByBaseAssetSymbolAndWallet
+      );
+    require(
+      totalAccountValueInPips < int64(totalInitialMarginRequirementInPips),
+      'Insurance fund can acquire'
+    );
+
+    // Revert IF balance updates following margin check
+    insuranceFundQuoteBalance.balanceInPips += deleverageArguments
+      .liquidationQuoteQuantityInPips;
+    insuranceFundPosition.balanceInPips -= liquidatingPositionSizeInPips;
+    BalanceTracking.updateOpenPositionsForWallet(
+      deleverageArguments.insuranceFundWallet,
+      deleverageArguments.baseAssetSymbol,
+      insuranceFundPosition.balanceInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
   }
 }

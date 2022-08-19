@@ -101,7 +101,7 @@ library BalanceTracking {
       liquidatingWallet,
       quoteAssetSymbol
     );
-    balance.balanceInPips += quoteQuantityInPips;
+    balance.balanceInPips -= quoteQuantityInPips;
     // Insurance receives or gives quote if wallet short or long respectively
     balance = loadBalanceAndMigrateIfNeeded(
       self,

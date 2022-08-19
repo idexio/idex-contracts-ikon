@@ -612,6 +612,24 @@ describe('Exchange', function () {
       ).wait();
       */
 
+      /*
+      await (
+        await exchange.setMarketOverrides(
+          insuranceFund.address,
+          'ETH',
+          '100000000',
+          '100000000',
+          '1000000',
+          '14000000000',
+          '2800000000',
+          '282000000000',
+        )
+      ).wait();
+      */
+
+      console.log('Insurance fund');
+      await logWalletBalances(insuranceFund.address, exchange, []);
+
       await (
         await exchange
           .connect(dispatcher)
@@ -621,6 +639,7 @@ describe('Exchange', function () {
             trader1.address,
             decimalToPips('1993.11863060'),
             [newOracleLowPrices[1]],
+            [newOracleLowPrices[0]],
             newOracleLowPrices,
           )
       ).wait();
