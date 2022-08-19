@@ -43,7 +43,7 @@ contract Exchange_v4 is IExchange, Owned {
   );
 
   /**
-   * @notice Emitted when a user deposits collateral tokens with `deposit`
+   * @notice Emitted when a user deposits quote tokens with `deposit`
    */
   event Deposited(
     uint64 index,
@@ -139,9 +139,9 @@ contract Exchange_v4 is IExchange, Owned {
   // Exits
   mapping(address => WalletExit) public _walletExits;
 
-  address immutable _collateralAssetAddress;
-  string _collateralAssetSymbol;
-  uint8 immutable _collateralAssetDecimals;
+  address immutable _quoteAssetAddress;
+  string _quoteAssetSymbol;
+  uint8 immutable _quoteAssetDecimals;
 
   // Tunable parameters
   uint256 _chainPropagationPeriodInBlocks;
@@ -157,9 +157,9 @@ contract Exchange_v4 is IExchange, Owned {
    */
   constructor(
     IExchange balanceMigrationSource,
-    address collateralAssetAddress,
-    string memory collateralAssetSymbol,
-    uint8 collateralAssetDecimals,
+    address quoteAssetAddress,
+    string memory quoteAssetSymbol,
+    uint8 quoteAssetDecimals,
     address exitFundWallet,
     address feeWallet,
     address insuranceFundWallet,
@@ -173,12 +173,12 @@ contract Exchange_v4 is IExchange, Owned {
     _balanceTracking.migrationSource = balanceMigrationSource;
 
     require(
-      Address.isContract(address(collateralAssetAddress)),
-      'Invalid collateral asset address'
+      Address.isContract(address(quoteAssetAddress)),
+      'Invalid quote asset address'
     );
-    _collateralAssetAddress = collateralAssetAddress;
-    _collateralAssetSymbol = collateralAssetSymbol;
-    _collateralAssetDecimals = collateralAssetDecimals;
+    _quoteAssetAddress = quoteAssetAddress;
+    _quoteAssetSymbol = quoteAssetSymbol;
+    _quoteAssetDecimals = quoteAssetDecimals;
 
     setFeeWallet(feeWallet);
 
@@ -423,7 +423,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Depositing //
 
   /**
-   * @notice Deposit collateral token
+   * @notice Deposit quote token
    *
    * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the
    * `approve` method on the token contract for at least this quantity first
@@ -441,9 +441,9 @@ contract Exchange_v4 is IExchange, Owned {
       .deposit(
         msg.sender,
         quantityInAssetUnits,
-        _collateralAssetAddress,
-        _collateralAssetSymbol,
-        _collateralAssetDecimals,
+        _quoteAssetAddress,
+        _quoteAssetSymbol,
+        _quoteAssetDecimals,
         _custodian,
         _balanceTracking
       );
@@ -494,8 +494,8 @@ contract Exchange_v4 is IExchange, Owned {
         orderBookTrade,
         buyOraclePrices,
         sellOraclePrices,
-        _collateralAssetDecimals,
-        _collateralAssetSymbol,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
         _delegateKeyExpirationPeriodInMs,
         _feeWallet,
         _oracleWallet
@@ -522,18 +522,52 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  function liquidate(
+  function liquidateWallet(
     address wallet,
     int64[] calldata liquidationQuoteQuantitiesInPips,
-    OraclePrice[] calldata oraclePrices
+    OraclePrice[] calldata insuranceFundOraclePrices,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidate(
-      Liquidation.LiquidateArguments(
+    Perpetual.liquidateWallet(
+      Liquidation.LiquidateWalletArguments(
         wallet,
         liquidationQuoteQuantitiesInPips,
-        oraclePrices,
-        _collateralAssetDecimals,
-        _collateralAssetSymbol,
+        insuranceFundOraclePrices,
+        liquidatingWalletOraclePrices,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
+        _insuranceFundWallet,
+        _oracleWallet
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function liquidationAcquisitionDeleverage(
+    string calldata baseAssetSymbol,
+    address deleveragingWallet,
+    address liquidatingWallet,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata deleveragingWalletOraclePrices,
+    OraclePrice[] calldata insuranceFundOraclePrices,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
+  ) external onlyDispatcher {
+    Perpetual.liquidationAcquisitionDeleverage(
+      Liquidation.DeleveragePositionArguments(
+        baseAssetSymbol,
+        deleveragingWallet,
+        liquidatingWallet,
+        liquidationQuoteQuantityInPips,
+        deleveragingWalletOraclePrices,
+        insuranceFundOraclePrices,
+        liquidatingWalletOraclePrices,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
         _insuranceFundWallet,
         _oracleWallet
       ),
@@ -564,9 +598,9 @@ contract Exchange_v4 is IExchange, Owned {
       Withdrawing.WithdrawArguments(
         withdrawal,
         oraclePrices,
-        _collateralAssetAddress,
-        _collateralAssetDecimals,
-        _collateralAssetSymbol,
+        _quoteAssetAddress,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
         _custodian,
         _feeWallet,
         _oracleWallet
@@ -669,7 +703,7 @@ contract Exchange_v4 is IExchange, Owned {
     Perpetual.publishFundingMutipliers(
       oraclePrices,
       fundingRatesInPips,
-      _collateralAssetDecimals,
+      _quoteAssetDecimals,
       _oracleWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol
@@ -684,7 +718,7 @@ contract Exchange_v4 is IExchange, Owned {
   function updateWalletFunding(address wallet) public onlyDispatcher {
     Perpetual.updateWalletFunding(
       wallet,
-      _collateralAssetSymbol,
+      _quoteAssetSymbol,
       _balanceTracking,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -721,12 +755,12 @@ contract Exchange_v4 is IExchange, Owned {
   ) external view returns (int64) {
     return
       Perpetual.loadTotalAccountValueIncludingOutstandingWalletFunding(
-        Margin.LoadMarginRequirementArguments(
+        Margin.LoadArguments(
           wallet,
           oraclePrices,
           _oracleWallet,
-          _collateralAssetDecimals,
-          _collateralAssetSymbol
+          _quoteAssetDecimals,
+          _quoteAssetSymbol
         ),
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -747,7 +781,7 @@ contract Exchange_v4 is IExchange, Owned {
       Perpetual.loadTotalInitialMarginRequirement(
         wallet,
         oraclePrices,
-        _collateralAssetDecimals,
+        _quoteAssetDecimals,
         _oracleWallet,
         _balanceTracking,
         _marketsByBaseAssetSymbol,
@@ -766,7 +800,7 @@ contract Exchange_v4 is IExchange, Owned {
       Perpetual.loadTotalMaintenanceMarginRequirement(
         wallet,
         oraclePrices,
-        _collateralAssetDecimals,
+        _quoteAssetDecimals,
         _oracleWallet,
         _balanceTracking,
         _marketsByBaseAssetSymbol,
@@ -807,9 +841,9 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 quantityInPips = Withdrawing.withdrawExit(
       Withdrawing.WithdrawExitArguments(
         oraclePrices,
-        _collateralAssetAddress,
-        _collateralAssetDecimals,
-        _collateralAssetSymbol,
+        _quoteAssetAddress,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
         _custodian,
         _exitFundWallet,
         _oracleWallet

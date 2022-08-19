@@ -4,11 +4,14 @@ pragma solidity 0.8.15;
 
 import { Constants } from './Constants.sol';
 import { IExchange } from './Interfaces.sol';
+import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
 import { StringArray } from './StringArray.sol';
 import { UUID } from './UUID.sol';
 import { Balance, ExecuteOrderBookTradeArguments, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
+
+import 'hardhat/console.sol';
 
 library BalanceTracking {
   using StringArray for string[];
@@ -39,12 +42,12 @@ library BalanceTracking {
 
   // Liquidation //
 
-  function updateForLiquidation(
+  function updatePositionForLiquidation(
     Storage storage self,
-    address walletAddress,
-    address insuranceFundWallet,
     string memory baseAssetSymbol,
-    string memory collateralAssetSymbol,
+    string memory quoteAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet,
     int64 quoteQuantityInPips,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet
@@ -54,58 +57,151 @@ library BalanceTracking {
     // Wallet position goes to zero
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      walletAddress,
+      liquidatingWallet,
       baseAssetSymbol
     );
     int64 positionSizeInPips = balance.balanceInPips;
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;
     updateOpenPositionsForWallet(
-      walletAddress,
+      liquidatingWallet,
       baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
-    // Insurance fund position takes on opposite side
+    // Counterparty position takes on opposite side
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      insuranceFundWallet,
+      counterpartyWallet,
       baseAssetSymbol
     );
     if (positionSizeInPips > 0) {
-      subtractFromPosition(
+      addToPosition(
         balance,
         Math.abs(positionSizeInPips),
         Math.abs(quoteQuantityInPips)
       );
     } else {
-      addToPosition(
+      subtractFromPosition(
         balance,
         Math.abs(positionSizeInPips),
         Math.abs(quoteQuantityInPips)
       );
     }
     updateOpenPositionsForWallet(
-      insuranceFundWallet,
+      counterpartyWallet,
       baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    // Wallet receives or gives collateral if long or short respectively
+    // Wallet receives or gives quote if long or short respectively
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      walletAddress,
-      collateralAssetSymbol
+      liquidatingWallet,
+      quoteAssetSymbol
     );
-    balance.balanceInPips += quoteQuantityInPips;
-    // Insurance receives or gives collateral if wallet short or long respectively
+    balance.balanceInPips -= quoteQuantityInPips;
+    // Insurance receives or gives quote if wallet short or long respectively
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      insuranceFundWallet,
-      collateralAssetSymbol
+      counterpartyWallet,
+      quoteAssetSymbol
     );
     balance.balanceInPips += quoteQuantityInPips;
+  }
+
+  function updateQuoteForLiquidation(
+    Storage storage self,
+    string memory quoteAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet
+  ) internal {
+    Balance storage balance;
+
+    // Liquidating wallet quote balance goes to zero
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      liquidatingWallet,
+      quoteAssetSymbol
+    );
+    int64 quoteQuantityInPips = balance.balanceInPips;
+    balance.balanceInPips = 0;
+    // Counterparty wallet takes any remaining quote from liquidating wallet
+    if (quoteQuantityInPips != 0) {
+      balance = loadBalanceAndMigrateIfNeeded(
+        self,
+        counterpartyWallet,
+        quoteAssetSymbol
+      );
+      balance.balanceInPips += quoteQuantityInPips;
+    }
+  }
+
+  // Wallet exits //
+
+  function updateForExit(
+    Storage storage self,
+    address wallet,
+    string memory baseAssetSymbol,
+    address exitFundWallet,
+    uint64 maintenanceMarginFractionInPips,
+    uint64 oraclePriceInPips,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips
+  ) internal returns (int64 quoteQuantityInPips) {
+    Balance storage balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      wallet,
+      baseAssetSymbol
+    );
+    int64 positionSizeInPips = balance.balanceInPips;
+
+    quoteQuantityInPips = Math.multiplyPipsByFraction(
+      positionSizeInPips,
+      int64(oraclePriceInPips),
+      int64(Constants.pipPriceMultiplier)
+    );
+
+    // Quote value is the lesser of the oracle price or entry price...
+    quoteQuantityInPips = Math.min(
+      quoteQuantityInPips,
+      balance.costBasisInPips
+    );
+
+    // ...but never less than the bankruptcy price
+    quoteQuantityInPips = Math.max(
+      quoteQuantityInPips,
+      LiquidationValidations.calculateLiquidationQuoteQuantityInPips(
+        maintenanceMarginFractionInPips,
+        oraclePriceInPips,
+        positionSizeInPips,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      )
+    );
+
+    balance.balanceInPips = 0;
+    balance.costBasisInPips = 0;
+
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      exitFundWallet,
+      baseAssetSymbol
+    );
+    if (positionSizeInPips > 0) {
+      BalanceTracking.subtractFromPosition(
+        balance,
+        Math.abs(positionSizeInPips),
+        Math.abs(quoteQuantityInPips)
+      );
+    } else {
+      BalanceTracking.addToPosition(
+        balance,
+        Math.abs(positionSizeInPips),
+        Math.abs(quoteQuantityInPips)
+      );
+    }
   }
 
   // Trading //
@@ -307,14 +403,18 @@ library BalanceTracking {
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasisInPips =
-        (int64(quoteQuantityInPips) * newBalanceInPips) /
-        int64(baseQuantityInPips);
+      balance.costBasisInPips = Math.multiplyPipsByFraction(
+        int64(quoteQuantityInPips),
+        newBalanceInPips,
+        int64(baseQuantityInPips)
+      );
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasisInPips +=
-        (balance.costBasisInPips * int64(baseQuantityInPips)) /
-        balance.balanceInPips;
+      balance.costBasisInPips += Math.multiplyPipsByFraction(
+        balance.costBasisInPips,
+        int64(baseQuantityInPips),
+        balance.balanceInPips
+      );
     }
 
     balance.balanceInPips = newBalanceInPips;
@@ -335,14 +435,18 @@ library BalanceTracking {
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasisInPips =
-        (int64(quoteQuantityInPips) * newBalanceInPips) /
-        int64(baseQuantityInPips);
+      balance.costBasisInPips = Math.multiplyPipsByFraction(
+        int64(quoteQuantityInPips),
+        newBalanceInPips,
+        int64(baseQuantityInPips)
+      );
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasisInPips -=
-        (balance.costBasisInPips * int64(baseQuantityInPips)) /
-        balance.balanceInPips;
+      balance.costBasisInPips -= Math.multiplyPipsByFraction(
+        balance.costBasisInPips,
+        int64(baseQuantityInPips),
+        balance.balanceInPips
+      );
     }
 
     balance.balanceInPips = newBalanceInPips;

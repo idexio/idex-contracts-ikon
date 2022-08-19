@@ -93,7 +93,7 @@ library Funding {
   function publishFundingMutipliers(
     OraclePrice[] memory oraclePrices,
     int64[] memory fundingRatesInPips,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
@@ -108,7 +108,7 @@ library Funding {
       uint64 oraclePriceInPips = Validations
         .validateOraclePriceAndConvertToPips(
           oraclePrice,
-          collateralAssetDecimals,
+          quoteAssetDecimals,
           oracleWalletAddress
         );
 
@@ -141,7 +141,7 @@ library Funding {
 
   function updateWalletFunding(
     address wallet,
-    string memory collateralAssetSymbol,
+    string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
@@ -182,8 +182,8 @@ library Funding {
       basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
     }
 
-    Balance storage collateralBalance = balanceTracking
-      .loadBalanceAndMigrateIfNeeded(wallet, collateralAssetSymbol);
-    collateralBalance.balanceInPips += fundingInPips;
+    Balance storage quoteBalance = balanceTracking
+      .loadBalanceAndMigrateIfNeeded(wallet, quoteAssetSymbol);
+    quoteBalance.balanceInPips += fundingInPips;
   }
 }

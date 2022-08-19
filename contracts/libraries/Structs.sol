@@ -35,8 +35,8 @@ struct ExecuteOrderBookTradeArguments {
   OraclePrice[] buyOraclePrices;
   OraclePrice[] sellOraclePrices;
   // Exchange state
-  uint8 collateralAssetDecimals;
-  string collateralAssetSymbol;
+  uint8 quoteAssetDecimals;
+  string quoteAssetSymbol;
   uint64 delegateKeyExpirationPeriodInMs;
   address feeWallet;
   address oracleWalletAddress;
@@ -55,7 +55,7 @@ struct FundingMultiplierQuartet {
 struct Market {
   // Flag to distinguish from empty struct
   bool exists;
-  // No need to specify quote asset - it is always the same as the collateral asset
+  // No need to specify quote asset - it is always the same as the quote asset
   string baseAssetSymbol;
   // The margin fraction needed to open a position
   uint64 initialMarginFractionInPips;

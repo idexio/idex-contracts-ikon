@@ -23,7 +23,7 @@ import {
   buildOraclePrice,
   buildOraclePrices,
   buildOraclePriceWithValue,
-  collateralAssetDecimals,
+  quoteAssetDecimals,
   deployAndAssociateContracts,
   fundWallets,
   logWalletBalances,
@@ -42,10 +42,7 @@ describe('Exchange', function () {
       oracle,
     );
 
-    const depositQuantity = ethers.utils.parseUnits(
-      '5.0',
-      collateralAssetDecimals,
-    );
+    const depositQuantity = ethers.utils.parseUnits('5.0', quoteAssetDecimals);
     await usdc.transfer(trader.address, depositQuantity);
     await usdc.connect(trader).approve(exchange.address, depositQuantity);
     await (await exchange.connect(trader).deposit(depositQuantity)).wait();
@@ -203,7 +200,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
     });
 
-    it.only('can haz deebug', async function () {
+    it('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
@@ -452,15 +449,26 @@ describe('Exchange', function () {
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
     });
+    */
+    });
   });
 
-  describe('liquidate', async function () {
-    it('can haz diibug', async function () {
-      const [owner, dispatcher, fee, insuranceFund, oracle, trader1, trader2] =
-        await ethers.getSigners();
+  describe('liquidationAcquisitionDeleverage', async function () {
+    it.only('can haz diibug', async function () {
+      const [
+        owner,
+        dispatcher,
+        exitFund,
+        fee,
+        insuranceFund,
+        oracle,
+        trader1,
+        trader2,
+      ] = await ethers.getSigners();
       const { exchange, usdc } = await deployAndAssociateContracts(
         owner,
         dispatcher,
+        exitFund,
         fee,
         insuranceFund,
         oracle,
@@ -524,6 +532,7 @@ describe('Exchange', function () {
               sellOrderSignature,
               trade,
               oraclePrices,
+              oraclePrices,
             ),
           )
       ).wait();
@@ -570,6 +579,7 @@ describe('Exchange', function () {
               sellOrderSignature2,
               trade2,
               oraclePrices,
+              oraclePrices,
             ),
           )
       ).wait();
@@ -586,13 +596,50 @@ describe('Exchange', function () {
       console.log('--- BELOW WATER ---');
       console.log('Trader1');
       await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
+
+      /*
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidateWallet(
+            trader1.address,
+            ['1993.11863060', '28060.88136940'].map(decimalToPips),
+            newOracleLowPrices,
+            newOracleLowPrices,
+          )
+      ).wait();
+      */
+
+      /*
+      await (
+        await exchange.setMarketOverrides(
+          insuranceFund.address,
+          'ETH',
+          '100000000',
+          '100000000',
+          '1000000',
+          '14000000000',
+          '2800000000',
+          '282000000000',
+        )
+      ).wait();
+      */
+
+      console.log('Insurance fund');
+      await logWalletBalances(insuranceFund.address, exchange, []);
 
       await (
         await exchange
           .connect(dispatcher)
-          .liquidate(
+          .liquidationAcquisitionDeleverage(
+            'ETH',
+            trader2.address,
             trader1.address,
-            ['1993.11863060', '28060.88136940'].map(decimalToPips),
+            decimalToPips('1993.11863060'),
+            [newOracleLowPrices[1]],
+            [newOracleLowPrices[0]],
             newOracleLowPrices,
           )
       ).wait();
@@ -600,14 +647,23 @@ describe('Exchange', function () {
       console.log('--- LIQUIDATED ---');
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+      await logWalletBalances(trader1.address, exchange, [
+        newOracleLowPrices[1],
+      ]);
 
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [
+        newOracleLowPrices[1],
+      ]);
+
+      /*
       console.log('Insurance fund');
       await logWalletBalances(
         insuranceFund.address,
         exchange,
         newOracleLowPrices,
       );
+      */
 
       /*
       const newOracleLowPrice = await buildOraclePriceWithValue(

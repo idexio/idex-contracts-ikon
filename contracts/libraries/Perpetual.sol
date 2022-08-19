@@ -42,7 +42,7 @@ library Perpetual {
   }
 
   function loadTotalAccountValueIncludingOutstandingWalletFunding(
-    Margin.LoadMarginRequirementArguments memory arguments,
+    Margin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -72,7 +72,7 @@ library Perpetual {
   function loadTotalInitialMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
@@ -83,7 +83,7 @@ library Perpetual {
       Margin.loadTotalInitialMarginRequirement(
         wallet,
         oraclePrices,
-        collateralAssetDecimals,
+        quoteAssetDecimals,
         oracleWalletAddress,
         balanceTracking,
         marketsByBaseAssetSymbol,
@@ -94,7 +94,7 @@ library Perpetual {
   function loadTotalMaintenanceMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
@@ -105,7 +105,7 @@ library Perpetual {
       Margin.loadTotalMaintenanceMarginRequirement(
         wallet,
         oraclePrices,
-        collateralAssetDecimals,
+        quoteAssetDecimals,
         oracleWalletAddress,
         balanceTracking,
         marketsByBaseAssetSymbol,
@@ -113,8 +113,8 @@ library Perpetual {
       );
   }
 
-  function liquidate(
-    Liquidation.LiquidateArguments memory arguments,
+  function liquidateWallet(
+    Liquidation.LiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -127,8 +127,8 @@ library Perpetual {
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) public {
     Funding.updateWalletFunding(
-      arguments.walletAddress,
-      arguments.collateralAssetSymbol,
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -136,7 +136,48 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidate(
+    Liquidation.liquidateWallet(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function liquidationAcquisitionDeleverage(
+    Liquidation.DeleveragePositionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) public {
+    Funding.updateWalletFunding(
+      arguments.deleveragingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+    Funding.updateWalletFunding(
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    Liquidation.liquidationAcquisitionDeleverage(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -148,7 +189,7 @@ library Perpetual {
   function publishFundingMutipliers(
     OraclePrice[] memory oraclePrices,
     int64[] memory fundingRatesInPips,
-    uint8 collateralAssetDecimals,
+    uint8 quoteAssetDecimals,
     address oracleWalletAddress,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
@@ -158,7 +199,7 @@ library Perpetual {
     Funding.publishFundingMutipliers(
       oraclePrices,
       fundingRatesInPips,
-      collateralAssetDecimals,
+      quoteAssetDecimals,
       oracleWalletAddress,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol
@@ -167,7 +208,7 @@ library Perpetual {
 
   function updateWalletFunding(
     address wallet,
-    string memory collateralAssetSymbol,
+    string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
@@ -179,7 +220,7 @@ library Perpetual {
   ) public {
     Funding.updateWalletFunding(
       wallet,
-      collateralAssetSymbol,
+      quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,

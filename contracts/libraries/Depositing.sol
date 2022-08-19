@@ -14,15 +14,15 @@ library Depositing {
   function deposit(
     address wallet,
     uint256 quantityInAssetUnits,
-    address collateralAssetAddress,
-    string memory collateralAssetSymbol,
-    uint8 collateralAssetDecimals,
+    address quoteAssetAddress,
+    string memory quoteAssetSymbol,
+    uint8 quoteAssetDecimals,
     ICustodian custodian,
     BalanceTracking.Storage storage balanceTracking
   ) public returns (uint64 quantityInPips, int64 newExchangeBalanceInPips) {
     quantityInPips = AssetUnitConversions.assetUnitsToPips(
       quantityInAssetUnits,
-      collateralAssetDecimals
+      quoteAssetDecimals
     );
     require(quantityInPips > 0, 'Quantity is too low');
 
@@ -30,10 +30,10 @@ library Depositing {
     // to express in pips. The `Exchange` will call `transferFrom` without this fractional amount
     // and there will be no dust
     uint256 quantityInAssetUnitsWithoutFractionalPips = AssetUnitConversions
-      .pipsToAssetUnits(quantityInPips, collateralAssetDecimals);
+      .pipsToAssetUnits(quantityInPips, quoteAssetDecimals);
 
     // Forward the funds to the `Custodian`
-    IERC20(collateralAssetAddress).transferFrom(
+    IERC20(quoteAssetAddress).transferFrom(
       wallet,
       address(custodian),
       quantityInAssetUnitsWithoutFractionalPips
@@ -42,7 +42,7 @@ library Depositing {
     // Update balance with actual transferred quantity
     newExchangeBalanceInPips = balanceTracking.updateForDeposit(
       wallet,
-      collateralAssetSymbol,
+      quoteAssetSymbol,
       quantityInPips
     );
   }
