@@ -171,40 +171,52 @@ library Liquidation {
         marketOverridesByBaseAssetSymbolAndWallet
       );
 
-    (
-      Market memory market,
-      OraclePrice memory oraclePrice
-    ) = loadMarketAndOraclePrice(
-        arguments,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      );
-
-    liquidatePosition(
-      LiquidatePositionArguments(
-        arguments.deleveragingWallet,
-        arguments.liquidatingWallet,
-        arguments.liquidationQuoteQuantityInPips,
-        market,
-        oraclePrice,
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol,
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips
-      ),
+    liquidationDeleverage(
+      arguments,
+      totalAccountValueInPips,
+      totalMaintenanceMarginRequirementInPips,
       balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function liquidationClosureDeleverage(
+    DeleveragePositionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) internal {
+    require(
+      arguments.liquidatingWallet == arguments.insuranceFundWallet,
+      'Liquidating wallet must be insurance fund'
     );
 
-    loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-      Margin.LoadArguments(
-        arguments.deleveragingWallet,
-        arguments.deleveragingWalletOraclePrices,
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol
-      ),
+    (
+      int64 totalAccountValueInPips,
+      uint64 totalMaintenanceMarginRequirementInPips
+    ) = loadTotalAccountValueAndMaintenanceMarginRequirement(
+        Margin.LoadArguments(
+          arguments.liquidatingWallet,
+          arguments.liquidatingWalletOraclePrices,
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
+        ),
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol,
+        marketOverridesByBaseAssetSymbolAndWallet
+      );
+
+    liquidationDeleverage(
+      arguments,
+      totalAccountValueInPips,
+      totalMaintenanceMarginRequirementInPips,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol,
@@ -251,7 +263,91 @@ library Liquidation {
     );
   }
 
+  function liquidationDeleverage(
+    DeleveragePositionArguments memory arguments,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private {
+    (
+      Market memory market,
+      OraclePrice memory oraclePrice
+    ) = loadMarketAndOraclePrice(
+        arguments,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
+
+    liquidatePosition(
+      LiquidatePositionArguments(
+        arguments.deleveragingWallet,
+        arguments.liquidatingWallet,
+        arguments.liquidationQuoteQuantityInPips,
+        market,
+        oraclePrice,
+        arguments.oracleWallet,
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      ),
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      Margin.LoadArguments(
+        arguments.deleveragingWallet,
+        arguments.deleveragingWalletOraclePrices,
+        arguments.oracleWallet,
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol
+      ),
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
   function loadAndValidateTotalAccountValueAndMaintenanceMarginRequirement(
+    Margin.LoadArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  )
+    private
+    returns (
+      int64 totalAccountValueInPips,
+      uint64 totalMaintenanceMarginRequirementInPips
+    )
+  {
+    (
+      totalAccountValueInPips,
+      totalMaintenanceMarginRequirementInPips
+    ) = loadTotalAccountValueAndMaintenanceMarginRequirement(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+
+    require(
+      totalAccountValueInPips < int64(totalMaintenanceMarginRequirementInPips),
+      'Maintenance margin requirement met'
+    );
+  }
+
+  function loadTotalAccountValueAndMaintenanceMarginRequirement(
     Margin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -281,13 +377,6 @@ library Liquidation {
         marketsByBaseAssetSymbol,
         marketOverridesByBaseAssetSymbolAndWallet
       );
-
-    require(
-      totalAccountValueInPips < int64(totalMaintenanceMarginRequirementInPips),
-      'Maintenance margin requirement met'
-    );
-
-    return (totalAccountValueInPips, totalMaintenanceMarginRequirementInPips);
   }
 
   function loadAndValidateTotalAccountValueAndInitialMarginRequirement(
