@@ -146,7 +146,7 @@ library Perpetual {
   }
 
   function liquidationAcquisitionDeleverage(
-    Liquidation.DeleveragePositionArguments memory arguments,
+    Liquidation.LiquidationAcquisitionDeleverageArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -187,7 +187,7 @@ library Perpetual {
   }
 
   function liquidationClosureDeleverage(
-    Liquidation.DeleveragePositionArguments memory arguments,
+    Liquidation.LiquidationClosureDeleverageArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,

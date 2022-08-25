@@ -486,7 +486,7 @@ describe('Exchange', function () {
         )
       ).wait();
 
-      await fundWallets([trader1, trader2], exchange, usdc);
+      await fundWallets([trader1, trader2, insuranceFund], exchange, usdc);
 
       const { order: buyOrder, signature: buyOrderSignature } =
         await buildLimitOrder(
@@ -599,7 +599,6 @@ describe('Exchange', function () {
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
 
-      /*
       await (
         await exchange
           .connect(dispatcher)
@@ -610,7 +609,6 @@ describe('Exchange', function () {
             newOracleLowPrices,
           )
       ).wait();
-      */
 
       /*
       await (
@@ -627,9 +625,16 @@ describe('Exchange', function () {
       ).wait();
       */
 
-      console.log('Insurance fund');
-      await logWalletBalances(insuranceFund.address, exchange, []);
+      console.log('--- LIQUIDATED ---');
 
+      console.log('Insurance fund');
+      await logWalletBalances(
+        insuranceFund.address,
+        exchange,
+        newOracleLowPrices,
+      );
+
+      /*
       await (
         await exchange
           .connect(dispatcher)
@@ -643,9 +648,28 @@ describe('Exchange', function () {
             newOracleLowPrices,
           )
       ).wait();
+      */
 
-      console.log('--- LIQUIDATED ---');
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidationClosureDeleverage(
+            'ETH',
+            trader1.address,
+            decimalToPips('1993.11863060'),
+            [newOracleLowPrices[1]],
+            newOracleLowPrices,
+          )
+      ).wait();
 
+      console.log('--- CLOSED ---');
+
+      console.log('Insurance fund');
+      await logWalletBalances(insuranceFund.address, exchange, [
+        newOracleLowPrices[0],
+      ]);
+
+      /*
       console.log('Trader1');
       await logWalletBalances(trader1.address, exchange, [
         newOracleLowPrices[1],
@@ -655,6 +679,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [
         newOracleLowPrices[1],
       ]);
+      */
 
       /*
       console.log('Insurance fund');

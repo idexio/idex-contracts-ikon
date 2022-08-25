@@ -558,7 +558,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
     Perpetual.liquidationAcquisitionDeleverage(
-      Liquidation.DeleveragePositionArguments(
+      Liquidation.LiquidationAcquisitionDeleverageArguments(
         baseAssetSymbol,
         deleveragingWallet,
         liquidatingWallet,
@@ -566,6 +566,32 @@ contract Exchange_v4 is IExchange, Owned {
         deleveragingWalletOraclePrices,
         insuranceFundOraclePrices,
         liquidatingWalletOraclePrices,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
+        _insuranceFundWallet,
+        _oracleWallet
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function liquidationClosureDeleverage(
+    string calldata baseAssetSymbol,
+    address deleveragingWallet,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata deleveragingWalletOraclePrices
+  ) external onlyDispatcher {
+    Perpetual.liquidationClosureDeleverage(
+      Liquidation.LiquidationClosureDeleverageArguments(
+        baseAssetSymbol,
+        deleveragingWallet,
+        liquidationQuoteQuantityInPips,
+        deleveragingWalletOraclePrices,
         _quoteAssetDecimals,
         _quoteAssetSymbol,
         _insuranceFundWallet,

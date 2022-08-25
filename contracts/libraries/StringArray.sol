@@ -31,6 +31,16 @@ library StringArray {
     }
   }
 
+  function merge(string[] memory array1, string[] memory array2)
+    internal
+    pure
+    returns (string[] memory result)
+  {
+    for (uint256 i = 0; i < array2.length; i++) {
+      result = insertSorted(array1, array2[i]);
+    }
+  }
+
   function remove(string[] memory array, string memory element)
     internal
     pure
