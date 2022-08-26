@@ -7,18 +7,21 @@ import { Constants } from './Constants.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Margin } from './Margin.sol';
 import { String } from './String.sol';
+import { StringArray } from './StringArray.sol';
 import { Validations } from './Validations.sol';
 import { Balance, Market, OraclePrice } from './Structs.sol';
 
 library Liquidation {
   using BalanceTracking for BalanceTracking.Storage;
+  using StringArray for string[];
 
   struct LiquidationAcquisitionDeleverageArguments {
     // External arguments
     string baseAssetSymbol;
     address deleveragingWallet;
     address liquidatingWallet;
-    int64 liquidationQuoteQuantityInPips;
+    int64[] liquidationQuoteQuantitiesInPips; // For all open positions
+    int64 liquidationQuoteQuantityInPips; // For the position being deleveraged
     OraclePrice[] deleveragingWalletOraclePrices; // After acquiring liquidating positions
     OraclePrice[] insuranceFundOraclePrices; // After acquiring liquidating positions
     OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
@@ -353,73 +356,68 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    /*
-    require(
-      totalAccountValueInPips < int64(totalInitialMarginRequirementInPips),
-      'Insurance fund can acquire'
-    );
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.insuranceFundWallet
+      ].merge(
+          baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet]
+        );
 
-    (
-      Balance storage insuranceFundQuoteBalance,
-      Balance storage insuranceFundPosition,
-      int64 liquidatingPositionSizeInPips
-    ) = (
-        balanceTracking.loadBalanceAndMigrateIfNeeded(
-          deleverageArguments.insuranceFundWallet,
-          deleverageArguments.quoteAssetSymbol
+    Margin.ValidateInsuranceFundCannotLiquidateWalletArguments
+      memory loadArguments = Margin
+        .ValidateInsuranceFundCannotLiquidateWalletArguments(
+          arguments.insuranceFundWallet,
+          arguments.liquidatingWallet,
+          new int64[](baseAssetSymbols.length),
+          new Market[](baseAssetSymbols.length),
+          new uint64[](baseAssetSymbols.length),
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
+        );
+
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      // Load market and oracle price for symbol
+      loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      loadArguments.oraclePricesInPips[i] = Validations
+        .validateAndUpdateOraclePriceAndConvertToPips(
+          arguments.insuranceFundOraclePrices[i],
+          arguments.quoteAssetDecimals,
+          marketsByBaseAssetSymbol[baseAssetSymbols[i]],
+          arguments.oracleWallet
+        );
+
+      // Validate provided liquidation quote quantity
+      LiquidationValidations.validateLiquidationQuoteQuantity(
+        arguments.liquidationQuoteQuantitiesInPips[i],
+        Margin.loadMaintenanceMarginFractionInPips(
+          loadArguments.markets[i],
+          arguments.liquidatingWallet,
+          marketOverridesByBaseAssetSymbolAndWallet
         ),
-        balanceTracking.loadBalanceAndMigrateIfNeeded(
-          deleverageArguments.insuranceFundWallet,
-          deleverageArguments.baseAssetSymbol
-        ),
+        loadArguments.oraclePricesInPips[i],
         balanceTracking
           .loadBalanceAndMigrateIfNeeded(
-            deleverageArguments.liquidatingWallet,
-            deleverageArguments.baseAssetSymbol
+            arguments.liquidatingWallet,
+            baseAssetSymbols[i]
           )
-          .balanceInPips
+          .balanceInPips,
+        liquidatingWalletTotalAccountValueInPips,
+        liquidatingWalletTotalMaintenanceMarginRequirementInPips
       );
+    }
 
-    // Temporarily update IF balances for margin check
-    insuranceFundQuoteBalance.balanceInPips -= deleverageArguments
-      .liquidationQuoteQuantityInPips;
-    insuranceFundPosition.balanceInPips += liquidatingPositionSizeInPips;
-    BalanceTracking.updateOpenPositionsForWallet(
-      deleverageArguments.insuranceFundWallet,
-      deleverageArguments.baseAssetSymbol,
-      insuranceFundPosition.balanceInPips,
-      baseAssetSymbolsWithOpenPositionsByWallet
-    );
-
-    int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
-      marginArguments,
+    Margin.validateInsuranceFundCannotLiquidateWallet(
+      loadArguments,
       balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
+      marketOverridesByBaseAssetSymbolAndWallet
     );
-    uint64 totalInitialMarginRequirementInPips = Margin
-      .loadTotalInitialMarginRequirementAndUpdateLastOraclePrice(
-        marginArguments,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
-      );
-    require(
-      totalAccountValueInPips < int64(totalInitialMarginRequirementInPips),
-      'Insurance fund can acquire'
-    );
-
-    // Revert IF balance updates following margin check
-    insuranceFundQuoteBalance.balanceInPips += deleverageArguments
-      .liquidationQuoteQuantityInPips;
-    insuranceFundPosition.balanceInPips -= liquidatingPositionSizeInPips;
-    BalanceTracking.updateOpenPositionsForWallet(
-      deleverageArguments.insuranceFundWallet,
-      deleverageArguments.baseAssetSymbol,
-      insuranceFundPosition.balanceInPips,
-      baseAssetSymbolsWithOpenPositionsByWallet
-    );
-     */
   }
+
+  function loadMarketAndOraclePrice(
+    LiquidationAcquisitionDeleverageArguments memory arguments,
+    string memory baseAssetSymbol,
+    OraclePrice memory oraclePrice,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private returns (Market memory market, uint64 oraclePriceInPips) {}
 }

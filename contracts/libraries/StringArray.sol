@@ -36,8 +36,10 @@ library StringArray {
     pure
     returns (string[] memory result)
   {
+    result = array1;
+
     for (uint256 i = 0; i < array2.length; i++) {
-      result = insertSorted(array1, array2[i]);
+      result = insertSorted(result, array2[i]);
     }
   }
 

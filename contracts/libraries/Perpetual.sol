@@ -208,6 +208,15 @@ library Perpetual {
       marketsByBaseAssetSymbol,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
+    Funding.updateWalletFunding(
+      arguments.insuranceFundWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
 
     Liquidation.liquidationClosureDeleverage(
       arguments,

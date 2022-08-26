@@ -486,7 +486,7 @@ describe('Exchange', function () {
         )
       ).wait();
 
-      await fundWallets([trader1, trader2, insuranceFund], exchange, usdc);
+      await fundWallets([trader1, trader2], exchange, usdc);
 
       const { order: buyOrder, signature: buyOrderSignature } =
         await buildLimitOrder(
@@ -599,17 +599,6 @@ describe('Exchange', function () {
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
 
-      await (
-        await exchange
-          .connect(dispatcher)
-          .liquidateWallet(
-            trader1.address,
-            ['1993.11863060', '28060.88136940'].map(decimalToPips),
-            newOracleLowPrices,
-            newOracleLowPrices,
-          )
-      ).wait();
-
       /*
       await (
         await exchange.setMarketOverrides(
@@ -625,6 +614,18 @@ describe('Exchange', function () {
       ).wait();
       */
 
+      /*
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidateWallet(
+            trader1.address,
+            ['1993.11863060', '28060.88136940'].map(decimalToPips),
+            newOracleLowPrices,
+            newOracleLowPrices,
+          )
+      ).wait();
+
       console.log('--- LIQUIDATED ---');
 
       console.log('Insurance fund');
@@ -634,22 +635,6 @@ describe('Exchange', function () {
         newOracleLowPrices,
       );
 
-      /*
-      await (
-        await exchange
-          .connect(dispatcher)
-          .liquidationAcquisitionDeleverage(
-            'ETH',
-            trader2.address,
-            trader1.address,
-            decimalToPips('1993.11863060'),
-            [newOracleLowPrices[1]],
-            [newOracleLowPrices[0]],
-            newOracleLowPrices,
-          )
-      ).wait();
-      */
-
       await (
         await exchange
           .connect(dispatcher)
@@ -657,16 +642,37 @@ describe('Exchange', function () {
             'ETH',
             trader1.address,
             decimalToPips('1993.11863060'),
-            [newOracleLowPrices[1]],
             newOracleLowPrices,
           )
       ).wait();
 
       console.log('--- CLOSED ---');
+      */
 
-      console.log('Insurance fund');
-      await logWalletBalances(insuranceFund.address, exchange, [
-        newOracleLowPrices[0],
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidationAcquisitionDeleverage(
+            'ETH',
+            trader2.address,
+            trader1.address,
+            ['1993.11863060', '28060.88136940'].map(decimalToPips),
+            decimalToPips('1993.11863060'),
+            [newOracleLowPrices[1]],
+            newOracleLowPrices,
+            newOracleLowPrices,
+          )
+      ).wait();
+
+      console.log('--- LIQUIDATED ---');
+
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, [
+        newOracleLowPrices[1],
+      ]);
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [
+        newOracleLowPrices[1],
       ]);
 
       /*
