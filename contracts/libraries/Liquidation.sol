@@ -368,7 +368,7 @@ library Liquidation {
         .ValidateInsuranceFundCannotLiquidateWalletArguments(
           arguments.insuranceFundWallet,
           arguments.liquidatingWallet,
-          new int64[](baseAssetSymbols.length),
+          arguments.liquidationQuoteQuantitiesInPips,
           new Market[](baseAssetSymbols.length),
           new uint64[](baseAssetSymbols.length),
           arguments.oracleWallet,

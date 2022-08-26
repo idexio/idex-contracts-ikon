@@ -486,7 +486,7 @@ describe('Exchange', function () {
         )
       ).wait();
 
-      await fundWallets([trader1, trader2], exchange, usdc);
+      await fundWallets([trader1, trader2, insuranceFund], exchange, usdc);
 
       const { order: buyOrder, signature: buyOrderSignature } =
         await buildLimitOrder(
