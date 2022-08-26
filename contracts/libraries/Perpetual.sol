@@ -146,7 +146,7 @@ library Perpetual {
   }
 
   function liquidationAcquisitionDeleverage(
-    Liquidation.DeleveragePositionArguments memory arguments,
+    Liquidation.LiquidationAcquisitionDeleverageArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -178,6 +178,47 @@ library Perpetual {
     );
 
     Liquidation.liquidationAcquisitionDeleverage(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function liquidationClosureDeleverage(
+    Liquidation.LiquidationClosureDeleverageArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) public {
+    Funding.updateWalletFunding(
+      arguments.deleveragingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+    Funding.updateWalletFunding(
+      arguments.insuranceFundWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    Liquidation.liquidationClosureDeleverage(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
