@@ -7,7 +7,7 @@ import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Math } from './Math.sol';
 import { String } from './String.sol';
 import { Validations } from './Validations.sol';
-import { Market, OraclePrice } from './Structs.sol';
+import { Balance, Market, OraclePrice } from './Structs.sol';
 
 pragma solidity 0.8.15;
 
@@ -137,6 +137,51 @@ library Margin {
         ),
         int64(oraclePriceInPips),
         int64(Constants.pipPriceMultiplier)
+      );
+    }
+
+    return totalAccountValueInPips;
+  }
+
+  function loadTotalWalletExitAccountValue(
+    LoadArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int64) {
+    int64 totalAccountValueInPips = balanceTracking
+      .loadBalanceInPipsFromMigrationSourceIfNeeded(
+        arguments.wallet,
+        arguments.quoteAssetSymbol
+      );
+
+    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+      arguments.wallet
+    ];
+    for (uint8 i = 0; i < marketSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[marketSymbols[i]];
+      uint64 oraclePriceInPips = Validations
+        .validateOraclePriceAndConvertToPips(
+          arguments.oraclePrices[i],
+          arguments.quoteAssetDecimals,
+          market,
+          arguments.oracleWallet
+        );
+
+      Balance memory balance = balanceTracking
+        .loadBalanceFromMigrationSourceIfNeeded(
+          arguments.wallet,
+          market.baseAssetSymbol
+        );
+
+      totalAccountValueInPips += Math.min(
+        balance.costBasisInPips,
+        Math.multiplyPipsByFraction(
+          balance.balanceInPips,
+          int64(oraclePriceInPips),
+          int64(Constants.pipPriceMultiplier)
+        )
       );
     }
 
