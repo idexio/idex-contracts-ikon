@@ -240,7 +240,7 @@ library Withdrawing {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) private returns (int64, uint64) {
-    int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
+    int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
       Margin.LoadArguments(
         msg.sender,
         arguments.oraclePrices,
