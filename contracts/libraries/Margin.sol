@@ -4,6 +4,7 @@ import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
+import { MarketOverrides } from './MarketOverrides.sol';
 import { Math } from './Math.sol';
 import { String } from './String.sol';
 import { Validations } from './Validations.sol';
@@ -13,6 +14,7 @@ pragma solidity 0.8.15;
 
 library Margin {
   using BalanceTracking for BalanceTracking.Storage;
+  using MarketOverrides for Market;
 
   struct LoadArguments {
     address wallet;
@@ -280,11 +282,13 @@ library Margin {
               int64(Constants.pipPriceMultiplier)
             ),
             int64(
-              loadInitialMarginFractionInPips(
-                arguments.markets[i],
-                arguments.insuranceFundWallet,
-                marketOverridesByBaseAssetSymbolAndWallet
-              )
+              arguments
+                .markets[i]
+                .loadMarketWithOverridesForWallet(
+                  arguments.insuranceFundWallet,
+                  marketOverridesByBaseAssetSymbolAndWallet
+                )
+                .initialMarginFractionInPips
             ),
             int64(Constants.pipPriceMultiplier)
           )
@@ -377,11 +381,12 @@ library Margin {
       initialMarginRequirement += loadMarginRequirementAndUpdateLastOraclePrice(
         arguments,
         market,
-        loadInitialMarginFractionInPips(
-          market,
-          arguments.wallet,
-          marketOverridesByBaseAssetSymbolAndWallet
-        ),
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.wallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .initialMarginFractionInPips,
         oraclePrice,
         balanceTracking
       );
@@ -440,11 +445,12 @@ library Margin {
       initialMarginRequirement += loadMarginRequirementAndUpdateLastOraclePrice(
         arguments,
         market,
-        loadMaintenanceMarginFractionInPips(
-          market,
-          arguments.wallet,
-          marketOverridesByBaseAssetSymbolAndWallet
-        ),
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.wallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .maintenanceMarginFractionInPips,
         oraclePrice,
         balanceTracking
       );
@@ -529,7 +535,7 @@ library Margin {
   }
 
   /**
-   * @dev Utterly crass naming
+   * @dev TODO Utterly crass naming
    */
   function isInitialMarginRequirementMetAndUpdateLastOraclePrice(
     LoadArguments memory arguments,
@@ -556,22 +562,6 @@ library Margin {
           marketOverridesByBaseAssetSymbolAndWallet
         )
       );
-  }
-
-  function loadInitialMarginFractionInPips(
-    Market memory market,
-    address wallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
-  ) internal view returns (uint64 initialMarginFractionInPips) {
-    initialMarginFractionInPips = market.initialMarginFractionInPips;
-
-    Market memory overrideMarket = marketOverridesByBaseAssetSymbolAndWallet[
-      market.baseAssetSymbol
-    ][wallet];
-    if (overrideMarket.exists) {
-      initialMarginFractionInPips = overrideMarket.initialMarginFractionInPips;
-    }
   }
 
   function loadMaintenanceMarginFractionInPips(

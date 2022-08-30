@@ -6,6 +6,7 @@ import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Margin } from './Margin.sol';
+import { MarketOverrides } from './MarketOverrides.sol';
 import { String } from './String.sol';
 import { StringArray } from './StringArray.sol';
 import { Validations } from './Validations.sol';
@@ -13,6 +14,7 @@ import { Balance, Market, OraclePrice } from './Structs.sol';
 
 library Liquidation {
   using BalanceTracking for BalanceTracking.Storage;
+  using MarketOverrides for Market;
   using StringArray for string[];
 
   struct LiquidationAcquisitionDeleverageArguments {
@@ -301,11 +303,13 @@ library Liquidation {
 
     LiquidationValidations.validateLiquidationQuoteQuantity(
       arguments.liquidationQuoteQuantityInPips,
-      Margin.loadMaintenanceMarginFractionInPips(
-        arguments.market,
-        arguments.liquidatingWallet,
-        marketOverridesByBaseAssetSymbolAndWallet
-      ),
+      arguments
+        .market
+        .loadMarketWithOverridesForWallet(
+          arguments.liquidatingWallet,
+          marketOverridesByBaseAssetSymbolAndWallet
+        )
+        .maintenanceMarginFractionInPips,
       oraclePriceInPips,
       positionSizeInPips,
       arguments.totalAccountValueInPips,
@@ -390,11 +394,13 @@ library Liquidation {
       // Validate provided liquidation quote quantity
       LiquidationValidations.validateLiquidationQuoteQuantity(
         arguments.liquidationQuoteQuantitiesInPips[i],
-        Margin.loadMaintenanceMarginFractionInPips(
-          loadArguments.markets[i],
-          arguments.liquidatingWallet,
-          marketOverridesByBaseAssetSymbolAndWallet
-        ),
+        loadArguments
+          .markets[i]
+          .loadMarketWithOverridesForWallet(
+            arguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .maintenanceMarginFractionInPips,
         loadArguments.oraclePricesInPips[i],
         balanceTracking
           .loadBalanceAndMigrateIfNeeded(

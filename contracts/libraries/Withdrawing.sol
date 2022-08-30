@@ -9,12 +9,14 @@ import { ICustodian } from './Interfaces.sol';
 import { Funding } from './Funding.sol';
 import { Liquidation } from './Liquidation.sol';
 import { Margin } from './Margin.sol';
+import { MarketOverrides } from './MarketOverrides.sol';
 import { Math } from './Math.sol';
 import { Validations } from './Validations.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice, Withdrawal } from './Structs.sol';
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
+  using MarketOverrides for Market;
 
   struct WithdrawArguments {
     // External arguments
@@ -207,11 +209,12 @@ library Withdrawing {
         msg.sender,
         market.baseAssetSymbol,
         arguments.exitFundWallet,
-        Margin.loadMaintenanceMarginFractionInPips(
-          market,
-          msg.sender,
-          marketOverridesByBaseAssetSymbolAndWallet
-        ),
+        market
+          .loadMarketWithOverridesForWallet(
+            msg.sender,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .maintenanceMarginFractionInPips,
         Validations.validateOraclePriceAndConvertToPips(
           arguments.oraclePrices[i],
           arguments.quoteAssetDecimals,
