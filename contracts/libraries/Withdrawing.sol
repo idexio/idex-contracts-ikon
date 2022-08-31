@@ -204,14 +204,8 @@ library Withdrawing {
         baseAssetSymbolsWithOpenPositionsByWallet[msg.sender][i]
       ];
       quoteQuantityInPips += balanceTracking.updateForExit(
-        msg.sender,
-        market.baseAssetSymbol,
         arguments.exitFundWallet,
-        Margin.loadMaintenanceMarginFractionInPips(
-          market,
-          msg.sender,
-          marketOverridesByBaseAssetSymbolAndWallet
-        ),
+        market,
         Validations.validateOraclePriceAndConvertToPips(
           arguments.oraclePrices[i],
           arguments.quoteAssetDecimals,
@@ -219,7 +213,9 @@ library Withdrawing {
           arguments.oracleWalletAddress
         ),
         totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips
+        totalMaintenanceMarginRequirementInPips,
+        msg.sender,
+        marketOverridesByBaseAssetSymbolAndWallet
       );
     }
 

@@ -5,15 +5,17 @@ pragma solidity 0.8.15;
 import { Constants } from './Constants.sol';
 import { IExchange } from './Interfaces.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
+import { MarketOverrides } from './MarketOverrides.sol';
 import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
 import { StringArray } from './StringArray.sol';
 import { UUID } from './UUID.sol';
-import { Balance, ExecuteOrderBookTradeArguments, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
+import { Balance, ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
 import 'hardhat/console.sol';
 
 library BalanceTracking {
+  using MarketOverrides for Market;
   using StringArray for string[];
 
   struct Storage {
@@ -44,13 +46,15 @@ library BalanceTracking {
 
   function updatePositionForLiquidation(
     Storage storage self,
-    string memory baseAssetSymbol,
-    string memory quoteAssetSymbol,
     address counterpartyWallet,
     address liquidatingWallet,
+    Market memory market,
+    string memory quoteAssetSymbol,
     int64 quoteQuantityInPips,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     Balance storage balance;
 
@@ -58,14 +62,14 @@ library BalanceTracking {
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       liquidatingWallet,
-      baseAssetSymbol
+      market.baseAssetSymbol
     );
     int64 positionSizeInPips = balance.balanceInPips;
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;
     updateOpenPositionsForWallet(
       liquidatingWallet,
-      baseAssetSymbol,
+      market.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
@@ -73,24 +77,22 @@ library BalanceTracking {
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       counterpartyWallet,
-      baseAssetSymbol
+      market.baseAssetSymbol
     );
-    if (positionSizeInPips > 0) {
-      addToPosition(
-        balance,
-        Math.abs(positionSizeInPips),
-        Math.abs(quoteQuantityInPips)
-      );
-    } else {
-      subtractFromPosition(
-        balance,
-        Math.abs(positionSizeInPips),
-        Math.abs(quoteQuantityInPips)
-      );
-    }
+    updatePosition(
+      balance,
+      positionSizeInPips,
+      quoteQuantityInPips,
+      market
+        .loadMarketWithOverridesForWallet(
+          counterpartyWallet,
+          marketOverridesByBaseAssetSymbolAndWallet
+        )
+        .maximumPositionSizeInPips
+    );
     updateOpenPositionsForWallet(
       counterpartyWallet,
-      baseAssetSymbol,
+      market.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
@@ -142,18 +144,19 @@ library BalanceTracking {
 
   function updateForExit(
     Storage storage self,
-    address wallet,
-    string memory baseAssetSymbol,
     address exitFundWallet,
-    uint64 maintenanceMarginFractionInPips,
+    Market memory market,
     uint64 oraclePriceInPips,
     int64 totalAccountValueInPips,
-    uint64 totalMaintenanceMarginRequirementInPips
+    uint64 totalMaintenanceMarginRequirementInPips,
+    address wallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (int64 quoteQuantityInPips) {
     Balance storage balance = loadBalanceAndMigrateIfNeeded(
       self,
       wallet,
-      baseAssetSymbol
+      market.baseAssetSymbol
     );
     int64 positionSizeInPips = balance.balanceInPips;
 
@@ -169,11 +172,16 @@ library BalanceTracking {
       balance.costBasisInPips
     );
 
+    Market memory marketWithOverrides = market.loadMarketWithOverridesForWallet(
+      exitFundWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+
     // ...but never less than the bankruptcy price
     quoteQuantityInPips = Math.max(
       quoteQuantityInPips,
       LiquidationValidations.calculateLiquidationQuoteQuantityInPips(
-        maintenanceMarginFractionInPips,
+        marketWithOverrides.maintenanceMarginFractionInPips,
         oraclePriceInPips,
         positionSizeInPips,
         totalAccountValueInPips,
@@ -187,21 +195,14 @@ library BalanceTracking {
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       exitFundWallet,
-      baseAssetSymbol
+      market.baseAssetSymbol
     );
-    if (positionSizeInPips > 0) {
-      BalanceTracking.subtractFromPosition(
-        balance,
-        Math.abs(positionSizeInPips),
-        Math.abs(quoteQuantityInPips)
-      );
-    } else {
-      BalanceTracking.addToPosition(
-        balance,
-        Math.abs(positionSizeInPips),
-        Math.abs(quoteQuantityInPips)
-      );
-    }
+    updatePosition(
+      balance,
+      positionSizeInPips,
+      quoteQuantityInPips,
+      marketWithOverrides.maximumPositionSizeInPips
+    );
   }
 
   // Trading //
@@ -213,8 +214,11 @@ library BalanceTracking {
   function updateForOrderBookTrade(
     Storage storage self,
     ExecuteOrderBookTradeArguments memory arguments,
+    Market memory market,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     Balance storage balance;
 
@@ -244,7 +248,13 @@ library BalanceTracking {
     subtractFromPosition(
       balance,
       arguments.orderBookTrade.baseQuantityInPips,
-      arguments.orderBookTrade.quoteQuantityInPips
+      arguments.orderBookTrade.quoteQuantityInPips,
+      market
+        .loadMarketWithOverridesForWallet(
+          arguments.sell.walletAddress,
+          marketOverridesByBaseAssetSymbolAndWallet
+        )
+        .maximumPositionSizeInPips
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
@@ -262,7 +272,13 @@ library BalanceTracking {
     addToPosition(
       balance,
       arguments.orderBookTrade.baseQuantityInPips,
-      arguments.orderBookTrade.quoteQuantityInPips
+      arguments.orderBookTrade.quoteQuantityInPips,
+      market
+        .loadMarketWithOverridesForWallet(
+          arguments.buy.walletAddress,
+          marketOverridesByBaseAssetSymbolAndWallet
+        )
+        .maximumPositionSizeInPips
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
@@ -388,12 +404,40 @@ library BalanceTracking {
 
   // Position updates //
 
+  function updatePosition(
+    Balance storage balance,
+    int64 baseQuantityInPips,
+    int64 quoteQuantityInPips,
+    uint64 maximumPositionSizeInPips
+  ) internal {
+    if (baseQuantityInPips > 0) {
+      addToPosition(
+        balance,
+        Math.abs(baseQuantityInPips),
+        Math.abs(quoteQuantityInPips),
+        maximumPositionSizeInPips
+      );
+    } else {
+      subtractFromPosition(
+        balance,
+        Math.abs(baseQuantityInPips),
+        Math.abs(quoteQuantityInPips),
+        maximumPositionSizeInPips
+      );
+    }
+  }
+
   function addToPosition(
     Balance storage balance,
     uint64 baseQuantityInPips,
-    uint64 quoteQuantityInPips
+    uint64 quoteQuantityInPips,
+    uint64 maximumPositionSizeInPips
   ) internal {
     int64 newBalanceInPips = balance.balanceInPips + int64(baseQuantityInPips);
+    require(
+      Math.abs(newBalanceInPips) <= maximumPositionSizeInPips,
+      'Max position size exceeded'
+    );
 
     if (balance.balanceInPips >= 0) {
       // Increase position
@@ -423,9 +467,14 @@ library BalanceTracking {
   function subtractFromPosition(
     Balance storage balance,
     uint64 baseQuantityInPips,
-    uint64 quoteQuantityInPips
+    uint64 quoteQuantityInPips,
+    uint64 maximumPositionSizeInPips
   ) internal {
     int64 newBalanceInPips = balance.balanceInPips - int64(baseQuantityInPips);
+    require(
+      Math.abs(newBalanceInPips) <= maximumPositionSizeInPips,
+      'Max position size exceeded'
+    );
 
     if (balance.balanceInPips <= 0) {
       // Increase position

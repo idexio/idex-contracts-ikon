@@ -29,8 +29,11 @@ library Trading {
     mapping(address => NonceInvalidation) storage nonceInvalidations,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) public {
-    (bytes32 buyHash, bytes32 sellHash) = OrderBookTradeValidations
-      .validateOrderBookTrade(
+    (
+      bytes32 buyHash,
+      bytes32 sellHash,
+      Market memory market
+    ) = OrderBookTradeValidations.validateOrderBookTrade(
         arguments,
         marketsByBaseAssetSymbol,
         nonceInvalidations
@@ -67,7 +70,9 @@ library Trading {
 
     balanceTracking.updateForOrderBookTrade(
       arguments,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      market,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
     );
 
     validateInitialMarginRequirementsAndUpdateLastOraclePrice(
