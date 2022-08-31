@@ -17,14 +17,22 @@ library OrderBookTradeValidations {
     ExecuteOrderBookTradeArguments memory arguments,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations
-  ) internal view returns (bytes32, bytes32) {
+  )
+    internal
+    view
+    returns (
+      bytes32 buyHash,
+      bytes32 sellHash,
+      Market memory market
+    )
+  {
     require(
       arguments.buy.walletAddress != arguments.sell.walletAddress,
       'Self-trading not allowed'
     );
 
     // Order book trade validations
-    validateAssetPair(
+    market = validateAssetPair(
       arguments.orderBookTrade,
       arguments.quoteAssetSymbol,
       marketsByBaseAssetSymbol
@@ -40,21 +48,19 @@ library OrderBookTradeValidations {
       arguments.delegateKeyExpirationPeriodInMs,
       nonceInvalidations
     );
-    (bytes32 buyHash, bytes32 sellHash) = validateOrderSignatures(
+    (buyHash, sellHash) = validateOrderSignatures(
       arguments.buy,
       arguments.sell,
       arguments.orderBookTrade
     );
     validateFees(arguments.orderBookTrade);
-
-    return (buyHash, sellHash);
   }
 
   function validateAssetPair(
     OrderBookTrade memory trade,
     string memory quoteAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view {
+  ) internal view returns (Market memory market) {
     require(
       !String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
       'Trade assets must be different'
@@ -65,10 +71,8 @@ library OrderBookTradeValidations {
       'Quote and quote symbol mismatch'
     );
 
-    require(
-      marketsByBaseAssetSymbol[trade.baseAssetSymbol].exists,
-      'Invalid base asset symbol'
-    );
+    market = marketsByBaseAssetSymbol[trade.baseAssetSymbol];
+    require(market.exists, 'Invalid base asset symbol');
   }
 
   function validateLimitPrices(

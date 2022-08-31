@@ -255,12 +255,17 @@ library Liquidation {
     );
 
     balanceTracking.updatePositionForLiquidation(
-      arguments.baseAssetSymbol,
-      arguments.quoteAssetSymbol,
       arguments.deleveragingWallet,
       arguments.insuranceFundWallet,
+      loadMarket(
+        arguments,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      ),
+      arguments.quoteAssetSymbol,
       arguments.liquidationQuoteQuantityInPips,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
@@ -317,12 +322,13 @@ library Liquidation {
     );
 
     balanceTracking.updatePositionForLiquidation(
-      arguments.market.baseAssetSymbol,
-      arguments.quoteAssetSymbol,
       arguments.counterpartyWallet,
       arguments.liquidatingWallet,
+      arguments.market,
+      arguments.quoteAssetSymbol,
       arguments.liquidationQuoteQuantityInPips,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
     );
   }
 
@@ -336,13 +342,33 @@ library Liquidation {
     view
     returns (Market memory market, OraclePrice memory oraclePrice)
   {
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      arguments.liquidatingWallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
-      if (String.isEqual(marketSymbols[i], arguments.baseAssetSymbol)) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.liquidatingWallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
         market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
         oraclePrice = arguments.liquidatingWalletOraclePrices[i];
+      }
+    }
+
+    require(market.exists, 'Invalid market');
+  }
+
+  function loadMarket(
+    LiquidationClosureDeleverageArguments memory arguments,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (Market memory market) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.insuranceFundWallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
+        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
       }
     }
 
@@ -419,11 +445,4 @@ library Liquidation {
       marketOverridesByBaseAssetSymbolAndWallet
     );
   }
-
-  function loadMarketAndOraclePrice(
-    LiquidationAcquisitionDeleverageArguments memory arguments,
-    string memory baseAssetSymbol,
-    OraclePrice memory oraclePrice,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (Market memory market, uint64 oraclePriceInPips) {}
 }
