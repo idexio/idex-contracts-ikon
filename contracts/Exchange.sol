@@ -748,10 +748,10 @@ contract Exchange_v4 is IExchange, Owned {
       wallet,
       _quoteAssetSymbol,
       _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _baseAssetSymbolsWithOpenPositionsByWallet
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -812,8 +812,9 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetDecimals,
         _oracleWallet,
         _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
         _marketsByBaseAssetSymbol,
-        _baseAssetSymbolsWithOpenPositionsByWallet
+        _marketOverridesByBaseAssetSymbolAndWallet
       );
   }
 
@@ -831,8 +832,9 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetDecimals,
         _oracleWallet,
         _balanceTracking,
-        _marketsByBaseAssetSymbol,
-        _baseAssetSymbolsWithOpenPositionsByWallet
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
       );
   }
 

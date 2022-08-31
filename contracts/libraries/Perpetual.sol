@@ -19,100 +19,6 @@ pragma solidity 0.8.15;
 library Perpetual {
   using BalanceTracking for BalanceTracking.Storage;
 
-  function loadOutstandingWalletFunding(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64 fundingInPips) {
-    return
-      Funding.loadOutstandingWalletFunding(
-        wallet,
-        balanceTracking,
-        fundingMultipliersByBaseAssetSymbol,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol,
-        baseAssetSymbolsWithOpenPositionsByWallet
-      );
-  }
-
-  function loadTotalAccountValueIncludingOutstandingWalletFunding(
-    Margin.LoadArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64) {
-    return
-      Margin.loadTotalAccountValue(
-        arguments,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      ) +
-      loadOutstandingWalletFunding(
-        arguments.wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        fundingMultipliersByBaseAssetSymbol,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  function loadTotalInitialMarginRequirement(
-    address wallet,
-    OraclePrice[] memory oraclePrices,
-    uint8 quoteAssetDecimals,
-    address oracleWalletAddress,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
-  ) public view returns (uint64 initialMarginRequirement) {
-    return
-      Margin.loadTotalInitialMarginRequirement(
-        wallet,
-        oraclePrices,
-        quoteAssetDecimals,
-        oracleWalletAddress,
-        balanceTracking,
-        marketsByBaseAssetSymbol,
-        baseAssetSymbolsWithOpenPositionsByWallet
-      );
-  }
-
-  function loadTotalMaintenanceMarginRequirement(
-    address wallet,
-    OraclePrice[] memory oraclePrices,
-    uint8 quoteAssetDecimals,
-    address oracleWalletAddress,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
-  ) public view returns (uint64 initialMarginRequirement) {
-    return
-      Margin.loadTotalMaintenanceMarginRequirement(
-        wallet,
-        oraclePrices,
-        quoteAssetDecimals,
-        oracleWalletAddress,
-        balanceTracking,
-        marketsByBaseAssetSymbol,
-        baseAssetSymbolsWithOpenPositionsByWallet
-      );
-  }
-
   function liquidateWallet(
     Liquidation.LiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
@@ -236,6 +142,106 @@ library Perpetual {
     );
   }
 
+  function loadOutstandingWalletFunding(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (int64 fundingInPips) {
+    return
+      Funding.loadOutstandingWalletFunding(
+        wallet,
+        balanceTracking,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketsByBaseAssetSymbol,
+        baseAssetSymbolsWithOpenPositionsByWallet
+      );
+  }
+
+  function loadTotalAccountValueIncludingOutstandingWalletFunding(
+    Margin.LoadArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (int64) {
+    return
+      Margin.loadTotalAccountValue(
+        arguments,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      ) +
+      loadOutstandingWalletFunding(
+        arguments.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  function loadTotalInitialMarginRequirement(
+    address wallet,
+    OraclePrice[] memory oraclePrices,
+    uint8 quoteAssetDecimals,
+    address oracleWalletAddress,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) public view returns (uint64 initialMarginRequirement) {
+    return
+      Margin.loadTotalInitialMarginRequirement(
+        wallet,
+        oraclePrices,
+        quoteAssetDecimals,
+        oracleWalletAddress,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  function loadTotalMaintenanceMarginRequirement(
+    address wallet,
+    OraclePrice[] memory oraclePrices,
+    uint8 quoteAssetDecimals,
+    address oracleWalletAddress,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (uint64 initialMarginRequirement) {
+    return
+      Margin.loadTotalMaintenanceMarginRequirement(
+        wallet,
+        oraclePrices,
+        quoteAssetDecimals,
+        oracleWalletAddress,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
   function publishFundingMutipliers(
     OraclePrice[] memory oraclePrices,
     int64[] memory fundingRatesInPips,
@@ -260,13 +266,13 @@ library Perpetual {
     address wallet,
     string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       wallet,
