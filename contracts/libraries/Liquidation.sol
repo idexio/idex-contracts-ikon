@@ -17,39 +17,10 @@ library Liquidation {
   using MarketOverrides for Market;
   using StringArray for string[];
 
-  struct LiquidationAcquisitionDeleverageArguments {
-    // External arguments
-    string baseAssetSymbol;
-    address deleveragingWallet;
-    address liquidatingWallet;
-    int64[] liquidationQuoteQuantitiesInPips; // For all open positions
-    int64 liquidationQuoteQuantityInPips; // For the position being deleveraged
-    OraclePrice[] deleveragingWalletOraclePrices; // After acquiring liquidating positions
-    OraclePrice[] insuranceFundOraclePrices; // After acquiring liquidating positions
-    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
-    // Exchange state
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
-    address insuranceFundWallet;
-    address oracleWallet;
-  }
-
-  struct LiquidationClosureDeleverageArguments {
-    // External arguments
-    string baseAssetSymbol;
-    address deleveragingWallet;
-    int64 liquidationQuoteQuantityInPips;
-    OraclePrice[] deleveragingWalletOraclePrices; // After acquiring IF positions
-    // Exchange state
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
-    address insuranceFundWallet;
-    address oracleWallet;
-  }
-
   struct LiquidatePositionArguments {
     address counterpartyWallet;
     address liquidatingWallet;
+    int64 liquidationBaseQuantityInPips;
     int64 liquidationQuoteQuantityInPips;
     Market market;
     OraclePrice oraclePrice;
@@ -66,6 +37,38 @@ library Liquidation {
     int64[] liquidationQuoteQuantitiesInPips;
     OraclePrice[] insuranceFundOraclePrices;
     OraclePrice[] liquidatingWalletOraclePrices;
+    // Exchange state
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
+    address insuranceFundWallet;
+    address oracleWallet;
+  }
+
+  struct LiquidationAcquisitionDeleverageArguments {
+    // External arguments
+    string baseAssetSymbol;
+    address deleveragingWallet;
+    address liquidatingWallet;
+    int64[] liquidationQuoteQuantitiesInPips; // For all open positions
+    int64 liquidationBaseQuantityInPips; // For the position being liquidating
+    int64 liquidationQuoteQuantityInPips; // For the position being deleveraged
+    OraclePrice[] deleveragingWalletOraclePrices; // After acquiring liquidating positions
+    OraclePrice[] insuranceFundOraclePrices; // After acquiring liquidating positions
+    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
+    // Exchange state
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
+    address insuranceFundWallet;
+    address oracleWallet;
+  }
+
+  struct LiquidationClosureDeleverageArguments {
+    // External arguments
+    string baseAssetSymbol;
+    address deleveragingWallet;
+    int64 liquidationBaseQuantityInPips;
+    int64 liquidationQuoteQuantityInPips;
+    OraclePrice[] deleveragingWalletOraclePrices; // After acquiring IF positions
     // Exchange state
     uint8 quoteAssetDecimals;
     string quoteAssetSymbol;
@@ -102,16 +105,21 @@ library Liquidation {
         marketOverridesByBaseAssetSymbolAndWallet
       );
 
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      arguments.liquidatingWallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.liquidatingWallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       liquidatePosition(
         LiquidatePositionArguments(
           arguments.insuranceFundWallet,
           arguments.liquidatingWallet,
+          balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+            arguments.liquidatingWallet,
+            baseAssetSymbols[i]
+          ),
           arguments.liquidationQuoteQuantitiesInPips[i],
-          marketsByBaseAssetSymbol[marketSymbols[i]],
+          marketsByBaseAssetSymbol[baseAssetSymbols[i]],
           arguments.liquidatingWalletOraclePrices[i],
           arguments.oracleWallet,
           arguments.quoteAssetDecimals,
@@ -199,6 +207,7 @@ library Liquidation {
       LiquidatePositionArguments(
         arguments.deleveragingWallet,
         arguments.liquidatingWallet,
+        arguments.liquidationBaseQuantityInPips,
         arguments.liquidationQuoteQuantityInPips,
         market,
         oraclePrice,
@@ -255,6 +264,7 @@ library Liquidation {
     );
 
     balanceTracking.updatePositionForLiquidation(
+      arguments.liquidationBaseQuantityInPips,
       arguments.deleveragingWallet,
       arguments.insuranceFundWallet,
       loadMarket(
@@ -292,13 +302,6 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    int64 positionSizeInPips = balanceTracking
-      .loadBalanceAndMigrateIfNeeded(
-        arguments.liquidatingWallet,
-        arguments.market.baseAssetSymbol
-      )
-      .balanceInPips;
-
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       arguments.oraclePrice,
       arguments.quoteAssetDecimals,
@@ -316,12 +319,13 @@ library Liquidation {
         )
         .maintenanceMarginFractionInPips,
       oraclePriceInPips,
-      positionSizeInPips,
+      arguments.liquidationBaseQuantityInPips,
       arguments.totalAccountValueInPips,
       arguments.totalMaintenanceMarginRequirementInPips
     );
 
     balanceTracking.updatePositionForLiquidation(
+      arguments.liquidationBaseQuantityInPips,
       arguments.counterpartyWallet,
       arguments.liquidatingWallet,
       arguments.market,

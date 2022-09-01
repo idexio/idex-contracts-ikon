@@ -650,30 +650,31 @@ describe('Exchange', function () {
       */
 
       await (
-        await exchange
-          .connect(dispatcher)
-          .liquidationAcquisitionDeleverage(
-            'ETH',
-            trader2.address,
-            trader1.address,
-            ['1993.11863060', '28060.88136940'].map(decimalToPips),
-            decimalToPips('1993.11863060'),
-            [newOracleLowPrices[1]],
-            newOracleLowPrices,
-            newOracleLowPrices,
-          )
+        await exchange.connect(dispatcher).liquidationAcquisitionDeleverage(
+          'ETH',
+          trader2.address,
+          trader1.address,
+          ['1993.11863060', '28060.88136940'].map(decimalToPips),
+          decimalToPips('0.50000000'),
+          decimalToPips('996.55931530'),
+          //decimalToPips('1.00000000'),
+          //decimalToPips('1993.11863060'),
+          //[newOracleLowPrices[1]],
+          newOracleLowPrices,
+          newOracleLowPrices,
+          newOracleLowPrices,
+        )
       ).wait();
 
       console.log('--- LIQUIDATED ---');
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, [
+      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+      /*await logWalletBalances(trader1.address, exchange, [
         newOracleLowPrices[1],
-      ]);
+      ]);*/
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, [
-        newOracleLowPrices[1],
-      ]);
+      await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
 
       /*
       console.log('Trader1');

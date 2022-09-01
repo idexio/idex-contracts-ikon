@@ -148,11 +148,12 @@ library Margin {
         arguments.quoteAssetSymbol
       );
 
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      arguments.wallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
-      Market memory market = marketsByBaseAssetSymbol[marketSymbols[i]];
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.wallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       uint64 oraclePriceInPips = Validations
         .validateOraclePriceAndConvertToPips(
           arguments.oraclePrices[i],
