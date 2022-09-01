@@ -8,7 +8,7 @@ import { LiquidationValidations } from './LiquidationValidations.sol';
 import { MarketOverrides } from './MarketOverrides.sol';
 import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
-import { StringArray } from './StringArray.sol';
+import { SortedStringSet } from './SortedStringSet.sol';
 import { UUID } from './UUID.sol';
 import { Balance, ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
@@ -16,7 +16,7 @@ import 'hardhat/console.sol';
 
 library BalanceTracking {
   using MarketOverrides for Market;
-  using StringArray for string[];
+  using SortedStringSet for string[];
 
   struct Storage {
     mapping(address => mapping(string => Balance)) balancesByWalletAssetPair;

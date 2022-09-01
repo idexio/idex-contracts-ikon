@@ -4,7 +4,7 @@ pragma solidity 0.8.15;
 
 import { String } from './String.sol';
 
-library StringArray {
+library SortedStringSet {
   function insertSorted(string[] memory array, string memory element)
     internal
     pure

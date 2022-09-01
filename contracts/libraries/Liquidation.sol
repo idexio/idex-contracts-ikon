@@ -8,14 +8,14 @@ import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Margin } from './Margin.sol';
 import { MarketOverrides } from './MarketOverrides.sol';
 import { String } from './String.sol';
-import { StringArray } from './StringArray.sol';
+import { SortedStringSet } from './SortedStringSet.sol';
 import { Validations } from './Validations.sol';
 import { Balance, Market, OraclePrice } from './Structs.sol';
 
 library Liquidation {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketOverrides for Market;
-  using StringArray for string[];
+  using SortedStringSet for string[];
 
   struct LiquidatePositionArguments {
     address counterpartyWallet;
