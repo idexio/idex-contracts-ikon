@@ -553,6 +553,7 @@ contract Exchange_v4 is IExchange, Owned {
     address deleveragingWallet,
     address liquidatingWallet,
     int64[] memory liquidationQuoteQuantitiesInPips,
+    int64 liquidationBaseQuantityInPips,
     int64 liquidationQuoteQuantityInPips,
     OraclePrice[] calldata deleveragingWalletOraclePrices,
     OraclePrice[] calldata insuranceFundOraclePrices,
@@ -564,6 +565,7 @@ contract Exchange_v4 is IExchange, Owned {
         deleveragingWallet,
         liquidatingWallet,
         liquidationQuoteQuantitiesInPips,
+        liquidationBaseQuantityInPips,
         liquidationQuoteQuantityInPips,
         deleveragingWalletOraclePrices,
         insuranceFundOraclePrices,
@@ -585,6 +587,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidationClosureDeleverage(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
+    int64 liquidationBaseQuantityInPips,
     int64 liquidationQuoteQuantityInPips,
     OraclePrice[] calldata deleveragingWalletOraclePrices
   ) external onlyDispatcher {
@@ -592,6 +595,7 @@ contract Exchange_v4 is IExchange, Owned {
       Liquidation.LiquidationClosureDeleverageArguments(
         baseAssetSymbol,
         deleveragingWallet,
+        liquidationBaseQuantityInPips,
         liquidationQuoteQuantityInPips,
         deleveragingWalletOraclePrices,
         _quoteAssetDecimals,

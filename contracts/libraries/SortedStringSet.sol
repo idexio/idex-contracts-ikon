@@ -4,7 +4,7 @@ pragma solidity 0.8.15;
 
 import { String } from './String.sol';
 
-library StringArray {
+library SortedStringSet {
   function insertSorted(string[] memory array, string memory element)
     internal
     pure
@@ -16,7 +16,7 @@ library StringArray {
     for (uint256 i = 0; i < result.length; i++) {
       if (!indexFound) {
         // Do not allow duplicates
-        if (String.isEqual(result[i], element)) {
+        if (i < result.length - 1 && String.isEqual(array[i], element)) {
           return array;
         }
         if (i == result.length - 1 || isLessThan(element, array[i])) {

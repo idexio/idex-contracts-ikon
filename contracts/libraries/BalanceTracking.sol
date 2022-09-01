@@ -8,7 +8,7 @@ import { LiquidationValidations } from './LiquidationValidations.sol';
 import { MarketOverrides } from './MarketOverrides.sol';
 import { Math } from './Math.sol';
 import { OrderSide } from './Enums.sol';
-import { StringArray } from './StringArray.sol';
+import { SortedStringSet } from './SortedStringSet.sol';
 import { UUID } from './UUID.sol';
 import { Balance, ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
@@ -16,7 +16,7 @@ import 'hardhat/console.sol';
 
 library BalanceTracking {
   using MarketOverrides for Market;
-  using StringArray for string[];
+  using SortedStringSet for string[];
 
   struct Storage {
     mapping(address => mapping(string => Balance)) balancesByWalletAssetPair;
@@ -46,6 +46,7 @@ library BalanceTracking {
 
   function updatePositionForLiquidation(
     Storage storage self,
+    int64 baseQuantityInPips,
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
@@ -58,22 +59,35 @@ library BalanceTracking {
   ) internal {
     Balance storage balance;
 
-    // Wallet position goes to zero
+    // Wallet position decreases by specified base quantity
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       liquidatingWallet,
       market.baseAssetSymbol
     );
-    int64 positionSizeInPips = balance.balanceInPips;
-    balance.balanceInPips = 0;
-    balance.costBasisInPips = 0;
+    validatePositionUpdatedTowardsZero(
+      balance.balanceInPips,
+      balance.balanceInPips - baseQuantityInPips
+    );
+    updatePosition(
+      balance,
+      -1 * baseQuantityInPips,
+      quoteQuantityInPips,
+      market
+        .loadMarketWithOverridesForWallet(
+          liquidatingWallet,
+          marketOverridesByBaseAssetSymbolAndWallet
+        )
+        .maximumPositionSizeInPips
+    );
     updateOpenPositionsForWallet(
       liquidatingWallet,
       market.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
-    // Counterparty position takes on opposite side
+
+    // Counterparty position takes on specified base quantity
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       counterpartyWallet,
@@ -81,7 +95,7 @@ library BalanceTracking {
     );
     updatePosition(
       balance,
-      positionSizeInPips,
+      baseQuantityInPips,
       quoteQuantityInPips,
       market
         .loadMarketWithOverridesForWallet(
@@ -513,5 +527,17 @@ library BalanceTracking {
       : baseAssetSymbolsWithOpenPositionsByWallet[wallet].insertSorted(
         assetSymbol
       );
+  }
+
+  function validatePositionUpdatedTowardsZero(
+    int64 originalPositionSizeInPips,
+    int64 newPositionSizeInPips
+  ) private pure {
+    bool isValid = originalPositionSizeInPips < 0
+      ? newPositionSizeInPips > originalPositionSizeInPips &&
+        newPositionSizeInPips <= 0
+      : newPositionSizeInPips < originalPositionSizeInPips &&
+        newPositionSizeInPips >= 0;
+    require(isValid, 'Position must move toward zero');
   }
 }
