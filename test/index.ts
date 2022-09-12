@@ -484,6 +484,7 @@ describe('Exchange', function () {
           '14000000000',
           '2800000000',
           '282000000000',
+          '2000000000',
         )
       ).wait();
 
@@ -650,7 +651,7 @@ describe('Exchange', function () {
       console.log('--- CLOSED ---');
       */
 
-      await (
+      /* await (
         await exchange.connect(dispatcher).liquidationAcquisitionDeleverage(
           LiquidationType.InMaintenance,
           'ETH',
@@ -666,6 +667,18 @@ describe('Exchange', function () {
           newOracleLowPrices,
           newOracleLowPrices,
         )
+      ).wait(); */
+
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidateDustPosition(
+            'ETH',
+            trader2.address,
+            decimalToPips('-2003.00000000'),
+            newOracleLowPrices,
+            newOracleLowPrices,
+          )
       ).wait();
 
       console.log('--- LIQUIDATED ---');

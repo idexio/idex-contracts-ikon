@@ -71,6 +71,8 @@ struct Market {
   uint64 incrementalPositionSizeInPips;
   // The max position size in base token
   uint64 maximumPositionSizeInPips;
+  // The min position size in base token
+  uint64 minimumPositionSizeInPips;
   // The timestamp of the latest oracle price provided for this market
   uint64 lastOraclePriceTimestampInMs;
 }
