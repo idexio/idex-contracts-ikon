@@ -19,6 +19,21 @@ library Liquidation {
   using MarketOverrides for Market;
   using SortedStringSet for string[];
 
+  struct LiquidateDustPositionArguments {
+    // External arguments
+    string baseAssetSymbol;
+    address liquidatingWallet;
+    int64 liquidationQuoteQuantityInPips; // For the position being liquidated
+    OraclePrice[] insuranceFundOraclePrices; // After acquiring liquidating position
+    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
+    // Exchange state
+    uint64 dustPositionLiquidationPriceToleranceBasisPoints;
+    address insuranceFundWallet;
+    address oracleWallet;
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
+  }
+
   struct LiquidatePositionArguments {
     LiquidationType liquidationType;
     address counterpartyWallet;
@@ -79,6 +94,96 @@ library Liquidation {
     string quoteAssetSymbol;
     address insuranceFundWallet;
     address oracleWallet;
+  }
+
+  function liquidateDustPosition(
+    LiquidateDustPositionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) internal {
+    (
+      int64 totalAccountValueInPips,
+      uint64 totalMaintenanceMarginRequirementInPips
+    ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+        Margin.LoadArguments(
+          arguments.liquidatingWallet,
+          arguments.liquidatingWalletOraclePrices,
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
+        ),
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+    require(
+      totalAccountValueInPips >= int64(totalMaintenanceMarginRequirementInPips),
+      'Maintenance margin requirement not met'
+    );
+
+    (
+      Market memory market,
+      OraclePrice memory oraclePrice
+    ) = loadMarketAndOraclePrice(
+        arguments,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
+
+    int64 positionSizeInPips = balanceTracking
+      .loadBalanceInPipsFromMigrationSourceIfNeeded(
+        arguments.liquidatingWallet,
+        arguments.baseAssetSymbol
+      );
+    require(
+      Math.abs(positionSizeInPips) <
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .minimumPositionSizeInPips,
+      'Position size above minimum'
+    );
+
+    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
+      oraclePrice,
+      arguments.quoteAssetDecimals,
+      market,
+      arguments.oracleWallet
+    );
+    LiquidationValidations.validateDustLiquidationQuoteQuantity(
+      arguments.dustPositionLiquidationPriceToleranceBasisPoints,
+      arguments.liquidationQuoteQuantityInPips,
+      oraclePriceInPips,
+      positionSizeInPips
+    );
+
+    liquidatePosition(
+      oraclePriceInPips,
+      LiquidatePositionArguments(
+        LiquidationType.Dust,
+        arguments.insuranceFundWallet,
+        arguments.liquidatingWallet,
+        positionSizeInPips,
+        arguments.liquidationQuoteQuantityInPips,
+        market,
+        oraclePrice,
+        arguments.oracleWallet,
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      ),
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
   }
 
   function liquidateWallet(
@@ -329,6 +434,24 @@ library Liquidation {
       arguments.oracleWallet
     );
 
+    liquidatePosition(
+      oraclePriceInPips,
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function liquidatePosition(
+    uint64 oraclePriceInPips,
+    LiquidatePositionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private {
     if (arguments.liquidationType == LiquidationType.InMaintenance) {
       LiquidationValidations.validateLiquidationQuoteQuantity(
         arguments.liquidationQuoteQuantityInPips,
@@ -380,6 +503,30 @@ library Liquidation {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );
+  }
+
+  function loadMarketAndOraclePrice(
+    LiquidateDustPositionArguments memory arguments,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  )
+    private
+    view
+    returns (Market memory market, OraclePrice memory oraclePrice)
+  {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.liquidatingWallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
+        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+        oraclePrice = arguments.liquidatingWalletOraclePrices[i];
+      }
+    }
+
+    require(market.exists, 'Invalid market');
   }
 
   function loadMarketAndOraclePrice(

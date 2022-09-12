@@ -63,6 +63,31 @@ library LiquidationValidations {
     return int64(quoteQuantityInPips);
   }
 
+  function validateDustLiquidationQuoteQuantity(
+    uint64 dustPositionLiquidationPriceToleranceBasisPoints,
+    int64 liquidationQuoteQuantityInPips,
+    uint64 oraclePriceInPips,
+    int64 positionSizeInPips
+  ) internal pure {
+    int64 expectedLiquidationQuoteQuantitiesInPips = Math
+      .multiplyPipsByFraction(
+        positionSizeInPips,
+        int64(oraclePriceInPips),
+        int64(Constants.pipPriceMultiplier)
+      );
+    uint64 toleranceInPips = (dustPositionLiquidationPriceToleranceBasisPoints *
+      Math.abs(expectedLiquidationQuoteQuantitiesInPips)) /
+      Constants.basisPointsInTotal;
+
+    require(
+      expectedLiquidationQuoteQuantitiesInPips - int64(toleranceInPips) <=
+        liquidationQuoteQuantityInPips &&
+        expectedLiquidationQuoteQuantitiesInPips + int64(toleranceInPips) >=
+        liquidationQuoteQuantityInPips,
+      'Invalid liquidation quote quantity'
+    );
+  }
+
   function validateExitQuoteQuantity(
     int64 costBasisInPips,
     int64 liquidationQuoteQuantityInPips,

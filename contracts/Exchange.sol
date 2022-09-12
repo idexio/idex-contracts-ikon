@@ -41,7 +41,14 @@ contract Exchange_v4 is IExchange, Owned {
     uint256 previousValue,
     uint256 newValue
   );
-
+  /**
+   * @notice Emitted when an admin changes the dust position liquidation price tolerance tunable parameter with
+   * `setDustPositionLiquidationPriceToleranceBasisPoints`
+   */
+  event DustPositionLiquidationPriceToleranceChanged(
+    uint256 previousValue,
+    uint256 newValue
+  );
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
@@ -146,6 +153,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Tunable parameters
   uint256 _chainPropagationPeriodInBlocks;
   uint64 _delegateKeyExpirationPeriodInMs;
+  uint64 _dustPositionLiquidationPriceToleranceBasisPoints;
   address _dispatcherWallet;
   address _feeWallet;
 
@@ -251,6 +259,31 @@ contract Exchange_v4 is IExchange, Owned {
     emit DelegateKeyExpirationPeriodChanged(
       oldDelegateKeyExpirationPeriodInMs,
       newDelegateKeyExpirationPeriodInMs
+    );
+  }
+
+  /**
+   * @notice Sets a new dust position liquidation price tolerance
+   *
+   * @param newDustPositionLiquidationPriceToleranceBasisPoints The new dust position liquidation price tolerance
+   * expressed as basis points. Must be less than `Constants.maxFeeBasisPoints`
+   */
+  function setDustPositionLiquidationPriceToleranceBasisPoints(
+    uint64 newDustPositionLiquidationPriceToleranceBasisPoints
+  ) external onlyAdmin {
+    // TODO Do we want a separate constant cap for this?
+    require(
+      newDustPositionLiquidationPriceToleranceBasisPoints <
+        Constants.maxFeeBasisPoints,
+      'Must be less than 20 percent'
+    );
+
+    uint64 oldDustPositionLiquidationPriceToleranceBasisPoints = _dustPositionLiquidationPriceToleranceBasisPoints;
+    _dustPositionLiquidationPriceToleranceBasisPoints = newDustPositionLiquidationPriceToleranceBasisPoints;
+
+    emit DustPositionLiquidationPriceToleranceChanged(
+      oldDustPositionLiquidationPriceToleranceBasisPoints,
+      newDustPositionLiquidationPriceToleranceBasisPoints
     );
   }
 
@@ -522,6 +555,36 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  // TODO ADL support?
+  function liquidateDustPosition(
+    string calldata baseAssetSymbol,
+    address liquidatingWallet,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata insuranceFundOraclePrices,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
+  ) external onlyDispatcher {
+    Perpetual.liquidateDustPosition(
+      Liquidation.LiquidateDustPositionArguments(
+        baseAssetSymbol,
+        liquidatingWallet,
+        liquidationQuoteQuantityInPips,
+        insuranceFundOraclePrices,
+        liquidatingWalletOraclePrices,
+        _dustPositionLiquidationPriceToleranceBasisPoints,
+        _insuranceFundWallet,
+        _oracleWallet,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
   function liquidateWallet(
     LiquidationType liquidationType,
     address liquidatingWallet,
@@ -675,7 +738,8 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 incrementalInitialMarginFractionInPips,
     uint64 baselinePositionSizeInPips,
     uint64 incrementalPositionSizeInPips,
-    uint64 maximumPositionSizeInPips
+    uint64 maximumPositionSizeInPips,
+    uint64 minimumPositionSizeInPips
   ) external onlyAdmin {
     require(
       !_marketsByBaseAssetSymbol[baseAssetSymbol].exists,
@@ -691,6 +755,7 @@ contract Exchange_v4 is IExchange, Owned {
       baselinePositionSizeInPips: baselinePositionSizeInPips,
       incrementalPositionSizeInPips: incrementalPositionSizeInPips,
       maximumPositionSizeInPips: maximumPositionSizeInPips,
+      minimumPositionSizeInPips: minimumPositionSizeInPips,
       lastOraclePriceTimestampInMs: 0
     });
 
@@ -708,7 +773,8 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 incrementalInitialMarginFractionInPips,
     uint64 baselinePositionSizeInPips,
     uint64 incrementalPositionSizeInPips,
-    uint64 maximumPositionSizeInPips
+    uint64 maximumPositionSizeInPips,
+    uint64 minimumPositionSizeInPips
   ) external onlyAdmin {
     require(
       _marketsByBaseAssetSymbol[baseAssetSymbol].exists,
@@ -724,6 +790,7 @@ contract Exchange_v4 is IExchange, Owned {
       baselinePositionSizeInPips: baselinePositionSizeInPips,
       incrementalPositionSizeInPips: incrementalPositionSizeInPips,
       maximumPositionSizeInPips: maximumPositionSizeInPips,
+      minimumPositionSizeInPips: minimumPositionSizeInPips,
       lastOraclePriceTimestampInMs: 0
     });
 
