@@ -6,6 +6,15 @@ pragma solidity 0.8.15;
  * @notice Enums definitions
  */
 
+// Internal - liquidations //
+
+enum LiquidationType {
+  Exited,
+  InMaintenance
+  // TODO SystemRecovery
+  // TODO Dust
+}
+
 // Order book //
 
 enum OrderSelfTradePrevention {

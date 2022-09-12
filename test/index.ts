@@ -10,6 +10,7 @@ import {
   getOrderHash,
   getWithdrawalHash,
   getWithdrawArguments,
+  LiquidationType,
   Order,
   OrderSide,
   OrderType,
@@ -651,6 +652,7 @@ describe('Exchange', function () {
 
       await (
         await exchange.connect(dispatcher).liquidationAcquisitionDeleverage(
+          LiquidationType.InMaintenance,
           'ETH',
           trader2.address,
           trader1.address,
