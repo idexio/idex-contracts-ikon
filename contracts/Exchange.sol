@@ -12,7 +12,7 @@ import { Liquidation } from './libraries/Liquidation.sol';
 import { Margin } from './libraries/Margin.sol';
 import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
-import { OrderSide } from './libraries/Enums.sol';
+import { LiquidationType, OrderSide } from './libraries/Enums.sol';
 import { Owned } from './Owned.sol';
 import { Perpetual } from './libraries/Perpetual.sol';
 import { String } from './libraries/String.sol';
@@ -523,14 +523,20 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   function liquidateWallet(
-    address wallet,
+    LiquidationType liquidationType,
+    address liquidatingWallet,
     int64[] calldata liquidationQuoteQuantitiesInPips,
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
+    if (liquidationType == LiquidationType.Exited) {
+      require(_walletExits[liquidatingWallet].exists, 'Wallet not exited');
+    }
+
     Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
-        wallet,
+        liquidationType,
+        liquidatingWallet,
         liquidationQuoteQuantitiesInPips,
         insuranceFundOraclePrices,
         liquidatingWalletOraclePrices,
@@ -549,6 +555,7 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   function liquidationAcquisitionDeleverage(
+    LiquidationType liquidationType,
     string calldata baseAssetSymbol,
     address deleveragingWallet,
     address liquidatingWallet,
@@ -559,8 +566,13 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
+    if (liquidationType == LiquidationType.Exited) {
+      require(_walletExits[liquidatingWallet].exists, 'Wallet not exited');
+    }
+
     Perpetual.liquidationAcquisitionDeleverage(
       Liquidation.LiquidationAcquisitionDeleverageArguments(
+        liquidationType,
         baseAssetSymbol,
         deleveragingWallet,
         liquidatingWallet,

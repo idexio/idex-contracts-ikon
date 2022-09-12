@@ -3,6 +3,7 @@
 import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
+import { LiquidationType } from './Enums.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
 import { MarketOverrides } from './MarketOverrides.sol';
 import { Math } from './Math.sol';
@@ -101,38 +102,6 @@ library Margin {
     );
 
     return (totalAccountValueInPips, totalInitialMarginRequirementInPips);
-  }
-
-  function loadAndValidateTotalAccountValueAndMaintenanceMarginRequirement(
-    Margin.LoadArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
-  )
-    internal
-    returns (
-      int64 totalAccountValueInPips,
-      uint64 totalMaintenanceMarginRequirementInPips
-    )
-  {
-    (
-      totalAccountValueInPips,
-      totalMaintenanceMarginRequirementInPips
-    ) = loadTotalAccountValueAndMaintenanceMarginRequirement(
-      arguments,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    require(
-      totalAccountValueInPips < int64(totalMaintenanceMarginRequirementInPips),
-      'Maintenance margin requirement met'
-    );
   }
 
   function loadTotalAccountValue(

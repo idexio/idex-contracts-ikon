@@ -174,34 +174,20 @@ library BalanceTracking {
     );
     int64 positionSizeInPips = balance.balanceInPips;
 
-    quoteQuantityInPips = Math.multiplyPipsByFraction(
-      positionSizeInPips,
-      int64(oraclePriceInPips),
-      int64(Constants.pipPriceMultiplier)
-    );
-
-    // Quote value is the lesser of the oracle price or entry price...
-    quoteQuantityInPips = Math.min(
-      quoteQuantityInPips,
-      balance.costBasisInPips
-    );
-
     Market memory marketWithOverrides = market.loadMarketWithOverridesForWallet(
       exitFundWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    // ...but never less than the bankruptcy price
-    quoteQuantityInPips = Math.max(
-      quoteQuantityInPips,
-      LiquidationValidations.calculateLiquidationQuoteQuantityInPips(
+    quoteQuantityInPips = LiquidationValidations
+      .calculateExitQuoteQuantityInPips(
+        balance.costBasisInPips,
         marketWithOverrides.maintenanceMarginFractionInPips,
         oraclePriceInPips,
         positionSizeInPips,
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips
-      )
-    );
+      );
 
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;

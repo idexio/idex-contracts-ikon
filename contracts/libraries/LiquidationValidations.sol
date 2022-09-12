@@ -3,8 +3,39 @@
 pragma solidity 0.8.15;
 
 import { Constants } from './Constants.sol';
+import { Math } from './Math.sol';
 
 library LiquidationValidations {
+  function calculateExitQuoteQuantityInPips(
+    int64 costBasisInPips,
+    uint64 maintenanceMarginFractionInPips,
+    uint64 oraclePriceInPips,
+    int64 positionSizeInPips,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips
+  ) internal pure returns (int64 quoteQuantityInPips) {
+    quoteQuantityInPips = Math.multiplyPipsByFraction(
+      positionSizeInPips,
+      int64(oraclePriceInPips),
+      int64(Constants.pipPriceMultiplier)
+    );
+
+    // Quote value is the lesser of the oracle price or entry price...
+    quoteQuantityInPips = Math.min(quoteQuantityInPips, costBasisInPips);
+
+    // ...but never less than the bankruptcy price
+    quoteQuantityInPips = Math.max(
+      quoteQuantityInPips,
+      calculateLiquidationQuoteQuantityInPips(
+        maintenanceMarginFractionInPips,
+        oraclePriceInPips,
+        positionSizeInPips,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      )
+    );
+  }
+
   function calculateLiquidationQuoteQuantityInPips(
     uint64 maintenanceMarginFractionInPips,
     uint64 oraclePriceInPips,
@@ -30,6 +61,33 @@ library LiquidationValidations {
     require(quoteQuantityInPips > -2**63, 'Pip quantity underflows int64');
 
     return int64(quoteQuantityInPips);
+  }
+
+  function validateExitQuoteQuantity(
+    int64 costBasisInPips,
+    int64 liquidationQuoteQuantityInPips,
+    uint64 marginFractionInPips,
+    uint64 oraclePriceInPips,
+    int64 positionSizeInPips,
+    int64 totalAccountValueInPips,
+    uint64 totalMaintenanceMarginRequirementInPips
+  ) internal pure {
+    int64 expectedLiquidationQuoteQuantitiesInPips = LiquidationValidations
+      .calculateExitQuoteQuantityInPips(
+        costBasisInPips,
+        marginFractionInPips,
+        oraclePriceInPips,
+        positionSizeInPips,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      );
+    require(
+      expectedLiquidationQuoteQuantitiesInPips - 1 <=
+        liquidationQuoteQuantityInPips &&
+        expectedLiquidationQuoteQuantitiesInPips + 1 >=
+        liquidationQuoteQuantityInPips,
+      'Invalid liquidation quote quantity'
+    );
   }
 
   function validateLiquidationQuoteQuantity(

@@ -4,8 +4,10 @@ pragma solidity 0.8.15;
 
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
+import { LiquidationType } from './Enums.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Margin } from './Margin.sol';
+import { Math } from './Math.sol';
 import { MarketOverrides } from './MarketOverrides.sol';
 import { String } from './String.sol';
 import { SortedStringSet } from './SortedStringSet.sol';
@@ -18,6 +20,7 @@ library Liquidation {
   using SortedStringSet for string[];
 
   struct LiquidatePositionArguments {
+    LiquidationType liquidationType;
     address counterpartyWallet;
     address liquidatingWallet;
     int64 liquidationBaseQuantityInPips;
@@ -33,6 +36,7 @@ library Liquidation {
 
   struct LiquidateWalletArguments {
     // External arguments
+    LiquidationType liquidationType;
     address liquidatingWallet;
     int64[] liquidationQuoteQuantitiesInPips;
     OraclePrice[] insuranceFundOraclePrices;
@@ -46,6 +50,7 @@ library Liquidation {
 
   struct LiquidationAcquisitionDeleverageArguments {
     // External arguments
+    LiquidationType liquidationType;
     string baseAssetSymbol;
     address deleveragingWallet;
     address liquidatingWallet;
@@ -87,11 +92,10 @@ library Liquidation {
   ) internal {
     // FIXME Do not allow liquidation of insurance or exit funds
     // FIXME Allow liquidation of exited wallets without margin check
-
     (
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
-    ) = Margin.loadAndValidateTotalAccountValueAndMaintenanceMarginRequirement(
+    ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
@@ -101,9 +105,16 @@ library Liquidation {
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
+    if (arguments.liquidationType == LiquidationType.InMaintenance) {
+      require(
+        totalAccountValueInPips <
+          int64(totalMaintenanceMarginRequirementInPips),
+        'Maintenance margin requirement met'
+      );
+    }
 
     string[]
       memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
@@ -112,6 +123,7 @@ library Liquidation {
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       liquidatePosition(
         LiquidatePositionArguments(
+          arguments.liquidationType,
           arguments.insuranceFundWallet,
           arguments.liquidatingWallet,
           balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
@@ -177,7 +189,7 @@ library Liquidation {
     (
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
-    ) = Margin.loadAndValidateTotalAccountValueAndMaintenanceMarginRequirement(
+    ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
@@ -187,9 +199,16 @@ library Liquidation {
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
+    if (arguments.liquidationType == LiquidationType.InMaintenance) {
+      require(
+        totalAccountValueInPips <
+          int64(totalMaintenanceMarginRequirementInPips),
+        'Maintenance margin requirement met'
+      );
+    }
 
     // Do not proceed with deleverage if the Insurance Fund can acquire the wallet's positions
     validateInsuranceFundCannotLiquidateWallet(
@@ -205,6 +224,7 @@ library Liquidation {
     // Liquidate specified position by deleveraging a counterparty position at the liquidating wallet's bankruptcy price
     liquidatePosition(
       LiquidatePositionArguments(
+        arguments.liquidationType,
         arguments.deleveragingWallet,
         arguments.liquidatingWallet,
         arguments.liquidationBaseQuantityInPips,
@@ -309,20 +329,46 @@ library Liquidation {
       arguments.oracleWallet
     );
 
-    LiquidationValidations.validateLiquidationQuoteQuantity(
-      arguments.liquidationQuoteQuantityInPips,
-      arguments
-        .market
-        .loadMarketWithOverridesForWallet(
-          arguments.liquidatingWallet,
-          marketOverridesByBaseAssetSymbolAndWallet
-        )
-        .maintenanceMarginFractionInPips,
-      oraclePriceInPips,
-      arguments.liquidationBaseQuantityInPips,
-      arguments.totalAccountValueInPips,
-      arguments.totalMaintenanceMarginRequirementInPips
-    );
+    if (arguments.liquidationType == LiquidationType.InMaintenance) {
+      LiquidationValidations.validateLiquidationQuoteQuantity(
+        arguments.liquidationQuoteQuantityInPips,
+        arguments
+          .market
+          .loadMarketWithOverridesForWallet(
+            arguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .maintenanceMarginFractionInPips,
+        oraclePriceInPips,
+        arguments.liquidationBaseQuantityInPips,
+        arguments.totalAccountValueInPips,
+        arguments.totalMaintenanceMarginRequirementInPips
+      );
+    } else {
+      Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+        arguments.liquidatingWallet,
+        arguments.market.baseAssetSymbol
+      );
+      LiquidationValidations.validateExitQuoteQuantity(
+        Math.multiplyPipsByFraction(
+          balance.costBasisInPips,
+          arguments.liquidationBaseQuantityInPips,
+          balance.balanceInPips
+        ),
+        arguments.liquidationQuoteQuantityInPips,
+        arguments
+          .market
+          .loadMarketWithOverridesForWallet(
+            arguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .maintenanceMarginFractionInPips,
+        oraclePriceInPips,
+        arguments.liquidationBaseQuantityInPips,
+        arguments.totalAccountValueInPips,
+        arguments.totalMaintenanceMarginRequirementInPips
+      );
+    }
 
     balanceTracking.updatePositionForLiquidation(
       arguments.liquidationBaseQuantityInPips,
@@ -422,25 +468,56 @@ library Liquidation {
         );
 
       // Validate provided liquidation quote quantity
-      LiquidationValidations.validateLiquidationQuoteQuantity(
-        arguments.liquidationQuoteQuantitiesInPips[i],
-        loadArguments
-          .markets[i]
-          .loadMarketWithOverridesForWallet(
-            arguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
-          .maintenanceMarginFractionInPips,
-        loadArguments.oraclePricesInPips[i],
-        balanceTracking
-          .loadBalanceAndMigrateIfNeeded(
-            arguments.liquidatingWallet,
-            baseAssetSymbols[i]
-          )
-          .balanceInPips,
-        liquidatingWalletTotalAccountValueInPips,
-        liquidatingWalletTotalMaintenanceMarginRequirementInPips
-      );
+      if (arguments.liquidationType == LiquidationType.InMaintenance) {
+        LiquidationValidations.validateLiquidationQuoteQuantity(
+          arguments.liquidationQuoteQuantitiesInPips[i],
+          loadArguments
+            .markets[i]
+            .loadMarketWithOverridesForWallet(
+              arguments.liquidatingWallet,
+              marketOverridesByBaseAssetSymbolAndWallet
+            )
+            .maintenanceMarginFractionInPips,
+          loadArguments.oraclePricesInPips[i],
+          balanceTracking
+            .loadBalanceAndMigrateIfNeeded(
+              arguments.liquidatingWallet,
+              baseAssetSymbols[i]
+            )
+            .balanceInPips,
+          liquidatingWalletTotalAccountValueInPips,
+          liquidatingWalletTotalMaintenanceMarginRequirementInPips
+        );
+      } else {
+        Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+          arguments.liquidatingWallet,
+          loadArguments.markets[i].baseAssetSymbol
+        );
+        LiquidationValidations.validateExitQuoteQuantity(
+          Math.multiplyPipsByFraction(
+            balance.costBasisInPips,
+            arguments.liquidationBaseQuantityInPips,
+            balance.balanceInPips
+          ),
+          arguments.liquidationQuoteQuantitiesInPips[i],
+          loadArguments
+            .markets[i]
+            .loadMarketWithOverridesForWallet(
+              arguments.liquidatingWallet,
+              marketOverridesByBaseAssetSymbolAndWallet
+            )
+            .maintenanceMarginFractionInPips,
+          loadArguments.oraclePricesInPips[i],
+          balanceTracking
+            .loadBalanceAndMigrateIfNeeded(
+              arguments.liquidatingWallet,
+              baseAssetSymbols[i]
+            )
+            .balanceInPips,
+          liquidatingWalletTotalAccountValueInPips,
+          liquidatingWalletTotalMaintenanceMarginRequirementInPips
+        );
+      }
     }
 
     Margin.validateInsuranceFundCannotLiquidateWallet(

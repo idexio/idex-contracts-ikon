@@ -23,6 +23,11 @@ export const pipsDecimals = 8;
 
 export const signatureHashVersion = 105;
 
+export enum LiquidationType {
+  Exited,
+  InMaintenance,
+}
+
 export enum OrderSelfTradePrevention {
   DecreaseAndCancel,
   CancelOldest,
