@@ -195,8 +195,14 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
+    require(
+      arguments.liquidationType == LiquidationType.Exited ||
+        arguments.liquidationType == LiquidationType.InMaintenance,
+      'Unsupported liquidation type'
+    );
+
     // FIXME Do not allow liquidation of insurance or exit funds
-    // FIXME Allow liquidation of exited wallets without margin check
+
     (
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
@@ -281,6 +287,12 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
+    require(
+      arguments.liquidationType == LiquidationType.Exited ||
+        arguments.liquidationType == LiquidationType.InMaintenance,
+      'Unsupported liquidation type'
+    );
+
     (
       Market memory market,
       OraclePrice memory oraclePrice

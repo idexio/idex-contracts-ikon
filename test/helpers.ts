@@ -180,6 +180,7 @@ export async function deployAndAssociateContracts(
         '14000000000',
         '2800000000',
         '282000000000',
+        '2000000000',
       )
     ).wait(),
   ]);
