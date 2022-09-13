@@ -94,7 +94,7 @@ library Funding {
     OraclePrice[] memory oraclePrices,
     int64[] memory fundingRatesInPips,
     uint8 quoteAssetDecimals,
-    address oracleWalletAddress,
+    address oracleWallet,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
@@ -109,7 +109,7 @@ library Funding {
         .validateOraclePriceAndConvertToPips(
           oraclePrice,
           quoteAssetDecimals,
-          oracleWalletAddress
+          oracleWallet
         );
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[

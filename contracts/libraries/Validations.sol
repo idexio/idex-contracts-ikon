@@ -22,7 +22,7 @@ library Validations {
     OraclePrice memory oraclePrice,
     uint8 quoteAssetDecimals,
     Market storage market,
-    address oracleWalletAddress
+    address oracleWallet
   ) internal returns (uint64) {
     market.lastOraclePriceTimestampInMs = oraclePrice.timestampInMs;
 
@@ -31,7 +31,7 @@ library Validations {
         oraclePrice,
         quoteAssetDecimals,
         market,
-        oracleWalletAddress
+        oracleWallet
       );
   }
 
@@ -39,7 +39,7 @@ library Validations {
     OraclePrice memory oraclePrice,
     uint8 quoteAssetDecimals,
     Market memory market,
-    address oracleWalletAddress
+    address oracleWallet
   ) internal pure returns (uint64) {
     require(
       String.isEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol),
@@ -55,17 +55,17 @@ library Validations {
       validateOraclePriceAndConvertToPips(
         oraclePrice,
         quoteAssetDecimals,
-        oracleWalletAddress
+        oracleWallet
       );
   }
 
   function validateOraclePriceAndConvertToPips(
     OraclePrice memory oraclePrice,
     uint8 quoteAssetDecimals,
-    address oracleWalletAddress
+    address oracleWallet
   ) internal pure returns (uint64) {
     // TODO Validate timestamp recency
-    validateOraclePriceSignature(oraclePrice, oracleWalletAddress);
+    validateOraclePriceSignature(oraclePrice, oracleWallet);
 
     return
       AssetUnitConversions.assetUnitsToPips(
@@ -76,7 +76,7 @@ library Validations {
 
   function validateOraclePriceSignature(
     OraclePrice memory oraclePrice,
-    address oracleWalletAddress
+    address oracleWallet
   ) internal pure returns (bytes32) {
     bytes32 oraclePriceHash = Hashing.getOraclePriceHash(oraclePrice);
 
@@ -84,7 +84,7 @@ library Validations {
       Hashing.isSignatureValid(
         oraclePriceHash,
         oraclePrice.signature,
-        oracleWalletAddress
+        oracleWallet
       ),
       'Invalid oracle signature'
     );

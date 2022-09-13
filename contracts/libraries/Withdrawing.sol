@@ -26,19 +26,20 @@ library Withdrawing {
     string quoteAssetSymbol;
     ICustodian custodian;
     address feeWallet;
-    address oracleWalletAddress;
+    address oracleWallet;
   }
 
   struct WithdrawExitArguments {
     // External arguments
+    address wallet;
     OraclePrice[] oraclePrices;
     // Exchange state
+    ICustodian custodian;
+    address exitFundWallet;
+    address oracleWallet;
     address quoteAssetAddress;
     uint8 quoteAssetDecimals;
     string quoteAssetSymbol;
-    ICustodian custodian;
-    address exitFundWallet;
-    address oracleWalletAddress;
   }
 
   function withdraw(
@@ -94,7 +95,7 @@ library Withdrawing {
         Margin.LoadArguments(
           arguments.withdrawal.walletAddress,
           arguments.oraclePrices,
-          arguments.oracleWalletAddress,
+          arguments.oracleWallet,
           arguments.quoteAssetDecimals,
           arguments.quoteAssetSymbol
         ),
@@ -137,7 +138,7 @@ library Withdrawing {
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) public returns (uint64) {
     Funding.updateWalletFunding(
-      msg.sender,
+      arguments.wallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -155,7 +156,7 @@ library Withdrawing {
     );
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
-      msg.sender,
+      arguments.wallet,
       arguments.quoteAssetSymbol
     );
     quoteQuantityInPips += balance.balanceInPips;
@@ -164,7 +165,7 @@ library Withdrawing {
     require(quoteQuantityInPips > 0, 'Negative quote after exit');
 
     arguments.custodian.withdraw(
-      msg.sender,
+      arguments.wallet,
       arguments.quoteAssetAddress,
       AssetUnitConversions.pipsToAssetUnits(
         uint64(quoteQuantityInPips),
@@ -210,7 +211,7 @@ library Withdrawing {
           arguments.oraclePrices[i],
           arguments.quoteAssetDecimals,
           market,
-          arguments.oracleWalletAddress
+          arguments.oracleWallet
         ),
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
@@ -240,7 +241,7 @@ library Withdrawing {
       Margin.LoadArguments(
         msg.sender,
         arguments.oraclePrices,
-        arguments.oracleWalletAddress,
+        arguments.oracleWallet,
         arguments.quoteAssetDecimals,
         arguments.quoteAssetSymbol
       ),
@@ -254,7 +255,7 @@ library Withdrawing {
         Margin.LoadArguments(
           msg.sender,
           arguments.oraclePrices,
-          arguments.oracleWalletAddress,
+          arguments.oracleWallet,
           arguments.quoteAssetDecimals,
           arguments.quoteAssetSymbol
         ),

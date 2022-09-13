@@ -11,8 +11,8 @@ pragma solidity 0.8.15;
 enum LiquidationType {
   Dust,
   Exited,
-  InMaintenance
-  // TODO SystemRecovery
+  InMaintenance,
+  SystemRecovery
 }
 
 // Order book //

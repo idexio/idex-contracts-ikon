@@ -83,7 +83,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
     Funding.updateWalletFunding(
-      arguments.insuranceFundWallet,
+      arguments.counterpartyWallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -237,7 +237,7 @@ library Perpetual {
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 quoteAssetDecimals,
-    address oracleWalletAddress,
+    address oracleWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -250,7 +250,7 @@ library Perpetual {
         wallet,
         oraclePrices,
         quoteAssetDecimals,
-        oracleWalletAddress,
+        oracleWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -262,7 +262,7 @@ library Perpetual {
     address wallet,
     OraclePrice[] memory oraclePrices,
     uint8 quoteAssetDecimals,
-    address oracleWalletAddress,
+    address oracleWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -275,7 +275,7 @@ library Perpetual {
         wallet,
         oraclePrices,
         quoteAssetDecimals,
-        oracleWalletAddress,
+        oracleWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -287,7 +287,7 @@ library Perpetual {
     OraclePrice[] memory oraclePrices,
     int64[] memory fundingRatesInPips,
     uint8 quoteAssetDecimals,
-    address oracleWalletAddress,
+    address oracleWallet,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
@@ -297,7 +297,7 @@ library Perpetual {
       oraclePrices,
       fundingRatesInPips,
       quoteAssetDecimals,
-      oracleWalletAddress,
+      oracleWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol
     );

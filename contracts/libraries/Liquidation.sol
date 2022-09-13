@@ -52,15 +52,15 @@ library Liquidation {
   struct LiquidateWalletArguments {
     // External arguments
     LiquidationType liquidationType;
+    address counterpartyWallet; // Insurance Fund or Exit Fund
+    OraclePrice[] counterpartyWalletOraclePrices; // After acquiring liquidated positions
     address liquidatingWallet;
-    int64[] liquidationQuoteQuantitiesInPips;
-    OraclePrice[] insuranceFundOraclePrices;
     OraclePrice[] liquidatingWalletOraclePrices;
+    int64[] liquidationQuoteQuantitiesInPips;
     // Exchange state
+    address oracleWallet;
     uint8 quoteAssetDecimals;
     string quoteAssetSymbol;
-    address insuranceFundWallet;
-    address oracleWallet;
   }
 
   struct LiquidationAcquisitionDeleverageArguments {
@@ -195,12 +195,6 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
-    require(
-      arguments.liquidationType == LiquidationType.Exited ||
-        arguments.liquidationType == LiquidationType.InMaintenance,
-      'Unsupported liquidation type'
-    );
-
     // FIXME Do not allow liquidation of insurance or exit funds
 
     (
@@ -219,7 +213,10 @@ library Liquidation {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-    if (arguments.liquidationType == LiquidationType.InMaintenance) {
+    if (
+      arguments.liquidationType == LiquidationType.InMaintenance ||
+      arguments.liquidationType == LiquidationType.SystemRecovery
+    ) {
       require(
         totalAccountValueInPips <
           int64(totalMaintenanceMarginRequirementInPips),
@@ -235,7 +232,7 @@ library Liquidation {
       liquidatePosition(
         LiquidatePositionArguments(
           arguments.liquidationType,
-          arguments.insuranceFundWallet,
+          arguments.counterpartyWallet,
           arguments.liquidatingWallet,
           balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
             arguments.liquidatingWallet,
@@ -258,24 +255,29 @@ library Liquidation {
 
     balanceTracking.updateQuoteForLiquidation(
       arguments.quoteAssetSymbol,
-      arguments.insuranceFundWallet,
+      arguments.counterpartyWallet,
       arguments.liquidatingWallet
     );
 
-    // Validate that the Insurance Fund still meets its initial margin requirements
-    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-      Margin.LoadArguments(
-        arguments.insuranceFundWallet,
-        arguments.insuranceFundOraclePrices,
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol
-      ),
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
-    );
+    if (
+      arguments.liquidationType == LiquidationType.Exited ||
+      arguments.liquidationType == LiquidationType.InMaintenance
+    ) {
+      // Validate that the Insurance Fund still meets its initial margin requirements
+      Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+        Margin.LoadArguments(
+          arguments.counterpartyWallet,
+          arguments.counterpartyWalletOraclePrices,
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
+        ),
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol,
+        marketOverridesByBaseAssetSymbolAndWallet
+      );
+    }
   }
 
   function liquidationAcquisitionDeleverage(
