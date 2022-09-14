@@ -170,7 +170,7 @@ library Trading {
         Margin.LoadArguments(
           arguments.buy.walletAddress,
           arguments.buyOraclePrices,
-          arguments.oracleWalletAddress,
+          arguments.oracleWallet,
           arguments.quoteAssetDecimals,
           arguments.quoteAssetSymbol
         ),
@@ -186,7 +186,7 @@ library Trading {
         Margin.LoadArguments(
           arguments.sell.walletAddress,
           arguments.sellOraclePrices,
-          arguments.oracleWalletAddress,
+          arguments.oracleWallet,
           arguments.quoteAssetDecimals,
           arguments.quoteAssetSymbol
         ),

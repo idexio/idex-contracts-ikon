@@ -380,7 +380,9 @@ describe('Exchange', function () {
       console.log(await usdc.balanceOf(custodian.address));
 
       await exchange.connect(trader1).exitWallet();
-      await exchange.connect(trader1).withdrawExit([oraclePrice]);
+      await exchange
+        .connect(trader2)
+        .withdrawExit(trader1.address, [oraclePrice]);
 
       console.log(await usdc.balanceOf(custodian.address));
       /*

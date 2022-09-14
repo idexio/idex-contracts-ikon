@@ -39,7 +39,7 @@ struct ExecuteOrderBookTradeArguments {
   string quoteAssetSymbol;
   uint64 delegateKeyExpirationPeriodInMs;
   address feeWallet;
-  address oracleWalletAddress;
+  address oracleWallet;
 }
 
 /**

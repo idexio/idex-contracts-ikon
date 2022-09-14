@@ -27,6 +27,7 @@ export enum LiquidationType {
   Dust,
   Exited,
   InMaintenance,
+  SystemRecovery,
 }
 
 export enum OrderSelfTradePrevention {
