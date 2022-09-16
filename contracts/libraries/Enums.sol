@@ -6,13 +6,22 @@ pragma solidity 0.8.15;
  * @notice Enums definitions
  */
 
-// Internal - liquidations //
+// Automatic Deleveraging (ADL) //
+
+enum DeleverageType {
+  ExitAcquisition,
+  ExitFundClosure,
+  InMaintenanceAcquisition,
+  InsuranceFundClosure
+}
+
+// Liquidations //
 
 enum LiquidationType {
-  Dust,
-  Exited,
-  InMaintenance,
-  SystemRecovery
+  DustPosition,
+  ExitedWallet,
+  InMaintenanceWallet,
+  InMaintenanceWalletDuringSystemRecovery
 }
 
 // Order book //

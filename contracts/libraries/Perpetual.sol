@@ -3,6 +3,7 @@
 import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
+import { Deleveraging } from './Deleveraging.sol';
 import { Funding } from './Funding.sol';
 import { FundingMultipliers } from './FundingMultipliers.sol';
 import { Liquidation } from './Liquidation.sol';
@@ -101,8 +102,8 @@ library Perpetual {
     );
   }
 
-  function liquidationAcquisitionDeleverage(
-    Liquidation.LiquidationAcquisitionDeleverageArguments memory arguments,
+  function deleverageLiquidationAcquisition(
+    Deleveraging.DeleverageLiquidationAcquisitionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -133,7 +134,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidationAcquisitionDeleverage(
+    Deleveraging.deleverageLiquidationAcquisition(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -142,8 +143,8 @@ library Perpetual {
     );
   }
 
-  function liquidationClosureDeleverage(
-    Liquidation.LiquidationClosureDeleverageArguments memory arguments,
+  function deleverageLiquidationClosure(
+    Deleveraging.DeleverageLiquidationClosureArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -165,7 +166,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
     Funding.updateWalletFunding(
-      arguments.insuranceFundWallet,
+      arguments.liquidatingWallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -174,7 +175,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidationClosureDeleverage(
+    Deleveraging.deleverageLiquidationClosure(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

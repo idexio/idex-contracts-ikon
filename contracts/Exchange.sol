@@ -6,21 +6,22 @@ import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { AssetUnitConversions } from './libraries/AssetUnitConversions.sol';
 import { BalanceTracking } from './libraries/BalanceTracking.sol';
 import { Constants } from './libraries/Constants.sol';
+import { Deleveraging } from './libraries/Deleveraging.sol';
 import { Depositing } from './libraries/Depositing.sol';
 import { Hashing } from './libraries/Hashing.sol';
 import { Liquidation } from './libraries/Liquidation.sol';
 import { Margin } from './libraries/Margin.sol';
-import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
-import { LiquidationType, OrderSide } from './libraries/Enums.sol';
 import { Owned } from './Owned.sol';
 import { Perpetual } from './libraries/Perpetual.sol';
 import { String } from './libraries/String.sol';
 import { Trading } from './libraries/Trading.sol';
 import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
-import { ICustodian, IExchange } from './libraries/Interfaces.sol';
 import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
+import { DeleverageType, LiquidationType, OrderSide } from './libraries/Enums.sol';
+import { ICustodian, IExchange } from './libraries/Interfaces.sol';
+import { NonceInvalidation, Withdrawal } from './libraries/Structs.sol';
 
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
@@ -555,7 +556,8 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  // TODO ADL support?
+  // Liquidation //
+
   function liquidateDustPosition(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
@@ -593,7 +595,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) external onlyDispatcher {
     Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
-        LiquidationType.InMaintenance,
+        LiquidationType.InMaintenanceWallet,
         _insuranceFundWallet,
         insuranceFundOraclePrices,
         liquidatingWallet,
@@ -624,7 +626,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
-        LiquidationType.SystemRecovery,
+        LiquidationType.InMaintenanceWalletDuringSystemRecovery,
         _exitFundWallet,
         new OraclePrice[](0),
         liquidatingWallet,
@@ -653,7 +655,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
-        LiquidationType.Exited,
+        LiquidationType.ExitedWallet,
         _insuranceFundWallet,
         insuranceFundOraclePrices,
         liquidatingWallet,
@@ -672,7 +674,9 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  function liquidationAcquisitionDeleverage(
+  // Automatic Deleveraging (ADL) //
+
+  function deleverageInMaintenanceAcquisition(
     LiquidationType liquidationType,
     string calldata baseAssetSymbol,
     address deleveragingWallet,
@@ -684,13 +688,9 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    if (liquidationType == LiquidationType.Exited) {
-      require(_walletExits[liquidatingWallet].exists, 'Wallet not exited');
-    }
-
-    Perpetual.liquidationAcquisitionDeleverage(
-      Liquidation.LiquidationAcquisitionDeleverageArguments(
-        liquidationType,
+    Perpetual.deleverageLiquidationAcquisition(
+      Deleveraging.DeleverageLiquidationAcquisitionArguments(
+        DeleverageType.InMaintenanceAcquisition,
         baseAssetSymbol,
         deleveragingWallet,
         liquidatingWallet,
@@ -714,23 +714,95 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  function liquidationClosureDeleverage(
+  /**
+   * @notice Closes an open Insurance Fund positions by deleveraging
+   */
+  function deleverageInsuranceFundClosure(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
     int64 liquidationBaseQuantityInPips,
     int64 liquidationQuoteQuantityInPips,
     OraclePrice[] calldata deleveragingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidationClosureDeleverage(
-      Liquidation.LiquidationClosureDeleverageArguments(
+    Perpetual.deleverageLiquidationClosure(
+      Deleveraging.DeleverageLiquidationClosureArguments(
+        DeleverageType.InsuranceFundClosure,
         baseAssetSymbol,
         deleveragingWallet,
+        _insuranceFundWallet,
         liquidationBaseQuantityInPips,
         liquidationQuoteQuantityInPips,
         deleveragingWalletOraclePrices,
         _quoteAssetDecimals,
         _quoteAssetSymbol,
+        _oracleWallet
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function deleverageExitAcquisition(
+    string calldata baseAssetSymbol,
+    address deleveragingWallet,
+    address liquidatingWallet,
+    int64[] memory liquidationQuoteQuantitiesInPips,
+    int64 liquidationBaseQuantityInPips,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata deleveragingWalletOraclePrices,
+    OraclePrice[] calldata insuranceFundOraclePrices,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
+  ) external onlyDispatcher {
+    require(_walletExits[liquidatingWallet].exists, 'Wallet not exited');
+
+    Perpetual.deleverageLiquidationAcquisition(
+      Deleveraging.DeleverageLiquidationAcquisitionArguments(
+        DeleverageType.ExitAcquisition,
+        baseAssetSymbol,
+        deleveragingWallet,
+        liquidatingWallet,
+        liquidationQuoteQuantitiesInPips,
+        liquidationBaseQuantityInPips,
+        liquidationQuoteQuantityInPips,
+        deleveragingWalletOraclePrices,
+        insuranceFundOraclePrices,
+        liquidatingWalletOraclePrices,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
         _insuranceFundWallet,
+        _oracleWallet
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function deleverageExitFundClosure(
+    string calldata baseAssetSymbol,
+    address deleveragingWallet,
+    int64 liquidationBaseQuantityInPips,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata deleveragingWalletOraclePrices
+  ) external onlyDispatcher {
+    Perpetual.deleverageLiquidationClosure(
+      Deleveraging.DeleverageLiquidationClosureArguments(
+        DeleverageType.ExitFundClosure,
+        baseAssetSymbol,
+        deleveragingWallet,
+        _exitFundWallet,
+        liquidationBaseQuantityInPips,
+        liquidationQuoteQuantityInPips,
+        deleveragingWalletOraclePrices,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol,
         _oracleWallet
       ),
       _balanceTracking,
