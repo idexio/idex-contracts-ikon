@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 /**
  * @notice Enums definitions
@@ -18,7 +18,6 @@ enum DeleverageType {
 // Liquidations //
 
 enum LiquidationType {
-  DustPosition,
   ExitedWallet,
   InMaintenanceWallet,
   InMaintenanceWalletDuringSystemRecovery

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
@@ -26,8 +26,8 @@ library Deleveraging {
     address deleveragingWallet;
     address liquidatingWallet;
     int64[] liquidationQuoteQuantitiesInPips; // For all open positions
-    int64 liquidationBaseQuantityInPips; // For the position being liquidating
-    int64 liquidationQuoteQuantityInPips; // For the position being deleveraged
+    int64 liquidationBaseQuantityInPips; // For the position being liquidated
+    int64 liquidationQuoteQuantityInPips; // For the position being liquidated
     OraclePrice[] deleveragingWalletOraclePrices; // After acquiring liquidating positions
     OraclePrice[] insuranceFundOraclePrices; // After acquiring liquidating positions
     OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
@@ -46,6 +46,7 @@ library Deleveraging {
     address liquidatingWallet;
     int64 liquidationBaseQuantityInPips;
     int64 liquidationQuoteQuantityInPips;
+    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
     OraclePrice[] deleveragingWalletOraclePrices; // After acquiring IF positions
     // Exchange state
     uint8 quoteAssetDecimals;
@@ -58,9 +59,9 @@ library Deleveraging {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
     (
       Market memory market,
@@ -103,8 +104,8 @@ library Deleveraging {
       totalMaintenanceMarginRequirementInPips,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
 
     // Liquidate specified position by deleveraging a counterparty position at the liquidating wallet's bankruptcy price
@@ -131,8 +132,8 @@ library Deleveraging {
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -141,38 +142,27 @@ library Deleveraging {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
-    // Validate that the liquidation price is within 1 pip of the cost basis for position
-    int64 expectedLiquidationQuoteQuantitiesInPips = balanceTracking
-      .loadBalanceAndMigrateIfNeeded(
-        arguments.liquidatingWallet,
-        arguments.baseAssetSymbol
-      )
-      .costBasisInPips;
-    require(
-      expectedLiquidationQuoteQuantitiesInPips - 1 <=
-        arguments.liquidationQuoteQuantityInPips &&
-        expectedLiquidationQuoteQuantitiesInPips + 1 >=
-        arguments.liquidationQuoteQuantityInPips,
-      'Invalid liquidation quote quantity'
-    );
-
-    balanceTracking.updatePositionForLiquidation(
-      arguments.liquidationBaseQuantityInPips,
-      arguments.deleveragingWallet,
-      arguments.liquidatingWallet,
-      loadMarket(
+    (
+      Market memory market,
+      OraclePrice memory oraclePrice
+    ) = loadMarketAndOraclePrice(
         arguments,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketsByBaseAssetSymbol
-      ),
-      arguments.quoteAssetSymbol,
-      arguments.liquidationQuoteQuantityInPips,
+      );
+
+    validateQuoteQuantityAndDeleveragePosition(
+      arguments,
+      market,
+      oraclePrice,
+      balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
@@ -186,8 +176,8 @@ library Deleveraging {
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -262,6 +252,81 @@ library Deleveraging {
     );
   }
 
+  function validateQuoteQuantityAndDeleveragePosition(
+    DeleverageLiquidationClosureArguments memory arguments,
+    Market memory market,
+    OraclePrice memory oraclePrice,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private {
+    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+      arguments.liquidatingWallet,
+      market.baseAssetSymbol
+    );
+    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
+      oraclePrice,
+      arguments.quoteAssetDecimals,
+      market,
+      arguments.oracleWallet
+    );
+
+    if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
+      LiquidationValidations.validateInsuranceFundClosureQuoteQuantityInPips(
+        arguments.liquidationBaseQuantityInPips,
+        balance.costBasisInPips,
+        balance.balanceInPips,
+        arguments.liquidationQuoteQuantityInPips
+      );
+    } else {
+      (
+        int64 totalAccountValueInPips,
+        uint64 totalMaintenanceMarginRequirementInPips
+      ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+          Margin.LoadArguments(
+            arguments.liquidatingWallet,
+            arguments.liquidatingWalletOraclePrices,
+            arguments.oracleWallet,
+            arguments.quoteAssetDecimals,
+            arguments.quoteAssetSymbol
+          ),
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
+        );
+
+      // DeleverageType.ExitFundClosure
+      LiquidationValidations.validateExitFundClosureQuoteQuantityInPips(
+        arguments.liquidationBaseQuantityInPips,
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .maintenanceMarginFractionInPips,
+        oraclePriceInPips,
+        balance.balanceInPips,
+        arguments.liquidationQuoteQuantityInPips,
+        totalAccountValueInPips,
+        totalMaintenanceMarginRequirementInPips
+      );
+    }
+    balanceTracking.updatePositionForDeleverage(
+      arguments.liquidationBaseQuantityInPips,
+      arguments.deleveragingWallet,
+      arguments.liquidatingWallet,
+      market,
+      arguments.quoteAssetSymbol,
+      arguments.liquidationQuoteQuantityInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
   function loadMarketAndOraclePrice(
     DeleverageLiquidationAcquisitionArguments memory arguments,
     mapping(address => string[])
@@ -286,12 +351,16 @@ library Deleveraging {
     require(market.exists, 'Invalid market');
   }
 
-  function loadMarket(
+  function loadMarketAndOraclePrice(
     DeleverageLiquidationClosureArguments memory arguments,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market) {
+  )
+    private
+    view
+    returns (Market memory market, OraclePrice memory oraclePrice)
+  {
     string[]
       memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
         arguments.liquidatingWallet
@@ -299,6 +368,7 @@ library Deleveraging {
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
         market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+        oraclePrice = arguments.liquidatingWalletOraclePrices[i];
       }
     }
 
@@ -312,9 +382,9 @@ library Deleveraging {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     string[]
       memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[

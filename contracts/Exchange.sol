@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { AssetUnitConversions } from './libraries/AssetUnitConversions.sol';
@@ -582,8 +582,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -609,8 +609,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -640,8 +640,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -669,8 +669,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -709,8 +709,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -741,8 +741,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -780,8 +780,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -809,8 +809,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -844,8 +844,8 @@ contract Exchange_v4 is IExchange, Owned {
       _completedWithdrawalHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
 
     emit Withdrawn(
@@ -1023,8 +1023,8 @@ contract Exchange_v4 is IExchange, Owned {
         _oracleWallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
-        _marketsByBaseAssetSymbol,
-        _marketOverridesByBaseAssetSymbolAndWallet
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1095,8 +1095,8 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
 
     emit WalletExitWithdrawn(wallet, quantityInPips);

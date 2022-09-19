@@ -13,14 +13,14 @@ import { String } from './String.sol';
 import { Validations } from './Validations.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 // TODO Gas optimization - several of the functions here iterate over all a wallet's position, potentially these
 // multiple iterations could be combined
 library Perpetual {
   using BalanceTracking for BalanceTracking.Storage;
 
-  function liquidateDustPosition(
+  /*function liquidateDustPosition(
     Liquidation.LiquidateDustPositionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -29,9 +29,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.liquidatingWallet,
@@ -56,8 +56,8 @@ library Perpetual {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -70,9 +70,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.liquidatingWallet,
@@ -97,10 +97,10 @@ library Perpetual {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
-  }
+  }*/
 
   function deleverageLiquidationAcquisition(
     Deleveraging.DeleverageLiquidationAcquisitionArguments memory arguments,
@@ -111,9 +111,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.deleveragingWallet,
@@ -138,8 +138,8 @@ library Perpetual {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -152,9 +152,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.deleveragingWallet,
@@ -179,8 +179,8 @@ library Perpetual {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -242,9 +242,9 @@ library Perpetual {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 initialMarginRequirement) {
     return
       Margin.loadTotalInitialMarginRequirement(

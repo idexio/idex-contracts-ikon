@@ -3,7 +3,7 @@
 import { Constants } from './Constants.sol';
 import { FundingMultiplierQuartet } from './Structs.sol';
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import 'hardhat/console.sol';
 

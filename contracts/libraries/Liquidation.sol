@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
@@ -77,9 +77,9 @@ library Liquidation {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
     (
       int64 totalAccountValueInPips,
@@ -102,55 +102,12 @@ library Liquidation {
       'Maintenance margin requirement not met'
     );
 
-    (
-      Market memory market,
-      OraclePrice memory oraclePrice
-    ) = loadMarketAndOraclePrice(
-        arguments,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      );
-
-    // Validate that position is under dust threshold
-    int64 positionSizeInPips = balanceTracking
-      .loadBalanceInPipsFromMigrationSourceIfNeeded(
-        arguments.liquidatingWallet,
-        arguments.baseAssetSymbol
-      );
-    require(
-      Math.abs(positionSizeInPips) <
-        market
-          .loadMarketWithOverridesForWallet(
-            arguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
-          .minimumPositionSizeInPips,
-      'Position size above minimum'
-    );
-
-    // Validate quote quantity
-    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
-      oraclePrice,
-      arguments.quoteAssetDecimals,
-      market,
-      arguments.oracleWallet
-    );
-    LiquidationValidations.validateDustLiquidationQuoteQuantity(
-      arguments.dustPositionLiquidationPriceToleranceBasisPoints,
-      arguments.liquidationQuoteQuantityInPips,
-      oraclePriceInPips,
-      positionSizeInPips
-    );
-
-    balanceTracking.updatePositionForLiquidation(
-      positionSizeInPips,
-      arguments.insuranceFundWallet,
-      arguments.liquidatingWallet,
-      market,
-      arguments.quoteAssetSymbol,
-      arguments.liquidationQuoteQuantityInPips,
+    validateQuantitiesAndLiquidateDustPosition(
+      arguments,
+      balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -159,9 +116,9 @@ library Liquidation {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
     // FIXME Do not allow liquidation of insurance or exit funds
 
@@ -231,10 +188,71 @@ library Liquidation {
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
     }
+  }
+
+  function validateQuantitiesAndLiquidateDustPosition(
+    LiquidateDustPositionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private {
+    (
+      Market memory market,
+      OraclePrice memory oraclePrice
+    ) = loadMarketAndOraclePrice(
+        arguments,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
+
+    // Validate that position is under dust threshold
+    int64 positionSizeInPips = balanceTracking
+      .loadBalanceInPipsFromMigrationSourceIfNeeded(
+        arguments.liquidatingWallet,
+        arguments.baseAssetSymbol
+      );
+    require(
+      Math.abs(positionSizeInPips) <
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .minimumPositionSizeInPips,
+      'Position size above minimum'
+    );
+
+    // Validate quote quantity
+    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
+      oraclePrice,
+      arguments.quoteAssetDecimals,
+      market,
+      arguments.oracleWallet
+    );
+    LiquidationValidations.validateDustLiquidationQuoteQuantity(
+      arguments.dustPositionLiquidationPriceToleranceBasisPoints,
+      arguments.liquidationQuoteQuantityInPips,
+      oraclePriceInPips,
+      positionSizeInPips
+    );
+
+    balanceTracking.updatePositionForLiquidation(
+      positionSizeInPips,
+      arguments.insuranceFundWallet,
+      arguments.liquidatingWallet,
+      market,
+      arguments.quoteAssetSymbol,
+      arguments.liquidationQuoteQuantityInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
   }
 
   function validateQuoteQuantityAndLiquidatePosition(
