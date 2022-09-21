@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import { Constants } from './Constants.sol';
 import { IExchange } from './Interfaces.sol';
@@ -44,6 +44,33 @@ library BalanceTracking {
 
   // Liquidation //
 
+  function updatePositionForDeleverage(
+    Storage storage self,
+    int64 baseQuantityInPips,
+    address counterpartyWallet,
+    address liquidatingWallet,
+    Market memory market,
+    string memory quoteAssetSymbol,
+    int64 quoteQuantityInPips,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) internal {
+    updatePositionForDeleverageOrLiquidation(
+      self,
+      true,
+      baseQuantityInPips,
+      counterpartyWallet,
+      liquidatingWallet,
+      market,
+      quoteAssetSymbol,
+      quoteQuantityInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
   function updatePositionForLiquidation(
     Storage storage self,
     int64 baseQuantityInPips,
@@ -57,6 +84,34 @@ library BalanceTracking {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
+    updatePositionForDeleverageOrLiquidation(
+      self,
+      false,
+      baseQuantityInPips,
+      counterpartyWallet,
+      liquidatingWallet,
+      market,
+      quoteAssetSymbol,
+      quoteQuantityInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
+  function updatePositionForDeleverageOrLiquidation(
+    Storage storage self,
+    bool isDeleverage,
+    int64 baseQuantityInPips,
+    address counterpartyWallet,
+    address liquidatingWallet,
+    Market memory market,
+    string memory quoteAssetSymbol,
+    int64 quoteQuantityInPips,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private {
     Balance storage balance;
 
     // Wallet position decreases by specified base quantity
@@ -93,6 +148,12 @@ library BalanceTracking {
       counterpartyWallet,
       market.baseAssetSymbol
     );
+    if (isDeleverage) {
+      validatePositionUpdatedTowardsZero(
+        balance.balanceInPips,
+        balance.balanceInPips + baseQuantityInPips
+      );
+    }
     updatePosition(
       balance,
       baseQuantityInPips,

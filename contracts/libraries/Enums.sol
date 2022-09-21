@@ -1,18 +1,26 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 /**
  * @notice Enums definitions
  */
 
-// Internal - liquidations //
+// Automatic Deleveraging (ADL) //
+
+enum DeleverageType {
+  ExitAcquisition,
+  ExitFundClosure,
+  InMaintenanceAcquisition,
+  InsuranceFundClosure
+}
+
+// Liquidations //
 
 enum LiquidationType {
-  Dust,
-  Exited,
-  InMaintenance,
-  SystemRecovery
+  ExitedWallet,
+  InMaintenanceWallet,
+  InMaintenanceWalletDuringSystemRecovery
 }
 
 // Order book //

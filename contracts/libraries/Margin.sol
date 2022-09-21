@@ -11,7 +11,7 @@ import { String } from './String.sol';
 import { Validations } from './Validations.sol';
 import { Balance, Market, OraclePrice } from './Structs.sol';
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 library Margin {
   using BalanceTracking for BalanceTracking.Storage;
@@ -44,9 +44,9 @@ library Margin {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (bool) {
     return
       loadTotalAccountValue(
@@ -71,9 +71,9 @@ library Margin {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   )
     internal
     returns (
@@ -253,8 +253,8 @@ library Margin {
         arguments,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -345,12 +345,13 @@ library Margin {
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (uint64 maintenanceMarginRequirement) {
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      wallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        wallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       (Market memory market, OraclePrice memory oraclePrice) = (
-        marketsByBaseAssetSymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         oraclePrices[i]
       );
 
@@ -376,9 +377,9 @@ library Margin {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (uint64 initialMarginRequirement) {
     string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
       arguments.wallet

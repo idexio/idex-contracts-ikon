@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Funding } from './Funding.sol';
@@ -176,8 +176,8 @@ library Trading {
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       ),
       'Initial margin requirement not met for buy wallet'
     );
@@ -192,8 +192,8 @@ library Trading {
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       ),
       'Initial margin requirement not met for sell wallet'
     );

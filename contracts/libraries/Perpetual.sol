@@ -3,6 +3,7 @@
 import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
+import { Deleveraging } from './Deleveraging.sol';
 import { Funding } from './Funding.sol';
 import { FundingMultipliers } from './FundingMultipliers.sol';
 import { Liquidation } from './Liquidation.sol';
@@ -12,14 +13,14 @@ import { String } from './String.sol';
 import { Validations } from './Validations.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 // TODO Gas optimization - several of the functions here iterate over all a wallet's position, potentially these
 // multiple iterations could be combined
 library Perpetual {
   using BalanceTracking for BalanceTracking.Storage;
 
-  function liquidateDustPosition(
+  /*function liquidateDustPosition(
     Liquidation.LiquidateDustPositionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -28,9 +29,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.liquidatingWallet,
@@ -55,8 +56,8 @@ library Perpetual {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -69,9 +70,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.liquidatingWallet,
@@ -96,13 +97,13 @@ library Perpetual {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
-  }
+  }*/
 
-  function liquidationAcquisitionDeleverage(
-    Liquidation.LiquidationAcquisitionDeleverageArguments memory arguments,
+  function deleverageLiquidationAcquisition(
+    Deleveraging.DeleverageLiquidationAcquisitionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -110,9 +111,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.deleveragingWallet,
@@ -133,17 +134,17 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidationAcquisitionDeleverage(
+    Deleveraging.deleverageLiquidationAcquisition(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
-  function liquidationClosureDeleverage(
-    Liquidation.LiquidationClosureDeleverageArguments memory arguments,
+  function deleverageLiquidationClosure(
+    Deleveraging.DeleverageLiquidationClosureArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -151,9 +152,9 @@ library Perpetual {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
       arguments.deleveragingWallet,
@@ -165,7 +166,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
     Funding.updateWalletFunding(
-      arguments.insuranceFundWallet,
+      arguments.liquidatingWallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -174,12 +175,12 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidationClosureDeleverage(
+    Deleveraging.deleverageLiquidationClosure(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -241,9 +242,9 @@ library Perpetual {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 initialMarginRequirement) {
     return
       Margin.loadTotalInitialMarginRequirement(

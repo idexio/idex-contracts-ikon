@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
@@ -52,9 +52,9 @@ library Withdrawing {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (int64 newExchangeBalanceInPips) {
     // Validations
     require(
@@ -101,8 +101,8 @@ library Withdrawing {
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       ),
       'Initial margin requirement not met for buy wallet'
     );
@@ -133,9 +133,9 @@ library Withdrawing {
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint64) {
     Funding.updateWalletFunding(
       arguments.wallet,
@@ -151,8 +151,8 @@ library Withdrawing {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
@@ -181,9 +181,9 @@ library Withdrawing {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantityInPips) {
     (
       int64 totalAccountValueInPips,
@@ -192,8 +192,8 @@ library Withdrawing {
         arguments,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
 
     for (
@@ -233,9 +233,9 @@ library Withdrawing {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64, uint64) {
     int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
       Margin.LoadArguments(
@@ -261,8 +261,8 @@ library Withdrawing {
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
 
     return (totalAccountValueInPips, totalMaintenanceMarginRequirementInPips);

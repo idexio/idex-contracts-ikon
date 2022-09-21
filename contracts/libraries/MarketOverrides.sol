@@ -3,7 +3,7 @@
 import { Market } from './Structs.sol';
 import { Math } from './Math.sol';
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 library MarketOverrides {
   function loadInitialMarginFractionInPipsForWallet(
