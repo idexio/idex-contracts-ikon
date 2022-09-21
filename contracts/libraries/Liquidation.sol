@@ -54,24 +54,6 @@ library Liquidation {
     string quoteAssetSymbol;
   }
 
-  /**
-   * @dev Internal
-   */
-  struct LiquidatePositionArguments {
-    LiquidationType liquidationType;
-    address counterpartyWallet;
-    address liquidatingWallet;
-    int64 liquidationBaseQuantityInPips;
-    int64 liquidationQuoteQuantityInPips;
-    Market market;
-    OraclePrice oraclePrice;
-    address oracleWallet;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
-    int64 totalAccountValueInPips;
-    uint64 totalMaintenanceMarginRequirementInPips;
-  }
-
   function liquidateDustPosition(
     LiquidateDustPositionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,

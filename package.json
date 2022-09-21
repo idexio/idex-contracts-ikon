@@ -1,7 +1,7 @@
 {
   "name": "@idexio/idex-contracts-ikon",
   "license": "UNLICENSED",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Ethereum contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "main": "build/lib/index.js",
@@ -32,9 +32,9 @@
     "uuid": "8.3.2"
   },
   "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "^2.1.1",
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
     "@nomiclabs/hardhat-etherscan": "^3.0.0",
-    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@nomiclabs/hardhat-waffle": "^2.0.0",
     "@openzeppelin/contracts": "^4.6.0",
     "@typechain/ethers-v5": "10.1.0",
     "@typechain/hardhat": "6.1.0",
@@ -53,7 +53,7 @@
     "eslint-plugin-prettier": "^3.4.0",
     "eslint-plugin-promise": "^5.1.0",
     "ethereum-waffle": "^3.0.0",
-    "hardhat": "2.11.2",
+    "hardhat": "2.10.2",
     "hardhat-contract-sizer": "^2.6.1",
     "hardhat-gas-reporter": "^1.0.8",
     "prettier": "^2.3.2",

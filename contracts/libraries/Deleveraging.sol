@@ -63,15 +63,6 @@ library Deleveraging {
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
-    (
-      Market memory market,
-      OraclePrice memory oraclePrice
-    ) = loadMarketAndOraclePrice(
-        arguments,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      );
-
     // Validate that the liquidating account has fallen below margin requirements
     (
       int64 totalAccountValueInPips,
@@ -111,25 +102,8 @@ library Deleveraging {
     // Liquidate specified position by deleveraging a counterparty position at the liquidating wallet's bankruptcy price
     validateQuoteQuantityAndDeleveragePosition(
       arguments,
-      market,
-      oraclePrice,
       totalAccountValueInPips,
       totalMaintenanceMarginRequirementInPips,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet
-    );
-
-    // Validate that the deleveraged wallet still meets its initial margin requirements
-    // TODO Should this be maintenance margin?
-    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-      Margin.LoadArguments(
-        arguments.deleveragingWallet,
-        arguments.deleveragingWalletOraclePrices,
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol
-      ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -164,44 +138,37 @@ library Deleveraging {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-
-    // Validate that the deleveraged wallet still meets its initial margin requirements
-    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-      Margin.LoadArguments(
-        arguments.deleveragingWallet,
-        arguments.deleveragingWalletOraclePrices,
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol
-      ),
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
   }
 
   function validateQuoteQuantityAndDeleveragePosition(
     DeleverageLiquidationAcquisitionArguments memory arguments,
-    Market memory market,
-    OraclePrice memory oraclePrice,
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
-      arguments.liquidatingWallet,
-      market.baseAssetSymbol
-    );
+    (
+      Market memory market,
+      OraclePrice memory oraclePrice
+    ) = loadMarketAndOraclePrice(
+        arguments,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       oraclePrice,
       arguments.quoteAssetDecimals,
       market,
       arguments.oracleWallet
+    );
+
+    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+      arguments.liquidatingWallet,
+      market.baseAssetSymbol
     );
 
     if (arguments.deleverageType == DeleverageType.InMaintenanceAcquisition) {
@@ -250,6 +217,21 @@ library Deleveraging {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );
+
+    // Validate that the deleveraged wallet still meets its initial margin requirements
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      Margin.LoadArguments(
+        arguments.deleveragingWallet,
+        arguments.deleveragingWalletOraclePrices,
+        arguments.oracleWallet,
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol
+      ),
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
   }
 
   function validateQuoteQuantityAndDeleveragePosition(
@@ -282,6 +264,7 @@ library Deleveraging {
         arguments.liquidationQuoteQuantityInPips
       );
     } else {
+      // DeleverageType.ExitFundClosure
       (
         int64 totalAccountValueInPips,
         uint64 totalMaintenanceMarginRequirementInPips
@@ -299,7 +282,6 @@ library Deleveraging {
           marketsByBaseAssetSymbol
         );
 
-      // DeleverageType.ExitFundClosure
       LiquidationValidations.validateExitFundClosureQuoteQuantityInPips(
         arguments.liquidationBaseQuantityInPips,
         market
@@ -315,6 +297,7 @@ library Deleveraging {
         totalMaintenanceMarginRequirementInPips
       );
     }
+
     balanceTracking.updatePositionForDeleverage(
       arguments.liquidationBaseQuantityInPips,
       arguments.deleveragingWallet,
@@ -324,6 +307,22 @@ library Deleveraging {
       arguments.liquidationQuoteQuantityInPips,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
+    );
+
+    // Validate that the deleveraged wallet still meets its initial margin requirements
+    // TODO Should this be maintenance margin?
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      Margin.LoadArguments(
+        arguments.deleveragingWallet,
+        arguments.deleveragingWalletOraclePrices,
+        arguments.oracleWallet,
+        arguments.quoteAssetDecimals,
+        arguments.quoteAssetSymbol
+      ),
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 

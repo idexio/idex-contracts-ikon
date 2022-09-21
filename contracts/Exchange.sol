@@ -558,6 +558,10 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Liquidation //
 
+  /**
+   * @notice Liquidates a single position below the market's configured `minimumPositionSizeInPips` to the Insurance
+   * Fund at the current oracle price
+   */
   function liquidateDustPosition(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
@@ -587,6 +591,10 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Liquidates all positions held by a wallet below maintenance requirements to the Insurance Fund at each
+   * position's bankruptcy price
+   */
   function liquidateWalletInMaintenance(
     address liquidatingWallet,
     int64[] calldata liquidationQuoteQuantitiesInPips,
@@ -614,6 +622,10 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Liquidates all positions held by a wallet below maintenance requirements to the Exit Fund at each
+   * position's bankruptcy price
+   */
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     address liquidatingWallet,
     int64[] calldata liquidationQuoteQuantitiesInPips,
@@ -645,6 +657,9 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Liquidates all positions of an exited wallet to the Insurance Fund at each position's exit price
+   */
   function liquidateWalletExited(
     address liquidatingWallet,
     int64[] calldata liquidationQuoteQuantitiesInPips,
@@ -676,8 +691,11 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Automatic Deleveraging (ADL) //
 
+  /**
+   * @notice Reduces a single position held by a wallet below maintenance requirements by deleveraging a counterparty
+   * position at the bankruptcy price of the liquidating wallet
+   */
   function deleverageInMaintenanceAcquisition(
-    LiquidationType liquidationType,
     string calldata baseAssetSymbol,
     address deleveragingWallet,
     address liquidatingWallet,
@@ -715,14 +733,16 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Closes an open Insurance Fund positions by deleveraging
+   * @notice Reduces a single position held by a wallet below maintenance requirements by deleveraging a counterparty
+   * position at the bankruptcy price of the liquidating wallet
    */
   function deleverageInsuranceFundClosure(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
     int64 liquidationBaseQuantityInPips,
     int64 liquidationQuoteQuantityInPips,
-    OraclePrice[] calldata deleveragingWalletOraclePrices
+    OraclePrice[] calldata deleveragingWalletOraclePrices,
+    OraclePrice[] calldata insuranceFundOraclePrices
   ) external onlyDispatcher {
     Perpetual.deleverageLiquidationClosure(
       Deleveraging.DeleverageLiquidationClosureArguments(
@@ -732,6 +752,7 @@ contract Exchange_v4 is IExchange, Owned {
         _insuranceFundWallet,
         liquidationBaseQuantityInPips,
         liquidationQuoteQuantityInPips,
+        insuranceFundOraclePrices,
         deleveragingWalletOraclePrices,
         _quoteAssetDecimals,
         _quoteAssetSymbol,
@@ -790,7 +811,8 @@ contract Exchange_v4 is IExchange, Owned {
     address deleveragingWallet,
     int64 liquidationBaseQuantityInPips,
     int64 liquidationQuoteQuantityInPips,
-    OraclePrice[] calldata deleveragingWalletOraclePrices
+    OraclePrice[] calldata deleveragingWalletOraclePrices,
+    OraclePrice[] calldata exitFundOraclePrices
   ) external onlyDispatcher {
     Perpetual.deleverageLiquidationClosure(
       Deleveraging.DeleverageLiquidationClosureArguments(
@@ -800,6 +822,7 @@ contract Exchange_v4 is IExchange, Owned {
         _exitFundWallet,
         liquidationBaseQuantityInPips,
         liquidationQuoteQuantityInPips,
+        exitFundOraclePrices,
         deleveragingWalletOraclePrices,
         _quoteAssetDecimals,
         _quoteAssetSymbol,

@@ -20,7 +20,7 @@ pragma solidity 0.8.17;
 library Perpetual {
   using BalanceTracking for BalanceTracking.Storage;
 
-  /*function liquidateDustPosition(
+  function liquidateDustPosition(
     Liquidation.LiquidateDustPositionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -100,7 +100,7 @@ library Perpetual {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-  }*/
+  }
 
   function deleverageLiquidationAcquisition(
     Deleveraging.DeleverageLiquidationAcquisitionArguments memory arguments,

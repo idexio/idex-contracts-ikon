@@ -8,6 +8,7 @@ import 'hardhat-contract-sizer';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 
+/*
 import * as path from 'path';
 import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from 'hardhat/builtin-tasks/task-names';
 subtask(
@@ -25,6 +26,7 @@ subtask(
     });
   },
 );
+*/
 
 dotenv.config();
 

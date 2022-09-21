@@ -600,8 +600,17 @@ describe('Exchange', function () {
       console.log('--- BELOW WATER ---');
       console.log('Trader1');
       await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+      console.log('Insurance fund');
+      await logWalletBalances(
+        insuranceFund.address,
+        exchange,
+        newOracleLowPrices,
+      );
+
+      /*
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
+      */
 
       /*
       await (
@@ -618,11 +627,10 @@ describe('Exchange', function () {
       ).wait();
       */
 
-      /*
       await (
         await exchange
           .connect(dispatcher)
-          .liquidateWallet(
+          .liquidateWalletInMaintenance(
             trader1.address,
             ['1993.11863060', '28060.88136940'].map(decimalToPips),
             newOracleLowPrices,
@@ -632,6 +640,8 @@ describe('Exchange', function () {
 
       console.log('--- LIQUIDATED ---');
 
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
       console.log('Insurance fund');
       await logWalletBalances(
         insuranceFund.address,
@@ -639,6 +649,7 @@ describe('Exchange', function () {
         newOracleLowPrices,
       );
 
+      /*
       await (
         await exchange
           .connect(dispatcher)
@@ -669,7 +680,7 @@ describe('Exchange', function () {
           newOracleLowPrices,
           newOracleLowPrices,
         )
-      ).wait(); */
+      ).wait(); 
 
       await (
         await exchange
@@ -687,11 +698,12 @@ describe('Exchange', function () {
 
       console.log('Trader1');
       await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
-      /*await logWalletBalances(trader1.address, exchange, [
+      await logWalletBalances(trader1.address, exchange, [
         newOracleLowPrices[1],
-      ]);*/
+      ]);
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
+      */
 
       /*
       console.log('Trader1');
