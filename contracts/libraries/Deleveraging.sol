@@ -347,7 +347,7 @@ library Deleveraging {
       }
     }
 
-    require(market.exists, 'Invalid market');
+    require(market.exists && market.isActive, 'No active market found');
   }
 
   function loadMarketAndOraclePrice(
@@ -371,7 +371,7 @@ library Deleveraging {
       }
     }
 
-    require(market.exists, 'Invalid market');
+    require(market.exists && market.isActive, 'No active market found');
   }
 
   function validateInsuranceFundCannotLiquidateWallet(
@@ -410,10 +410,10 @@ library Deleveraging {
       loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       loadArguments.oraclePricesInPips[i] = Validations
         .validateAndUpdateOraclePriceAndConvertToPips(
-          arguments.insuranceFundOraclePrices[i],
-          arguments.quoteAssetDecimals,
           marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-          arguments.oracleWallet
+          arguments.insuranceFundOraclePrices[i],
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals
         );
 
       // Validate provided liquidation quote quantity

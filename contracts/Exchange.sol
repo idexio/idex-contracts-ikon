@@ -11,12 +11,12 @@ import { Depositing } from './libraries/Depositing.sol';
 import { Hashing } from './libraries/Hashing.sol';
 import { Liquidation } from './libraries/Liquidation.sol';
 import { Margin } from './libraries/Margin.sol';
+import { MarketAdmin } from './libraries/MarketAdmin.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
 import { Owned } from './Owned.sol';
 import { Perpetual } from './libraries/Perpetual.sol';
 import { String } from './libraries/String.sol';
 import { Trading } from './libraries/Trading.sol';
-import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
 import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
 import { DeleverageType, LiquidationType, OrderSide } from './libraries/Enums.sol';
@@ -592,6 +592,34 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
+   * @notice Liquidates a single position in a deactivated market at the previously set oracle price
+   */
+  function liquidateInactiveMarketPosition(
+    string calldata baseAssetSymbol,
+    address liquidatingWallet,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
+  ) external onlyDispatcher {
+    Perpetual.liquidateInactiveMarketPosition(
+      Liquidation.LiquidateInactiveMarketPositionArguments(
+        baseAssetSymbol,
+        liquidatingWallet,
+        liquidationQuoteQuantityInPips,
+        liquidatingWalletOraclePrices,
+        _oracleWallet,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
+    );
+  }
+
+  /**
    * @notice Liquidates all positions held by a wallet below maintenance requirements to the Insurance Fund at each
    * position's bankruptcy price
    */
@@ -733,8 +761,8 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Reduces a single position held by a wallet below maintenance requirements by deleveraging a counterparty
-   * position at the bankruptcy price of the liquidating wallet
+   * @notice Reduces a single position held by the Insurance Fund by deleveraging a counterparty position at the entry
+   * price of the Insurance Fund
    */
   function deleverageInsuranceFundClosure(
     string calldata baseAssetSymbol,
@@ -767,6 +795,10 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Reduces a single position held by an exited wallet by deleveraging a counterparty position at the exit
+   * price of the liquidating wallet
+   */
   function deleverageExitAcquisition(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
@@ -806,6 +838,10 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Reduces a single position held by the Exit Fund by deleveraging a counterparty position at the oracle
+   * price or the Exit Fund's bankruptcy price if the Exit Fund account value is positive or negative, respectively
+   */
   function deleverageExitFundClosure(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
@@ -880,73 +916,43 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Market management //
 
-  // TODO Validations
-  function addMarket(
-    string calldata baseAssetSymbol,
-    uint64 initialMarginFractionInPips,
-    uint64 maintenanceMarginFractionInPips,
-    uint64 incrementalInitialMarginFractionInPips,
-    uint64 baselinePositionSizeInPips,
-    uint64 incrementalPositionSizeInPips,
-    uint64 maximumPositionSizeInPips,
-    uint64 minimumPositionSizeInPips
-  ) external onlyAdmin {
-    require(
-      !_marketsByBaseAssetSymbol[baseAssetSymbol].exists,
-      'Market already exists'
-    );
-
-    Market memory market = Market({
-      exists: true,
-      baseAssetSymbol: baseAssetSymbol,
-      initialMarginFractionInPips: initialMarginFractionInPips,
-      maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
-      incrementalInitialMarginFractionInPips: incrementalInitialMarginFractionInPips,
-      baselinePositionSizeInPips: baselinePositionSizeInPips,
-      incrementalPositionSizeInPips: incrementalPositionSizeInPips,
-      maximumPositionSizeInPips: maximumPositionSizeInPips,
-      minimumPositionSizeInPips: minimumPositionSizeInPips,
-      lastOraclePriceTimestampInMs: 0
-    });
-
-    _marketsByBaseAssetSymbol[market.baseAssetSymbol] = market;
+  function addMarket(Market calldata newMarket) external onlyAdmin {
+    MarketAdmin.addMarket(newMarket, _marketsByBaseAssetSymbol);
   }
 
   // TODO Update market
 
-  // TODO Validations
-  function setMarketOverrides(
-    address wallet,
+  function setMarketActive(string calldata baseAssetSymbol)
+    external
+    onlyDispatcher
+  {
+    MarketAdmin.setMarketActive(baseAssetSymbol, _marketsByBaseAssetSymbol);
+  }
+
+  function setMarketInactive(
     string calldata baseAssetSymbol,
-    uint64 initialMarginFractionInPips,
-    uint64 maintenanceMarginFractionInPips,
-    uint64 incrementalInitialMarginFractionInPips,
-    uint64 baselinePositionSizeInPips,
-    uint64 incrementalPositionSizeInPips,
-    uint64 maximumPositionSizeInPips,
-    uint64 minimumPositionSizeInPips
-  ) external onlyAdmin {
-    require(
-      _marketsByBaseAssetSymbol[baseAssetSymbol].exists,
-      'Market does not exist'
+    OraclePrice memory oraclePrice
+  ) external onlyDispatcher {
+    MarketAdmin.setMarketInactive(
+      baseAssetSymbol,
+      oraclePrice,
+      _oracleWallet,
+      _quoteAssetDecimals,
+      _marketsByBaseAssetSymbol
     );
+  }
 
-    Market memory market = Market({
-      exists: true,
-      baseAssetSymbol: baseAssetSymbol,
-      initialMarginFractionInPips: initialMarginFractionInPips,
-      maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
-      incrementalInitialMarginFractionInPips: incrementalInitialMarginFractionInPips,
-      baselinePositionSizeInPips: baselinePositionSizeInPips,
-      incrementalPositionSizeInPips: incrementalPositionSizeInPips,
-      maximumPositionSizeInPips: maximumPositionSizeInPips,
-      minimumPositionSizeInPips: minimumPositionSizeInPips,
-      lastOraclePriceTimestampInMs: 0
-    });
-
-    _marketOverridesByBaseAssetSymbolAndWallet[market.baseAssetSymbol][
-      wallet
-    ] = market;
+  // TODO Validations
+  function setMarketOverrides(address wallet, Market calldata marketOverrides)
+    external
+    onlyAdmin
+  {
+    MarketAdmin.setMarketOverrides(
+      wallet,
+      marketOverrides,
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
+    );
   }
 
   // Perps //

@@ -38,6 +38,21 @@ library Liquidation {
   }
 
   /**
+   * @dev Argument for `liquidateInactiveMarketPosition`
+   */
+  struct LiquidateInactiveMarketPositionArguments {
+    // External arguments
+    string baseAssetSymbol;
+    address liquidatingWallet;
+    int64 liquidationQuoteQuantityInPips; // For the position being liquidated
+    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
+    // Exchange state
+    address oracleWallet;
+    uint8 quoteAssetDecimals;
+    string quoteAssetSymbol;
+  }
+
+  /**
    * @dev Argument for `liquidateWallet`
    */
   struct LiquidateWalletArguments {
@@ -89,6 +104,44 @@ library Liquidation {
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  function liquidateInactiveMarketPosition(
+    LiquidateInactiveMarketPositionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal {
+    (
+      int64 totalAccountValueInPips,
+      uint64 totalMaintenanceMarginRequirementInPips
+    ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+        Margin.LoadArguments(
+          arguments.liquidatingWallet,
+          arguments.liquidatingWalletOraclePrices,
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
+        ),
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+    require(
+      totalAccountValueInPips >= int64(totalMaintenanceMarginRequirementInPips),
+      'Maintenance margin requirement not met'
+    );
+
+    validateQuantitiesAndLiquidateInactiveMarketPosition(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -237,6 +290,38 @@ library Liquidation {
     );
   }
 
+  function validateQuantitiesAndLiquidateInactiveMarketPosition(
+    LiquidateInactiveMarketPositionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private {
+    Market memory market = loadMarket(
+      arguments,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    // Validate quote quantity
+    LiquidationValidations.validateInactiveMarketLiquidationQuoteQuantity(
+      market.oraclePriceInPipsAtDeactivation,
+      balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+        arguments.liquidatingWallet,
+        market.baseAssetSymbol
+      ),
+      arguments.liquidationQuoteQuantityInPips
+    );
+
+    balanceTracking.updatePositionForInactiveMarketLiquidation(
+      market.baseAssetSymbol,
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
+      arguments.liquidationQuoteQuantityInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+  }
+
   function validateQuoteQuantityAndLiquidatePosition(
     uint8 index,
     LiquidateWalletArguments memory arguments,
@@ -308,6 +393,25 @@ library Liquidation {
     );
   }
 
+  function loadMarket(
+    LiquidateInactiveMarketPositionArguments memory arguments,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (Market memory market) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.liquidatingWallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
+        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+      }
+    }
+
+    require(market.exists && !market.isActive, 'No inactive market found');
+  }
+
   function loadMarketAndOraclePrice(
     LiquidateDustPositionArguments memory arguments,
     mapping(address => string[])
@@ -329,6 +433,6 @@ library Liquidation {
       }
     }
 
-    require(market.exists, 'Invalid market');
+    require(market.exists && market.isActive, 'No active market found');
   }
 }

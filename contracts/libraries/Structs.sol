@@ -55,6 +55,8 @@ struct FundingMultiplierQuartet {
 struct Market {
   // Flag to distinguish from empty struct
   bool exists;
+  // Flag must be asserted to allow any actions other than deactivation liquidation
+  bool isActive;
   // No need to specify quote asset - it is always the same as the quote asset
   string baseAssetSymbol;
   // The margin fraction needed to open a position
@@ -75,6 +77,8 @@ struct Market {
   uint64 minimumPositionSizeInPips;
   // The timestamp of the latest oracle price provided for this market
   uint64 lastOraclePriceTimestampInMs;
+  // Set when deactivating a market to determine price for all position liquidations in that market
+  uint64 oraclePriceInPipsAtDeactivation;
 }
 
 // Price data signed by oracle wallet

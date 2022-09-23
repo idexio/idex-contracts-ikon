@@ -201,7 +201,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
     });
 
-    it('can haz deebug', async function () {
+    it.only('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
@@ -322,8 +322,22 @@ describe('Exchange', function () {
           )
       ).wait();
 
-      console.log(await exchange.loadBalanceBySymbol(trader1.address, 'ETH'));
-      console.log(await exchange.loadBalanceBySymbol(trader2.address, 'ETH'));
+      /*
+      await (
+        await exchange.connect(dispatcher).setMarketInactive('ETH', oraclePrice)
+      ).wait();
+
+      await (
+        await exchange
+          .connect(dispatcher)
+          .liquidateInactiveMarketPosition(
+            'ETH',
+            trader1.address,
+            decimalToPips('-20000.00000000'),
+            [oraclePrice],
+          )
+      ).wait();
+      */
 
       /*
     const withdrawal = {
@@ -457,7 +471,7 @@ describe('Exchange', function () {
   });
 
   describe('liquidationAcquisitionDeleverage', async function () {
-    it.only('can haz diibug', async function () {
+    it('can haz diibug', async function () {
       const [
         owner,
         dispatcher,
@@ -478,17 +492,22 @@ describe('Exchange', function () {
       );
 
       (
-        await exchange.addMarket(
-          'BTC',
-          '5000000',
-          '3000000',
-          '1000000',
-          '14000000000',
-          '2800000000',
-          '282000000000',
-          '2000000000',
-        )
+        await exchange.addMarket({
+          exists: true,
+          isActive: false,
+          baseAssetSymbol: 'BTC',
+          initialMarginFractionInPips: '5000000',
+          maintenanceMarginFractionInPips: '3000000',
+          incrementalInitialMarginFractionInPips: '1000000',
+          baselinePositionSizeInPips: '14000000000',
+          incrementalPositionSizeInPips: '2800000000',
+          maximumPositionSizeInPips: '282000000000',
+          minimumPositionSizeInPips: '2000000000',
+          lastOraclePriceTimestampInMs: 0,
+          oraclePriceInPipsAtDeactivation: 0,
+        })
       ).wait();
+      (await exchange.connect(dispatcher).setMarketActive('BTC')).wait();
 
       await fundWallets([trader1, trader2, insuranceFund], exchange, usdc);
 

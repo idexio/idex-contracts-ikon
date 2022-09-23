@@ -98,6 +98,42 @@ library BalanceTracking {
     );
   }
 
+  function updatePositionForInactiveMarketLiquidation(
+    Storage storage self,
+    string memory baseAssetSymbol,
+    address liquidatingWallet,
+    string memory quoteAssetSymbol,
+    int64 quoteQuantityInPips,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
+  ) internal {
+    Balance storage balance;
+
+    // Wallet position decreases by specified base quantity
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      liquidatingWallet,
+      baseAssetSymbol
+    );
+    balance.balanceInPips = 0;
+    balance.costBasisInPips = 0;
+
+    updateOpenPositionsForWallet(
+      liquidatingWallet,
+      baseAssetSymbol,
+      balance.balanceInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    // Wallet receives or gives quote if long or short respectively
+    balance = loadBalanceAndMigrateIfNeeded(
+      self,
+      liquidatingWallet,
+      quoteAssetSymbol
+    );
+    balance.balanceInPips += quoteQuantityInPips;
+  }
+
   function updatePositionForDeleverageOrLiquidation(
     Storage storage self,
     bool isDeleverage,
