@@ -11,12 +11,12 @@ import { Depositing } from './libraries/Depositing.sol';
 import { Hashing } from './libraries/Hashing.sol';
 import { Liquidation } from './libraries/Liquidation.sol';
 import { Margin } from './libraries/Margin.sol';
+import { MarketAdmin } from './libraries/MarketAdmin.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
 import { Owned } from './Owned.sol';
 import { Perpetual } from './libraries/Perpetual.sol';
 import { String } from './libraries/String.sol';
 import { Trading } from './libraries/Trading.sol';
-import { Validations } from './libraries/Validations.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
 import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from './libraries/Structs.sol';
 import { DeleverageType, LiquidationType, OrderSide } from './libraries/Enums.sol';
@@ -880,38 +880,8 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Market management //
 
-  // TODO Validations
-  function addMarket(
-    string calldata baseAssetSymbol,
-    uint64 initialMarginFractionInPips,
-    uint64 maintenanceMarginFractionInPips,
-    uint64 incrementalInitialMarginFractionInPips,
-    uint64 baselinePositionSizeInPips,
-    uint64 incrementalPositionSizeInPips,
-    uint64 maximumPositionSizeInPips,
-    uint64 minimumPositionSizeInPips
-  ) external onlyAdmin {
-    require(
-      !_marketsByBaseAssetSymbol[baseAssetSymbol].exists,
-      'Market already exists'
-    );
-
-    Market memory market = Market({
-      exists: true,
-      isActive: false,
-      baseAssetSymbol: baseAssetSymbol,
-      initialMarginFractionInPips: initialMarginFractionInPips,
-      maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
-      incrementalInitialMarginFractionInPips: incrementalInitialMarginFractionInPips,
-      baselinePositionSizeInPips: baselinePositionSizeInPips,
-      incrementalPositionSizeInPips: incrementalPositionSizeInPips,
-      maximumPositionSizeInPips: maximumPositionSizeInPips,
-      minimumPositionSizeInPips: minimumPositionSizeInPips,
-      lastOraclePriceTimestampInMs: 0,
-      oraclePriceInPipsAtDeactivation: 0
-    });
-
-    _marketsByBaseAssetSymbol[market.baseAssetSymbol] = market;
+  function addMarket(Market calldata newMarket) external onlyAdmin {
+    MarketAdmin.addMarket(newMarket, _marketsByBaseAssetSymbol);
   }
 
   // TODO Update market
@@ -920,67 +890,33 @@ contract Exchange_v4 is IExchange, Owned {
     external
     onlyDispatcher
   {
-    Market storage market = _marketsByBaseAssetSymbol[baseAssetSymbol];
-    require(market.exists && !market.isActive, 'No inactive market found');
-
-    market.isActive = true;
-    market.oraclePriceInPipsAtDeactivation = 0;
+    MarketAdmin.setMarketActive(baseAssetSymbol, _marketsByBaseAssetSymbol);
   }
 
   function setMarketInactive(
     string calldata baseAssetSymbol,
     OraclePrice memory oraclePrice
   ) external onlyDispatcher {
-    Market storage market = _marketsByBaseAssetSymbol[baseAssetSymbol];
-    require(market.exists && market.isActive, 'No active market found');
-
-    uint64 oraclePriceInPips = Validations
-      .validateAndUpdateOraclePriceAndConvertToPips(
-        market,
-        oraclePrice,
-        _oracleWallet,
-        _quoteAssetDecimals
-      );
-
-    market.isActive = false;
-    market.oraclePriceInPipsAtDeactivation = oraclePriceInPips;
+    MarketAdmin.setMarketInactive(
+      baseAssetSymbol,
+      oraclePrice,
+      _oracleWallet,
+      _quoteAssetDecimals,
+      _marketsByBaseAssetSymbol
+    );
   }
 
   // TODO Validations
-  function setMarketOverrides(
-    address wallet,
-    string calldata baseAssetSymbol,
-    uint64 initialMarginFractionInPips,
-    uint64 maintenanceMarginFractionInPips,
-    uint64 incrementalInitialMarginFractionInPips,
-    uint64 baselinePositionSizeInPips,
-    uint64 incrementalPositionSizeInPips,
-    uint64 maximumPositionSizeInPips,
-    uint64 minimumPositionSizeInPips
-  ) external onlyAdmin {
-    require(
-      _marketsByBaseAssetSymbol[baseAssetSymbol].exists,
-      'Market does not exist'
+  function setMarketOverrides(address wallet, Market calldata marketOverrides)
+    external
+    onlyAdmin
+  {
+    MarketAdmin.setMarketOverrides(
+      wallet,
+      marketOverrides,
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
     );
-
-    Market memory market = Market({
-      exists: true,
-      isActive: _marketsByBaseAssetSymbol[baseAssetSymbol].isActive,
-      baseAssetSymbol: baseAssetSymbol,
-      initialMarginFractionInPips: initialMarginFractionInPips,
-      maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
-      incrementalInitialMarginFractionInPips: incrementalInitialMarginFractionInPips,
-      baselinePositionSizeInPips: baselinePositionSizeInPips,
-      incrementalPositionSizeInPips: incrementalPositionSizeInPips,
-      maximumPositionSizeInPips: maximumPositionSizeInPips,
-      minimumPositionSizeInPips: minimumPositionSizeInPips,
-      lastOraclePriceTimestampInMs: 0,
-      oraclePriceInPipsAtDeactivation: 0
-    });
-
-    _marketOverridesByBaseAssetSymbolAndWallet[market.baseAssetSymbol][
-      wallet
-    ] = market;
   }
 
   // Perps //
