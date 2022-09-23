@@ -527,10 +527,10 @@ library Margin {
     );
     uint64 oraclePriceInPips = Validations
       .validateAndUpdateOraclePriceAndConvertToPips(
-        oraclePrice,
-        arguments.quoteAssetDecimals,
         market,
-        arguments.oracleWallet
+        oraclePrice,
+        arguments.oracleWallet,
+        arguments.quoteAssetDecimals
       );
 
     return

@@ -36,6 +36,25 @@ library LiquidationValidations {
     );
   }
 
+  function validateInactiveMarketLiquidationQuoteQuantity(
+    uint64 oraclePriceInPips,
+    int64 positionSizeInPips,
+    int64 quoteQuantityInPips
+  ) internal pure {
+    int64 expectedLiquidationQuoteQuantitiesInPips = Math
+      .multiplyPipsByFraction(
+        positionSizeInPips,
+        int64(oraclePriceInPips),
+        int64(Constants.pipPriceMultiplier)
+      );
+
+    require(
+      expectedLiquidationQuoteQuantitiesInPips - 1 <= quoteQuantityInPips &&
+        expectedLiquidationQuoteQuantitiesInPips + 1 >= quoteQuantityInPips,
+      'Invalid quote quantity'
+    );
+  }
+
   function validateDustLiquidationQuoteQuantity(
     uint64 dustPositionLiquidationPriceToleranceBasisPoints,
     int64 liquidationQuoteQuantityInPips,

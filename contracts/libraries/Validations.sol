@@ -19,10 +19,10 @@ library Validations {
   }
 
   function validateAndUpdateOraclePriceAndConvertToPips(
-    OraclePrice memory oraclePrice,
-    uint8 quoteAssetDecimals,
     Market storage market,
-    address oracleWallet
+    OraclePrice memory oraclePrice,
+    address oracleWallet,
+    uint8 quoteAssetDecimals
   ) internal returns (uint64) {
     market.lastOraclePriceTimestampInMs = oraclePrice.timestampInMs;
 

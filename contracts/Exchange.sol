@@ -898,6 +898,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     Market memory market = Market({
       exists: true,
+      isActive: false,
       baseAssetSymbol: baseAssetSymbol,
       initialMarginFractionInPips: initialMarginFractionInPips,
       maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
@@ -906,13 +907,44 @@ contract Exchange_v4 is IExchange, Owned {
       incrementalPositionSizeInPips: incrementalPositionSizeInPips,
       maximumPositionSizeInPips: maximumPositionSizeInPips,
       minimumPositionSizeInPips: minimumPositionSizeInPips,
-      lastOraclePriceTimestampInMs: 0
+      lastOraclePriceTimestampInMs: 0,
+      oraclePriceInPipsAtDeactivation: 0
     });
 
     _marketsByBaseAssetSymbol[market.baseAssetSymbol] = market;
   }
 
   // TODO Update market
+
+  function setMarketActive(string calldata baseAssetSymbol)
+    external
+    onlyDispatcher
+  {
+    Market storage market = _marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists && !market.isActive, 'No inactive market found');
+
+    market.isActive = true;
+    market.oraclePriceInPipsAtDeactivation = 0;
+  }
+
+  function setMarketInactive(
+    string calldata baseAssetSymbol,
+    OraclePrice memory oraclePrice
+  ) external onlyDispatcher {
+    Market storage market = _marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists && market.isActive, 'No active market found');
+
+    uint64 oraclePriceInPips = Validations
+      .validateAndUpdateOraclePriceAndConvertToPips(
+        market,
+        oraclePrice,
+        _oracleWallet,
+        _quoteAssetDecimals
+      );
+
+    market.isActive = false;
+    market.oraclePriceInPipsAtDeactivation = oraclePriceInPips;
+  }
 
   // TODO Validations
   function setMarketOverrides(
@@ -933,6 +965,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     Market memory market = Market({
       exists: true,
+      isActive: _marketsByBaseAssetSymbol[baseAssetSymbol].isActive,
       baseAssetSymbol: baseAssetSymbol,
       initialMarginFractionInPips: initialMarginFractionInPips,
       maintenanceMarginFractionInPips: maintenanceMarginFractionInPips,
@@ -941,7 +974,8 @@ contract Exchange_v4 is IExchange, Owned {
       incrementalPositionSizeInPips: incrementalPositionSizeInPips,
       maximumPositionSizeInPips: maximumPositionSizeInPips,
       minimumPositionSizeInPips: minimumPositionSizeInPips,
-      lastOraclePriceTimestampInMs: 0
+      lastOraclePriceTimestampInMs: 0,
+      oraclePriceInPipsAtDeactivation: 0
     });
 
     _marketOverridesByBaseAssetSymbolAndWallet[market.baseAssetSymbol][

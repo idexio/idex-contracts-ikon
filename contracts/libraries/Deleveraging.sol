@@ -410,10 +410,10 @@ library Deleveraging {
       loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       loadArguments.oraclePricesInPips[i] = Validations
         .validateAndUpdateOraclePriceAndConvertToPips(
-          arguments.insuranceFundOraclePrices[i],
-          arguments.quoteAssetDecimals,
           marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-          arguments.oracleWallet
+          arguments.insuranceFundOraclePrices[i],
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals
         );
 
       // Validate provided liquidation quote quantity
