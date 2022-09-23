@@ -347,7 +347,7 @@ library Deleveraging {
       }
     }
 
-    require(market.exists, 'Invalid market');
+    require(market.exists && market.isActive, 'No active market found');
   }
 
   function loadMarketAndOraclePrice(
@@ -371,7 +371,7 @@ library Deleveraging {
       }
     }
 
-    require(market.exists, 'Invalid market');
+    require(market.exists && market.isActive, 'No active market found');
   }
 
   function validateInsuranceFundCannotLiquidateWallet(

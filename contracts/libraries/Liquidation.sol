@@ -7,7 +7,6 @@ import { Constants } from './Constants.sol';
 import { LiquidationType } from './Enums.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Margin } from './Margin.sol';
-import { MarketAdmin } from './MarketAdmin.sol';
 import { Math } from './Math.sol';
 import { MarketOverrides } from './MarketOverrides.sol';
 import { String } from './String.sol';
@@ -410,7 +409,7 @@ library Liquidation {
       }
     }
 
-    require(market.exists && !market.isActive, 'Invalid market');
+    require(market.exists && !market.isActive, 'No inactive market found');
   }
 
   function loadMarketAndOraclePrice(
@@ -434,6 +433,6 @@ library Liquidation {
       }
     }
 
-    require(market.exists, 'Invalid market');
+    require(market.exists && market.isActive, 'No active market found');
   }
 }

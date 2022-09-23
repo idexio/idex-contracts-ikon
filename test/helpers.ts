@@ -112,28 +112,43 @@ export async function deployAndAssociateContracts(
   insuranceFund: SignerWithAddress = owner,
   oracle: SignerWithAddress = owner,
 ) {
-  const [Depositing, NonceInvalidations, Perpetual, Trading, Withdrawing] =
-    await Promise.all([
-      ethers.getContractFactory('Depositing'),
-      ethers.getContractFactory('NonceInvalidations'),
-      ethers.getContractFactory('Perpetual'),
-      ethers.getContractFactory('Trading'),
-      ethers.getContractFactory('Withdrawing'),
-    ]);
-  const [depositing, nonceInvalidations, perpetual, trading, withdrawing] =
-    await Promise.all([
-      (await Depositing.deploy()).deployed(),
-      (await NonceInvalidations.deploy()).deployed(),
-      (await Perpetual.deploy()).deployed(),
-      (await Trading.deploy()).deployed(),
-      (await Withdrawing.deploy()).deployed(),
-    ]);
+  const [
+    Depositing,
+    MarketAdmin,
+    NonceInvalidations,
+    Perpetual,
+    Trading,
+    Withdrawing,
+  ] = await Promise.all([
+    ethers.getContractFactory('Depositing'),
+    ethers.getContractFactory('MarketAdmin'),
+    ethers.getContractFactory('NonceInvalidations'),
+    ethers.getContractFactory('Perpetual'),
+    ethers.getContractFactory('Trading'),
+    ethers.getContractFactory('Withdrawing'),
+  ]);
+  const [
+    depositing,
+    marketAdmin,
+    nonceInvalidations,
+    perpetual,
+    trading,
+    withdrawing,
+  ] = await Promise.all([
+    (await Depositing.deploy()).deployed(),
+    (await MarketAdmin.deploy()).deployed(),
+    (await NonceInvalidations.deploy()).deployed(),
+    (await Perpetual.deploy()).deployed(),
+    (await Trading.deploy()).deployed(),
+    (await Withdrawing.deploy()).deployed(),
+  ]);
 
   const [USDC, Exchange_v4, Governance, Custodian] = await Promise.all([
     ethers.getContractFactory('USDC'),
     ethers.getContractFactory('Exchange_v4', {
       libraries: {
         Depositing: depositing.address,
+        MarketAdmin: marketAdmin.address,
         NonceInvalidations: nonceInvalidations.address,
         Perpetual: perpetual.address,
         Trading: trading.address,
@@ -172,18 +187,23 @@ export async function deployAndAssociateContracts(
     (await exchange.setDispatcher(dispatcher.address)).wait(),
     (await governance.setCustodian(custodian.address)).wait(),
     (
-      await exchange.addMarket(
-        'ETH',
-        '5000000',
-        '3000000',
-        '1000000',
-        '14000000000',
-        '2800000000',
-        '282000000000',
-        '2000000000',
-      )
+      await exchange.addMarket({
+        exists: true,
+        isActive: false,
+        baseAssetSymbol: 'ETH',
+        initialMarginFractionInPips: '5000000',
+        maintenanceMarginFractionInPips: '3000000',
+        incrementalInitialMarginFractionInPips: '1000000',
+        baselinePositionSizeInPips: '14000000000',
+        incrementalPositionSizeInPips: '2800000000',
+        maximumPositionSizeInPips: '282000000000',
+        minimumPositionSizeInPips: '2000000000',
+        lastOraclePriceTimestampInMs: 0,
+        oraclePriceInPipsAtDeactivation: 0,
+      })
     ).wait(),
   ]);
+  (await exchange.connect(dispatcher).setMarketActive('ETH')).wait();
 
   return { custodian, exchange, governance, usdc };
 }

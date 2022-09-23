@@ -72,7 +72,7 @@ library OrderBookTradeValidations {
     );
 
     market = marketsByBaseAssetSymbol[trade.baseAssetSymbol];
-    require(market.exists, 'Invalid base asset symbol');
+    require(market.exists && market.isActive, 'No active market found');
   }
 
   function validateLimitPrices(

@@ -592,6 +592,34 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
+   * @notice Liquidates a single position in a deactivated market at the previously set oracle price
+   */
+  function liquidateInactiveMarketPosition(
+    string calldata baseAssetSymbol,
+    address liquidatingWallet,
+    int64 liquidationQuoteQuantityInPips,
+    OraclePrice[] calldata liquidatingWalletOraclePrices
+  ) external onlyDispatcher {
+    Perpetual.liquidateInactiveMarketPosition(
+      Liquidation.LiquidateInactiveMarketPositionArguments(
+        baseAssetSymbol,
+        liquidatingWallet,
+        liquidationQuoteQuantityInPips,
+        liquidatingWalletOraclePrices,
+        _oracleWallet,
+        _quoteAssetDecimals,
+        _quoteAssetSymbol
+      ),
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
+      _fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      _marketOverridesByBaseAssetSymbolAndWallet,
+      _marketsByBaseAssetSymbol
+    );
+  }
+
+  /**
    * @notice Liquidates all positions held by a wallet below maintenance requirements to the Insurance Fund at each
    * position's bankruptcy price
    */
@@ -733,8 +761,8 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Reduces a single position held by a wallet below maintenance requirements by deleveraging a counterparty
-   * position at the bankruptcy price of the liquidating wallet
+   * @notice Reduces a single position held by the Insurance Fund by deleveraging a counterparty position at the entry
+   * price of the Insurance Fund
    */
   function deleverageInsuranceFundClosure(
     string calldata baseAssetSymbol,
@@ -767,6 +795,10 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Reduces a single position held by an exited wallet by deleveraging a counterparty position at the exit
+   * price of the liquidating wallet
+   */
   function deleverageExitAcquisition(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
@@ -806,6 +838,10 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Reduces a single position held by the Exit Fund by deleveraging a counterparty position at the oracle
+   * price or the Exit Fund's bankruptcy price if the Exit Fund account value is positive or negative, respectively
+   */
   function deleverageExitFundClosure(
     string calldata baseAssetSymbol,
     address deleveragingWallet,

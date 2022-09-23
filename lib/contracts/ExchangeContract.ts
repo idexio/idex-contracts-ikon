@@ -21,6 +21,7 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
     args: Parameters<Exchange_v4__factory['deploy']>,
     libraryAddresses: {
       depositing: string;
+      marketAdmin: string;
       nonceInvalidations: string;
       perpetual: string;
       trading: string;
@@ -33,6 +34,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
     >[0] = {
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
+      ['contracts/libraries/MarketAdmin.sol:MarketAdmin']:
+        libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
       ['contracts/libraries/Perpetual.sol:Perpetual']:
