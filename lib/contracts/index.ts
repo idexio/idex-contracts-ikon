@@ -20,6 +20,7 @@ export {
 
 export type LibraryName =
   | 'Depositing'
+  | 'MarketAdmin'
   | 'NonceInvalidations'
   | 'Perpetual'
   | 'Trading'

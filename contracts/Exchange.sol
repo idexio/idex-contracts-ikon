@@ -43,10 +43,10 @@ contract Exchange_v4 is IExchange, Owned {
     uint256 newValue
   );
   /**
-   * @notice Emitted when an admin changes the dust position liquidation price tolerance tunable parameter with
-   * `setDustPositionLiquidationPriceToleranceBasisPoints`
+   * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
+   * with `setPositionBelowMinimumLiquidationPriceToleranceBasisPoints`
    */
-  event DustPositionLiquidationPriceToleranceChanged(
+  event PositionBelowMinimumLiquidationPriceToleranceChanged(
     uint256 previousValue,
     uint256 newValue
   );
@@ -154,7 +154,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Tunable parameters
   uint256 _chainPropagationPeriodInBlocks;
   uint64 _delegateKeyExpirationPeriodInMs;
-  uint64 _dustPositionLiquidationPriceToleranceBasisPoints;
+  uint64 _positionBelowMinimumLiquidationPriceToleranceBasisPoints;
   address _dispatcherWallet;
   address _feeWallet;
 
@@ -264,27 +264,27 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Sets a new dust position liquidation price tolerance
+   * @notice Sets a new position below minimum liquidation price tolerance
    *
-   * @param newDustPositionLiquidationPriceToleranceBasisPoints The new dust position liquidation price tolerance
+   * @param newPositionBelowMinimumLiquidationPriceToleranceBasisPoints The new position below minimum liquidation price tolerance
    * expressed as basis points. Must be less than `Constants.maxFeeBasisPoints`
    */
-  function setDustPositionLiquidationPriceToleranceBasisPoints(
-    uint64 newDustPositionLiquidationPriceToleranceBasisPoints
+  function setPositionBelowMinimumLiquidationPriceToleranceBasisPoints(
+    uint64 newPositionBelowMinimumLiquidationPriceToleranceBasisPoints
   ) external onlyAdmin {
     // TODO Do we want a separate constant cap for this?
     require(
-      newDustPositionLiquidationPriceToleranceBasisPoints <
+      newPositionBelowMinimumLiquidationPriceToleranceBasisPoints <
         Constants.maxFeeBasisPoints,
       'Must be less than 20 percent'
     );
 
-    uint64 oldDustPositionLiquidationPriceToleranceBasisPoints = _dustPositionLiquidationPriceToleranceBasisPoints;
-    _dustPositionLiquidationPriceToleranceBasisPoints = newDustPositionLiquidationPriceToleranceBasisPoints;
+    uint64 oldPositionBelowMinimumLiquidationPriceToleranceBasisPoints = _positionBelowMinimumLiquidationPriceToleranceBasisPoints;
+    _positionBelowMinimumLiquidationPriceToleranceBasisPoints = newPositionBelowMinimumLiquidationPriceToleranceBasisPoints;
 
-    emit DustPositionLiquidationPriceToleranceChanged(
-      oldDustPositionLiquidationPriceToleranceBasisPoints,
-      newDustPositionLiquidationPriceToleranceBasisPoints
+    emit PositionBelowMinimumLiquidationPriceToleranceChanged(
+      oldPositionBelowMinimumLiquidationPriceToleranceBasisPoints,
+      newPositionBelowMinimumLiquidationPriceToleranceBasisPoints
     );
   }
 
@@ -562,21 +562,21 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Liquidates a single position below the market's configured `minimumPositionSizeInPips` to the Insurance
    * Fund at the current oracle price
    */
-  function liquidateDustPosition(
+  function liquidatePositionBelowMinimum(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
     int64 liquidationQuoteQuantityInPips,
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidateDustPosition(
-      Liquidation.LiquidateDustPositionArguments(
+    Perpetual.liquidatePositionBelowMinimum(
+      Liquidation.LiquidatePositionBelowMinimumArguments(
         baseAssetSymbol,
         liquidatingWallet,
         liquidationQuoteQuantityInPips,
         insuranceFundOraclePrices,
         liquidatingWalletOraclePrices,
-        _dustPositionLiquidationPriceToleranceBasisPoints,
+        _positionBelowMinimumLiquidationPriceToleranceBasisPoints,
         _insuranceFundWallet,
         _oracleWallet,
         _quoteAssetDecimals,
@@ -594,14 +594,14 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Liquidates a single position in a deactivated market at the previously set oracle price
    */
-  function liquidateInactiveMarketPosition(
+  function liquidatePositionInDeactivatedMarket(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
     int64 liquidationQuoteQuantityInPips,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidateInactiveMarketPosition(
-      Liquidation.LiquidateInactiveMarketPositionArguments(
+    Perpetual.liquidatePositionInDeactivatedMarket(
+      Liquidation.LiquidatePositionInDeactivatedMarketArguments(
         baseAssetSymbol,
         liquidatingWallet,
         liquidationQuoteQuantityInPips,
@@ -631,7 +631,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) external onlyDispatcher {
     Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
-        LiquidationType.InMaintenanceWallet,
+        LiquidationType.WalletInMaintenance,
         _insuranceFundWallet,
         insuranceFundOraclePrices,
         liquidatingWallet,
@@ -666,7 +666,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
-        LiquidationType.InMaintenanceWalletDuringSystemRecovery,
+        LiquidationType.WalletInMaintenanceDuringSystemRecovery,
         _exitFundWallet,
         new OraclePrice[](0),
         liquidatingWallet,
@@ -698,7 +698,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
-        LiquidationType.ExitedWallet,
+        LiquidationType.WalletExited,
         _insuranceFundWallet,
         insuranceFundOraclePrices,
         liquidatingWallet,
@@ -922,18 +922,18 @@ contract Exchange_v4 is IExchange, Owned {
 
   // TODO Update market
 
-  function setMarketActive(string calldata baseAssetSymbol)
+  function activateMarket(string calldata baseAssetSymbol)
     external
     onlyDispatcher
   {
-    MarketAdmin.setMarketActive(baseAssetSymbol, _marketsByBaseAssetSymbol);
+    MarketAdmin.activateMarket(baseAssetSymbol, _marketsByBaseAssetSymbol);
   }
 
-  function setMarketInactive(
+  function deactivateMarket(
     string calldata baseAssetSymbol,
     OraclePrice memory oraclePrice
   ) external onlyDispatcher {
-    MarketAdmin.setMarketInactive(
+    MarketAdmin.deactivateMarket(
       baseAssetSymbol,
       oraclePrice,
       _oracleWallet,

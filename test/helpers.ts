@@ -203,7 +203,7 @@ export async function deployAndAssociateContracts(
       })
     ).wait(),
   ]);
-  (await exchange.connect(dispatcher).setMarketActive('ETH')).wait();
+  (await exchange.connect(dispatcher).activateMarket('ETH')).wait();
 
   return { custodian, exchange, governance, usdc };
 }

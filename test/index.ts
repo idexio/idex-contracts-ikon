@@ -324,13 +324,13 @@ describe('Exchange', function () {
 
       /*
       await (
-        await exchange.connect(dispatcher).setMarketInactive('ETH', oraclePrice)
+        await exchange.connect(dispatcher).deactivateMarket('ETH', oraclePrice)
       ).wait();
 
       await (
         await exchange
           .connect(dispatcher)
-          .liquidateInactiveMarketPosition(
+          .liquidatePositionInDeactivatedMarket(
             'ETH',
             trader1.address,
             decimalToPips('-20000.00000000'),
@@ -507,7 +507,7 @@ describe('Exchange', function () {
           oraclePriceInPipsAtDeactivation: 0,
         })
       ).wait();
-      (await exchange.connect(dispatcher).setMarketActive('BTC')).wait();
+      (await exchange.connect(dispatcher).activateMarket('BTC')).wait();
 
       await fundWallets([trader1, trader2, insuranceFund], exchange, usdc);
 
@@ -704,7 +704,7 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(dispatcher)
-          .liquidateDustPosition(
+          .liquidatePositionBelowMinimum(
             'ETH',
             trader2.address,
             decimalToPips('-2003.00000000'),

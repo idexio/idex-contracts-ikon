@@ -36,7 +36,7 @@ library LiquidationValidations {
     );
   }
 
-  function validateInactiveMarketLiquidationQuoteQuantity(
+  function validateDeactivatedMarketLiquidationQuoteQuantity(
     uint64 oraclePriceInPips,
     int64 positionSizeInPips,
     int64 quoteQuantityInPips
@@ -55,8 +55,8 @@ library LiquidationValidations {
     );
   }
 
-  function validateDustLiquidationQuoteQuantity(
-    uint64 dustPositionLiquidationPriceToleranceBasisPoints,
+  function validatePositionBelowMinimumLiquidationQuoteQuantity(
+    uint64 positionBelowMinimumLiquidationPriceToleranceBasisPoints,
     int64 liquidationQuoteQuantityInPips,
     uint64 oraclePriceInPips,
     int64 positionSizeInPips
@@ -67,9 +67,9 @@ library LiquidationValidations {
         int64(oraclePriceInPips),
         int64(Constants.pipPriceMultiplier)
       );
-    uint64 toleranceInPips = (dustPositionLiquidationPriceToleranceBasisPoints *
-      Math.abs(expectedLiquidationQuoteQuantitiesInPips)) /
-      Constants.basisPointsInTotal;
+    uint64 toleranceInPips = (positionBelowMinimumLiquidationPriceToleranceBasisPoints *
+        Math.abs(expectedLiquidationQuoteQuantitiesInPips)) /
+        Constants.basisPointsInTotal;
 
     require(
       expectedLiquidationQuoteQuantitiesInPips - int64(toleranceInPips) <=

@@ -24,10 +24,9 @@ export const pipsDecimals = 8;
 export const signatureHashVersion = 105;
 
 export enum LiquidationType {
-  Dust,
-  Exited,
-  InMaintenance,
-  SystemRecovery,
+  WalletExited,
+  WalletInMaintenance,
+  WalletDuringSystemRecovery,
 }
 
 export enum OrderSelfTradePrevention {

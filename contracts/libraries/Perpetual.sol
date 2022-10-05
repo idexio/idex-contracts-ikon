@@ -20,8 +20,8 @@ pragma solidity 0.8.17;
 library Perpetual {
   using BalanceTracking for BalanceTracking.Storage;
 
-  function liquidateDustPosition(
-    Liquidation.LiquidateDustPositionArguments memory arguments,
+  function liquidatePositionBelowMinimum(
+    Liquidation.LiquidatePositionBelowMinimumArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -52,7 +52,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidateDustPosition(
+    Liquidation.liquidatePositionBelowMinimum(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -61,8 +61,8 @@ library Perpetual {
     );
   }
 
-  function liquidateInactiveMarketPosition(
-    Liquidation.LiquidateInactiveMarketPositionArguments memory arguments,
+  function liquidatePositionInDeactivatedMarket(
+    Liquidation.LiquidatePositionInDeactivatedMarketArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -84,7 +84,7 @@ library Perpetual {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    Liquidation.liquidateInactiveMarketPosition(
+    Liquidation.liquidatePositionInDeactivatedMarket(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

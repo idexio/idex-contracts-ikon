@@ -18,9 +18,9 @@ enum DeleverageType {
 // Liquidations //
 
 enum LiquidationType {
-  ExitedWallet,
-  InMaintenanceWallet,
-  InMaintenanceWalletDuringSystemRecovery
+  WalletExited,
+  WalletInMaintenance,
+  WalletInMaintenanceDuringSystemRecovery
 }
 
 // Order book //

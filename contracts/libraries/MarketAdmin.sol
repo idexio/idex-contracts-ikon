@@ -24,18 +24,18 @@ library MarketAdmin {
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
   }
 
-  function setMarketActive(
+  function activateMarket(
     string calldata baseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market = marketsByBaseAssetSymbol[baseAssetSymbol];
-    require(market.exists && !market.isActive, 'No inactive market found');
+    require(market.exists && !market.isActive, 'No deactive market found');
 
     market.isActive = true;
     market.oraclePriceInPipsAtDeactivation = 0;
   }
 
-  function setMarketInactive(
+  function deactivateMarket(
     string calldata baseAssetSymbol,
     OraclePrice memory oraclePrice,
     address oracleWallet,

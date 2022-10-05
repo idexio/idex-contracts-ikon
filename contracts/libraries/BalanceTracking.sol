@@ -98,7 +98,7 @@ library BalanceTracking {
     );
   }
 
-  function updatePositionForInactiveMarketLiquidation(
+  function updatePositionForDeactivatedMarketLiquidation(
     Storage storage self,
     string memory baseAssetSymbol,
     address liquidatingWallet,

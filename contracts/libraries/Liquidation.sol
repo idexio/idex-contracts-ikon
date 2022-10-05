@@ -20,9 +20,9 @@ library Liquidation {
   using SortedStringSet for string[];
 
   /**
-   * @dev Argument for `liquidateDustPosition`
+   * @dev Argument for `liquidatePositionBelowMinimum`
    */
-  struct LiquidateDustPositionArguments {
+  struct LiquidatePositionBelowMinimumArguments {
     // External arguments
     string baseAssetSymbol;
     address liquidatingWallet;
@@ -38,9 +38,9 @@ library Liquidation {
   }
 
   /**
-   * @dev Argument for `liquidateInactiveMarketPosition`
+   * @dev Argument for `liquidatePositionInDeactivatedMarket`
    */
-  struct LiquidateInactiveMarketPositionArguments {
+  struct LiquidatePositionInDeactivatedMarketArguments {
     // External arguments
     string baseAssetSymbol;
     address liquidatingWallet;
@@ -69,8 +69,8 @@ library Liquidation {
     string quoteAssetSymbol;
   }
 
-  function liquidateDustPosition(
-    LiquidateDustPositionArguments memory arguments,
+  function liquidatePositionBelowMinimum(
+    LiquidatePositionBelowMinimumArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -99,7 +99,7 @@ library Liquidation {
       'Maintenance margin requirement not met'
     );
 
-    validateQuantitiesAndLiquidateDustPosition(
+    validateQuantitiesAndLiquidatePositionBelowMinimum(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -108,8 +108,8 @@ library Liquidation {
     );
   }
 
-  function liquidateInactiveMarketPosition(
-    LiquidateInactiveMarketPositionArguments memory arguments,
+  function liquidatePositionInDeactivatedMarket(
+    LiquidatePositionInDeactivatedMarketArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -138,7 +138,7 @@ library Liquidation {
       'Maintenance margin requirement not met'
     );
 
-    validateQuantitiesAndLiquidateInactiveMarketPosition(
+    validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -174,9 +174,9 @@ library Liquidation {
         marketsByBaseAssetSymbol
       );
     if (
-      arguments.liquidationType == LiquidationType.InMaintenanceWallet ||
+      arguments.liquidationType == LiquidationType.WalletInMaintenance ||
       arguments.liquidationType ==
-      LiquidationType.InMaintenanceWalletDuringSystemRecovery
+      LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       require(
         totalAccountValueInPips <
@@ -209,8 +209,8 @@ library Liquidation {
     );
 
     if (
-      arguments.liquidationType == LiquidationType.ExitedWallet ||
-      arguments.liquidationType == LiquidationType.InMaintenanceWallet
+      arguments.liquidationType == LiquidationType.WalletExited ||
+      arguments.liquidationType == LiquidationType.WalletInMaintenance
     ) {
       // Validate that the Insurance Fund still meets its initial margin requirements
       Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
@@ -229,8 +229,8 @@ library Liquidation {
     }
   }
 
-  function validateQuantitiesAndLiquidateDustPosition(
-    LiquidateDustPositionArguments memory arguments,
+  function validateQuantitiesAndLiquidatePositionBelowMinimum(
+    LiquidatePositionBelowMinimumArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -271,12 +271,12 @@ library Liquidation {
       market,
       arguments.oracleWallet
     );
-    LiquidationValidations.validateDustLiquidationQuoteQuantity(
-      arguments.dustPositionLiquidationPriceToleranceBasisPoints,
-      arguments.liquidationQuoteQuantityInPips,
-      oraclePriceInPips,
-      positionSizeInPips
-    );
+    LiquidationValidations.validatePositionBelowMinimumLiquidationQuoteQuantity(
+        arguments.dustPositionLiquidationPriceToleranceBasisPoints,
+        arguments.liquidationQuoteQuantityInPips,
+        oraclePriceInPips,
+        positionSizeInPips
+      );
 
     balanceTracking.updatePositionForLiquidation(
       positionSizeInPips,
@@ -290,8 +290,8 @@ library Liquidation {
     );
   }
 
-  function validateQuantitiesAndLiquidateInactiveMarketPosition(
-    LiquidateInactiveMarketPositionArguments memory arguments,
+  function validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
+    LiquidatePositionInDeactivatedMarketArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -304,7 +304,7 @@ library Liquidation {
     );
 
     // Validate quote quantity
-    LiquidationValidations.validateInactiveMarketLiquidationQuoteQuantity(
+    LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
       market.oraclePriceInPipsAtDeactivation,
       balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
         arguments.liquidatingWallet,
@@ -313,7 +313,7 @@ library Liquidation {
       arguments.liquidationQuoteQuantityInPips
     );
 
-    balanceTracking.updatePositionForInactiveMarketLiquidation(
+    balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,
       arguments.liquidatingWallet,
       arguments.quoteAssetSymbol,
@@ -346,9 +346,9 @@ library Liquidation {
     );
 
     if (
-      arguments.liquidationType == LiquidationType.InMaintenanceWallet ||
+      arguments.liquidationType == LiquidationType.WalletInMaintenance ||
       arguments.liquidationType ==
-      LiquidationType.InMaintenanceWalletDuringSystemRecovery
+      LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       LiquidationValidations.validateLiquidationQuoteQuantity(
         arguments.liquidationQuoteQuantitiesInPips[index],
@@ -364,7 +364,7 @@ library Liquidation {
         totalMaintenanceMarginRequirementInPips
       );
     } else {
-      // LiquidationType.Exit
+      // LiquidationType.WalletExited
       LiquidationValidations.validateExitQuoteQuantity(
         balance.costBasisInPips,
         arguments.liquidationQuoteQuantitiesInPips[index],
@@ -394,7 +394,7 @@ library Liquidation {
   }
 
   function loadMarket(
-    LiquidateInactiveMarketPositionArguments memory arguments,
+    LiquidatePositionInDeactivatedMarketArguments memory arguments,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
@@ -413,7 +413,7 @@ library Liquidation {
   }
 
   function loadMarketAndOraclePrice(
-    LiquidateDustPositionArguments memory arguments,
+    LiquidatePositionBelowMinimumArguments memory arguments,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
