@@ -511,14 +511,8 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata buyOraclePrices,
     OraclePrice[] calldata sellOraclePrices
   ) external onlyDispatcher {
-    require(
-      !isWalletExitFinalized(buy.walletAddress),
-      'Buy wallet exit finalized'
-    );
-    require(
-      !isWalletExitFinalized(sell.walletAddress),
-      'Sell wallet exit finalized'
-    );
+    require(!isWalletExitFinalized(buy.wallet), 'Buy wallet exit finalized');
+    require(!isWalletExitFinalized(sell.wallet), 'Sell wallet exit finalized');
 
     Trading.executeOrderBookTrade(
       // We wrap the arguments in a struct to avoid 'Stack too deep' errors
@@ -546,8 +540,8 @@ contract Exchange_v4 is IExchange, Owned {
     );
 
     emit OrderBookTradeExecuted(
-      buy.walletAddress,
-      sell.walletAddress,
+      buy.wallet,
+      sell.wallet,
       orderBookTrade.baseAssetSymbol,
       orderBookTrade.quoteAssetSymbol,
       orderBookTrade.baseQuantityInPips,
@@ -885,7 +879,7 @@ contract Exchange_v4 is IExchange, Owned {
     Withdrawal memory withdrawal,
     OraclePrice[] calldata oraclePrices
   ) public onlyDispatcher {
-    require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
+    require(!isWalletExitFinalized(withdrawal.wallet), 'Wallet exited');
 
     int64 newExchangeBalanceInPips = Withdrawing.withdraw(
       Withdrawing.WithdrawArguments(
@@ -908,7 +902,7 @@ contract Exchange_v4 is IExchange, Owned {
     );
 
     emit Withdrawn(
-      withdrawal.walletAddress,
+      withdrawal.wallet,
       withdrawal.grossQuantityInPips,
       newExchangeBalanceInPips
     );

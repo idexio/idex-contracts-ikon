@@ -29,7 +29,7 @@ library MarketAdmin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market = marketsByBaseAssetSymbol[baseAssetSymbol];
-    require(market.exists && !market.isActive, 'No deactive market found');
+    require(market.exists && !market.isActive, 'No deactived market found');
 
     market.isActive = true;
     market.oraclePriceInPipsAtDeactivation = 0;

@@ -27,7 +27,7 @@ library OrderBookTradeValidations {
     )
   {
     require(
-      arguments.buy.walletAddress != arguments.sell.walletAddress,
+      arguments.buy.wallet != arguments.sell.wallet,
       'Self-trading not allowed'
     );
 
@@ -136,7 +136,7 @@ library OrderBookTradeValidations {
     uint64 orderTimestampInMs = UUID.getTimestampInMsFromUuidV1(order.nonce);
 
     uint64 lastInvalidatedTimestamp = loadLastInvalidatedTimestamp(
-      order.walletAddress,
+      order.wallet,
       nonceInvalidations
     );
     require(
@@ -194,11 +194,11 @@ library OrderBookTradeValidations {
     bool isSignatureValid = order.isSignedByDelegatedKey
       ? (Hashing.isSignatureValid(
         Hashing.getDelegatedKeyHash(
-          order.walletAddress,
+          order.wallet,
           order.delegatedKeyAuthorization
         ),
         order.delegatedKeyAuthorization.signature,
-        order.walletAddress
+        order.wallet
       ) &&
         Hashing.isSignatureValid(
           orderHash,
@@ -208,7 +208,7 @@ library OrderBookTradeValidations {
       : Hashing.isSignatureValid(
         orderHash,
         order.walletSignature,
-        order.walletAddress
+        order.wallet
       );
 
     require(
@@ -249,14 +249,14 @@ library OrderBookTradeValidations {
   }
 
   function loadLastInvalidatedTimestamp(
-    address walletAddress,
+    address wallet,
     mapping(address => NonceInvalidation) storage nonceInvalidations
   ) private view returns (uint64) {
     if (
-      nonceInvalidations[walletAddress].exists &&
-      nonceInvalidations[walletAddress].effectiveBlockNumber <= block.number
+      nonceInvalidations[wallet].exists &&
+      nonceInvalidations[wallet].effectiveBlockNumber <= block.number
     ) {
-      return nonceInvalidations[walletAddress].timestampInMs;
+      return nonceInvalidations[wallet].timestampInMs;
     }
 
     return 0;
@@ -277,7 +277,6 @@ library OrderBookTradeValidations {
   function isLimitOrderType(OrderType orderType) internal pure returns (bool) {
     return
       orderType == OrderType.Limit ||
-      orderType == OrderType.LimitMaker ||
       orderType == OrderType.StopLossLimit ||
       orderType == OrderType.TakeProfitLimit;
   }

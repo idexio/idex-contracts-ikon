@@ -45,19 +45,26 @@ enum OrderTimeInForce {
   // Good until cancelled
   gtc,
   // Good until time
-  gtt,
+  gtx,
   // Immediate or cancel
   ioc,
   // Fill or kill
   fok
 }
 
+enum OrderTriggerType {
+  // Last trade price
+  last,
+  // Oracle price
+  index
+}
+
 enum OrderType {
   Market,
   Limit,
-  LimitMaker,
-  StopLoss,
+  StopLossMarket,
   StopLossLimit,
-  TakeProfit,
-  TakeProfitLimit
+  TakeProfitMarket,
+  TakeProfitLimit,
+  TrailingStop
 }

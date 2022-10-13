@@ -50,7 +50,7 @@ library Trading {
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
     Funding.updateWalletFunding(
-      arguments.buy.walletAddress,
+      arguments.buy.wallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -59,7 +59,7 @@ library Trading {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
     Funding.updateWalletFunding(
-      arguments.sell.walletAddress,
+      arguments.sell.wallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -168,7 +168,7 @@ library Trading {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
         Margin.LoadArguments(
-          arguments.buy.walletAddress,
+          arguments.buy.wallet,
           arguments.buyOraclePrices,
           arguments.oracleWallet,
           arguments.quoteAssetDecimals,
@@ -184,7 +184,7 @@ library Trading {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
         Margin.LoadArguments(
-          arguments.sell.walletAddress,
+          arguments.sell.wallet,
           arguments.sellOraclePrices,
           arguments.oracleWallet,
           arguments.quoteAssetDecimals,
@@ -202,7 +202,7 @@ library Trading {
   function isMarketOrderType(OrderType orderType) private pure returns (bool) {
     return
       orderType == OrderType.Market ||
-      orderType == OrderType.StopLoss ||
-      orderType == OrderType.TakeProfit;
+      orderType == OrderType.StopLossMarket ||
+      orderType == OrderType.TakeProfitMarket;
   }
 }

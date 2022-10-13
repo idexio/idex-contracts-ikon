@@ -28,13 +28,13 @@ library BalanceTracking {
 
   function updateForDeposit(
     Storage storage self,
-    address walletAddress,
+    address wallet,
     string memory assetSymbol,
     uint64 quantityInPips
   ) internal returns (int64 newBalanceInPips) {
     Balance storage balance = loadBalanceAndMigrateIfNeeded(
       self,
-      walletAddress,
+      wallet,
       assetSymbol
     );
     balance.balanceInPips += int64(quantityInPips);
@@ -339,7 +339,7 @@ library BalanceTracking {
     // Seller gives base asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      arguments.sell.walletAddress,
+      arguments.sell.wallet,
       arguments.orderBookTrade.baseAssetSymbol
     );
     subtractFromPosition(
@@ -348,14 +348,14 @@ library BalanceTracking {
       arguments.orderBookTrade.quoteQuantityInPips,
       market
         .loadMarketWithOverridesForWallet(
-          arguments.sell.walletAddress,
+          arguments.sell.wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         )
         .maximumPositionSizeInPips
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
-      arguments.sell.walletAddress,
+      arguments.sell.wallet,
       arguments.orderBookTrade.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
@@ -363,7 +363,7 @@ library BalanceTracking {
     // Buyer receives base asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      arguments.buy.walletAddress,
+      arguments.buy.wallet,
       arguments.orderBookTrade.baseAssetSymbol
     );
     addToPosition(
@@ -372,14 +372,14 @@ library BalanceTracking {
       arguments.orderBookTrade.quoteQuantityInPips,
       market
         .loadMarketWithOverridesForWallet(
-          arguments.buy.walletAddress,
+          arguments.buy.wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         )
         .maximumPositionSizeInPips
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     updateOpenPositionsForWallet(
-      arguments.buy.walletAddress,
+      arguments.buy.wallet,
       arguments.orderBookTrade.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
@@ -388,7 +388,7 @@ library BalanceTracking {
     // Buyer gives quote asset including fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      arguments.buy.walletAddress,
+      arguments.buy.wallet,
       arguments.orderBookTrade.quoteAssetSymbol
     );
     balance.balanceInPips -=
@@ -398,7 +398,7 @@ library BalanceTracking {
     // Seller receives quote asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      arguments.sell.walletAddress,
+      arguments.sell.wallet,
       arguments.orderBookTrade.quoteAssetSymbol
     );
     balance.balanceInPips +=
@@ -428,7 +428,7 @@ library BalanceTracking {
 
     balance = loadBalanceAndMigrateIfNeeded(
       self,
-      withdrawal.walletAddress,
+      withdrawal.wallet,
       assetSymbol
     );
     // Reverts if balance is overdrawn

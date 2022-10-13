@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import { ECDSA } from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 
 import { Constants } from './Constants.sol';
+import { OrderType } from './Enums.sol';
 import { DelegatedKeyAuthorization, OraclePrice, Order, Withdrawal } from './Structs.sol';
 
 /**
@@ -21,14 +22,14 @@ library Hashing {
   }
 
   function getDelegatedKeyHash(
-    address walletAddress,
+    address wallet,
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
   ) internal pure returns (bytes32) {
     return
       keccak256(
         abi.encodePacked(
           delegatedKeyAuthorization.nonce,
-          walletAddress,
+          wallet,
           delegatedKeyAuthorization.delegatedPublicKey
         )
       );
@@ -70,7 +71,7 @@ library Hashing {
           abi.encodePacked(
             order.signatureHashVersion,
             order.nonce,
-            order.walletAddress,
+            order.wallet,
             string(abi.encodePacked(baseSymbol, '-', quoteSymbol)),
             uint8(order.orderType),
             uint8(order.side),
@@ -83,17 +84,25 @@ library Hashing {
             order.limitPriceInPips > 0
               ? pipToDecimal(order.limitPriceInPips)
               : '',
-            order.stopPriceInPips > 0
-              ? pipToDecimal(order.stopPriceInPips)
+            order.triggerPriceInPips > 0
+              ? pipToDecimal(order.triggerPriceInPips)
               : '',
+            order.triggerPriceInPips > 0
+              ? abi.encodePacked(order.triggerType)
+              : new bytes(0),
+            order.orderType == OrderType.TrailingStop
+              ? pipToDecimal(order.callbackRateInPips)
+              : '',
+            order.conditionalOrderId > 0
+              ? abi.encodePacked(order.conditionalOrderId)
+              : new bytes(0),
             order.clientOrderId,
+            order.isReduceOnly,
             uint8(order.timeInForce),
-            uint8(order.selfTradePrevention),
-            order.cancelAfter
+            uint8(order.selfTradePrevention)
           ),
           order.isSignedByDelegatedKey
             ? abi.encodePacked(
-              order.delegatedKeyAuthorization.nonce,
               order.delegatedKeyAuthorization.delegatedPublicKey
             )
             : abi.encodePacked('')
@@ -110,7 +119,7 @@ library Hashing {
       keccak256(
         abi.encodePacked(
           withdrawal.nonce,
-          withdrawal.walletAddress,
+          withdrawal.wallet,
           pipToDecimal(withdrawal.grossQuantityInPips)
         )
       );

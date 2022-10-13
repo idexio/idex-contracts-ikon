@@ -43,7 +43,7 @@ export enum OrderSide {
 
 export enum OrderTimeInForce {
   GTC,
-  GTT,
+  GTX,
   IOC,
   FOK,
 }
@@ -51,11 +51,16 @@ export enum OrderTimeInForce {
 export enum OrderType {
   Market,
   Limit,
-  LimitMaker,
-  StopLoss,
+  StopLossMarket,
   StopLossLimit,
-  TakeProfit,
+  TakeProfitMarket,
   TakeProfitLimit,
+  TrailingStop,
+}
+
+export enum OrderTriggerType {
+  Last,
+  Index,
 }
 
 export interface OraclePrice {
@@ -72,14 +77,17 @@ export interface Order {
   market: string;
   type: OrderType;
   side: OrderSide;
-  timeInForce?: OrderTimeInForce;
   quantity: string;
   isQuantityInQuote: boolean;
   price: string;
-  stopPrice?: string;
+  triggerPrice?: string;
+  triggerType?: OrderTriggerType;
+  callbackRate?: string;
+  conditionalOrderId?: string;
   clientOrderId?: string;
+  isReduceOnly?: boolean;
+  timeInForce?: OrderTimeInForce;
   selfTradePrevention?: OrderSelfTradePrevention;
-  cancelAfter?: number;
 }
 
 export interface DelegatedKeyAuthorization {
@@ -153,17 +161,21 @@ export const getOrderHash = (
     ['string', order.quantity],
     ['bool', order.isQuantityInQuote],
     ['string', order.price || ''],
-    ['string', order.stopPrice || ''],
+    ['string', order.triggerPrice || ''],
+    order.triggerType ? ['uint8', order.triggerType] : ['string', ''],
+    ['string', order.callbackRate || ''],
+    order.conditionalOrderId
+      ? ['uint128', uuidToUint8Array(order.conditionalOrderId)]
+      : ['string', ''],
     ['string', order.clientOrderId || ''],
+    ['bool', !!order.isReduceOnly],
     ['uint8', order.timeInForce || 0],
     ['uint8', order.selfTradePrevention || 0],
-    ['uint64', order.cancelAfter || 0],
   ];
 
   if (delegatedKeyAuthorization) {
     params = [
       ...params,
-      ['uint128', uuidToUint8Array(delegatedKeyAuthorization.nonce)],
       ['address', delegatedKeyAuthorization.delegatedPublicKey],
     ];
   }
@@ -172,12 +184,12 @@ export const getOrderHash = (
 };
 
 export const getDelegatedKeyAuthorizationHash = (
-  walletAddress: string,
+  wallet: string,
   delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
 ): string => {
   return solidityHashOfParams([
     ['uint128', uuidToUint8Array(delegatedKeyAuthorization.nonce)],
-    ['address', walletAddress],
+    ['address', wallet],
     ['address', delegatedKeyAuthorization.delegatedPublicKey],
   ]);
 };
@@ -233,7 +245,7 @@ export const getWithdrawArguments = (
   return [
     {
       nonce: uuidToHexString(withdrawal.nonce),
-      walletAddress: withdrawal.wallet,
+      wallet: withdrawal.wallet,
       grossQuantityInPips: decimalToPips(withdrawal.quantity),
       gasFeeInPips: decimalToPips(gasFee),
       walletSignature,
@@ -283,17 +295,20 @@ const orderToArgumentStruct = (
   return {
     signatureHashVersion: o.signatureHashVersion,
     nonce: uuidToHexString(o.nonce),
-    walletAddress: o.wallet,
+    wallet: o.wallet,
     orderType: o.type,
     side: o.side,
     quantityInPips: decimalToPips(o.quantity),
     isQuantityInQuote: o.isQuantityInQuote,
     limitPriceInPips: decimalToPips(o.price || '0'),
-    stopPriceInPips: decimalToPips(o.stopPrice || '0'),
+    triggerPriceInPips: decimalToPips(o.triggerPrice || '0'),
+    triggerType: o.triggerType || 0,
+    callbackRateInPips: decimalToPips(o.callbackRate || '0'),
+    conditionalOrderId: o.conditionalOrderId || 0,
     clientOrderId: o.clientOrderId || '',
+    isReduceOnly: !!o.isReduceOnly,
     timeInForce: o.timeInForce || 0,
     selfTradePrevention: o.selfTradePrevention || 0,
-    cancelAfter: o.cancelAfter || 0,
     walletSignature,
     isSignedByDelegatedKey: !!delegatedKeyAuthorization,
     delegatedKeyAuthorization: delegatedKeyAuthorization

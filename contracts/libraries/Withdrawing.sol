@@ -74,7 +74,7 @@ library Withdrawing {
     );
 
     Funding.updateWalletFunding(
-      arguments.withdrawal.walletAddress,
+      arguments.withdrawal.wallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
       fundingMultipliersByBaseAssetSymbol,
@@ -93,7 +93,7 @@ library Withdrawing {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
         Margin.LoadArguments(
-          arguments.withdrawal.walletAddress,
+          arguments.withdrawal.wallet,
           arguments.oraclePrices,
           arguments.oracleWallet,
           arguments.quoteAssetDecimals,
@@ -115,7 +115,7 @@ library Withdrawing {
         arguments.quoteAssetDecimals
       );
     arguments.custodian.withdraw(
-      arguments.withdrawal.walletAddress,
+      arguments.withdrawal.wallet,
       arguments.quoteAssetAddress,
       netAssetQuantityInAssetUnits
     );
