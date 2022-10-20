@@ -53,10 +53,12 @@ enum OrderTimeInForce {
 }
 
 enum OrderTriggerType {
+  // Not a triggered order
+  None,
   // Last trade price
-  last,
+  Last,
   // Oracle price
-  index
+  Index
 }
 
 enum OrderType {

@@ -4,13 +4,12 @@ pragma solidity 0.8.17;
 
 import { Constants } from './Constants.sol';
 import { Hashing } from './Hashing.sol';
-import { OrderSide } from './Enums.sol';
 import { Math } from './Math.sol';
-import { OrderType } from './Enums.sol';
 import { String } from './String.sol';
 import { UUID } from './UUID.sol';
 import { Validations } from './Validations.sol';
 import { ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
+import { OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from './Enums.sol';
 
 library OrderBookTradeValidations {
   function validateOrderBookTrade(
@@ -37,7 +36,7 @@ library OrderBookTradeValidations {
       arguments.quoteAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    validateLimitPrices(
+    validateOrderConditions(
       arguments.buy,
       arguments.sell,
       arguments.orderBookTrade
@@ -60,7 +59,7 @@ library OrderBookTradeValidations {
     OrderBookTrade memory trade,
     string memory quoteAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (Market memory market) {
+  ) private view returns (Market memory market) {
     require(
       !String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol),
       'Trade assets must be different'
@@ -75,11 +74,11 @@ library OrderBookTradeValidations {
     require(market.exists && market.isActive, 'No active market found');
   }
 
-  function validateLimitPrices(
+  function validateOrderConditions(
     Order memory buy,
     Order memory sell,
     OrderBookTrade memory trade
-  ) internal pure {
+  ) private pure {
     require(
       trade.baseQuantityInPips > 0,
       'Base quantity must be greater than zero'
@@ -89,25 +88,82 @@ library OrderBookTradeValidations {
       'Quote quantity must be greater than zero'
     );
 
-    if (isLimitOrderType(buy.orderType)) {
-      require(
-        calculateImpliedQuoteQuantityInPips(
-          trade.baseQuantityInPips,
-          buy.limitPriceInPips
-        ) >= trade.quoteQuantityInPips,
-        'Buy order limit price exceeded'
+    validateOrderConditions(buy, trade, true);
+    validateOrderConditions(sell, trade, false);
+  }
+
+  function validateOrderConditions(
+    Order memory order,
+    OrderBookTrade memory trade,
+    bool isBuy
+  ) private pure {
+    validateLimitPrice(order, trade, isBuy);
+    validateTimeInForce(order, trade, isBuy);
+    validateTriggerFields(order);
+  }
+
+  function validateLimitPrice(
+    Order memory order,
+    OrderBookTrade memory trade,
+    bool isBuy
+  ) private pure {
+    if (isLimitOrderType(order.orderType)) {
+      require(order.limitPriceInPips > 0, 'Invalid limit price');
+
+      uint64 impliedQuoteQuantity = calculateImpliedQuoteQuantityInPips(
+        trade.baseQuantityInPips,
+        order.limitPriceInPips
       );
+      require(
+        isBuy
+          ? impliedQuoteQuantity >= trade.quoteQuantityInPips
+          : impliedQuoteQuantity <= trade.quoteQuantityInPips,
+        'Order limit price exceeded'
+      );
+    } else {
+      require(order.limitPriceInPips == 0, 'Invalid limit price');
+    }
+  }
+
+  function validateTimeInForce(
+    Order memory order,
+    OrderBookTrade memory trade,
+    bool isBuy
+  ) private pure {
+    if (order.timeInForce == OrderTimeInForce.gtx) {
+      require(
+        isLimitOrderType(order.orderType) &&
+          trade.makerSide == (isBuy ? OrderSide.Buy : OrderSide.Sell),
+        'gtx order must be limit maker'
+      );
+    }
+  }
+
+  function validateTriggerFields(Order memory order) private pure {
+    if (
+      order.orderType == OrderType.StopLossMarket ||
+      order.orderType == OrderType.StopLossLimit ||
+      order.orderType == OrderType.TakeProfitMarket ||
+      order.orderType == OrderType.TakeProfitLimit
+    ) {
+      require(order.triggerPriceInPips > 0, 'Missing trigger price');
+    } else if (order.orderType != OrderType.TrailingStop) {
+      require(order.triggerPriceInPips > 0, 'Invalid trigger price');
     }
 
-    if (isLimitOrderType(sell.orderType)) {
-      require(
-        calculateImpliedQuoteQuantityInPips(
-          trade.baseQuantityInPips,
-          sell.limitPriceInPips
-        ) <= trade.quoteQuantityInPips,
-        'Sell order limit price exceeded'
-      );
-    }
+    require(
+      order.orderType == OrderType.TrailingStop
+        ? order.callbackRateInPips > 0
+        : order.callbackRateInPips == 0,
+      'Invalid callback rate'
+    );
+
+    require(
+      order.triggerPriceInPips == 0
+        ? order.triggerType == OrderTriggerType.None
+        : order.triggerType != OrderTriggerType.None,
+      'Invalid trigger type'
+    );
   }
 
   function validateOrderNonces(
@@ -115,7 +171,7 @@ library OrderBookTradeValidations {
     Order memory sell,
     uint64 delegateKeyExpirationPeriodInMs,
     mapping(address => NonceInvalidation) storage nonceInvalidations
-  ) internal view {
+  ) private view {
     validateOrderNonce(
       buy,
       delegateKeyExpirationPeriodInMs,
@@ -132,7 +188,7 @@ library OrderBookTradeValidations {
     Order memory order,
     uint64 delegateKeyExpirationPeriodInMs,
     mapping(address => NonceInvalidation) storage nonceInvalidations
-  ) internal view {
+  ) private view {
     uint64 orderTimestampInMs = UUID.getTimestampInMsFromUuidV1(order.nonce);
 
     uint64 lastInvalidatedTimestamp = loadLastInvalidatedTimestamp(
@@ -165,7 +221,7 @@ library OrderBookTradeValidations {
     Order memory buy,
     Order memory sell,
     OrderBookTrade memory trade
-  ) internal pure returns (bytes32, bytes32) {
+  ) private pure returns (bytes32, bytes32) {
     bytes32 buyOrderHash = validateOrderSignature(
       buy,
       trade.baseAssetSymbol,
@@ -184,7 +240,7 @@ library OrderBookTradeValidations {
     Order memory order,
     string memory baseAssetSymbol,
     string memory quoteAssetSymbol
-  ) internal pure returns (bytes32) {
+  ) private pure returns (bytes32) {
     bytes32 orderHash = Hashing.getOrderHash(
       order,
       baseAssetSymbol,

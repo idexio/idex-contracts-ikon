@@ -342,6 +342,13 @@ library BalanceTracking {
       arguments.sell.wallet,
       arguments.orderBookTrade.baseAssetSymbol
     );
+    if (arguments.sell.isReduceOnly) {
+      validatePositionUpdatedTowardsZero(
+        balance.balanceInPips,
+        balance.balanceInPips -
+          int64(arguments.orderBookTrade.baseQuantityInPips)
+      );
+    }
     subtractFromPosition(
       balance,
       arguments.orderBookTrade.baseQuantityInPips,
@@ -360,12 +367,20 @@ library BalanceTracking {
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
+
     // Buyer receives base asset minus fees
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       arguments.buy.wallet,
       arguments.orderBookTrade.baseAssetSymbol
     );
+    if (arguments.sell.isReduceOnly) {
+      validatePositionUpdatedTowardsZero(
+        balance.balanceInPips,
+        balance.balanceInPips +
+          int64(arguments.orderBookTrade.baseQuantityInPips)
+      );
+    }
     addToPosition(
       balance,
       arguments.orderBookTrade.baseQuantityInPips,

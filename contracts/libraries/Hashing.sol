@@ -83,20 +83,19 @@ library Hashing {
             order.isQuantityInQuote,
             order.limitPriceInPips > 0
               ? pipToDecimal(order.limitPriceInPips)
-              : '',
+              : '0.00000000',
             order.triggerPriceInPips > 0
               ? pipToDecimal(order.triggerPriceInPips)
-              : '',
+              : '0.00000000',
             order.triggerPriceInPips > 0
               ? abi.encodePacked(order.triggerType)
               : new bytes(0),
             order.orderType == OrderType.TrailingStop
               ? pipToDecimal(order.callbackRateInPips)
-              : '',
+              : '0.00000000',
             order.conditionalOrderId > 0
               ? abi.encodePacked(order.conditionalOrderId)
               : new bytes(0),
-            order.clientOrderId,
             order.isReduceOnly,
             uint8(order.timeInForce),
             uint8(order.selfTradePrevention)
@@ -105,7 +104,8 @@ library Hashing {
             ? abi.encodePacked(
               order.delegatedKeyAuthorization.delegatedPublicKey
             )
-            : abi.encodePacked('')
+            : abi.encodePacked(''),
+          order.clientOrderId
         )
       );
   }
