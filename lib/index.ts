@@ -84,10 +84,11 @@ export interface Order {
   triggerType?: OrderTriggerType;
   callbackRate?: string;
   conditionalOrderId?: string;
-  clientOrderId?: string;
   isReduceOnly?: boolean;
   timeInForce?: OrderTimeInForce;
   selfTradePrevention?: OrderSelfTradePrevention;
+  delegatedPublicKey?: string;
+  clientOrderId?: string;
 }
 
 export interface DelegatedKeyAuthorization {
@@ -147,10 +148,9 @@ export const getOraclePriceHash = (
   ]);
 };
 
-export const getOrderHash = (
-  order: Order,
-  delegatedKeyAuthorization?: DelegatedKeyAuthorization,
-): string => {
+export const getOrderHash = (order: Order): string => {
+  const emptyPipString = '0.00000000';
+
   let params: TypeValuePair[] = [
     ['uint8', order.signatureHashVersion], // Signature hash version - only version 2 supported
     ['uint128', uuidToUint8Array(order.nonce)],
@@ -160,25 +160,24 @@ export const getOrderHash = (
     ['uint8', order.side],
     ['string', order.quantity],
     ['bool', order.isQuantityInQuote],
-    ['string', order.price || ''],
-    ['string', order.triggerPrice || ''],
-    order.triggerType ? ['uint8', order.triggerType] : ['string', ''],
-    ['string', order.callbackRate || ''],
-    order.conditionalOrderId
-      ? ['uint128', uuidToUint8Array(order.conditionalOrderId)]
-      : ['string', ''],
-    ['string', order.clientOrderId || ''],
+    ['string', order.price || emptyPipString],
+    ['string', order.triggerPrice || emptyPipString],
+    ['uint8', order.triggerType || 0],
+    ['string', order.callbackRate || emptyPipString],
+    [
+      'uint128',
+      order.conditionalOrderId
+        ? uuidToUint8Array(order.conditionalOrderId)
+        : '0',
+    ],
     ['bool', !!order.isReduceOnly],
     ['uint8', order.timeInForce || 0],
     ['uint8', order.selfTradePrevention || 0],
+    ['address', order.delegatedPublicKey || ethers.constants.AddressZero],
+    ['string', order.clientOrderId || ''],
   ];
 
-  if (delegatedKeyAuthorization) {
-    params = [
-      ...params,
-      ['address', delegatedKeyAuthorization.delegatedPublicKey],
-    ];
-  }
+  console.log(params);
 
   return solidityHashOfParams(params);
 };
@@ -292,6 +291,8 @@ const orderToArgumentStruct = (
   walletSignature: string,
   delegatedKeyAuthorization?: DelegatedKeyAuthorization,
 ) => {
+  const emptyPipString = '0.00000000';
+
   return {
     signatureHashVersion: o.signatureHashVersion,
     nonce: uuidToHexString(o.nonce),
@@ -300,10 +301,10 @@ const orderToArgumentStruct = (
     side: o.side,
     quantityInPips: decimalToPips(o.quantity),
     isQuantityInQuote: o.isQuantityInQuote,
-    limitPriceInPips: decimalToPips(o.price || '0'),
-    triggerPriceInPips: decimalToPips(o.triggerPrice || '0'),
+    limitPriceInPips: decimalToPips(o.price || emptyPipString),
+    triggerPriceInPips: decimalToPips(o.triggerPrice || emptyPipString),
     triggerType: o.triggerType || 0,
-    callbackRateInPips: decimalToPips(o.callbackRate || '0'),
+    callbackRateInPips: decimalToPips(o.callbackRate || emptyPipString),
     conditionalOrderId: o.conditionalOrderId || 0,
     clientOrderId: o.clientOrderId || '',
     isReduceOnly: !!o.isReduceOnly,

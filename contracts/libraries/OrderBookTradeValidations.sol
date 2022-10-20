@@ -148,7 +148,7 @@ library OrderBookTradeValidations {
     ) {
       require(order.triggerPriceInPips > 0, 'Missing trigger price');
     } else if (order.orderType != OrderType.TrailingStop) {
-      require(order.triggerPriceInPips > 0, 'Invalid trigger price');
+      require(order.triggerPriceInPips == 0, 'Invalid trigger price');
     }
 
     require(
