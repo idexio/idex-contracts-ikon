@@ -12,6 +12,8 @@ library Constants {
 
   uint64 public constant depositIndexNotSet = 2**64 - 1;
 
+  string public constant emptyDecimalString = '0.00000000';
+
   // 1 week at 3s/block
   uint256 public constant maxChainPropagationPeriodInBlocks =
     (7 * 24 * 60 * 60) / 3;

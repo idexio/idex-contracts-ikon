@@ -248,6 +248,7 @@ describe('Exchange', function () {
         signatureHashVersion,
         nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
         wallet: trader1.address,
+        delegatedPublicKey: sellDelegatedKeyAuthorization.delegatedPublicKey,
         market: 'ETH-USDC',
         type: OrderType.Limit,
         side: OrderSide.Sell,
@@ -256,9 +257,7 @@ describe('Exchange', function () {
         price: '2000.00000000',
       };
       const sellOrderSignature = await trader1Delegate.signMessage(
-        ethers.utils.arrayify(
-          getOrderHash(sellOrder, sellDelegatedKeyAuthorization),
-        ),
+        ethers.utils.arrayify(getOrderHash(sellOrder)),
       );
 
       const buyOrder: Order = {

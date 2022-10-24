@@ -1,7 +1,7 @@
 {
   "name": "@idexio/idex-contracts-ikon",
   "license": "UNLICENSED",
-  "version": "0.1.8",
+  "version": "0.1.11",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Ethereum contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "main": "build/lib/index.js",
@@ -11,6 +11,7 @@
   },
   "files": [
     "artifacts/contracts/libraries/Depositing.sol/Depositing.json",
+    "artifacts/contracts/libraries/MarketAdmin.sol/MarketAdmin.json",
     "artifacts/contracts/libraries/NonceInvalidations.sol/NonceInvalidations.json",
     "artifacts/contracts/libraries/Perpetual.sol/Perpetual.json",
     "artifacts/contracts/libraries/Trading.sol/Trading.json",

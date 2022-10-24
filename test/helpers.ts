@@ -259,13 +259,13 @@ function getPastHourInMs(hoursAgo = 0) {
 }
 
 export async function logWalletBalances(
-  walletAddress: string,
+  wallet: string,
   exchange: Contract,
   oraclePrices: OraclePrice[],
 ) {
   console.log(
     `USDC balance: ${pipToDecimal(
-      await exchange.loadBalanceInPipsBySymbol(walletAddress, 'USDC'),
+      await exchange.loadBalanceInPipsBySymbol(wallet, 'USDC'),
     )}`,
   );
 
@@ -273,7 +273,7 @@ export async function logWalletBalances(
     console.log(
       `${oraclePrice.baseAssetSymbol} balance:  ${pipToDecimal(
         await exchange.loadBalanceInPipsBySymbol(
-          walletAddress,
+          wallet,
           oraclePrice.baseAssetSymbol,
         ),
       )}`,
@@ -282,7 +282,7 @@ export async function logWalletBalances(
       `${oraclePrice.baseAssetSymbol} cost basis: ${pipToDecimal(
         (
           await exchange.loadBalanceBySymbol(
-            walletAddress,
+            wallet,
             oraclePrice.baseAssetSymbol,
           )
         ).costBasisInPips,
@@ -292,26 +292,23 @@ export async function logWalletBalances(
 
   console.log(
     `Total account value: ${pipToDecimal(
-      await exchange.loadTotalAccountValue(walletAddress, oraclePrices),
+      await exchange.loadTotalAccountValue(wallet, oraclePrices),
     )}`,
   );
   console.log(
     `Outstanding funding payments: ${pipToDecimal(
-      await exchange.loadOutstandingWalletFunding(walletAddress),
+      await exchange.loadOutstandingWalletFunding(wallet),
     )}`,
   );
   console.log(
     `Initial margin requirement: ${pipToDecimal(
-      await exchange.loadTotalInitialMarginRequirement(
-        walletAddress,
-        oraclePrices,
-      ),
+      await exchange.loadTotalInitialMarginRequirement(wallet, oraclePrices),
     )}`,
   );
   console.log(
     `Maintenance margin requirement: ${pipToDecimal(
       await exchange.loadTotalMaintenanceMarginRequirement(
-        walletAddress,
+        wallet,
         oraclePrices,
       ),
     )}`,

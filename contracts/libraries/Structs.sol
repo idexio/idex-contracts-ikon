@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.17;
 
-import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderType } from './Enums.sol';
+import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from './Enums.sol';
 
 struct DelegatedKeyAuthorization {
   // UUIDv1 unique to wallet
@@ -101,7 +101,7 @@ struct Order {
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Custody wallet address that placed order and (if not using delegate wallet) signed hash
-  address walletAddress;
+  address wallet;
   // Type of order
   OrderType orderType;
   // Order side wallet is on
@@ -113,15 +113,21 @@ struct Order {
   // For limit orders, price in decimal pips * 10^8 in quote terms
   uint64 limitPriceInPips;
   // For stop orders, stop loss or take profit price in decimal pips * 10^8 in quote terms
-  uint64 stopPriceInPips;
+  uint64 triggerPriceInPips;
+  // Type of trigger condition
+  OrderTriggerType triggerType;
+  // Percentage of price movement in opposite direction before triggering trailing stop
+  uint64 callbackRateInPips;
+  // UUIDv1 public ID of a separate order that must be filled before this stop order becomes active
+  uint128 conditionalOrderId;
   // Optional custom client order ID
   string clientOrderId;
+  // If true, order execution must move wallet position size towards zero
+  bool isReduceOnly;
   // TIF option specified by wallet for order
   OrderTimeInForce timeInForce;
   // STP behavior specified by wallet for order
   OrderSelfTradePrevention selfTradePrevention;
-  // Cancellation time specified by wallet for GTT TIF order
-  uint64 cancelAfter;
   // The ECDSA signature of the order hash as produced by Hashing.getOrderWalletHash
   bytes walletSignature;
   // Asserted when signed by delegated key instead of custody wallet
@@ -168,7 +174,7 @@ struct Withdrawal {
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Address of wallet to which funds will be returned
-  address payable walletAddress;
+  address payable wallet;
   // Withdrawal quantity
   uint64 grossQuantityInPips;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs

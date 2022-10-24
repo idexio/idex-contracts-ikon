@@ -103,7 +103,7 @@ library Validations {
       Hashing.isSignatureValid(
         withdrawalHash,
         withdrawal.walletSignature,
-        withdrawal.walletAddress
+        withdrawal.wallet
       ),
       'Invalid wallet signature'
     );
