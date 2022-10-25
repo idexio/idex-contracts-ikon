@@ -12,8 +12,6 @@ import { SortedStringSet } from './SortedStringSet.sol';
 import { UUID } from './UUID.sol';
 import { Balance, ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
-import 'hardhat/console.sol';
-
 library BalanceTracking {
   using MarketOverrides for Market;
   using SortedStringSet for string[];
@@ -261,6 +259,8 @@ library BalanceTracking {
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
     address wallet,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (int64 quoteQuantityInPips) {
@@ -288,6 +288,12 @@ library BalanceTracking {
 
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;
+    updateOpenPositionsForWallet(
+      wallet,
+      market.baseAssetSymbol,
+      balance.balanceInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
 
     balance = loadBalanceAndMigrateIfNeeded(
       self,
@@ -299,6 +305,12 @@ library BalanceTracking {
       positionSizeInPips,
       quoteQuantityInPips,
       marketWithOverrides.maximumPositionSizeInPips
+    );
+    updateOpenPositionsForWallet(
+      exitFundWallet,
+      market.baseAssetSymbol,
+      balance.balanceInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 

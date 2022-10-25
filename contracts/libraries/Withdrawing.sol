@@ -196,14 +196,12 @@ library Withdrawing {
         marketsByBaseAssetSymbol
       );
 
-    for (
-      uint8 i = 0;
-      i < baseAssetSymbolsWithOpenPositionsByWallet[msg.sender].length;
-      i++
-    ) {
-      Market memory market = marketsByBaseAssetSymbol[
-        baseAssetSymbolsWithOpenPositionsByWallet[msg.sender][i]
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.wallet
       ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       quoteQuantityInPips += balanceTracking.updateForExit(
         arguments.exitFundWallet,
         market,
@@ -215,7 +213,8 @@ library Withdrawing {
         ),
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
-        msg.sender,
+        arguments.wallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet
       );
     }
@@ -239,7 +238,7 @@ library Withdrawing {
   ) private returns (int64, uint64) {
     int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
       Margin.LoadArguments(
-        msg.sender,
+        arguments.wallet,
         arguments.oraclePrices,
         arguments.oracleWallet,
         arguments.quoteAssetDecimals,
@@ -253,7 +252,7 @@ library Withdrawing {
     uint64 totalMaintenanceMarginRequirementInPips = Margin
       .loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
         Margin.LoadArguments(
-          msg.sender,
+          arguments.wallet,
           arguments.oraclePrices,
           arguments.oracleWallet,
           arguments.quoteAssetDecimals,

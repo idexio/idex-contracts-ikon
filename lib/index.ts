@@ -177,8 +177,6 @@ export const getOrderHash = (order: Order): string => {
     ['string', order.clientOrderId || ''],
   ];
 
-  console.log(params);
-
   return solidityHashOfParams(params);
 };
 

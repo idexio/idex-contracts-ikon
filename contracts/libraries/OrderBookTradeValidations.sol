@@ -67,7 +67,7 @@ library OrderBookTradeValidations {
 
     require(
       String.isEqual(trade.quoteAssetSymbol, quoteAssetSymbol),
-      'Quote and quote symbol mismatch'
+      'Quote symbol mismatch'
     );
 
     market = marketsByBaseAssetSymbol[trade.baseAssetSymbol];
