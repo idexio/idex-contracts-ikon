@@ -259,6 +259,8 @@ library BalanceTracking {
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
     address wallet,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (int64 quoteQuantityInPips) {
@@ -286,6 +288,12 @@ library BalanceTracking {
 
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;
+    updateOpenPositionsForWallet(
+      wallet,
+      market.baseAssetSymbol,
+      balance.balanceInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
 
     balance = loadBalanceAndMigrateIfNeeded(
       self,
@@ -297,6 +305,12 @@ library BalanceTracking {
       positionSizeInPips,
       quoteQuantityInPips,
       marketWithOverrides.maximumPositionSizeInPips
+    );
+    updateOpenPositionsForWallet(
+      exitFundWallet,
+      market.baseAssetSymbol,
+      balance.balanceInPips,
+      baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
 

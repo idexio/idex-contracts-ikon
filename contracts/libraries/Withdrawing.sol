@@ -214,6 +214,7 @@ library Withdrawing {
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
         arguments.wallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet
       );
     }
