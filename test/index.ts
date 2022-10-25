@@ -355,7 +355,7 @@ describe('Exchange', function () {
             await buildOraclePrice(oracle),
           ]),
         )
-    ).wait();*/
+    ).wait();
 
       await (
         await exchange
@@ -382,7 +382,7 @@ describe('Exchange', function () {
               await buildOraclePrice(oracle),
             ]),
           )
-      ).wait();
+      ).wait();*/
 
       console.log('Trader1');
       await logWalletBalances(trader1.address, exchange, [oraclePrice]);
@@ -392,12 +392,10 @@ describe('Exchange', function () {
 
       console.log(await usdc.balanceOf(custodian.address));
 
-      await exchange.connect(trader1).exitWallet();
-      await exchange
-        .connect(trader2)
-        .withdrawExit(trader1.address, [oraclePrice]);
+      await exchange.connect(trader2).exitWallet();
+      await exchange.withdrawExit(trader2.address, [oraclePrice]);
 
-      console.log(await usdc.balanceOf(custodian.address));
+      //console.log(await usdc.balanceOf(custodian.address));
       /*
       const sellOrder2: Order = {
         signatureHashVersion,

@@ -12,8 +12,6 @@ import { SortedStringSet } from './SortedStringSet.sol';
 import { UUID } from './UUID.sol';
 import { Balance, ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, Withdrawal } from './Structs.sol';
 
-import 'hardhat/console.sol';
-
 library BalanceTracking {
   using MarketOverrides for Market;
   using SortedStringSet for string[];
