@@ -201,7 +201,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
     });
 
-    it.only('can haz deebug', async function () {
+    it('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
@@ -468,7 +468,7 @@ describe('Exchange', function () {
   });
 
   describe('liquidationAcquisitionDeleverage', async function () {
-    it('can haz diibug', async function () {
+    it.only('can haz diibug', async function () {
       const [
         owner,
         dispatcher,

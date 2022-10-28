@@ -148,8 +148,8 @@ library LiquidationValidations {
     int64 positionSizeInPips,
     int64 quoteQuantityInPips
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantitiesInPips = Math
-      .multiplyPipsByFraction(
+    int64 expectedLiquidationQuoteQuantitiesInPips = -1 *
+      Math.multiplyPipsByFraction(
         costBasisInPips,
         baseQuantityInPips,
         positionSizeInPips

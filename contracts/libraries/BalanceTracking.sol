@@ -71,7 +71,7 @@ library BalanceTracking {
 
   function updatePositionForLiquidation(
     Storage storage self,
-    int64 baseQuantityInPips,
+    int64 positionSizeInPips,
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
@@ -85,7 +85,7 @@ library BalanceTracking {
     updatePositionForDeleverageOrLiquidation(
       self,
       false,
-      baseQuantityInPips,
+      -1 * positionSizeInPips,
       counterpartyWallet,
       liquidatingWallet,
       market,
@@ -156,11 +156,11 @@ library BalanceTracking {
     );
     validatePositionUpdatedTowardsZero(
       balance.balanceInPips,
-      balance.balanceInPips - baseQuantityInPips
+      balance.balanceInPips + baseQuantityInPips
     );
     updatePosition(
       balance,
-      -1 * baseQuantityInPips,
+      baseQuantityInPips,
       quoteQuantityInPips,
       market
         .loadMarketWithOverridesForWallet(
@@ -185,12 +185,12 @@ library BalanceTracking {
     if (isDeleverage) {
       validatePositionUpdatedTowardsZero(
         balance.balanceInPips,
-        balance.balanceInPips + baseQuantityInPips
+        balance.balanceInPips - baseQuantityInPips
       );
     }
     updatePosition(
       balance,
-      baseQuantityInPips,
+      -1 * baseQuantityInPips,
       quoteQuantityInPips,
       market
         .loadMarketWithOverridesForWallet(
@@ -213,7 +213,7 @@ library BalanceTracking {
       quoteAssetSymbol
     );
     balance.balanceInPips += quoteQuantityInPips;
-    // Insurance receives or gives quote if wallet short or long respectively
+    // Insurance or counterparty receives or gives quote if wallet short or long respectively
     balance = loadBalanceAndMigrateIfNeeded(
       self,
       counterpartyWallet,
