@@ -11,7 +11,9 @@ import { Margin } from './Margin.sol';
 import { Math } from './Math.sol';
 import { String } from './String.sol';
 import { Validations } from './Validations.sol';
+import { Withdrawing } from './Withdrawing.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
+import { DeleverageType, LiquidationType } from './Enums.sol';
 
 pragma solidity 0.8.17;
 
@@ -95,6 +97,7 @@ library Perpetual {
 
   function liquidateWallet(
     Liquidation.LiquidateWalletArguments memory arguments,
+    uint256 exitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -105,7 +108,7 @@ library Perpetual {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public {
+  ) public returns (uint256) {
     Funding.updateWalletFunding(
       arguments.liquidatingWallet,
       arguments.quoteAssetSymbol,
@@ -132,6 +135,20 @@ library Perpetual {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+
+    if (
+      arguments.liquidationType ==
+      LiquidationType.WalletInMaintenanceDuringSystemRecovery
+    ) {
+      return
+        getExitFundBalanceOpenedAtBlockNumber(
+          exitFundPositionOpenedAtBlockNumber,
+          arguments.liquidatingWallet,
+          baseAssetSymbolsWithOpenPositionsByWallet
+        );
+    }
+
+    return exitFundPositionOpenedAtBlockNumber;
   }
 
   function deleverageLiquidationAcquisition(
@@ -177,6 +194,7 @@ library Perpetual {
 
   function deleverageLiquidationClosure(
     Deleveraging.DeleverageLiquidationClosureArguments memory arguments,
+    uint256 exitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -187,7 +205,7 @@ library Perpetual {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public {
+  ) public returns (uint256) {
     Funding.updateWalletFunding(
       arguments.deleveragingWallet,
       arguments.quoteAssetSymbol,
@@ -214,6 +232,17 @@ library Perpetual {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+
+    if (arguments.deleverageType == DeleverageType.ExitFundClosure) {
+      return
+        getExitFundBalanceOpenedAtBlockNumber(
+          exitFundPositionOpenedAtBlockNumber,
+          arguments.liquidatingWallet,
+          baseAssetSymbolsWithOpenPositionsByWallet
+        );
+    }
+
+    return exitFundPositionOpenedAtBlockNumber;
   }
 
   function loadOutstandingWalletFunding(
@@ -357,5 +386,70 @@ library Perpetual {
       marketsByBaseAssetSymbol,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
+  }
+
+  function withdrawExit(
+    Withdrawing.WithdrawExitArguments memory arguments,
+    uint256 exitFundPositionOpenedAtBlockNumber,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public returns (uint256, uint64) {
+    Funding.updateWalletFunding(
+      arguments.wallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
+      baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    uint64 quoteQuantityInPips = Withdrawing.withdrawExit(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    return (
+      getExitFundBalanceOpenedAtBlockNumber(
+        exitFundPositionOpenedAtBlockNumber,
+        arguments.exitFundWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet
+      ),
+      quoteQuantityInPips
+    );
+  }
+
+  function getExitFundBalanceOpenedAtBlockNumber(
+    uint256 currentExitFundBalanceOpenedAtBlockNumber,
+    address exitFundWallet,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet
+  ) private returns (uint256) {
+    bool isExitFundBalanceOpen = baseAssetSymbolsWithOpenPositionsByWallet[
+      exitFundWallet
+    ].length > 0;
+
+    if (
+      currentExitFundBalanceOpenedAtBlockNumber == 0 && isExitFundBalanceOpen
+    ) {
+      return block.number;
+    } else if (
+      currentExitFundBalanceOpenedAtBlockNumber > 0 && !isExitFundBalanceOpen
+    ) {
+      return 0;
+    }
+
+    return currentExitFundBalanceOpenedAtBlockNumber;
   }
 }

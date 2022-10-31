@@ -128,6 +128,8 @@ contract Exchange_v4 is IExchange, Owned {
   uint64 public _depositIndex;
   // TODO Upgrade through Governance
   address _exitFundWallet;
+  // Zero only if Exit Fund has no open positions or quote balance
+  uint256 _exitFundPositionOpenedAtBlockNumber;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => FundingMultiplierQuartet[]) _fundingMultipliersByBaseAssetSymbol;
   // TODO Upgrade through Governance
@@ -148,7 +150,7 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(address => WalletExit) public _walletExits;
 
   address immutable _quoteAssetAddress;
-  string _quoteAssetSymbol;
+  string _quoteAssetSymbol; // TODO should this be a constant?
   uint8 immutable _quoteAssetDecimals;
 
   // Tunable parameters
@@ -424,8 +426,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets the wallet whitelisted to dispatch transactions calling the
-   * `executeOrderBookTrade`, `executePoolTrade`, `executeHybridTrade`, `withdraw`,
-   * `executeAddLiquidity`, and `executeRemoveLiquidity` functions
+   * `executeOrderBookTrade` and `withdraw` functions
    *
    * @param newDispatcherWallet The new whitelisted dispatcher wallet. Must be different from the
    * current one
@@ -441,8 +442,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Clears the currently set whitelisted dispatcher wallet, effectively disabling calling
-   * the `executeOrderBookTrade`, `executePoolTrade`, `executeHybridTrade`, `withdraw`,
-   * `executeAddLiquidity`, and `executeRemoveLiquidity` functions until a new wallet is set with
+   * the `executeOrderBookTrade`, `withdraw` functions until a new wallet is set with
    * `setDispatcher`
    */
   function removeDispatcher() external onlyAdmin {
@@ -526,6 +526,7 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetSymbol,
         _delegateKeyExpirationPeriodInMs,
         _feeWallet,
+        _insuranceFundWallet,
         _oracleWallet
       ),
       _balanceTracking,
@@ -635,6 +636,7 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetDecimals,
         _quoteAssetSymbol
       ),
+      0,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
@@ -654,11 +656,11 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
     require(
-      _baseAssetSymbolsWithOpenPositionsByWallet[_exitFundWallet].length > 0,
+      _exitFundPositionOpenedAtBlockNumber > 0,
       'Exit Fund has no positions'
     );
 
-    Perpetual.liquidateWallet(
+    _exitFundPositionOpenedAtBlockNumber = Perpetual.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
         LiquidationType.WalletInMaintenanceDuringSystemRecovery,
         _exitFundWallet,
@@ -670,6 +672,7 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetDecimals,
         _quoteAssetSymbol
       ),
+      _exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
@@ -702,6 +705,7 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetDecimals,
         _quoteAssetSymbol
       ),
+      0,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
@@ -780,6 +784,7 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetSymbol,
         _oracleWallet
       ),
+      0,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _fundingMultipliersByBaseAssetSymbol,
@@ -844,27 +849,29 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata deleveragingWalletOraclePrices,
     OraclePrice[] calldata exitFundOraclePrices
   ) external onlyDispatcher {
-    Perpetual.deleverageLiquidationClosure(
-      Deleveraging.DeleverageLiquidationClosureArguments(
-        DeleverageType.ExitFundClosure,
-        baseAssetSymbol,
-        deleveragingWallet,
-        _exitFundWallet,
-        liquidationBaseQuantityInPips,
-        liquidationQuoteQuantityInPips,
-        exitFundOraclePrices,
-        deleveragingWalletOraclePrices,
-        _quoteAssetDecimals,
-        _quoteAssetSymbol,
-        _oracleWallet
-      ),
-      _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
-      _fundingMultipliersByBaseAssetSymbol,
-      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
-    );
+    _exitFundPositionOpenedAtBlockNumber = Perpetual
+      .deleverageLiquidationClosure(
+        Deleveraging.DeleverageLiquidationClosureArguments(
+          DeleverageType.ExitFundClosure,
+          baseAssetSymbol,
+          deleveragingWallet,
+          _exitFundWallet,
+          liquidationBaseQuantityInPips,
+          liquidationQuoteQuantityInPips,
+          exitFundOraclePrices,
+          deleveragingWalletOraclePrices,
+          _quoteAssetDecimals,
+          _quoteAssetSymbol,
+          _oracleWallet
+        ),
+        _exitFundPositionOpenedAtBlockNumber,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        _fundingMultipliersByBaseAssetSymbol,
+        _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
+      );
   }
 
   // Withdrawing //
@@ -889,6 +896,8 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetDecimals,
         _quoteAssetSymbol,
         _custodian,
+        _exitFundPositionOpenedAtBlockNumber,
+        _exitFundWallet,
         _feeWallet,
         _oracleWallet
       ),
@@ -1103,24 +1112,29 @@ contract Exchange_v4 is IExchange, Owned {
   {
     require(isWalletExitFinalized(wallet), 'Wallet exit not finalized');
 
-    uint64 quantityInPips = Withdrawing.withdrawExit(
-      Withdrawing.WithdrawExitArguments(
-        wallet,
-        oraclePrices,
-        _custodian,
-        _exitFundWallet,
-        _oracleWallet,
-        _quoteAssetAddress,
-        _quoteAssetDecimals,
-        _quoteAssetSymbol
-      ),
-      _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
-      _fundingMultipliersByBaseAssetSymbol,
-      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
-    );
+    (
+      uint256 exitFundPositionOpenedAtTimestampInMs,
+      uint64 quantityInPips
+    ) = Perpetual.withdrawExit(
+        Withdrawing.WithdrawExitArguments(
+          wallet,
+          oraclePrices,
+          _custodian,
+          _exitFundWallet,
+          _oracleWallet,
+          _quoteAssetAddress,
+          _quoteAssetDecimals,
+          _quoteAssetSymbol
+        ),
+        _exitFundPositionOpenedAtBlockNumber,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        _fundingMultipliersByBaseAssetSymbol,
+        _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
+      );
+    _exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtTimestampInMs;
 
     emit WalletExitWithdrawn(wallet, quantityInPips);
   }

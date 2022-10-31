@@ -25,6 +25,8 @@ library Withdrawing {
     uint8 quoteAssetDecimals;
     string quoteAssetSymbol;
     ICustodian custodian;
+    uint256 exitFundPositionOpenedAtBlockNumber;
+    address exitFundWallet;
     address feeWallet;
     address oracleWallet;
   }
@@ -57,6 +59,15 @@ library Withdrawing {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (int64 newExchangeBalanceInPips) {
     // Validations
+    if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
+      require(
+        arguments.exitFundPositionOpenedAtBlockNumber == 0 ||
+          arguments.exitFundPositionOpenedAtBlockNumber +
+            Constants.maxChainPropagationPeriodInBlocks >=
+          block.number,
+        'EF position opened too recently'
+      );
+    }
     require(
       Validations.isFeeQuantityValid(
         arguments.withdrawal.gasFeeInPips,
@@ -129,24 +140,10 @@ library Withdrawing {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public returns (uint64) {
-    Funding.updateWalletFunding(
-      arguments.wallet,
-      arguments.quoteAssetSymbol,
-      balanceTracking,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol,
-      baseAssetSymbolsWithOpenPositionsByWallet
-    );
-
+  ) internal returns (uint64) {
     int64 quoteQuantityInPips = updatePositionsForExit(
       arguments,
       balanceTracking,
