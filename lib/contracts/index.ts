@@ -19,10 +19,13 @@ export {
 };
 
 export type LibraryName =
+  | 'Deleveraging'
   | 'Depositing'
+  | 'Funding'
+  | 'Liquidation'
+  | 'Margin'
   | 'MarketAdmin'
   | 'NonceInvalidations'
-  | 'Perpetual'
   | 'Trading'
   | 'Withdrawing';
 

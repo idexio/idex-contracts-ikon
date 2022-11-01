@@ -8,13 +8,13 @@ import { BalanceTracking } from './libraries/BalanceTracking.sol';
 import { Constants } from './libraries/Constants.sol';
 import { Deleveraging } from './libraries/Deleveraging.sol';
 import { Depositing } from './libraries/Depositing.sol';
+import { Funding } from './libraries/Funding.sol';
 import { Hashing } from './libraries/Hashing.sol';
 import { Liquidation } from './libraries/Liquidation.sol';
 import { Margin } from './libraries/Margin.sol';
 import { MarketAdmin } from './libraries/MarketAdmin.sol';
 import { NonceInvalidations } from './libraries/NonceInvalidations.sol';
 import { Owned } from './Owned.sol';
-import { Perpetual } from './libraries/Perpetual.sol';
 import { String } from './libraries/String.sol';
 import { Trading } from './libraries/Trading.sol';
 import { Withdrawing } from './libraries/Withdrawing.sol';
@@ -530,12 +530,12 @@ contract Exchange_v4 is IExchange, Owned {
         _oracleWallet
       ),
       _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet,
       _completedOrderHashes,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
       _marketsByBaseAssetSymbol,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
       _nonceInvalidationsByWallet,
       _partiallyFilledOrderQuantitiesInPips
     );
@@ -564,7 +564,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidatePositionBelowMinimum(
+    Liquidation.liquidatePositionBelowMinimum(
       Liquidation.LiquidatePositionBelowMinimumArguments(
         baseAssetSymbol,
         liquidatingWallet,
@@ -595,7 +595,7 @@ contract Exchange_v4 is IExchange, Owned {
     int64 liquidationQuoteQuantityInPips,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidatePositionInDeactivatedMarket(
+    Liquidation.liquidatePositionInDeactivatedMarket(
       Liquidation.LiquidatePositionInDeactivatedMarketArguments(
         baseAssetSymbol,
         liquidatingWallet,
@@ -624,7 +624,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.liquidateWallet(
+    Liquidation.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
         LiquidationType.WalletInMaintenance,
         _insuranceFundWallet,
@@ -660,7 +660,7 @@ contract Exchange_v4 is IExchange, Owned {
       'Exit Fund has no positions'
     );
 
-    _exitFundPositionOpenedAtBlockNumber = Perpetual.liquidateWallet(
+    _exitFundPositionOpenedAtBlockNumber = Liquidation.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
         LiquidationType.WalletInMaintenanceDuringSystemRecovery,
         _exitFundWallet,
@@ -693,7 +693,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) external onlyDispatcher {
     require(_walletExits[liquidatingWallet].exists, 'Wallet not exited');
 
-    Perpetual.liquidateWallet(
+    Liquidation.liquidateWallet(
       Liquidation.LiquidateWalletArguments(
         LiquidationType.WalletExited,
         _insuranceFundWallet,
@@ -732,7 +732,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Perpetual.deleverageLiquidationAcquisition(
+    Deleveraging.deleverageLiquidationAcquisition(
       Deleveraging.DeleverageLiquidationAcquisitionArguments(
         DeleverageType.InMaintenanceAcquisition,
         baseAssetSymbol,
@@ -770,7 +770,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata deleveragingWalletOraclePrices,
     OraclePrice[] calldata insuranceFundOraclePrices
   ) external onlyDispatcher {
-    Perpetual.deleverageLiquidationClosure(
+    Deleveraging.deleverageLiquidationClosure(
       Deleveraging.DeleverageLiquidationClosureArguments(
         DeleverageType.InsuranceFundClosure,
         baseAssetSymbol,
@@ -811,7 +811,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) external onlyDispatcher {
     require(_walletExits[liquidatingWallet].exists, 'Wallet not exited');
 
-    Perpetual.deleverageLiquidationAcquisition(
+    Deleveraging.deleverageLiquidationAcquisition(
       Deleveraging.DeleverageLiquidationAcquisitionArguments(
         DeleverageType.ExitAcquisition,
         baseAssetSymbol,
@@ -849,7 +849,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata deleveragingWalletOraclePrices,
     OraclePrice[] calldata exitFundOraclePrices
   ) external onlyDispatcher {
-    _exitFundPositionOpenedAtBlockNumber = Perpetual
+    _exitFundPositionOpenedAtBlockNumber = Deleveraging
       .deleverageLiquidationClosure(
         Deleveraging.DeleverageLiquidationClosureArguments(
           DeleverageType.ExitFundClosure,
@@ -961,20 +961,19 @@ contract Exchange_v4 is IExchange, Owned {
   // Perps //
 
   /**
-   * @notice Validates oracle signature. Validates oracleTimestampInMs is exactly one hour after
-   * _lastFundingRatePublishTimestampInMs. Pushes fundingRate × oraclePrice to
-   * _fundingMultipliersByBaseAssetAddress
+   * @notice Validates oracle signatures. Validates oracleTimestampInMs is exactly one hour after
+   * _lastFundingRatePublishTimestampInMs. Pushes fundingRate × oraclePrice to _fundingMultipliersByBaseAssetAddress
    * TODO Validate funding rates
    */
   function publishFundingMutipliers(
-    OraclePrice[] calldata oraclePrices,
-    int64[] calldata fundingRatesInPips
+    int64[] calldata fundingRatesInPips,
+    OraclePrice[] calldata oraclePrices
   ) external onlyDispatcher {
-    Perpetual.publishFundingMutipliers(
-      oraclePrices,
+    Funding.publishFundingMutipliers(
       fundingRatesInPips,
-      _quoteAssetDecimals,
+      oraclePrices,
       _oracleWallet,
+      _quoteAssetDecimals,
       _fundingMultipliersByBaseAssetSymbol,
       _lastFundingRatePublishTimestampInMsByBaseAssetSymbol
     );
@@ -983,10 +982,9 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice True-ups base position funding debits/credits by walking all funding multipliers
    * published since last position update
-   * TODO Readonly version
    */
   function updateWalletFunding(address wallet) public onlyDispatcher {
-    Perpetual.updateWalletFunding(
+    Funding.updateWalletFunding(
       wallet,
       _quoteAssetSymbol,
       _balanceTracking,
@@ -1006,7 +1004,7 @@ contract Exchange_v4 is IExchange, Owned {
     returns (int64)
   {
     return
-      Perpetual.loadOutstandingWalletFunding(
+      Funding.loadOutstandingWalletFunding(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1024,7 +1022,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata oraclePrices
   ) external view returns (int64) {
     return
-      Perpetual.loadTotalAccountValueIncludingOutstandingWalletFunding(
+      Funding.loadTotalAccountValueIncludingOutstandingWalletFunding(
         Margin.LoadArguments(
           wallet,
           oraclePrices,
@@ -1048,7 +1046,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata oraclePrices
   ) external view returns (uint64) {
     return
-      Perpetual.loadTotalInitialMarginRequirement(
+      Margin.loadTotalInitialMarginRequirement(
         wallet,
         oraclePrices,
         _quoteAssetDecimals,
@@ -1068,7 +1066,7 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata oraclePrices
   ) external view returns (uint64) {
     return
-      Perpetual.loadTotalMaintenanceMarginRequirement(
+      Margin.loadTotalMaintenanceMarginRequirement(
         wallet,
         oraclePrices,
         _quoteAssetDecimals,
@@ -1115,7 +1113,7 @@ contract Exchange_v4 is IExchange, Owned {
     (
       uint256 exitFundPositionOpenedAtTimestampInMs,
       uint64 quantityInPips
-    ) = Perpetual.withdrawExit(
+    ) = Withdrawing.withdrawExit(
         Withdrawing.WithdrawExitArguments(
           wallet,
           oraclePrices,

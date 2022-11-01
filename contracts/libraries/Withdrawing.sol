@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import { AssetUnitConversions } from './AssetUnitConversions.sol';
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
+import { ExitFund } from './ExitFund.sol';
 import { ICustodian } from './Interfaces.sol';
 import { Funding } from './Funding.sol';
 import { Liquidation } from './Liquidation.sol';
@@ -84,14 +85,14 @@ library Withdrawing {
       'Hash already withdrawn'
     );
 
-    Funding.updateWalletFunding(
+    Funding.updateWalletFundingInternal(
       arguments.withdrawal.wallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol
     );
 
     // Update wallet balances
@@ -136,6 +137,48 @@ library Withdrawing {
   }
 
   function withdrawExit(
+    Withdrawing.WithdrawExitArguments memory arguments,
+    uint256 exitFundPositionOpenedAtBlockNumber,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public returns (uint256, uint64) {
+    Funding.updateWalletFundingInternal(
+      arguments.wallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    uint64 quoteQuantityInPips = withdrawExit(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    return (
+      ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+        arguments.exitFundWallet,
+        exitFundPositionOpenedAtBlockNumber,
+        baseAssetSymbolsWithOpenPositionsByWallet
+      ),
+      quoteQuantityInPips
+    );
+  }
+
+  function withdrawExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -143,7 +186,7 @@ library Withdrawing {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal returns (uint64) {
+  ) private returns (uint64) {
     int64 quoteQuantityInPips = updatePositionsForExit(
       arguments,
       balanceTracking,
