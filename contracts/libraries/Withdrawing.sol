@@ -172,6 +172,8 @@ library Withdrawing {
       ExitFund.getExitFundBalanceOpenedAtBlockNumber(
         arguments.exitFundWallet,
         exitFundPositionOpenedAtBlockNumber,
+        arguments.quoteAssetSymbol,
+        balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
       quoteQuantityInPips

@@ -38,6 +38,7 @@ struct ExecuteOrderBookTradeArguments {
   uint8 quoteAssetDecimals;
   string quoteAssetSymbol;
   uint64 delegateKeyExpirationPeriodInMs;
+  address exitFundWallet;
   address feeWallet;
   address insuranceFundWallet;
   address oracleWallet;

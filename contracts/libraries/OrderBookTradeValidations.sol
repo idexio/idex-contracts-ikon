@@ -40,7 +40,8 @@ library OrderBookTradeValidations {
       arguments.buy,
       arguments.sell,
       arguments.orderBookTrade,
-      arguments.insuranceFundWallet
+      arguments.insuranceFundWallet,
+      arguments.exitFundWallet
     );
     validateOrderNonces(
       arguments.buy,
@@ -79,6 +80,7 @@ library OrderBookTradeValidations {
     Order memory buy,
     Order memory sell,
     OrderBookTrade memory trade,
+    address exitFundWallet,
     address insuranceFundWallet
   ) private pure {
     require(
@@ -90,19 +92,34 @@ library OrderBookTradeValidations {
       'Quote quantity must be greater than zero'
     );
 
-    validateOrderConditions(buy, trade, true, insuranceFundWallet);
-    validateOrderConditions(sell, trade, false, insuranceFundWallet);
+    validateOrderConditions(
+      buy,
+      trade,
+      true,
+      exitFundWallet,
+      insuranceFundWallet
+    );
+    validateOrderConditions(
+      sell,
+      trade,
+      false,
+      exitFundWallet,
+      insuranceFundWallet
+    );
   }
 
   function validateOrderConditions(
     Order memory order,
     OrderBookTrade memory trade,
     bool isBuy,
+    address exitFundWallet,
     address insuranceFundWallet
   ) private pure {
     validateLimitPrice(order, trade, isBuy);
     validateTimeInForce(order, trade, isBuy);
     validateTriggerFields(order);
+
+    require(order.wallet != exitFundWallet, 'EF cannot trade');
 
     if (order.wallet == insuranceFundWallet) {
       require(

@@ -8,6 +8,7 @@ import { BalanceTracking } from './libraries/BalanceTracking.sol';
 import { Constants } from './libraries/Constants.sol';
 import { Deleveraging } from './libraries/Deleveraging.sol';
 import { Depositing } from './libraries/Depositing.sol';
+import { ExitFund } from './libraries/ExitFund.sol';
 import { Funding } from './libraries/Funding.sol';
 import { Hashing } from './libraries/Hashing.sol';
 import { Liquidation } from './libraries/Liquidation.sol';
@@ -126,8 +127,6 @@ contract Exchange_v4 is IExchange, Owned {
   ICustodian _custodian;
   // Deposit index
   uint64 public _depositIndex;
-  // TODO Upgrade through Governance
-  address _exitFundWallet;
   // Zero only if Exit Fund has no open positions or quote balance
   uint256 _exitFundPositionOpenedAtBlockNumber;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
@@ -158,6 +157,7 @@ contract Exchange_v4 is IExchange, Owned {
   uint64 _delegateKeyExpirationPeriodInMs;
   uint64 _positionBelowMinimumLiquidationPriceToleranceBasisPoints;
   address _dispatcherWallet;
+  address _exitFundWallet;
   address _feeWallet;
 
   /**
@@ -191,13 +191,9 @@ contract Exchange_v4 is IExchange, Owned {
     _quoteAssetSymbol = quoteAssetSymbol;
     _quoteAssetDecimals = quoteAssetDecimals;
 
-    setFeeWallet(feeWallet);
+    setExitFundWallet(exitFundWallet);
 
-    require(
-      address(exitFundWallet) != address(0x0),
-      'Invalid exit fund wallet'
-    );
-    _exitFundWallet = exitFundWallet;
+    setFeeWallet(feeWallet);
 
     require(
       address(insuranceFundWallet) != address(0x0),
@@ -216,7 +212,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets a new Chain Propagation Period - the block delay after which order nonce invalidations
-   * are respected by `executeTrade` and wallet exits are respected by `executeTrade` and `withdraw`
+   * are respected by `executeOrderBookTrade` and wallet exits are respected by `executeOrderBookTrade` and `withdraw`
    *
    * @param newChainPropagationPeriodInBlocks The new Chain Propagation Period expressed as a number of blocks. Must
    * be less than `Constants.maxChainPropagationPeriodInBlocks`
@@ -325,6 +321,32 @@ contract Exchange_v4 is IExchange, Owned {
     _depositIndex = address(_balanceTracking.migrationSource) == address(0x0)
       ? 0
       : _balanceTracking.migrationSource._depositIndex();
+  }
+
+  /**
+   * @notice Sets the address of the Exit Fund wallet
+   *
+   * @dev The current Exit Fund wallet cannot have any open balances
+   * @dev Visibility public instead of external to allow invocation from `constructor`
+   *
+   * @param newExitFundWallet The new Exit Fund wallet. Must be different from the current one
+   */
+  function setExitFundWallet(address newExitFundWallet) public onlyAdmin {
+    require(newExitFundWallet != address(0x0), 'Invalid wallet address');
+    require(
+      newExitFundWallet != _exitFundWallet,
+      'Must be different from current'
+    );
+
+    (, bool isExitFundBalanceOpen) = ExitFund.isExitFundPositionOrBalanceOpen(
+      _exitFundWallet,
+      _quoteAssetSymbol,
+      _balanceTracking,
+      _baseAssetSymbolsWithOpenPositionsByWallet
+    );
+    require(!isExitFundBalanceOpen, 'EF cannot have open balance');
+
+    _exitFundWallet = newExitFundWallet;
   }
 
   /**
@@ -525,6 +547,7 @@ contract Exchange_v4 is IExchange, Owned {
         _quoteAssetDecimals,
         _quoteAssetSymbol,
         _delegateKeyExpirationPeriodInMs,
+        _exitFundWallet,
         _feeWallet,
         _insuranceFundWallet,
         _oracleWallet

@@ -18,7 +18,6 @@ import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Struct
 
 library Liquidation {
   using BalanceTracking for BalanceTracking.Storage;
-  using ExitFund for address;
   using MarketOverrides for Market;
   using SortedStringSet for string[];
 
@@ -268,8 +267,11 @@ library Liquidation {
       LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       return
-        arguments.liquidatingWallet.getExitFundBalanceOpenedAtBlockNumber(
+        ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+          arguments.liquidatingWallet,
           exitFundPositionOpenedAtBlockNumber,
+          arguments.quoteAssetSymbol,
+          balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
         );
     }

@@ -200,6 +200,8 @@ library Deleveraging {
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
           arguments.liquidatingWallet,
           exitFundPositionOpenedAtBlockNumber,
+          arguments.quoteAssetSymbol,
+          balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
         );
     }
