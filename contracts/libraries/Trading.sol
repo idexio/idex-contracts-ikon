@@ -6,7 +6,6 @@ import { BalanceTracking } from './BalanceTracking.sol';
 import { Funding } from './Funding.sol';
 import { Margin } from './Margin.sol';
 import { OrderBookTradeValidations } from './OrderBookTradeValidations.sol';
-import { Perpetual } from './Perpetual.sol';
 import { OrderSide, OrderType } from './Enums.sol';
 import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
 
@@ -16,6 +15,8 @@ library Trading {
   function executeOrderBookTrade(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
@@ -24,8 +25,6 @@ library Trading {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) public {
@@ -49,23 +48,23 @@ library Trading {
 
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
-    Funding.updateWalletFunding(
+    Funding.updateWalletFundingInternal(
       arguments.buy.wallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFunding(
+    Funding.updateWalletFundingInternal(
       arguments.sell.wallet,
       arguments.quoteAssetSymbol,
       balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol
     );
 
     balanceTracking.updateForOrderBookTrade(
@@ -78,9 +77,9 @@ library Trading {
     validateInitialMarginRequirementsAndUpdateLastOraclePrice(
       arguments,
       balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol,
-      baseAssetSymbolsWithOpenPositionsByWallet
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -159,11 +158,11 @@ library Trading {
   function validateInitialMarginRequirementsAndUpdateLastOraclePrice(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(

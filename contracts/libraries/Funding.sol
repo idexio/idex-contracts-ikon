@@ -4,6 +4,7 @@ import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
 import { FundingMultipliers } from './FundingMultipliers.sol';
 import { Math } from './Math.sol';
+import { Margin } from './Margin.sol';
 import { Validations } from './Validations.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
@@ -16,13 +17,63 @@ library Funding {
   function loadOutstandingWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (int64 fundingInPips) {
+    return
+      loadOutstandingWalletFundingInternal(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  function loadTotalAccountValueIncludingOutstandingWalletFunding(
+    Margin.LoadArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (int64) {
+    return
+      Margin.loadTotalAccountValue(
+        arguments,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      ) +
+      loadOutstandingWalletFundingInternal(
+        arguments.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  function loadOutstandingWalletFundingInternal(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 fundingInPips) {
     int64 marketFundingInPips;
 
@@ -91,15 +142,15 @@ library Funding {
   }
 
   function publishFundingMutipliers(
-    OraclePrice[] memory oraclePrices,
     int64[] memory fundingRatesInPips,
-    uint8 quoteAssetDecimals,
+    OraclePrice[] memory oraclePrices,
     address oracleWallet,
+    uint8 quoteAssetDecimals,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) internal {
+  ) public {
     for (uint8 i = 0; i < oraclePrices.length; i++) {
       (OraclePrice memory oraclePrice, int64 fundingRateInPips) = (
         oraclePrices[i],
@@ -143,13 +194,36 @@ library Funding {
     address wallet,
     string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[])
       storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64)
       storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
+    updateWalletFundingInternal(
+      wallet,
+      quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  function updateWalletFundingInternal(
+    address wallet,
+    string memory quoteAssetSymbol,
+    BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
     int64 fundingInPips;
     int64 marketFundingInPips;

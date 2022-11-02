@@ -119,8 +119,8 @@ describe('Exchange', function () {
       await exchange
         .connect(dispatcher)
         .publishFundingMutipliers(
-          await buildOraclePrices(oracle, 5),
           buildFundingRates(5),
+          await buildOraclePrices(oracle, 5),
         )
     ).wait();
   });

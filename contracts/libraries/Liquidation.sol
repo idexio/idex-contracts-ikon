@@ -4,6 +4,8 @@ pragma solidity 0.8.17;
 
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
+import { ExitFund } from './ExitFund.sol';
+import { Funding } from './Funding.sol';
 import { LiquidationType } from './Enums.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Margin } from './Margin.sol';
@@ -12,7 +14,7 @@ import { MarketOverrides } from './MarketOverrides.sol';
 import { String } from './String.sol';
 import { SortedStringSet } from './SortedStringSet.sol';
 import { Validations } from './Validations.sol';
-import { Balance, Market, OraclePrice } from './Structs.sol';
+import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
 library Liquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -70,6 +72,47 @@ library Liquidation {
   }
 
   function liquidatePositionBelowMinimum(
+    Liquidation.LiquidatePositionBelowMinimumArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
+    Funding.updateWalletFundingInternal(
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+    Funding.updateWalletFundingInternal(
+      arguments.insuranceFundWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    liquidatePositionBelowMinimum(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  function liquidatePositionBelowMinimum(
     LiquidatePositionBelowMinimumArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -77,7 +120,7 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal {
+  ) private {
     (
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
@@ -109,6 +152,38 @@ library Liquidation {
   }
 
   function liquidatePositionInDeactivatedMarket(
+    Liquidation.LiquidatePositionInDeactivatedMarketArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
+    Funding.updateWalletFundingInternal(
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    liquidatePositionInDeactivatedMarket(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  function liquidatePositionInDeactivatedMarket(
     LiquidatePositionInDeactivatedMarketArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -116,7 +191,7 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal {
+  ) private {
     (
       int64 totalAccountValueInPips,
       uint64 totalMaintenanceMarginRequirementInPips
@@ -147,6 +222,64 @@ library Liquidation {
   }
 
   function liquidateWallet(
+    Liquidation.LiquidateWalletArguments memory arguments,
+    uint256 exitFundPositionOpenedAtBlockNumber,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public returns (uint256) {
+    Funding.updateWalletFundingInternal(
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+    Funding.updateWalletFundingInternal(
+      arguments.counterpartyWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    liquidateWallet(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    if (
+      arguments.liquidationType ==
+      LiquidationType.WalletInMaintenanceDuringSystemRecovery
+    ) {
+      return
+        ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+          arguments.liquidatingWallet,
+          exitFundPositionOpenedAtBlockNumber,
+          arguments.quoteAssetSymbol,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet
+        );
+    }
+
+    return exitFundPositionOpenedAtBlockNumber;
+  }
+
+  function liquidateWallet(
     LiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -154,7 +287,7 @@ library Liquidation {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal {
+  ) private {
     // FIXME Do not allow liquidation of insurance or exit funds
 
     (

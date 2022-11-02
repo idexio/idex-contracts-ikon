@@ -5,6 +5,8 @@ pragma solidity 0.8.17;
 import { BalanceTracking } from './BalanceTracking.sol';
 import { Constants } from './Constants.sol';
 import { DeleverageType } from './Enums.sol';
+import { ExitFund } from './ExitFund.sol';
+import { Funding } from './Funding.sol';
 import { LiquidationValidations } from './LiquidationValidations.sol';
 import { Margin } from './Margin.sol';
 import { Math } from './Math.sol';
@@ -12,7 +14,7 @@ import { MarketOverrides } from './MarketOverrides.sol';
 import { String } from './String.sol';
 import { SortedStringSet } from './SortedStringSet.sol';
 import { Validations } from './Validations.sol';
-import { Balance, Market, OraclePrice } from './Structs.sol';
+import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
 
 library Deleveraging {
   using BalanceTracking for BalanceTracking.Storage;
@@ -55,6 +57,47 @@ library Deleveraging {
   }
 
   function deleverageLiquidationAcquisition(
+    Deleveraging.DeleverageLiquidationAcquisitionArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
+    Funding.updateWalletFundingInternal(
+      arguments.deleveragingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+    Funding.updateWalletFundingInternal(
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    deleverageLiquidationAcquisition(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  function deleverageLiquidationAcquisition(
     DeleverageLiquidationAcquisitionArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
@@ -62,7 +105,7 @@ library Deleveraging {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal {
+  ) private {
     // Validate that the liquidating account has fallen below margin requirements
     (
       int64 totalAccountValueInPips,
@@ -113,13 +156,68 @@ library Deleveraging {
 
   function deleverageLiquidationClosure(
     DeleverageLiquidationClosureArguments memory arguments,
+    uint256 exitFundPositionOpenedAtBlockNumber,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[])
+      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[])
+      storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64)
+      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public returns (uint256) {
+    Funding.updateWalletFundingInternal(
+      arguments.deleveragingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+    Funding.updateWalletFundingInternal(
+      arguments.liquidatingWallet,
+      arguments.quoteAssetSymbol,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    deleverageLiquidationClosure(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    if (arguments.deleverageType == DeleverageType.ExitFundClosure) {
+      return
+        ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+          arguments.liquidatingWallet,
+          exitFundPositionOpenedAtBlockNumber,
+          arguments.quoteAssetSymbol,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet
+        );
+    }
+
+    return exitFundPositionOpenedAtBlockNumber;
+  }
+
+  function deleverageLiquidationClosure(
+    DeleverageLiquidationClosureArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal {
+  ) private {
     (
       Market memory market,
       OraclePrice memory oraclePrice

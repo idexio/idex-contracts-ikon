@@ -39,7 +39,9 @@ library OrderBookTradeValidations {
     validateOrderConditions(
       arguments.buy,
       arguments.sell,
-      arguments.orderBookTrade
+      arguments.orderBookTrade,
+      arguments.insuranceFundWallet,
+      arguments.exitFundWallet
     );
     validateOrderNonces(
       arguments.buy,
@@ -77,7 +79,9 @@ library OrderBookTradeValidations {
   function validateOrderConditions(
     Order memory buy,
     Order memory sell,
-    OrderBookTrade memory trade
+    OrderBookTrade memory trade,
+    address exitFundWallet,
+    address insuranceFundWallet
   ) private pure {
     require(
       trade.baseQuantityInPips > 0,
@@ -88,18 +92,41 @@ library OrderBookTradeValidations {
       'Quote quantity must be greater than zero'
     );
 
-    validateOrderConditions(buy, trade, true);
-    validateOrderConditions(sell, trade, false);
+    validateOrderConditions(
+      buy,
+      trade,
+      true,
+      exitFundWallet,
+      insuranceFundWallet
+    );
+    validateOrderConditions(
+      sell,
+      trade,
+      false,
+      exitFundWallet,
+      insuranceFundWallet
+    );
   }
 
   function validateOrderConditions(
     Order memory order,
     OrderBookTrade memory trade,
-    bool isBuy
+    bool isBuy,
+    address exitFundWallet,
+    address insuranceFundWallet
   ) private pure {
     validateLimitPrice(order, trade, isBuy);
     validateTimeInForce(order, trade, isBuy);
     validateTriggerFields(order);
+
+    require(order.wallet != exitFundWallet, 'EF cannot trade');
+
+    if (order.wallet == insuranceFundWallet) {
+      require(
+        order.isReduceOnly && order.isSignedByDelegatedKey,
+        'IF order must be reduce only and signed by DK'
+      );
+    }
   }
 
   function validateLimitPrice(
