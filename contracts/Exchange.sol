@@ -195,11 +195,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     setFeeWallet(feeWallet);
 
-    require(
-      address(insuranceFundWallet) != address(0x0),
-      'Invalid insurance wallet'
-    );
-    _insuranceFundWallet = insuranceFundWallet;
+    setInsuranceFundWallet(insuranceFundWallet);
 
     require(address(oracleWallet) != address(0x0), 'Invalid oracle wallet');
     _oracleWallet = oracleWallet;
@@ -332,7 +328,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @param newExitFundWallet The new Exit Fund wallet. Must be different from the current one
    */
   function setExitFundWallet(address newExitFundWallet) public onlyAdmin {
-    require(newExitFundWallet != address(0x0), 'Invalid wallet address');
+    require(newExitFundWallet != address(0x0), 'Invalid EF wallet address');
     require(
       newExitFundWallet != _exitFundWallet,
       'Must be different from current'
@@ -358,10 +354,33 @@ contract Exchange_v4 is IExchange, Owned {
    * @param newFeeWallet The new Fee wallet. Must be different from the current one
    */
   function setFeeWallet(address newFeeWallet) public onlyAdmin {
-    require(newFeeWallet != address(0x0), 'Invalid wallet address');
+    require(newFeeWallet != address(0x0), 'Invalid fee wallet address');
     require(newFeeWallet != _feeWallet, 'Must be different from current');
 
     _feeWallet = newFeeWallet;
+  }
+
+  /**
+   * @notice Sets the address of the Insurance Fund wallet
+   *
+   * @dev Visibility public instead of external to allow invocation from `constructor`
+   *
+   * @param newInsuranceFundWallet The new Insurance Fund wallet. Must be different from the current one
+   */
+  function setInsuranceFundWallet(address newInsuranceFundWallet)
+    public
+    onlyAdmin
+  {
+    require(
+      newInsuranceFundWallet != address(0x0),
+      'Invalid IF wallet address'
+    );
+    require(
+      newInsuranceFundWallet != _insuranceFundWallet,
+      'Must be different from current'
+    );
+
+    _insuranceFundWallet = newInsuranceFundWallet;
   }
 
   /**
