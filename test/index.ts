@@ -201,7 +201,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [oraclePrice]);
     });
 
-    it('can haz deebug', async function () {
+    it.only('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
@@ -393,7 +393,15 @@ describe('Exchange', function () {
       console.log(await usdc.balanceOf(custodian.address));
 
       await exchange.connect(trader2).exitWallet();
-      await exchange.withdrawExit(trader2.address, [oraclePrice]);
+      await exchange.withdrawExit(trader2.address);
+
+      console.log('Trader1');
+      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
+
+      console.log('Trader2');
+      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+
+      console.log(await usdc.balanceOf(custodian.address));
 
       //console.log(await usdc.balanceOf(custodian.address));
       /*
@@ -468,7 +476,7 @@ describe('Exchange', function () {
   });
 
   describe('liquidationAcquisitionDeleverage', async function () {
-    it.only('can haz diibug', async function () {
+    it('can haz diibug', async function () {
       const [
         owner,
         dispatcher,
@@ -479,20 +487,22 @@ describe('Exchange', function () {
         trader1,
         trader2,
       ] = await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
-        owner,
-        dispatcher,
-        exitFund,
-        fee,
-        insuranceFund,
-        oracle,
-      );
+      const { chainlinkAggregator, usdc, exchange } =
+        await deployAndAssociateContracts(
+          owner,
+          dispatcher,
+          exitFund,
+          fee,
+          insuranceFund,
+          oracle,
+        );
 
       (
         await exchange.addMarket({
           exists: true,
           isActive: false,
           baseAssetSymbol: 'BTC',
+          chainlinkPriceFeedAddress: chainlinkAggregator.address,
           initialMarginFractionInPips: '5000000',
           maintenanceMarginFractionInPips: '3000000',
           incrementalInitialMarginFractionInPips: '1000000',

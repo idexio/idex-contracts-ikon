@@ -1147,9 +1147,7 @@ contract Exchange_v4 is IExchange, Owned {
    * Period must have already passed since calling `exitWallet`
    *
    */
-  function withdrawExit(address wallet, OraclePrice[] calldata oraclePrices)
-    external
-  {
+  function withdrawExit(address wallet) external {
     require(isWalletExitFinalized(wallet), 'Wallet exit not finalized');
 
     (
@@ -1158,7 +1156,6 @@ contract Exchange_v4 is IExchange, Owned {
     ) = Withdrawing.withdrawExit(
         Withdrawing.WithdrawExitArguments(
           wallet,
-          oraclePrices,
           _custodian,
           _exitFundWallet,
           _oracleWallet,

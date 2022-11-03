@@ -6,6 +6,7 @@ import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 
 import {
   decimalToAssetUnits,
+  decimalToPips,
   getOraclePriceHash,
   getOrderHash,
   OraclePrice,
@@ -155,24 +156,32 @@ export async function deployAndAssociateContracts(
     (await Withdrawing.deploy()).deployed(),
   ]);
 
-  const [USDC, Exchange_v4, Governance, Custodian] = await Promise.all([
-    ethers.getContractFactory('USDC'),
-    ethers.getContractFactory('Exchange_v4', {
-      libraries: {
-        Deleveraging: deleveraging.address,
-        Depositing: depositing.address,
-        Funding: funding.address,
-        Liquidation: liquidation.address,
-        Margin: margin.address,
-        MarketAdmin: marketAdmin.address,
-        NonceInvalidations: nonceInvalidations.address,
-        Trading: trading.address,
-        Withdrawing: withdrawing.address,
-      },
-    }),
-    ethers.getContractFactory('Governance'),
-    ethers.getContractFactory('Custodian'),
-  ]);
+  const [ChainlinkAggregator, USDC, Exchange_v4, Governance, Custodian] =
+    await Promise.all([
+      ethers.getContractFactory('ChainlinkAggregator'),
+      ethers.getContractFactory('USDC'),
+      ethers.getContractFactory('Exchange_v4', {
+        libraries: {
+          Deleveraging: deleveraging.address,
+          Depositing: depositing.address,
+          Funding: funding.address,
+          Liquidation: liquidation.address,
+          Margin: margin.address,
+          MarketAdmin: marketAdmin.address,
+          NonceInvalidations: nonceInvalidations.address,
+          Trading: trading.address,
+          Withdrawing: withdrawing.address,
+        },
+      }),
+      ethers.getContractFactory('Governance'),
+      ethers.getContractFactory('Custodian'),
+    ]);
+
+  const chainlinkAggregator = await (
+    await ChainlinkAggregator.deploy()
+  ).deployed();
+
+  (await chainlinkAggregator.setPrice(decimalToPips('2000.00000000'))).wait();
 
   const usdc = await (await USDC.deploy()).deployed();
 
@@ -206,6 +215,7 @@ export async function deployAndAssociateContracts(
         exists: true,
         isActive: false,
         baseAssetSymbol: 'ETH',
+        chainlinkPriceFeedAddress: chainlinkAggregator.address,
         initialMarginFractionInPips: '5000000',
         maintenanceMarginFractionInPips: '3000000',
         incrementalInitialMarginFractionInPips: '1000000',
@@ -220,7 +230,7 @@ export async function deployAndAssociateContracts(
   ]);
   (await exchange.connect(dispatcher).activateMarket('ETH')).wait();
 
-  return { custodian, exchange, governance, usdc };
+  return { chainlinkAggregator, usdc, custodian, exchange, governance };
 }
 
 export async function fundWallets(

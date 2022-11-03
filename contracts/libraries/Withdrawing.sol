@@ -10,12 +10,14 @@ import { ICustodian } from './Interfaces.sol';
 import { Funding } from './Funding.sol';
 import { Liquidation } from './Liquidation.sol';
 import { Margin } from './Margin.sol';
+import { MarketHelper } from './MarketHelper.sol';
 import { Math } from './Math.sol';
 import { Validations } from './Validations.sol';
 import { Balance, FundingMultiplierQuartet, Market, OraclePrice, Withdrawal } from './Structs.sol';
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
+  using MarketHelper for Market;
 
   struct WithdrawArguments {
     // External arguments
@@ -35,7 +37,6 @@ library Withdrawing {
   struct WithdrawExitArguments {
     // External arguments
     address wallet;
-    OraclePrice[] oraclePrices;
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
@@ -247,12 +248,7 @@ library Withdrawing {
       quoteQuantityInPips += balanceTracking.updateForExit(
         arguments.exitFundWallet,
         market,
-        Validations.validateOraclePriceAndConvertToPips(
-          arguments.oraclePrices[i],
-          arguments.quoteAssetDecimals,
-          market,
-          arguments.oracleWallet
-        ),
+        market.loadFeedPriceInPips(),
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
         arguments.wallet,
@@ -277,11 +273,11 @@ library Withdrawing {
     mapping(string => mapping(address => Market))
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (int64, uint64) {
+  ) private view returns (int64, uint64) {
     int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
       Margin.LoadArguments(
         arguments.wallet,
-        arguments.oraclePrices,
+        new OraclePrice[](0),
         arguments.oracleWallet,
         arguments.quoteAssetDecimals,
         arguments.quoteAssetSymbol
@@ -292,10 +288,10 @@ library Withdrawing {
     );
 
     uint64 totalMaintenanceMarginRequirementInPips = Margin
-      .loadTotalMaintenanceMarginRequirementAndUpdateLastOraclePrice(
+      .loadTotalExitMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.wallet,
-          arguments.oraclePrices,
+          new OraclePrice[](0),
           arguments.oracleWallet,
           arguments.quoteAssetDecimals,
           arguments.quoteAssetSymbol

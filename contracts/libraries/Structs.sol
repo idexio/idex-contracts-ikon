@@ -2,16 +2,9 @@
 
 pragma solidity 0.8.17;
 
-import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from './Enums.sol';
+import { AggregatorV3Interface as IChainlinkAggregator } from '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 
-struct DelegatedKeyAuthorization {
-  // UUIDv1 unique to wallet
-  uint128 nonce;
-  // Public component of ECDSA signing key pair
-  address delegatedPublicKey;
-  // ECDSA signature of hash by delegate private key
-  bytes signature;
-}
+import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from './Enums.sol';
 
 /**
  * @notice Internally used struct for tracking wallet balances and funding updates
@@ -22,6 +15,18 @@ struct Balance {
   // The last funding update timestamp and cost basis are only relevant for base asset positions
   uint64 lastUpdateTimestampInMs;
   int64 costBasisInPips;
+}
+
+/**
+ * @notice Field in `Order` struct for optionally authorizing a delegate key signing wallet
+ */
+struct DelegatedKeyAuthorization {
+  // UUIDv1 unique to wallet
+  uint128 nonce;
+  // Public component of ECDSA signing key pair
+  address delegatedPublicKey;
+  // ECDSA signature of hash by delegate private key
+  bytes signature;
 }
 
 /**
@@ -54,6 +59,9 @@ struct FundingMultiplierQuartet {
   int64 fundingMultiplier3;
 }
 
+/**
+ * @notice Argument type for `Exchange.addMarket` and `Exchange.setMarketOverrides`
+ */
 struct Market {
   // Flag to distinguish from empty struct
   bool exists;
@@ -61,6 +69,8 @@ struct Market {
   bool isActive;
   // No need to specify quote asset - it is always the same as the quote asset
   string baseAssetSymbol;
+  // Chainlink price feed aggregator contract to use for on-chain exit withdrawals
+  IChainlinkAggregator chainlinkPriceFeedAddress;
   // The margin fraction needed to open a position
   uint64 initialMarginFractionInPips;
   // The margin fraction required to prevent liquidation
@@ -83,7 +93,9 @@ struct Market {
   uint64 oraclePriceInPipsAtDeactivation;
 }
 
-// Price data signed by oracle wallet
+/**
+ * @notice Index price data signed by oracle wallet
+ */
 struct OraclePrice {
   string baseAssetSymbol;
   // Milliseconds since epoch
