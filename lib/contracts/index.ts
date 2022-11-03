@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 
 import { initRpcApi, loadProvider } from './utils';
 
+import ChainlinkAggregator from './ChainlinkAggregator';
 import CustodianContract from './CustodianContract';
 import ExchangeContract from './ExchangeContract';
 import GovernanceContract from './GovernanceContract';
@@ -12,6 +13,7 @@ import USDCContract from './USDCContract';
 export {
   initRpcApi,
   loadProvider,
+  ChainlinkAggregator,
   CustodianContract,
   ExchangeContract,
   GovernanceContract,

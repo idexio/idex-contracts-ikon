@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.17;
 
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
+
 import { Validations } from './Validations.sol';
 import { Market, OraclePrice } from './Structs.sol';
 
@@ -14,6 +16,11 @@ library MarketAdmin {
     require(
       !marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists,
       'Market already exists'
+    );
+
+    require(
+      Address.isContract(address(newMarket.chainlinkPriceFeedAddress)),
+      'Invalid Chainlink price feed'
     );
 
     newMarket.exists = true;
