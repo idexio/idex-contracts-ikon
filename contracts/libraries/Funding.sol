@@ -77,16 +77,17 @@ library Funding {
   ) internal view returns (int64 fundingInPips) {
     int64 marketFundingInPips;
 
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      wallet
-    ];
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        wallet
+      ];
     for (
       uint8 marketIndex = 0;
-      marketIndex < marketSymbols.length;
+      marketIndex < baseAssetSymbols.length;
       marketIndex++
     ) {
       Market memory market = marketsByBaseAssetSymbol[
-        marketSymbols[marketIndex]
+        baseAssetSymbols[marketIndex]
       ];
       Balance memory basePosition = balanceTracking
         .loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
@@ -229,16 +230,17 @@ library Funding {
     int64 marketFundingInPips;
     uint64 lastFundingMultiplierTimestampInMs;
 
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      wallet
-    ];
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        wallet
+      ];
     for (
       uint8 marketIndex = 0;
-      marketIndex < marketSymbols.length;
+      marketIndex < baseAssetSymbols.length;
       marketIndex++
     ) {
       Market memory market = marketsByBaseAssetSymbol[
-        marketSymbols[marketIndex]
+        baseAssetSymbols[marketIndex]
       ];
       Balance storage basePosition = balanceTracking
         .loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);

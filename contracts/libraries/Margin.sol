@@ -50,12 +50,13 @@ library Margin {
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 initialMarginRequirement) {
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      wallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        wallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       (Market memory market, OraclePrice memory oraclePrice) = (
-        marketsByBaseAssetSymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         oraclePrices[i]
       );
 
@@ -348,12 +349,13 @@ library Margin {
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (uint64 initialMarginRequirement) {
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      arguments.wallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.wallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       (Market storage market, OraclePrice memory oraclePrice) = (
-        marketsByBaseAssetSymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         arguments.oraclePrices[i]
       );
 
@@ -424,12 +426,13 @@ library Margin {
       storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (uint64 maintenanceMarginRequirement) {
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      arguments.wallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.wallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       (Market storage market, OraclePrice memory oraclePrice) = (
-        marketsByBaseAssetSymbol[marketSymbols[i]],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         arguments.oraclePrices[i]
       );
 
@@ -461,11 +464,12 @@ library Margin {
         arguments.quoteAssetSymbol
       );
 
-    string[] memory marketSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-      arguments.wallet
-    ];
-    for (uint8 i = 0; i < marketSymbols.length; i++) {
-      Market memory market = marketsByBaseAssetSymbol[marketSymbols[i]];
+    string[]
+      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
+        arguments.wallet
+      ];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       uint64 oraclePriceInPips = market.loadFeedPriceInPips();
 
       Balance memory balance = balanceTracking
