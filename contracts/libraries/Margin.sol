@@ -509,9 +509,53 @@ library Margin {
       );
 
     require(
-      totalAccountValueInPips < int64(totalInitialMarginRequirementInPips),
+      isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
+        arguments,
+        balanceTracking,
+        marketOverridesByBaseAssetSymbolAndWallet
+      ) || totalAccountValueInPips < int64(totalInitialMarginRequirementInPips),
       'Insurance fund can acquire'
     );
+  }
+
+  function isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
+    Margin.ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(string => mapping(address => Market))
+      storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private view returns (bool isMaximumPositionSizeExceeded) {
+    int64 insuranceFundPositionSizeInPips;
+    int64 liquidatingWalletPositionSizeInPips;
+    for (uint8 i = 0; i < arguments.markets.length; i++) {
+      liquidatingWalletPositionSizeInPips = balanceTracking
+        .loadBalanceInPipsFromMigrationSourceIfNeeded(
+          arguments.liquidatingWallet,
+          arguments.markets[i].baseAssetSymbol
+        );
+
+      // Calculate Insurance Fund position size after acquiring position
+      insuranceFundPositionSizeInPips =
+        balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+          arguments.insuranceFundWallet,
+          arguments.markets[i].baseAssetSymbol
+        ) +
+        liquidatingWalletPositionSizeInPips;
+
+      if (
+        Math.abs(insuranceFundPositionSizeInPips) >
+        arguments
+          .markets[i]
+          .loadMarketWithOverridesForWallet(
+            arguments.insuranceFundWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .maximumPositionSizeInPips
+      ) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function loadMarginRequirement(
