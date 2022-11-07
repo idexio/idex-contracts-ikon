@@ -245,7 +245,7 @@ contract Exchange_v4 is IExchange, Owned {
     require(
       newDelegateKeyExpirationPeriodInMs <
         Constants.maxDelegateKeyExpirationPeriodInMs,
-      'Must be less than 1 week'
+      'Must be less than 1 year'
     );
 
     uint64 oldDelegateKeyExpirationPeriodInMs = _delegateKeyExpirationPeriodInMs;

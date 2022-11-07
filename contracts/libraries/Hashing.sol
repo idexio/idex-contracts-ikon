@@ -96,7 +96,8 @@ library Hashing {
             uint8(order.timeInForce),
             uint8(order.selfTradePrevention)
           ),
-          order.delegatedKeyAuthorization.delegatedPublicKey
+          order.delegatedKeyAuthorization.delegatedPublicKey,
+          order.clientOrderId
         )
       );
   }
