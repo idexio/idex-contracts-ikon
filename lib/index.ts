@@ -78,7 +78,6 @@ export interface Order {
   type: OrderType;
   side: OrderSide;
   quantity: string;
-  isQuantityInQuote: boolean;
   price: string;
   triggerPrice?: string;
   triggerType?: OrderTriggerType;
@@ -159,7 +158,6 @@ export const getOrderHash = (order: Order): string => {
     ['uint8', order.type],
     ['uint8', order.side],
     ['string', order.quantity],
-    ['bool', order.isQuantityInQuote],
     ['string', order.price || emptyPipString],
     ['string', order.triggerPrice || emptyPipString],
     ['uint8', order.triggerType || 0],
@@ -176,6 +174,8 @@ export const getOrderHash = (order: Order): string => {
     ['address', order.delegatedPublicKey || ethers.constants.AddressZero],
     ['string', order.clientOrderId || ''],
   ];
+
+  console.log(params);
 
   return solidityHashOfParams(params);
 };
@@ -298,7 +298,6 @@ const orderToArgumentStruct = (
     orderType: o.type,
     side: o.side,
     quantityInPips: decimalToPips(o.quantity),
-    isQuantityInQuote: o.isQuantityInQuote,
     limitPriceInPips: decimalToPips(o.price || emptyPipString),
     triggerPriceInPips: decimalToPips(o.triggerPrice || emptyPipString),
     triggerType: o.triggerType || 0,

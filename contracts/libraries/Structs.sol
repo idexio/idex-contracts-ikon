@@ -120,10 +120,8 @@ struct Order {
   OrderType orderType;
   // Order side wallet is on
   OrderSide side;
-  // Order quantity in base or quote asset terms depending on isQuantityInQuote flag
+  // Order quantity in base asset terms
   uint64 quantityInPips;
-  // Is quantityInPips in quote terms
-  bool isQuantityInQuote;
   // For limit orders, price in decimal pips * 10^8 in quote terms
   uint64 limitPriceInPips;
   // For stop orders, stop loss or take profit price in decimal pips * 10^8 in quote terms

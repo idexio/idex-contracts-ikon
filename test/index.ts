@@ -253,7 +253,6 @@ describe('Exchange', function () {
         type: OrderType.Limit,
         side: OrderSide.Sell,
         quantity: '10.00000000',
-        isQuantityInQuote: false,
         price: '2000.00000000',
       };
       const sellOrderSignature = await trader1Delegate.signMessage(
@@ -268,7 +267,6 @@ describe('Exchange', function () {
         type: OrderType.Limit,
         side: OrderSide.Buy,
         quantity: '10.00000000',
-        isQuantityInQuote: false,
         price: '2000.00000000',
       };
       const buyOrderSignature = await trader2.signMessage(
@@ -413,7 +411,6 @@ describe('Exchange', function () {
         type: OrderType.Limit,
         side: OrderSide.Sell,
         quantity: '1.00000000',
-        isQuantityInQuote: false,
         price: '2000.00000000',
       };
       const sellOrderSignature2 = await trader1Delegate.signMessage(
@@ -430,7 +427,6 @@ describe('Exchange', function () {
         type: OrderType.Limit,
         side: OrderSide.Buy,
         quantity: '1.00000000',
-        isQuantityInQuote: false,
         price: '2000.00000000',
       };
       const buyOrderSignature2 = await trader2.signMessage(

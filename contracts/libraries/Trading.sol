@@ -95,7 +95,6 @@ library Trading {
       arguments.buy,
       buyHash,
       arguments.orderBookTrade.baseQuantityInPips,
-      arguments.orderBookTrade.quoteQuantityInPips,
       completedOrderHashes,
       partiallyFilledOrderQuantitiesInPips
     );
@@ -104,7 +103,6 @@ library Trading {
       arguments.sell,
       sellHash,
       arguments.orderBookTrade.baseQuantityInPips,
-      arguments.orderBookTrade.quoteQuantityInPips,
       completedOrderHashes,
       partiallyFilledOrderQuantitiesInPips
     );
@@ -115,7 +113,6 @@ library Trading {
     Order memory order,
     bytes32 orderHash,
     uint64 grossBaseQuantityInPips,
-    uint64 grossQuoteQuantityInPips,
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) private {
@@ -124,23 +121,10 @@ library Trading {
     // Total quantity of above filled as a result of all trade executions, including this one
     uint64 newFilledQuantityInPips;
 
-    // Market orders can express quantity in quote terms, and can be partially filled by multiple
-    // limit maker orders necessitating tracking partially filled amounts in quote terms to
-    // determine completion
-    if (order.isQuantityInQuote) {
-      require(
-        isMarketOrderType(order.orderType),
-        'Order quote quantity only valid for market orders'
-      );
-      newFilledQuantityInPips =
-        grossQuoteQuantityInPips +
-        partiallyFilledOrderQuantitiesInPips[orderHash];
-    } else {
-      // All other orders track partially filled quantities in base terms
-      newFilledQuantityInPips =
-        grossBaseQuantityInPips +
-        partiallyFilledOrderQuantitiesInPips[orderHash];
-    }
+    // Ttrack partially filled quantities in base terms
+    newFilledQuantityInPips =
+      grossBaseQuantityInPips +
+      partiallyFilledOrderQuantitiesInPips[orderHash];
 
     uint64 quantityInPips = order.quantityInPips;
     require(newFilledQuantityInPips <= quantityInPips, 'Order overfilled');

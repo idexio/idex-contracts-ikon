@@ -80,7 +80,6 @@ library Hashing {
             pipToDecimal(order.quantityInPips)
           ),
           abi.encodePacked(
-            order.isQuantityInQuote,
             order.limitPriceInPips > 0
               ? pipToDecimal(order.limitPriceInPips)
               : Constants.emptyDecimalString,

@@ -88,7 +88,6 @@ export async function buildLimitOrder(
     type: OrderType.Limit,
     side,
     quantity,
-    isQuantityInQuote: false,
     price,
   };
   const signature = await signer.signMessage(
