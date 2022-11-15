@@ -3,6 +3,7 @@
 pragma solidity 0.8.17;
 
 import { ECDSA } from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
+import { Strings } from '@openzeppelin/contracts/utils/Strings.sol';
 
 import { Constants } from './Constants.sol';
 import { OrderType } from './Enums.sol';
@@ -22,15 +23,16 @@ library Hashing {
   }
 
   function getDelegatedKeyHash(
-    address wallet,
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
   ) internal pure returns (bytes32) {
     return
       keccak256(
         abi.encodePacked(
-          delegatedKeyAuthorization.nonce,
-          wallet,
-          delegatedKeyAuthorization.delegatedPublicKey
+          Constants.encodedDelegateKeySignatureMessage,
+          Strings.toString(
+            uint160(delegatedKeyAuthorization.delegatedPublicKey)
+          ),
+          Strings.toString(delegatedKeyAuthorization.nonce)
         )
       );
   }

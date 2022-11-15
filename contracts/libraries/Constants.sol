@@ -10,6 +10,11 @@ library Constants {
   // 100 basis points/percent * 100 percent/total
   uint64 public constant basisPointsInTotal = 100 * 100;
 
+  bytes public constant encodedDelegateKeySignatureMessage =
+    abi.encodePacked(
+      "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
+    );
+
   uint64 public constant depositIndexNotSet = 2**64 - 1;
 
   string public constant emptyDecimalString = '0.00000000';

@@ -113,6 +113,12 @@ export interface Withdrawal {
   quantity: string; // Decimal string
 }
 
+export const compareMarketSymbols = (a: string, b: string): number =>
+  Buffer.compare(
+    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [a])),
+    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [b])),
+  );
+
 export const decimalToAssetUnits = (
   decimal: string,
   decimals: number,
@@ -125,15 +131,6 @@ export const decimalToAssetUnits = (
 export const decimalToPips = (decimal: string): string =>
   new BigNumber(decimal)
     .shiftedBy(8)
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toFixed(0);
-
-/**
- * Convert pips to native token quantity, taking the nunmber of decimals into account
- */
-export const pipsToAssetUnits = (pips: string, decimals: number): string =>
-  new BigNumber(pips)
-    .shiftedBy(decimals - 8) // This is still correct when decimals < 8
     .integerValue(BigNumber.ROUND_DOWN)
     .toFixed(0);
 
@@ -181,14 +178,20 @@ export const getOrderHash = (order: Order): string => {
 };
 
 export const getDelegatedKeyAuthorizationHash = (
-  wallet: string,
   delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
 ): string => {
-  return solidityHashOfParams([
-    ['uint128', uuidToUint8Array(delegatedKeyAuthorization.nonce)],
-    ['address', wallet],
-    ['address', delegatedKeyAuthorization.delegatedPublicKey],
-  ]);
+  console.log(delegatedKeyAuthorization);
+  const delegateKeyFragment = delegatedKeyAuthorization
+    ? `delegated ${addressToUintString(
+        delegatedKeyAuthorization.delegatedPublicKey,
+      )}`
+    : '';
+  const message = `Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.
+
+Message:
+${delegateKeyFragment}${uuidToUintString(delegatedKeyAuthorization.nonce)}`;
+  console.log(message);
+  return solidityHashOfParams([['string', message]]);
 };
 
 export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
@@ -251,29 +254,17 @@ export const getWithdrawArguments = (
   ];
 };
 
-export const compareMarketSymbols = (a: string, b: string): number =>
-  Buffer.compare(
-    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [a])),
-    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [b])),
-  );
+/**
+ * Convert pips to native token quantity, taking the nunmber of decimals into account
+ */
+export const pipsToAssetUnits = (pips: string, decimals: number): string =>
+  new BigNumber(pips)
+    .shiftedBy(decimals - 8) // This is still correct when decimals < 8
+    .integerValue(BigNumber.ROUND_DOWN)
+    .toFixed(0);
 
-export const uuidToHexString = (uuid: string): string =>
-  `0x${uuid.replace(/-/g, '')}`;
-
-export const uuidToUint8Array = (uuid: string): Uint8Array =>
-  ethers.utils.arrayify(uuidToHexString(uuid));
-
-type TypeValuePair =
-  | ['string' | 'address', string]
-  | ['uint128' | 'uint256', string | Uint8Array]
-  | ['uint8' | 'uint32' | 'uint64', number]
-  | ['bool', boolean];
-
-const solidityHashOfParams = (params: TypeValuePair[]): string => {
-  const fields = params.map((param) => param[0]);
-  const values = params.map((param) => param[1]);
-  return ethers.utils.solidityKeccak256(fields, values);
-};
+const addressToUintString = (address: string): string =>
+  new BigNumber(address.toLowerCase()).toFixed(0);
 
 const oraclePriceToArgumentStruct = (o: OraclePrice) => {
   return {
@@ -323,6 +314,18 @@ const orderToArgumentStruct = (
   };
 };
 
+type TypeValuePair =
+  | ['string' | 'address', string]
+  | ['uint128' | 'uint256', string | Uint8Array]
+  | ['uint8' | 'uint32' | 'uint64', number]
+  | ['bool', boolean];
+
+const solidityHashOfParams = (params: TypeValuePair[]): string => {
+  const fields = params.map((param) => param[0]);
+  const values = params.map((param) => param[1]);
+  return ethers.utils.solidityKeccak256(fields, values);
+};
+
 const tradeToArgumentStruct = (t: Trade, order: Order) => {
   return {
     baseAssetSymbol: order.market.split('-')[0],
@@ -335,3 +338,11 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
     makerSide: t.makerSide,
   };
 };
+
+const uuidToHexString = (uuid: string): string => `0x${uuid.replace(/-/g, '')}`;
+
+const uuidToUint8Array = (uuid: string): Uint8Array =>
+  ethers.utils.arrayify(uuidToHexString(uuid));
+
+const uuidToUintString = (uuid: string): string =>
+  new BigNumber(`0x${uuid.replace(/-/g, '')}`).toFixed(0);

@@ -233,10 +233,7 @@ describe('Exchange', function () {
       const trader1DelegatedKeyAuthorizationSignature =
         await trader1.signMessage(
           ethers.utils.arrayify(
-            getDelegatedKeyAuthorizationHash(
-              trader1.address,
-              trader1DelegatedKeyAuthorization,
-            ),
+            getDelegatedKeyAuthorizationHash(trader1DelegatedKeyAuthorization),
           ),
         );
       const sellDelegatedKeyAuthorization = {
