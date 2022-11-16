@@ -5,7 +5,7 @@ import { v1 as uuidv1 } from 'uuid';
 
 import {
   decimalToPips,
-  getDelegatedKeyAuthorizationHash,
+  getDelegatedKeyAuthorizationMessage,
   getExecuteOrderBookTradeArguments,
   getOrderHash,
   getWithdrawalHash,
@@ -230,11 +230,10 @@ describe('Exchange', function () {
         delegatedPublicKey: trader1Delegate.address,
         nonce: uuidv1({ msecs: new Date().getTime() - 1000 }),
       };
+
       const trader1DelegatedKeyAuthorizationSignature =
         await trader1.signMessage(
-          ethers.utils.arrayify(
-            getDelegatedKeyAuthorizationHash(trader1DelegatedKeyAuthorization),
-          ),
+          getDelegatedKeyAuthorizationMessage(trader1DelegatedKeyAuthorization),
         );
       const sellDelegatedKeyAuthorization = {
         ...trader1DelegatedKeyAuthorization,

@@ -276,7 +276,7 @@ library OrderBookTradeValidations {
 
     bool isSignatureValid = order.isSignedByDelegatedKey
       ? (Hashing.isSignatureValid(
-        Hashing.getDelegatedKeyHash(order.delegatedKeyAuthorization),
+        Hashing.getDelegatedKeyMessage(order.delegatedKeyAuthorization),
         order.delegatedKeyAuthorization.signature,
         order.wallet
       ) &&

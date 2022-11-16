@@ -14,6 +14,15 @@ import { DelegatedKeyAuthorization, OraclePrice, Order, Withdrawal } from './Str
  */
 library Hashing {
   function isSignatureValid(
+    bytes memory message,
+    bytes memory signature,
+    address signer
+  ) internal pure returns (bool) {
+    return
+      ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
+  }
+
+  function isSignatureValid(
     bytes32 hash,
     bytes memory signature,
     address signer
@@ -22,18 +31,14 @@ library Hashing {
       ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 
-  function getDelegatedKeyHash(
+  function getDelegatedKeyMessage(
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
-  ) internal pure returns (bytes32) {
+  ) internal pure returns (bytes memory) {
     return
-      keccak256(
-        abi.encodePacked(
-          Constants.encodedDelegateKeySignatureMessage,
-          Strings.toString(
-            uint160(delegatedKeyAuthorization.delegatedPublicKey)
-          ),
-          Strings.toString(delegatedKeyAuthorization.nonce)
-        )
+      abi.encodePacked(
+        Constants.encodedDelegateKeySignatureMessage,
+        Strings.toString(uint160(delegatedKeyAuthorization.delegatedPublicKey)),
+        Strings.toString(delegatedKeyAuthorization.nonce)
       );
   }
 

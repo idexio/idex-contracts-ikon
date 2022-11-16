@@ -172,15 +172,12 @@ export const getOrderHash = (order: Order): string => {
     ['string', order.clientOrderId || ''],
   ];
 
-  console.log(params);
-
   return solidityHashOfParams(params);
 };
 
-export const getDelegatedKeyAuthorizationHash = (
+export const getDelegatedKeyAuthorizationMessage = (
   delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
 ): string => {
-  console.log(delegatedKeyAuthorization);
   const delegateKeyFragment = delegatedKeyAuthorization
     ? `delegated ${addressToUintString(
         delegatedKeyAuthorization.delegatedPublicKey,
@@ -190,8 +187,8 @@ export const getDelegatedKeyAuthorizationHash = (
 
 Message:
 ${delegateKeyFragment}${uuidToUintString(delegatedKeyAuthorization.nonce)}`;
-  console.log(message);
-  return solidityHashOfParams([['string', message]]);
+
+  return message;
 };
 
 export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
