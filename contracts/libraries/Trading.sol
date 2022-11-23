@@ -181,11 +181,4 @@ library Trading {
       'Initial margin requirement not met for sell wallet'
     );
   }
-
-  function isMarketOrderType(OrderType orderType) private pure returns (bool) {
-    return
-      orderType == OrderType.Market ||
-      orderType == OrderType.StopLossMarket ||
-      orderType == OrderType.TakeProfitMarket;
-  }
 }

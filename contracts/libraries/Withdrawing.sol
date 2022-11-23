@@ -250,7 +250,6 @@ library Withdrawing {
         market,
         market.loadFeedPriceInPips(),
         totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips,
         arguments.wallet,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet

@@ -270,7 +270,7 @@ library Deleveraging {
     );
 
     if (arguments.deleverageType == DeleverageType.InMaintenanceAcquisition) {
-      LiquidationValidations.validateLiquidationQuoteQuantity(
+      LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.liquidationQuoteQuantityInPips,
         market
           .loadMarketWithOverridesForWallet(
@@ -292,16 +292,9 @@ library Deleveraging {
           balance.balanceInPips
         ),
         arguments.liquidationQuoteQuantityInPips,
-        market
-          .loadMarketWithOverridesForWallet(
-            arguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
-          .maintenanceMarginFractionInPips,
         oraclePriceInPips,
         balance.balanceInPips,
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips
+        totalAccountValueInPips
       );
     }
 
@@ -355,7 +348,7 @@ library Deleveraging {
     );
 
     if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
-      LiquidationValidations.validateInsuranceFundClosureQuoteQuantityInPips(
+      LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(
         arguments.liquidationBaseQuantityInPips,
         balance.costBasisInPips,
         balance.balanceInPips,
@@ -363,36 +356,25 @@ library Deleveraging {
       );
     } else {
       // DeleverageType.ExitFundClosure
-      (
-        int64 totalAccountValueInPips,
-        uint64 totalMaintenanceMarginRequirementInPips
-      ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
-          Margin.LoadArguments(
-            arguments.liquidatingWallet,
-            arguments.liquidatingWalletOraclePrices,
-            arguments.oracleWallet,
-            arguments.quoteAssetDecimals,
-            arguments.quoteAssetSymbol
-          ),
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
-        );
+      int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
+        Margin.LoadArguments(
+          arguments.liquidatingWallet,
+          arguments.liquidatingWalletOraclePrices,
+          arguments.oracleWallet,
+          arguments.quoteAssetDecimals,
+          arguments.quoteAssetSymbol
+        ),
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
 
-      LiquidationValidations.validateExitFundClosureQuoteQuantityInPips(
+      LiquidationValidations.validateExitFundClosureQuoteQuantity(
         arguments.liquidationBaseQuantityInPips,
-        market
-          .loadMarketWithOverridesForWallet(
-            arguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
-          .maintenanceMarginFractionInPips,
         oraclePriceInPips,
         balance.balanceInPips,
         arguments.liquidationQuoteQuantityInPips,
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips
+        totalAccountValueInPips
       );
     }
 
@@ -516,25 +498,25 @@ library Deleveraging {
 
       // Validate provided liquidation quote quantity
       if (arguments.deleverageType == DeleverageType.InMaintenanceAcquisition) {
-        LiquidationValidations.validateLiquidationQuoteQuantity(
-          arguments.liquidationQuoteQuantitiesInPips[i],
-          loadArguments
-            .markets[i]
-            .loadMarketWithOverridesForWallet(
-              arguments.liquidatingWallet,
-              marketOverridesByBaseAssetSymbolAndWallet
-            )
-            .maintenanceMarginFractionInPips,
-          loadArguments.oraclePricesInPips[i],
-          balanceTracking
-            .loadBalanceAndMigrateIfNeeded(
-              arguments.liquidatingWallet,
-              baseAssetSymbols[i]
-            )
-            .balanceInPips,
-          liquidatingWalletTotalAccountValueInPips,
-          liquidatingWalletTotalMaintenanceMarginRequirementInPips
-        );
+        LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
+            arguments.liquidationQuoteQuantitiesInPips[i],
+            loadArguments
+              .markets[i]
+              .loadMarketWithOverridesForWallet(
+                arguments.liquidatingWallet,
+                marketOverridesByBaseAssetSymbolAndWallet
+              )
+              .maintenanceMarginFractionInPips,
+            loadArguments.oraclePricesInPips[i],
+            balanceTracking
+              .loadBalanceAndMigrateIfNeeded(
+                arguments.liquidatingWallet,
+                baseAssetSymbols[i]
+              )
+              .balanceInPips,
+            liquidatingWalletTotalAccountValueInPips,
+            liquidatingWalletTotalMaintenanceMarginRequirementInPips
+          );
       } else {
         // DeleverageType.ExitAcquisition
         Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
@@ -548,13 +530,6 @@ library Deleveraging {
             balance.balanceInPips
           ),
           arguments.liquidationQuoteQuantitiesInPips[i],
-          loadArguments
-            .markets[i]
-            .loadMarketWithOverridesForWallet(
-              arguments.liquidatingWallet,
-              marketOverridesByBaseAssetSymbolAndWallet
-            )
-            .maintenanceMarginFractionInPips,
           loadArguments.oraclePricesInPips[i],
           balanceTracking
             .loadBalanceAndMigrateIfNeeded(
@@ -562,8 +537,7 @@ library Deleveraging {
               baseAssetSymbols[i]
             )
             .balanceInPips,
-          liquidatingWalletTotalAccountValueInPips,
-          liquidatingWalletTotalMaintenanceMarginRequirementInPips
+          liquidatingWalletTotalAccountValueInPips
         );
       }
     }

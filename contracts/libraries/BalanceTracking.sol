@@ -257,7 +257,6 @@ library BalanceTracking {
     Market memory market,
     uint64 oraclePriceInPips,
     int64 totalAccountValueInPips,
-    uint64 totalMaintenanceMarginRequirementInPips,
     address wallet,
     mapping(address => string[])
       storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -276,15 +275,12 @@ library BalanceTracking {
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    quoteQuantityInPips = LiquidationValidations
-      .calculateExitQuoteQuantityInPips(
-        balance.costBasisInPips,
-        marketWithOverrides.maintenanceMarginFractionInPips,
-        oraclePriceInPips,
-        positionSizeInPips,
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips
-      );
+    quoteQuantityInPips = LiquidationValidations.calculateExitQuoteQuantity(
+      balance.costBasisInPips,
+      oraclePriceInPips,
+      positionSizeInPips,
+      totalAccountValueInPips
+    );
 
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;

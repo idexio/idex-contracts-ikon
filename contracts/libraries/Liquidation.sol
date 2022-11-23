@@ -483,7 +483,7 @@ library Liquidation {
       arguments.liquidationType ==
       LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
-      LiquidationValidations.validateLiquidationQuoteQuantity(
+      LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.liquidationQuoteQuantitiesInPips[index],
         market
           .loadMarketWithOverridesForWallet(
@@ -501,16 +501,9 @@ library Liquidation {
       LiquidationValidations.validateExitQuoteQuantity(
         balance.costBasisInPips,
         arguments.liquidationQuoteQuantitiesInPips[index],
-        market
-          .loadMarketWithOverridesForWallet(
-            arguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
-          .maintenanceMarginFractionInPips,
         oraclePriceInPips,
         balance.balanceInPips,
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips
+        totalAccountValueInPips
       );
     }
 
