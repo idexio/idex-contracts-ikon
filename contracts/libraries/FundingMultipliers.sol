@@ -38,15 +38,15 @@ library FundingMultipliers {
       ? (0, 0)
       : (totalNumberOfEntries - (numberOfTrailingHours / 4), 4 - (numberOfTrailingHours % 4));
 
-    int64 aggregateMultiplier = calculateAggregateMultiplier(self[startIndex], startOffset);
+    int64 aggregateMultiplier = _calculateAggregateMultiplier(self[startIndex], startOffset);
     for (uint256 index = startIndex + 1; index < totalNumberOfEntries; index++) {
-      aggregateMultiplier += calculateAggregateMultiplier(self[index], 0);
+      aggregateMultiplier += _calculateAggregateMultiplier(self[index], 0);
     }
 
     return aggregateMultiplier;
   }
 
-  function calculateAggregateMultiplier(FundingMultiplierQuartet memory fundingMultipliers, uint256 offset)
+  function _calculateAggregateMultiplier(FundingMultiplierQuartet memory fundingMultipliers, uint256 offset)
     private
     pure
     returns (int64)

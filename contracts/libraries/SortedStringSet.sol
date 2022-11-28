@@ -2,14 +2,10 @@
 
 pragma solidity 0.8.17;
 
-import { String } from './String.sol';
+import { String } from "./String.sol";
 
 library SortedStringSet {
-  function insertSorted(string[] memory array, string memory element)
-    internal
-    pure
-    returns (string[] memory result)
-  {
+  function insertSorted(string[] memory array, string memory element) internal pure returns (string[] memory result) {
     result = new string[](array.length + 1);
 
     bool indexFound = false;
@@ -19,7 +15,7 @@ library SortedStringSet {
         if (i < result.length - 1 && String.isEqual(array[i], element)) {
           return array;
         }
-        if (i == result.length - 1 || isLessThan(element, array[i])) {
+        if (i == result.length - 1 || _isLessThan(element, array[i])) {
           result[i] = element;
           indexFound = true;
         } else {
@@ -31,11 +27,7 @@ library SortedStringSet {
     }
   }
 
-  function merge(string[] memory array1, string[] memory array2)
-    internal
-    pure
-    returns (string[] memory result)
-  {
+  function merge(string[] memory array1, string[] memory array2) internal pure returns (string[] memory result) {
     result = array1;
 
     for (uint256 i = 0; i < array2.length; i++) {
@@ -43,11 +35,7 @@ library SortedStringSet {
     }
   }
 
-  function remove(string[] memory array, string memory element)
-    internal
-    pure
-    returns (string[] memory result)
-  {
+  function remove(string[] memory array, string memory element) internal pure returns (string[] memory result) {
     result = new string[](array.length - 1);
 
     bool indexFound = false;
@@ -59,15 +47,8 @@ library SortedStringSet {
     }
   }
 
-  function isLessThan(string memory a, string memory b)
-    private
-    pure
-    returns (bool)
-  {
-    (bytes32 aHash, bytes32 bHash) = (
-      keccak256(abi.encodePacked(a)),
-      keccak256(abi.encodePacked(b))
-    );
+  function _isLessThan(string memory a, string memory b) private pure returns (bool) {
+    (bytes32 aHash, bytes32 bHash) = (keccak256(abi.encodePacked(a)), keccak256(abi.encodePacked(b)));
 
     return aHash < bHash;
   }

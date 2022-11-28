@@ -2,19 +2,19 @@
 
 pragma solidity 0.8.17;
 
-import { BalanceTracking } from './BalanceTracking.sol';
-import { Constants } from './Constants.sol';
-import { ExitFund } from './ExitFund.sol';
-import { Funding } from './Funding.sol';
-import { LiquidationType } from './Enums.sol';
-import { LiquidationValidations } from './LiquidationValidations.sol';
-import { Margin } from './Margin.sol';
-import { Math } from './Math.sol';
-import { MarketOverrides } from './MarketOverrides.sol';
-import { String } from './String.sol';
-import { SortedStringSet } from './SortedStringSet.sol';
-import { Validations } from './Validations.sol';
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
+import { BalanceTracking } from "./BalanceTracking.sol";
+import { Constants } from "./Constants.sol";
+import { ExitFund } from "./ExitFund.sol";
+import { Funding } from "./Funding.sol";
+import { LiquidationType } from "./Enums.sol";
+import { LiquidationValidations } from "./LiquidationValidations.sol";
+import { Margin } from "./Margin.sol";
+import { Math } from "./Math.sol";
+import { MarketOverrides } from "./MarketOverrides.sol";
+import { String } from "./String.sol";
+import { SortedStringSet } from "./SortedStringSet.sol";
+import { Validations } from "./Validations.sol";
+import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from "./Structs.sol";
 
 library Liquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -74,14 +74,10 @@ library Liquidation {
   function liquidatePositionBelowMinimum(
     Liquidation.LiquidatePositionBelowMinimumArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFundingInternal(
@@ -103,7 +99,7 @@ library Liquidation {
       marketsByBaseAssetSymbol
     );
 
-    liquidatePositionBelowMinimum(
+    _liquidatePositionBelowMinimum(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -112,19 +108,15 @@ library Liquidation {
     );
   }
 
-  function liquidatePositionBelowMinimum(
+  function _liquidatePositionBelowMinimum(
     LiquidatePositionBelowMinimumArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (
-      int64 totalAccountValueInPips,
-      uint64 totalMaintenanceMarginRequirementInPips
-    ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+    (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
+      .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
@@ -139,10 +131,10 @@ library Liquidation {
       );
     require(
       totalAccountValueInPips >= int64(totalMaintenanceMarginRequirementInPips),
-      'Maintenance margin requirement not met'
+      "Maintenance margin requirement not met"
     );
 
-    validateQuantitiesAndLiquidatePositionBelowMinimum(
+    _validateQuantitiesAndLiquidatePositionBelowMinimum(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -154,14 +146,10 @@ library Liquidation {
   function liquidatePositionInDeactivatedMarket(
     Liquidation.LiquidatePositionInDeactivatedMarketArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFundingInternal(
@@ -174,7 +162,7 @@ library Liquidation {
       marketsByBaseAssetSymbol
     );
 
-    liquidatePositionInDeactivatedMarket(
+    _liquidatePositionInDeactivatedMarket(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -183,19 +171,15 @@ library Liquidation {
     );
   }
 
-  function liquidatePositionInDeactivatedMarket(
+  function _liquidatePositionInDeactivatedMarket(
     LiquidatePositionInDeactivatedMarketArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (
-      int64 totalAccountValueInPips,
-      uint64 totalMaintenanceMarginRequirementInPips
-    ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+    (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
+      .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
@@ -210,10 +194,10 @@ library Liquidation {
       );
     require(
       totalAccountValueInPips >= int64(totalMaintenanceMarginRequirementInPips),
-      'Maintenance margin requirement not met'
+      "Maintenance margin requirement not met"
     );
 
-    validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
+    _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -225,14 +209,10 @@ library Liquidation {
     Liquidation.LiquidateWalletArguments memory arguments,
     uint256 exitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256) {
     Funding.updateWalletFundingInternal(
@@ -254,7 +234,7 @@ library Liquidation {
       marketsByBaseAssetSymbol
     );
 
-    liquidateWallet(
+    _liquidateWallet(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -262,10 +242,7 @@ library Liquidation {
       marketsByBaseAssetSymbol
     );
 
-    if (
-      arguments.liquidationType ==
-      LiquidationType.WalletInMaintenanceDuringSystemRecovery
-    ) {
+    if (arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
       return
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
           arguments.liquidatingWallet,
@@ -279,21 +256,17 @@ library Liquidation {
     return exitFundPositionOpenedAtBlockNumber;
   }
 
-  function liquidateWallet(
+  function _liquidateWallet(
     LiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     // FIXME Do not allow liquidation of insurance or exit funds
 
-    (
-      int64 totalAccountValueInPips,
-      uint64 totalMaintenanceMarginRequirementInPips
-    ) = Margin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+    (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
+      .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
@@ -308,22 +281,17 @@ library Liquidation {
       );
     if (
       arguments.liquidationType == LiquidationType.WalletInMaintenance ||
-      arguments.liquidationType ==
-      LiquidationType.WalletInMaintenanceDuringSystemRecovery
+      arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       require(
-        totalAccountValueInPips <
-          int64(totalMaintenanceMarginRequirementInPips),
-        'Maintenance margin requirement met'
+        totalAccountValueInPips < int64(totalMaintenanceMarginRequirementInPips),
+        "Maintenance margin requirement met"
       );
     }
 
-    string[]
-      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-        arguments.liquidatingWallet
-      ];
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 index = 0; index < baseAssetSymbols.length; index++) {
-      validateQuoteQuantityAndLiquidatePosition(
+      _validateQuoteQuantityAndLiquidatePosition(
         index,
         arguments,
         marketsByBaseAssetSymbol[baseAssetSymbols[index]],
@@ -362,39 +330,30 @@ library Liquidation {
     }
   }
 
-  function validateQuantitiesAndLiquidatePositionBelowMinimum(
+  function _validateQuantitiesAndLiquidatePositionBelowMinimum(
     LiquidatePositionBelowMinimumArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (
-      Market memory market,
-      OraclePrice memory oraclePrice
-    ) = loadMarketAndOraclePrice(
-        arguments,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      );
+    (Market memory market, OraclePrice memory oraclePrice) = _loadMarketAndOraclePrice(
+      arguments,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
 
     // Validate that position is under dust threshold
-    int64 positionSizeInPips = balanceTracking
-      .loadBalanceInPipsFromMigrationSourceIfNeeded(
-        arguments.liquidatingWallet,
-        arguments.baseAssetSymbol
-      );
+    int64 positionSizeInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+      arguments.liquidatingWallet,
+      arguments.baseAssetSymbol
+    );
     require(
       Math.abs(positionSizeInPips) <
         market
-          .loadMarketWithOverridesForWallet(
-            arguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
+          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .minimumPositionSizeInPips,
-      'Position size above minimum'
+      "Position size above minimum"
     );
 
     // Validate quote quantity
@@ -405,11 +364,11 @@ library Liquidation {
       arguments.oracleWallet
     );
     LiquidationValidations.validatePositionBelowMinimumLiquidationQuoteQuantity(
-        arguments.dustPositionLiquidationPriceToleranceBasisPoints,
-        arguments.liquidationQuoteQuantityInPips,
-        oraclePriceInPips,
-        positionSizeInPips
-      );
+      arguments.dustPositionLiquidationPriceToleranceBasisPoints,
+      arguments.liquidationQuoteQuantityInPips,
+      oraclePriceInPips,
+      positionSizeInPips
+    );
 
     balanceTracking.updatePositionForLiquidation(
       positionSizeInPips,
@@ -423,26 +382,18 @@ library Liquidation {
     );
   }
 
-  function validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
+  function _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
     LiquidatePositionInDeactivatedMarketArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Market memory market = loadMarket(
-      arguments,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
+    Market memory market = _loadMarket(arguments, baseAssetSymbolsWithOpenPositionsByWallet, marketsByBaseAssetSymbol);
 
     // Validate quote quantity
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
       market.oraclePriceInPipsAtDeactivation,
-      balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
-        arguments.liquidatingWallet,
-        market.baseAssetSymbol
-      ),
+      balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
       arguments.liquidationQuoteQuantityInPips
     );
 
@@ -455,17 +406,15 @@ library Liquidation {
     );
   }
 
-  function validateQuoteQuantityAndLiquidatePosition(
+  function _validateQuoteQuantityAndLiquidatePosition(
     uint8 index,
     LiquidateWalletArguments memory arguments,
     Market memory market,
     int64 totalAccountValueInPips,
     uint64 totalMaintenanceMarginRequirementInPips,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.liquidatingWallet,
@@ -480,16 +429,12 @@ library Liquidation {
 
     if (
       arguments.liquidationType == LiquidationType.WalletInMaintenance ||
-      arguments.liquidationType ==
-      LiquidationType.WalletInMaintenanceDuringSystemRecovery
+      arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.liquidationQuoteQuantitiesInPips[index],
         market
-          .loadMarketWithOverridesForWallet(
-            arguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
+          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFractionInPips,
         oraclePriceInPips,
         balance.balanceInPips,
@@ -519,39 +464,27 @@ library Liquidation {
     );
   }
 
-  function loadMarket(
+  function _loadMarket(
     LiquidatePositionInDeactivatedMarketArguments memory arguments,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market) {
-    string[]
-      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-        arguments.liquidatingWallet
-      ];
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
         market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
       }
     }
 
-    require(market.exists && !market.isActive, 'No inactive market found');
+    require(market.exists && !market.isActive, "No inactive market found");
   }
 
-  function loadMarketAndOraclePrice(
+  function _loadMarketAndOraclePrice(
     LiquidatePositionBelowMinimumArguments memory arguments,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  )
-    private
-    view
-    returns (Market memory market, OraclePrice memory oraclePrice)
-  {
-    string[]
-      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-        arguments.liquidatingWallet
-      ];
+  ) private view returns (Market memory market, OraclePrice memory oraclePrice) {
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
         market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
@@ -559,6 +492,6 @@ library Liquidation {
       }
     }
 
-    require(market.exists && market.isActive, 'No active market found');
+    require(market.exists && market.isActive, "No active market found");
   }
 }

@@ -2,12 +2,12 @@
 
 pragma solidity 0.8.17;
 
-import { BalanceTracking } from './BalanceTracking.sol';
-import { Funding } from './Funding.sol';
-import { Margin } from './Margin.sol';
-import { OrderBookTradeValidations } from './OrderBookTradeValidations.sol';
-import { OrderSide, OrderType } from './Enums.sol';
-import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from './Structs.sol';
+import { BalanceTracking } from "./BalanceTracking.sol";
+import { Funding } from "./Funding.sol";
+import { Margin } from "./Margin.sol";
+import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
+import { OrderSide, OrderType } from "./Enums.sol";
+import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
@@ -15,30 +15,22 @@ library Trading {
   function executeOrderBookTrade(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedOrderHashes,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) public {
-    (
-      bytes32 buyHash,
-      bytes32 sellHash,
-      Market memory market
-    ) = OrderBookTradeValidations.validateOrderBookTrade(
-        arguments,
-        marketsByBaseAssetSymbol,
-        nonceInvalidations
-      );
+    (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
+      arguments,
+      marketsByBaseAssetSymbol,
+      nonceInvalidations
+    );
 
-    updateOrderFilledQuantities(
+    _updateOrderFilledQuantities(
       arguments,
       buyHash,
       sellHash,
@@ -74,7 +66,7 @@ library Trading {
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    validateInitialMarginRequirementsAndUpdateLastOraclePrice(
+    _validateInitialMarginRequirementsAndUpdateLastOraclePrice(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -83,7 +75,7 @@ library Trading {
     );
   }
 
-  function updateOrderFilledQuantities(
+  function _updateOrderFilledQuantities(
     ExecuteOrderBookTradeArguments memory arguments,
     bytes32 buyHash,
     bytes32 sellHash,
@@ -91,7 +83,7 @@ library Trading {
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) private {
     // Buy side
-    updateOrderFilledQuantity(
+    _updateOrderFilledQuantity(
       arguments.buy,
       buyHash,
       arguments.orderBookTrade.baseQuantityInPips,
@@ -99,7 +91,7 @@ library Trading {
       partiallyFilledOrderQuantitiesInPips
     );
     // Sell side
-    updateOrderFilledQuantity(
+    _updateOrderFilledQuantity(
       arguments.sell,
       sellHash,
       arguments.orderBookTrade.baseQuantityInPips,
@@ -109,25 +101,23 @@ library Trading {
   }
 
   // Update filled quantities tracking for order to prevent over- or double-filling orders
-  function updateOrderFilledQuantity(
+  function _updateOrderFilledQuantity(
     Order memory order,
     bytes32 orderHash,
     uint64 grossBaseQuantityInPips,
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
   ) private {
-    require(!completedOrderHashes[orderHash], 'Order double filled');
+    require(!completedOrderHashes[orderHash], "Order double filled");
 
     // Total quantity of above filled as a result of all trade executions, including this one
     uint64 newFilledQuantityInPips;
 
     // Ttrack partially filled quantities in base terms
-    newFilledQuantityInPips =
-      grossBaseQuantityInPips +
-      partiallyFilledOrderQuantitiesInPips[orderHash];
+    newFilledQuantityInPips = grossBaseQuantityInPips + partiallyFilledOrderQuantitiesInPips[orderHash];
 
     uint64 quantityInPips = order.quantityInPips;
-    require(newFilledQuantityInPips <= quantityInPips, 'Order overfilled');
+    require(newFilledQuantityInPips <= quantityInPips, "Order overfilled");
     if (newFilledQuantityInPips < quantityInPips) {
       // If the order was partially filled, track the new filled quantity
       partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
@@ -139,13 +129,11 @@ library Trading {
     }
   }
 
-  function validateInitialMarginRequirementsAndUpdateLastOraclePrice(
+  function _validateInitialMarginRequirementsAndUpdateLastOraclePrice(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     require(
@@ -162,7 +150,7 @@ library Trading {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       ),
-      'Initial margin requirement not met for buy wallet'
+      "Initial margin requirement not met for buy wallet"
     );
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
@@ -178,7 +166,7 @@ library Trading {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       ),
-      'Initial margin requirement not met for sell wallet'
+      "Initial margin requirement not met for sell wallet"
     );
   }
 }

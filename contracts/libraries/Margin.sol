@@ -55,7 +55,7 @@ library Margin {
         oraclePrices[i]
       );
 
-      initialMarginRequirement += loadMarginRequirement(
+      initialMarginRequirement += _loadMarginRequirement(
         wallet,
         market.baseAssetSymbol,
         market.loadInitialMarginFractionInPipsForWallet(
@@ -88,7 +88,7 @@ library Margin {
         oraclePrices[i]
       );
 
-      maintenanceMarginRequirement += loadMarginRequirement(
+      maintenanceMarginRequirement += _loadMarginRequirement(
         wallet,
         market.baseAssetSymbol,
         market
@@ -191,7 +191,7 @@ library Margin {
     return totalAccountValueInPips;
   }
 
-  function loadTotalAccountValueAfterLiquidationAcquisition(
+  function _loadTotalAccountValueAfterLiquidationAcquisition(
     Margin.ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (int64 totalAccountValueInPips) {
@@ -228,7 +228,7 @@ library Margin {
     }
   }
 
-  function loadTotalInitialMarginRequirementAfterLiquidationAcquisition(
+  function _loadTotalInitialMarginRequirementAfterLiquidationAcquisition(
     Margin.ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -305,7 +305,7 @@ library Margin {
         arguments.oraclePrices[i]
       );
 
-      initialMarginRequirement += loadMarginRequirementAndUpdateLastOraclePrice(
+      initialMarginRequirement += _loadMarginRequirementAndUpdateLastOraclePrice(
         arguments,
         market,
         market.loadInitialMarginFractionInPipsForWallet(
@@ -363,7 +363,7 @@ library Margin {
         arguments.oraclePrices[i]
       );
 
-      maintenanceMarginRequirement += loadMarginRequirementAndUpdateLastOraclePrice(
+      maintenanceMarginRequirement += _loadMarginRequirementAndUpdateLastOraclePrice(
         arguments,
         market,
         market
@@ -414,16 +414,16 @@ library Margin {
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal view {
-    int64 totalAccountValueInPips = loadTotalAccountValueAfterLiquidationAcquisition(arguments, balanceTracking);
+    int64 totalAccountValueInPips = _loadTotalAccountValueAfterLiquidationAcquisition(arguments, balanceTracking);
 
-    uint64 totalInitialMarginRequirementInPips = loadTotalInitialMarginRequirementAfterLiquidationAcquisition(
+    uint64 totalInitialMarginRequirementInPips = _loadTotalInitialMarginRequirementAfterLiquidationAcquisition(
       arguments,
       balanceTracking,
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
     require(
-      isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
+      _isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
         arguments,
         balanceTracking,
         marketOverridesByBaseAssetSymbolAndWallet
@@ -432,7 +432,7 @@ library Margin {
     );
   }
 
-  function isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
+  function _isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
     Margin.ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -467,7 +467,7 @@ library Margin {
     return false;
   }
 
-  function loadMarginRequirement(
+  function _loadMarginRequirement(
     address wallet,
     string memory baseAssetSymbol,
     uint64 marginFractionInPips,
@@ -494,10 +494,10 @@ library Margin {
   }
 
   /**
-   * @dev This function is painfully similar to loadMarginRequirement but is separately declared to satisfy state
+   * @dev This function is painfully similar to _loadMarginRequirement but is separately declared to satisfy state
    * mutability and avoid redundant looping
    */
-  function loadMarginRequirementAndUpdateLastOraclePrice(
+  function _loadMarginRequirementAndUpdateLastOraclePrice(
     LoadArguments memory arguments,
     Market storage market,
     uint64 marginFractionInPips,

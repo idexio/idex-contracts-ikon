@@ -145,7 +145,7 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    uint64 quoteQuantityInPips = withdrawExit(
+    uint64 quoteQuantityInPips = _withdrawExit(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -165,40 +165,7 @@ library Withdrawing {
     );
   }
 
-  function withdrawExit(
-    WithdrawExitArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (uint64) {
-    int64 quoteQuantityInPips = updatePositionsForExit(
-      arguments,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
-      arguments.wallet,
-      arguments.quoteAssetSymbol
-    );
-    quoteQuantityInPips += balance.balanceInPips;
-    balance.balanceInPips = 0;
-
-    require(quoteQuantityInPips > 0, "Negative quote after exit");
-
-    arguments.custodian.withdraw(
-      arguments.wallet,
-      arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantityInPips), arguments.quoteAssetDecimals)
-    );
-
-    return uint64(quoteQuantityInPips);
-  }
-
-  function updatePositionsForExit(
+  function _updatePositionsForExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -238,5 +205,38 @@ library Withdrawing {
       arguments.quoteAssetSymbol
     );
     balance.balanceInPips -= quoteQuantityInPips;
+  }
+
+  function _withdrawExit(
+    WithdrawExitArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private returns (uint64) {
+    int64 quoteQuantityInPips = _updatePositionsForExit(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+      arguments.wallet,
+      arguments.quoteAssetSymbol
+    );
+    quoteQuantityInPips += balance.balanceInPips;
+    balance.balanceInPips = 0;
+
+    require(quoteQuantityInPips > 0, "Negative quote after exit");
+
+    arguments.custodian.withdraw(
+      arguments.wallet,
+      arguments.quoteAssetAddress,
+      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantityInPips), arguments.quoteAssetDecimals)
+    );
+
+    return uint64(quoteQuantityInPips);
   }
 }

@@ -25,11 +25,11 @@ library LiquidationValidations {
     quoteQuantity = positionSize > 0
       ? Math.max(
         quoteQuantity,
-        calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
+        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
       )
       : Math.min(
         quoteQuantity,
-        calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
+        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
       );
   }
 
@@ -61,7 +61,7 @@ library LiquidationValidations {
     int64 expectedLiquidationQuoteQuantities;
     if (positionSize < 0) {
       // Use bankruptcy price for negative total account value
-      expectedLiquidationQuoteQuantities = calculateLiquidationQuoteQuantityToZeroOutAccountValue(
+      expectedLiquidationQuoteQuantities = _calculateLiquidationQuoteQuantityToZeroOutAccountValue(
         oraclePrice,
         baseQuantity,
         totalAccountValue
@@ -125,7 +125,7 @@ library LiquidationValidations {
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantities = calculateLiquidationQuoteQuantityToClosePositions(
+    int64 expectedLiquidationQuoteQuantities = _calculateLiquidationQuoteQuantityToClosePositions(
       marginFraction,
       oraclePrice,
       positionSize,
@@ -162,7 +162,7 @@ library LiquidationValidations {
 
   // Private //
 
-  function calculateLiquidationQuoteQuantityToClosePositions(
+  function _calculateLiquidationQuoteQuantityToClosePositions(
     uint64 maintenanceMarginFraction,
     uint64 oraclePrice,
     int64 positionSize,
@@ -186,7 +186,7 @@ library LiquidationValidations {
     return int64(quoteQuantity);
   }
 
-  function calculateLiquidationQuoteQuantityToZeroOutAccountValue(
+  function _calculateLiquidationQuoteQuantityToZeroOutAccountValue(
     uint64 oraclePrice,
     int64 positionSize,
     int64 totalAccountValue
