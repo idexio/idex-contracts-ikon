@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.17;
 
-import { Constants } from './Constants.sol';
-import { Math } from './Math.sol';
+import { Constants } from "./Constants.sol";
+import { Math } from "./Math.sol";
 
 library LiquidationValidations {
   function calculateExitQuoteQuantity(
@@ -15,31 +15,21 @@ library LiquidationValidations {
     quoteQuantity = Math.multiplyPipsByFraction(
       positionSize,
       int64(oraclePrice),
-      int64(Constants.pipPriceMultiplier)
+      int64(Constants.PIP_PRICE_MULTIPLIER)
     );
 
     // Quote value is the worse of the oracle price or entry price...
-    quoteQuantity = positionSize > 0
-      ? Math.min(quoteQuantity, costBasis)
-      : Math.max(quoteQuantity, costBasis);
+    quoteQuantity = positionSize > 0 ? Math.min(quoteQuantity, costBasis) : Math.max(quoteQuantity, costBasis);
 
     // ...but never worse than the bankruptcy price
     quoteQuantity = positionSize > 0
       ? Math.max(
         quoteQuantity,
-        calculateLiquidationQuoteQuantityToZeroOutAccountValue(
-          oraclePrice,
-          positionSize,
-          totalAccountValue
-        )
+        calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
       )
       : Math.min(
         quoteQuantity,
-        calculateLiquidationQuoteQuantityToZeroOutAccountValue(
-          oraclePrice,
-          positionSize,
-          totalAccountValue
-        )
+        calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
       );
   }
 
@@ -51,13 +41,13 @@ library LiquidationValidations {
     int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
       positionSize,
       int64(oraclePrice),
-      int64(Constants.pipPriceMultiplier)
+      int64(Constants.PIP_PRICE_MULTIPLIER)
     );
 
     require(
       expectedLiquidationQuoteQuantities - 1 <= quoteQuantity &&
         expectedLiquidationQuoteQuantities + 1 >= quoteQuantity,
-      'Invalid quote quantity'
+      "Invalid quote quantity"
     );
   }
 
@@ -81,14 +71,14 @@ library LiquidationValidations {
       expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
         baseQuantity,
         int64(oraclePrice),
-        int64(Constants.pipPriceMultiplier)
+        int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
 
     require(
       expectedLiquidationQuoteQuantities - 1 <= quoteQuantity &&
         expectedLiquidationQuoteQuantities + 1 >= quoteQuantity,
-      'Invalid quote quantity'
+      "Invalid quote quantity"
     );
   }
 
@@ -99,17 +89,16 @@ library LiquidationValidations {
     int64 positionSize,
     int64 totalAccountValue
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantities = LiquidationValidations
-      .calculateExitQuoteQuantity(
-        costBasis,
-        oraclePrice,
-        positionSize,
-        totalAccountValue
-      );
+    int64 expectedLiquidationQuoteQuantities = LiquidationValidations.calculateExitQuoteQuantity(
+      costBasis,
+      oraclePrice,
+      positionSize,
+      totalAccountValue
+    );
     require(
       expectedLiquidationQuoteQuantities - 1 <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantities + 1 >= liquidationQuoteQuantity,
-      'Invalid liquidation quote quantity'
+      "Invalid liquidation quote quantity"
     );
   }
 
@@ -119,13 +108,12 @@ library LiquidationValidations {
     int64 positionSize,
     int64 quoteQuantity
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantities = -1 *
-      Math.multiplyPipsByFraction(costBasis, baseQuantity, positionSize);
+    int64 expectedLiquidationQuoteQuantities = -1 * Math.multiplyPipsByFraction(costBasis, baseQuantity, positionSize);
 
     require(
       expectedLiquidationQuoteQuantities - 1 <= quoteQuantity &&
         expectedLiquidationQuoteQuantities + 1 >= quoteQuantity,
-      'Invalid quote quantity'
+      "Invalid quote quantity"
     );
   }
 
@@ -138,16 +126,16 @@ library LiquidationValidations {
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
     int64 expectedLiquidationQuoteQuantities = calculateLiquidationQuoteQuantityToClosePositions(
-        marginFraction,
-        oraclePrice,
-        positionSize,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
-      );
+      marginFraction,
+      oraclePrice,
+      positionSize,
+      totalAccountValue,
+      totalMaintenanceMarginRequirement
+    );
     require(
       expectedLiquidationQuoteQuantities - 1 <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantities + 1 >= liquidationQuoteQuantity,
-      'Invalid liquidation quote quantity'
+      "Invalid liquidation quote quantity"
     );
   }
 
@@ -160,18 +148,15 @@ library LiquidationValidations {
     int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
       positionSize,
       int64(oraclePrice),
-      int64(Constants.pipPriceMultiplier)
+      int64(Constants.PIP_PRICE_MULTIPLIER)
     );
     uint64 tolerance = (positionBelowMinimumLiquidationPriceToleranceBasisPoints *
-        Math.abs(expectedLiquidationQuoteQuantities)) /
-        Constants.basisPointsInTotal;
+      Math.abs(expectedLiquidationQuoteQuantities)) / Constants.BASIS_POINTS_IN_TOTAL;
 
     require(
-      expectedLiquidationQuoteQuantities - int64(tolerance) <=
-        liquidationQuoteQuantity &&
-        expectedLiquidationQuoteQuantities + int64(tolerance) >=
-        liquidationQuoteQuantity,
-      'Invalid liquidation quote quantity'
+      expectedLiquidationQuoteQuantities - int64(tolerance) <= liquidationQuoteQuantity &&
+        expectedLiquidationQuoteQuantities + int64(tolerance) >= liquidationQuoteQuantity,
+      "Invalid liquidation quote quantity"
     );
   }
 
@@ -184,22 +169,19 @@ library LiquidationValidations {
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) private pure returns (int64) {
-    int256 quoteQuantityInDoublePips = int256(positionSize) *
-      int64(oraclePrice);
+    int256 quoteQuantityInDoublePips = int256(positionSize) * int64(oraclePrice);
 
-    int256 quotePenaltyInDoublePips = ((
-      positionSize < 0 ? int256(1) : int256(-1)
-    ) *
+    int256 quotePenaltyInDoublePips = ((positionSize < 0 ? int256(1) : int256(-1)) *
       quoteQuantityInDoublePips *
       int64(maintenanceMarginFraction) *
       totalAccountValue) /
       int64(totalMaintenanceMarginRequirement) /
-      int64(Constants.pipPriceMultiplier);
+      int64(Constants.PIP_PRICE_MULTIPLIER);
 
-    int256 quoteQuantity = (quoteQuantityInDoublePips +
-      quotePenaltyInDoublePips) / (int64(Constants.pipPriceMultiplier));
-    require(quoteQuantity < 2**63, 'Pip quantity overflows int64');
-    require(quoteQuantity > -2**63, 'Pip quantity underflows int64');
+    int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
+      (int64(Constants.PIP_PRICE_MULTIPLIER));
+    require(quoteQuantity < 2**63, "Pip quantity overflows int64");
+    require(quoteQuantity > -2**63, "Pip quantity underflows int64");
 
     return int64(quoteQuantity);
   }
@@ -209,16 +191,13 @@ library LiquidationValidations {
     int64 positionSize,
     int64 totalAccountValue
   ) private pure returns (int64) {
-    int256 positionNotionalValueInDoublePips = int256(positionSize) *
-      int64(oraclePrice);
-    int256 totalAccountValueInDoublePips = int256(totalAccountValue) *
-      int64(Constants.pipPriceMultiplier);
+    int256 positionNotionalValueInDoublePips = int256(positionSize) * int64(oraclePrice);
+    int256 totalAccountValueInDoublePips = int256(totalAccountValue) * int64(Constants.PIP_PRICE_MULTIPLIER);
 
-    int256 quoteQuantity = (positionNotionalValueInDoublePips -
-      totalAccountValueInDoublePips) /
-      (int256(positionSize) * int64(Constants.pipPriceMultiplier));
-    require(quoteQuantity < 2**63, 'Pip quantity overflows int64');
-    require(quoteQuantity > -2**63, 'Pip quantity underflows int64');
+    int256 quoteQuantity = (positionNotionalValueInDoublePips - totalAccountValueInDoublePips) /
+      (int256(positionSize) * int64(Constants.PIP_PRICE_MULTIPLIER));
+    require(quoteQuantity < 2**63, "Pip quantity overflows int64");
+    require(quoteQuantity > -2**63, "Pip quantity underflows int64");
 
     return int64(quoteQuantity);
   }

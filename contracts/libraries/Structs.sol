@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.17;
 
-import { AggregatorV3Interface as IChainlinkAggregator } from '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
+import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from './Enums.sol';
+import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
 
 /**
  * @notice Internally used struct for tracking wallet balances and funding updates
@@ -110,7 +110,7 @@ struct OraclePrice {
  * @notice Argument type for `Exchange.executeOrderBookTrade` and `Hashing.getOrderWalletHash`
  */
 struct Order {
-  // Must equal `Constants.signatureHashVersion`
+  // Must equal `Constants.SIGNATURE_HASH_VERSION`
   uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;

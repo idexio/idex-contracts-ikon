@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.17;
 
-import { NonceInvalidation } from './Structs.sol';
-import { UUID } from './UUID.sol';
+import { NonceInvalidation } from "./Structs.sol";
+import { UUID } from "./UUID.sol";
 
 library NonceInvalidations {
   function invalidateOrderNonce(
@@ -14,26 +14,16 @@ library NonceInvalidations {
     timestampInMs = UUID.getTimestampInMsFromUuidV1(nonce);
     // Enforce a maximum skew for invalidating nonce timestamps in the future so the user doesn't
     // lock their wallet from trades indefinitely
-    require(timestampInMs < getOneDayFromNowInMs(), 'Nonce timestamp too high');
+    require(timestampInMs < getOneDayFromNowInMs(), "Nonce timestamp too high");
 
     if (self[msg.sender].exists) {
-      require(
-        self[msg.sender].timestampInMs < timestampInMs,
-        'Nonce timestamp invalidated'
-      );
-      require(
-        self[msg.sender].effectiveBlockNumber <= block.number,
-        'Last invalidation not finalized'
-      );
+      require(self[msg.sender].timestampInMs < timestampInMs, "Nonce timestamp invalidated");
+      require(self[msg.sender].effectiveBlockNumber <= block.number, "Last invalidation not finalized");
     }
 
     // Changing the Chain Propagation Period will not affect the effectiveBlockNumber for this invalidation
     effectiveBlockNumber = block.number + chainPropagationPeriodInBlocks;
-    self[msg.sender] = NonceInvalidation(
-      true,
-      timestampInMs,
-      effectiveBlockNumber
-    );
+    self[msg.sender] = NonceInvalidation(true, timestampInMs, effectiveBlockNumber);
   }
 
   function getOneDayFromNowInMs() private view returns (uint64) {

@@ -27,6 +27,7 @@
     "build:clean": "rm -rf build && rm -rf artifacts && rm -rf typechain-types",
     "build:sol": "hardhat compile",
     "build:ts": "tsc -p .",
+    "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test"
   },
   "repository": "https://github.com/idexio/idex-contracts-ikon",

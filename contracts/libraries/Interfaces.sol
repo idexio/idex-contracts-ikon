@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.17;
 
-import { Balance } from './Structs.sol';
+import { Balance } from "./Structs.sol";
 
 /**
  * @notice Interface to Custodian contract. Used by Exchange and Governance contracts for internal
@@ -72,18 +72,12 @@ interface IExchange {
    *
    * @return The quantity denominated in pips of asset at `assetSymbol` currently deposited by `wallet`
    */
-  function loadBalanceInPipsBySymbol(
-    address wallet,
-    string calldata assetSymbol
-  ) external view returns (int64);
+  function loadBalanceInPipsBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
 
   /**
    * @notice Load a wallet's balance-tracking struct by asset address
    */
-  function loadBalanceBySymbol(address wallet, string calldata assetSymbol)
-    external
-    view
-    returns (Balance memory);
+  function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (Balance memory);
 
   /**
    * @notice Load the address of the Custodian contract
@@ -98,5 +92,5 @@ interface IExchange {
    *
    * @return The number of deposits successfully made to the Exchange
    */
-  function _depositIndex() external view returns (uint64);
+  function depositIndex() external view returns (uint64);
 }

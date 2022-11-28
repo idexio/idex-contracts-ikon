@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-import { BalanceTracking } from './BalanceTracking.sol';
-import { Constants } from './Constants.sol';
-import { FundingMultipliers } from './FundingMultipliers.sol';
-import { Math } from './Math.sol';
-import { Margin } from './Margin.sol';
-import { Validations } from './Validations.sol';
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from './Structs.sol';
+import { BalanceTracking } from "./BalanceTracking.sol";
+import { Constants } from "./Constants.sol";
+import { FundingMultipliers } from "./FundingMultipliers.sol";
+import { Math } from "./Math.sol";
+import { Margin } from "./Margin.sol";
+import { Validations } from "./Validations.sol";
+import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from "./Structs.sol";
 
 pragma solidity 0.8.17;
 
@@ -17,12 +17,9 @@ library Funding {
   function loadOutstandingWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64 fundingInPips) {
     return
@@ -39,12 +36,9 @@ library Funding {
   function loadTotalAccountValueIncludingOutstandingWalletFunding(
     Margin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64) {
     return
@@ -67,30 +61,20 @@ library Funding {
   function loadOutstandingWalletFundingInternal(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 fundingInPips) {
     int64 marketFundingInPips;
 
-    string[]
-      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-        wallet
-      ];
-    for (
-      uint8 marketIndex = 0;
-      marketIndex < baseAssetSymbols.length;
-      marketIndex++
-    ) {
-      Market memory market = marketsByBaseAssetSymbol[
-        baseAssetSymbols[marketIndex]
-      ];
-      Balance memory basePosition = balanceTracking
-        .loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
+      Balance memory basePosition = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+        wallet,
+        market.baseAssetSymbol
+      );
 
       (marketFundingInPips, ) = loadWalletFundingForMarket(
         basePosition,
@@ -105,39 +89,26 @@ library Funding {
   function loadWalletFundingForMarket(
     Balance memory basePosition,
     Market memory market,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  )
-    internal
-    view
-    returns (int64 fundingInPips, uint64 lastFundingMultiplierTimestampInMs)
-  {
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+  ) internal view returns (int64 fundingInPips, uint64 lastFundingMultiplierTimestampInMs) {
     // Load funding rates and index
-    FundingMultiplierQuartet[]
-      storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
-        market.baseAssetSymbol
-      ];
-    lastFundingMultiplierTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+    FundingMultiplierQuartet[] storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
       market.baseAssetSymbol
     ];
+    lastFundingMultiplierTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
 
     // Apply hourly funding payments if new rates were published since this balance was last updated
-    if (
-      basePosition.balanceInPips != 0 &&
-      basePosition.lastUpdateTimestampInMs < lastFundingMultiplierTimestampInMs
-    ) {
-      int64 aggregateFundingMultiplier = fundingMultipliersForMarket
-        .loadAggregateMultiplier(
-          basePosition.lastUpdateTimestampInMs,
-          lastFundingMultiplierTimestampInMs
-        );
+    if (basePosition.balanceInPips != 0 && basePosition.lastUpdateTimestampInMs < lastFundingMultiplierTimestampInMs) {
+      int64 aggregateFundingMultiplier = fundingMultipliersForMarket.loadAggregateMultiplier(
+        basePosition.lastUpdateTimestampInMs,
+        lastFundingMultiplierTimestampInMs
+      );
 
       fundingInPips += Math.multiplyPipsByFraction(
         basePosition.balanceInPips,
         aggregateFundingMultiplier,
-        int64(Constants.pipPriceMultiplier)
+        int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
   }
@@ -147,47 +118,37 @@ library Funding {
     OraclePrice[] memory oraclePrices,
     address oracleWallet,
     uint8 quoteAssetDecimals,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) public {
     for (uint8 i = 0; i < oraclePrices.length; i++) {
-      (OraclePrice memory oraclePrice, int64 fundingRateInPips) = (
-        oraclePrices[i],
-        fundingRatesInPips[i]
+      (OraclePrice memory oraclePrice, int64 fundingRateInPips) = (oraclePrices[i], fundingRatesInPips[i]);
+      uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
+        oraclePrice,
+        quoteAssetDecimals,
+        oracleWallet
       );
-      uint64 oraclePriceInPips = Validations
-        .validateOraclePriceAndConvertToPips(
-          oraclePrice,
-          quoteAssetDecimals,
-          oracleWallet
-        );
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-          oraclePrice.baseAssetSymbol
-        ];
+        oraclePrice.baseAssetSymbol
+      ];
       require(
         lastPublishTimestampInMs > 0
-          ? lastPublishTimestampInMs + Constants.msInOneHour ==
-            oraclePrice.timestampInMs
-          : oraclePrice.timestampInMs % Constants.msInOneHour == 0,
-        'Input price not hour-aligned'
+          ? lastPublishTimestampInMs + Constants.MS_IN_ONE_HOUR == oraclePrice.timestampInMs
+          : oraclePrice.timestampInMs % Constants.MS_IN_ONE_HOUR == 0,
+        "Input price not hour-aligned"
       );
 
       // TODO Cleanup typecasts
       int64 newFundingMultiplier = Math.multiplyPipsByFraction(
         int64(oraclePriceInPips),
         fundingRateInPips,
-        int64(Constants.pipPriceMultiplier)
+        int64(Constants.PIP_PRICE_MULTIPLIER)
       );
 
-      fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol]
-        .publishFundingMultipler(newFundingMultiplier);
+      fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
 
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-        oraclePrice.baseAssetSymbol
-      ] = oraclePrice.timestampInMs;
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[oraclePrice.baseAssetSymbol] = oraclePrice.timestampInMs;
     }
   }
 
@@ -195,12 +156,9 @@ library Funding {
     address wallet,
     string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     updateWalletFundingInternal(
@@ -218,37 +176,21 @@ library Funding {
     address wallet,
     string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
     int64 fundingInPips;
     int64 marketFundingInPips;
     uint64 lastFundingMultiplierTimestampInMs;
 
-    string[]
-      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-        wallet
-      ];
-    for (
-      uint8 marketIndex = 0;
-      marketIndex < baseAssetSymbols.length;
-      marketIndex++
-    ) {
-      Market memory market = marketsByBaseAssetSymbol[
-        baseAssetSymbols[marketIndex]
-      ];
-      Balance storage basePosition = balanceTracking
-        .loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
+      Balance storage basePosition = balanceTracking.loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
 
-      (
-        marketFundingInPips,
-        lastFundingMultiplierTimestampInMs
-      ) = loadWalletFundingForMarket(
+      (marketFundingInPips, lastFundingMultiplierTimestampInMs) = loadWalletFundingForMarket(
         basePosition,
         market,
         fundingMultipliersByBaseAssetSymbol,
@@ -258,8 +200,7 @@ library Funding {
       basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
     }
 
-    Balance storage quoteBalance = balanceTracking
-      .loadBalanceAndMigrateIfNeeded(wallet, quoteAssetSymbol);
+    Balance storage quoteBalance = balanceTracking.loadBalanceAndMigrateIfNeeded(wallet, quoteAssetSymbol);
     quoteBalance.balanceInPips += fundingInPips;
   }
 }

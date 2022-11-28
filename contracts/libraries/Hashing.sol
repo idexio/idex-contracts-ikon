@@ -2,12 +2,12 @@
 
 pragma solidity 0.8.17;
 
-import { ECDSA } from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
-import { Strings } from '@openzeppelin/contracts/utils/Strings.sol';
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
-import { Constants } from './Constants.sol';
-import { OrderType } from './Enums.sol';
-import { DelegatedKeyAuthorization, OraclePrice, Order, Withdrawal } from './Structs.sol';
+import { Constants } from "./Constants.sol";
+import { OrderType } from "./Enums.sol";
+import { DelegatedKeyAuthorization, OraclePrice, Order, Withdrawal } from "./Structs.sol";
 
 /**
  * @notice Library helpers for building hashes and verifying wallet signatures
@@ -18,8 +18,7 @@ library Hashing {
     bytes memory signature,
     address signer
   ) internal pure returns (bool) {
-    return
-      ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
+    return ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
   }
 
   function isSignatureValid(
@@ -27,33 +26,26 @@ library Hashing {
     bytes memory signature,
     address signer
   ) internal pure returns (bool) {
-    return
-      ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
+    return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 
-  function getDelegatedKeyMessage(
-    DelegatedKeyAuthorization memory delegatedKeyAuthorization
-  ) internal pure returns (bytes memory) {
+  function getDelegatedKeyMessage(DelegatedKeyAuthorization memory delegatedKeyAuthorization)
+    internal
+    pure
+    returns (bytes memory)
+  {
     return
       abi.encodePacked(
-        Constants.encodedDelegateKeySignatureMessage,
+        Constants.ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE,
         Strings.toString(uint160(delegatedKeyAuthorization.delegatedPublicKey)),
         Strings.toString(delegatedKeyAuthorization.nonce)
       );
   }
 
-  function getOraclePriceHash(OraclePrice memory oraclePrice)
-    internal
-    pure
-    returns (bytes32)
-  {
+  function getOraclePriceHash(OraclePrice memory oraclePrice) internal pure returns (bytes32) {
     return
       keccak256(
-        abi.encodePacked(
-          oraclePrice.baseAssetSymbol,
-          oraclePrice.timestampInMs,
-          oraclePrice.priceInAssetUnits
-        )
+        abi.encodePacked(oraclePrice.baseAssetSymbol, oraclePrice.timestampInMs, oraclePrice.priceInAssetUnits)
       );
   }
 
@@ -67,10 +59,7 @@ library Hashing {
     string memory baseSymbol,
     string memory quoteSymbol
   ) internal pure returns (bytes32) {
-    require(
-      order.signatureHashVersion == Constants.signatureHashVersion,
-      'Signature hash version invalid'
-    );
+    require(order.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
     // Placing all the fields in a single `abi.encodePacked` call causes a `stack too deep` error
     return
       keccak256(
@@ -79,7 +68,7 @@ library Hashing {
             order.signatureHashVersion,
             order.nonce,
             order.wallet,
-            string(abi.encodePacked(baseSymbol, '-', quoteSymbol)),
+            string(abi.encodePacked(baseSymbol, "-", quoteSymbol)),
             uint8(order.orderType),
             uint8(order.side),
             // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal
@@ -87,16 +76,12 @@ library Hashing {
             pipToDecimal(order.quantityInPips)
           ),
           abi.encodePacked(
-            order.limitPriceInPips > 0
-              ? pipToDecimal(order.limitPriceInPips)
-              : Constants.emptyDecimalString,
-            order.triggerPriceInPips > 0
-              ? pipToDecimal(order.triggerPriceInPips)
-              : Constants.emptyDecimalString,
+            order.limitPriceInPips > 0 ? pipToDecimal(order.limitPriceInPips) : Constants.EMPTY_DECIMAL_STRING,
+            order.triggerPriceInPips > 0 ? pipToDecimal(order.triggerPriceInPips) : Constants.EMPTY_DECIMAL_STRING,
             order.triggerType,
             order.orderType == OrderType.TrailingStop
               ? pipToDecimal(order.callbackRateInPips)
-              : Constants.emptyDecimalString,
+              : Constants.EMPTY_DECIMAL_STRING,
             order.conditionalOrderId,
             order.isReduceOnly,
             uint8(order.timeInForce),
@@ -108,19 +93,9 @@ library Hashing {
       );
   }
 
-  function getWithdrawalHash(Withdrawal memory withdrawal)
-    internal
-    pure
-    returns (bytes32)
-  {
+  function getWithdrawalHash(Withdrawal memory withdrawal) internal pure returns (bytes32) {
     return
-      keccak256(
-        abi.encodePacked(
-          withdrawal.nonce,
-          withdrawal.wallet,
-          pipToDecimal(withdrawal.grossQuantityInPips)
-        )
-      );
+      keccak256(abi.encodePacked(withdrawal.nonce, withdrawal.wallet, pipToDecimal(withdrawal.grossQuantityInPips)));
   }
 
   /**
