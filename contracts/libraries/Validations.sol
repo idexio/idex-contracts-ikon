@@ -9,11 +9,7 @@ import { String } from "./String.sol";
 import { Market, OraclePrice, Withdrawal } from "./Structs.sol";
 
 library Validations {
-  function isFeeQuantityValid(
-    uint64 fee,
-    uint64 total,
-    uint64 max
-  ) internal pure returns (bool) {
+  function isFeeQuantityValid(uint64 fee, uint64 total, uint64 max) internal pure returns (bool) {
     uint64 feeBasisPoints = (fee * Constants.BASIS_POINTS_IN_TOTAL) / total;
     return feeBasisPoints <= max;
   }
@@ -21,17 +17,15 @@ library Validations {
   function validateAndUpdateOraclePriceAndConvertToPips(
     Market storage market,
     OraclePrice memory oraclePrice,
-    address oracleWallet,
-    uint8 quoteAssetDecimals
+    address oracleWallet
   ) internal returns (uint64) {
     market.lastOraclePriceTimestampInMs = oraclePrice.timestampInMs;
 
-    return validateOraclePriceAndConvertToPips(oraclePrice, quoteAssetDecimals, market, oracleWallet);
+    return validateOraclePriceAndConvertToPips(oraclePrice, market, oracleWallet);
   }
 
   function validateOraclePriceAndConvertToPips(
     OraclePrice memory oraclePrice,
-    uint8 quoteAssetDecimals,
     Market memory market,
     address oracleWallet
   ) internal pure returns (uint64) {
@@ -39,25 +33,23 @@ library Validations {
 
     require(market.lastOraclePriceTimestampInMs <= oraclePrice.timestampInMs, "Outdated oracle price");
 
-    return validateOraclePriceAndConvertToPips(oraclePrice, quoteAssetDecimals, oracleWallet);
+    return validateOraclePriceAndConvertToPips(oraclePrice, oracleWallet);
   }
 
   function validateOraclePriceAndConvertToPips(
     OraclePrice memory oraclePrice,
-    uint8 quoteAssetDecimals,
     address oracleWallet
   ) internal pure returns (uint64) {
     // TODO Validate timestamp recency
     validateOraclePriceSignature(oraclePrice, oracleWallet);
 
-    return AssetUnitConversions.assetUnitsToPips(oraclePrice.priceInAssetUnits, quoteAssetDecimals);
+    return AssetUnitConversions.assetUnitsToPips(oraclePrice.priceInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
   }
 
-  function validateOraclePriceSignature(OraclePrice memory oraclePrice, address oracleWallet)
-    internal
-    pure
-    returns (bytes32)
-  {
+  function validateOraclePriceSignature(
+    OraclePrice memory oraclePrice,
+    address oracleWallet
+  ) internal pure returns (bytes32) {
     bytes32 oraclePriceHash = Hashing.getOraclePriceHash(oraclePrice);
 
     require(Hashing.isSignatureValid(oraclePriceHash, oraclePrice.signature, oracleWallet), "Invalid oracle signature");

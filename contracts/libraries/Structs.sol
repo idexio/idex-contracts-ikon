@@ -40,8 +40,6 @@ struct ExecuteOrderBookTradeArguments {
   OraclePrice[] buyOraclePrices;
   OraclePrice[] sellOraclePrices;
   // Exchange state
-  uint8 quoteAssetDecimals;
-  string quoteAssetSymbol;
   uint64 delegateKeyExpirationPeriodInMs;
   address exitFundWallet;
   address feeWallet;

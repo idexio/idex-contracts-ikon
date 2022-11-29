@@ -16,19 +16,11 @@ library OrderBookTradeValidations {
     ExecuteOrderBookTradeArguments memory arguments,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations
-  )
-    internal
-    view
-    returns (
-      bytes32 buyHash,
-      bytes32 sellHash,
-      Market memory market
-    )
-  {
+  ) internal view returns (bytes32 buyHash, bytes32 sellHash, Market memory market) {
     require(arguments.buy.wallet != arguments.sell.wallet, "Self-trading not allowed");
 
     // Order book trade validations
-    market = _validateAssetPair(arguments.orderBookTrade, arguments.quoteAssetSymbol, marketsByBaseAssetSymbol);
+    market = _validateAssetPair(arguments.orderBookTrade, marketsByBaseAssetSymbol);
     _validateExecutionConditions(
       arguments.buy,
       arguments.sell,
@@ -41,11 +33,10 @@ library OrderBookTradeValidations {
     _validateFees(arguments.orderBookTrade);
   }
 
-  function _calculateImpliedQuoteQuantityInPips(uint64 baseQuantityInPips, uint64 limitPriceInPips)
-    private
-    pure
-    returns (uint64)
-  {
+  function _calculateImpliedQuoteQuantityInPips(
+    uint64 baseQuantityInPips,
+    uint64 limitPriceInPips
+  ) private pure returns (uint64) {
     return Math.multiplyPipsByFraction(baseQuantityInPips, limitPriceInPips, Constants.PIP_PRICE_MULTIPLIER);
   }
 
@@ -67,12 +58,11 @@ library OrderBookTradeValidations {
 
   function _validateAssetPair(
     OrderBookTrade memory trade,
-    string memory quoteAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market) {
     require(!String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol), "Trade assets must be different");
 
-    require(String.isEqual(trade.quoteAssetSymbol, quoteAssetSymbol), "Quote symbol mismatch");
+    require(String.isEqual(trade.quoteAssetSymbol, Constants.QUOTE_ASSET_SYMBOL), "Quote symbol mismatch");
 
     market = marketsByBaseAssetSymbol[trade.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
@@ -134,11 +124,7 @@ library OrderBookTradeValidations {
     }
   }
 
-  function _validateLimitPrice(
-    Order memory order,
-    OrderBookTrade memory trade,
-    bool isBuy
-  ) private pure {
+  function _validateLimitPrice(Order memory order, OrderBookTrade memory trade, bool isBuy) private pure {
     if (_isLimitOrderType(order.orderType)) {
       require(order.limitPriceInPips > 0, "Invalid limit price");
 
@@ -223,11 +209,7 @@ library OrderBookTradeValidations {
     return orderHash;
   }
 
-  function _validateTimeInForce(
-    Order memory order,
-    OrderBookTrade memory trade,
-    bool isBuy
-  ) private pure {
+  function _validateTimeInForce(Order memory order, OrderBookTrade memory trade, bool isBuy) private pure {
     if (order.timeInForce == OrderTimeInForce.gtx) {
       require(
         _isLimitOrderType(order.orderType) && trade.makerSide == (isBuy ? OrderSide.Buy : OrderSide.Sell),

@@ -32,8 +32,6 @@ library ClosureDeleveraging {
     OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
     OraclePrice[] deleveragingWalletOraclePrices; // After acquiring IF positions
     // Exchange state
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
     address oracleWallet;
   }
 
@@ -49,7 +47,6 @@ library ClosureDeleveraging {
   ) public returns (uint256) {
     Funding.updateWalletFundingInternal(
       arguments.deleveragingWallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -58,7 +55,6 @@ library ClosureDeleveraging {
     );
     Funding.updateWalletFundingInternal(
       arguments.liquidatingWallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -79,7 +75,6 @@ library ClosureDeleveraging {
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
           arguments.liquidatingWallet,
           exitFundPositionOpenedAtBlockNumber,
-          arguments.quoteAssetSymbol,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
         );
@@ -143,7 +138,6 @@ library ClosureDeleveraging {
     );
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       oraclePrice,
-      arguments.quoteAssetDecimals,
       market,
       arguments.oracleWallet
     );
@@ -161,9 +155,7 @@ library ClosureDeleveraging {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
+          arguments.oracleWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -183,7 +175,6 @@ library ClosureDeleveraging {
       arguments.deleveragingWallet,
       arguments.liquidatingWallet,
       market,
-      arguments.quoteAssetSymbol,
       arguments.liquidationQuoteQuantityInPips,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
@@ -195,9 +186,7 @@ library ClosureDeleveraging {
       Margin.LoadArguments(
         arguments.deleveragingWallet,
         arguments.deleveragingWalletOraclePrices,
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol
+        arguments.oracleWallet
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

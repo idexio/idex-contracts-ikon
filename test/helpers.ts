@@ -194,8 +194,6 @@ export async function deployAndAssociateContracts(
       await Exchange_v4.deploy(
         ethers.constants.AddressZero,
         usdc.address,
-        'USDC',
-        quoteAssetDecimals,
         exitFundWallet.address,
         feeWallet.address,
         insuranceFund.address,

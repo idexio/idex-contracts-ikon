@@ -117,17 +117,12 @@ library Funding {
     int64[] memory fundingRatesInPips,
     OraclePrice[] memory oraclePrices,
     address oracleWallet,
-    uint8 quoteAssetDecimals,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) public {
     for (uint8 i = 0; i < oraclePrices.length; i++) {
       (OraclePrice memory oraclePrice, int64 fundingRateInPips) = (oraclePrices[i], fundingRatesInPips[i]);
-      uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
-        oraclePrice,
-        quoteAssetDecimals,
-        oracleWallet
-      );
+      uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(oraclePrice, oracleWallet);
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
         oraclePrice.baseAssetSymbol
@@ -154,7 +149,6 @@ library Funding {
 
   function updateWalletFunding(
     address wallet,
-    string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
@@ -163,7 +157,6 @@ library Funding {
   ) public {
     updateWalletFundingInternal(
       wallet,
-      quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -174,7 +167,6 @@ library Funding {
 
   function updateWalletFundingInternal(
     address wallet,
-    string memory quoteAssetSymbol,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
@@ -200,7 +192,7 @@ library Funding {
       basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
     }
 
-    Balance storage quoteBalance = balanceTracking.loadBalanceAndMigrateIfNeeded(wallet, quoteAssetSymbol);
+    Balance storage quoteBalance = balanceTracking.loadBalanceAndMigrateIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL);
     quoteBalance.balanceInPips += fundingInPips;
   }
 }

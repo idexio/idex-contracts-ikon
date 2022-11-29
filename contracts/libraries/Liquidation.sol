@@ -35,8 +35,6 @@ library Liquidation {
     uint64 dustPositionLiquidationPriceToleranceBasisPoints;
     address insuranceFundWallet;
     address oracleWallet;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
   }
 
   /**
@@ -50,8 +48,6 @@ library Liquidation {
     OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
     // Exchange state
     address oracleWallet;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
   }
 
   /**
@@ -67,8 +63,6 @@ library Liquidation {
     int64[] liquidationQuoteQuantitiesInPips;
     // Exchange state
     address oracleWallet;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
   }
 
   function liquidatePositionBelowMinimum(
@@ -82,7 +76,6 @@ library Liquidation {
   ) public {
     Funding.updateWalletFundingInternal(
       arguments.liquidatingWallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -91,7 +84,6 @@ library Liquidation {
     );
     Funding.updateWalletFundingInternal(
       arguments.insuranceFundWallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -120,9 +112,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
+          arguments.oracleWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -154,7 +144,6 @@ library Liquidation {
   ) public {
     Funding.updateWalletFundingInternal(
       arguments.liquidatingWallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -183,9 +172,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
+          arguments.oracleWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -217,7 +204,6 @@ library Liquidation {
   ) public returns (uint256) {
     Funding.updateWalletFundingInternal(
       arguments.liquidatingWallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -226,7 +212,6 @@ library Liquidation {
     );
     Funding.updateWalletFundingInternal(
       arguments.counterpartyWallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -247,7 +232,6 @@ library Liquidation {
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
           arguments.liquidatingWallet,
           exitFundPositionOpenedAtBlockNumber,
-          arguments.quoteAssetSymbol,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
         );
@@ -270,9 +254,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
+          arguments.oracleWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -303,11 +285,7 @@ library Liquidation {
       );
     }
 
-    balanceTracking.updateQuoteForLiquidation(
-      arguments.quoteAssetSymbol,
-      arguments.counterpartyWallet,
-      arguments.liquidatingWallet
-    );
+    balanceTracking.updateQuoteForLiquidation(arguments.counterpartyWallet, arguments.liquidatingWallet);
 
     if (
       arguments.liquidationType == LiquidationType.WalletExited ||
@@ -318,9 +296,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.counterpartyWallet,
           arguments.counterpartyWalletOraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
+          arguments.oracleWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -359,7 +335,6 @@ library Liquidation {
     // Validate quote quantity
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       oraclePrice,
-      arguments.quoteAssetDecimals,
       market,
       arguments.oracleWallet
     );
@@ -375,7 +350,6 @@ library Liquidation {
       arguments.insuranceFundWallet,
       arguments.liquidatingWallet,
       market,
-      arguments.quoteAssetSymbol,
       arguments.liquidationQuoteQuantityInPips,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
@@ -400,7 +374,6 @@ library Liquidation {
     balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,
       arguments.liquidatingWallet,
-      arguments.quoteAssetSymbol,
       arguments.liquidationQuoteQuantityInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
@@ -422,7 +395,6 @@ library Liquidation {
     );
     uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
       arguments.liquidatingWalletOraclePrices[index],
-      arguments.quoteAssetDecimals,
       market,
       arguments.oracleWallet
     );
@@ -457,7 +429,6 @@ library Liquidation {
       arguments.counterpartyWallet,
       arguments.liquidatingWallet,
       market,
-      arguments.quoteAssetSymbol,
       arguments.liquidationQuoteQuantitiesInPips[index],
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet

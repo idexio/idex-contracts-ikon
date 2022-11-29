@@ -15,7 +15,7 @@ library Constants {
       "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
     );
 
-  uint64 public constant DEPOSIT_INDEX_NOT_SET = 2**64 - 1;
+  uint64 public constant DEPOSIT_INDEX_NOT_SET = 2 ** 64 - 1;
 
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
@@ -30,9 +30,13 @@ library Constants {
 
   uint64 public constant MS_IN_ONE_HOUR = 1000 * 60 * 60;
 
+  string public constant QUOTE_ASSET_SYMBOL = "USDC";
+
+  uint8 public constant QUOTE_ASSET_DECIMALS = 6;
+
   uint8 public constant SIGNATURE_HASH_VERSION = 105;
 
   // To convert integer pips to a fractional price shift decimal left by the pip precision of 8
   // decimals places
-  uint64 public constant PIP_PRICE_MULTIPLIER = 10**8;
+  uint64 public constant PIP_PRICE_MULTIPLIER = 10 ** 8;
 }

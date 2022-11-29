@@ -25,8 +25,6 @@ library Withdrawing {
     OraclePrice[] oraclePrices;
     // Exchange state
     address quoteAssetAddress;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
     ICustodian custodian;
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
@@ -42,8 +40,6 @@ library Withdrawing {
     address exitFundWallet;
     address oracleWallet;
     address quoteAssetAddress;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
   }
 
   function withdraw(
@@ -78,7 +74,6 @@ library Withdrawing {
 
     Funding.updateWalletFundingInternal(
       arguments.withdrawal.wallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -89,19 +84,13 @@ library Withdrawing {
     // Update wallet balances
     newExchangeBalanceInPips = balanceTracking.updateForWithdrawal(
       arguments.withdrawal,
-      arguments.quoteAssetSymbol,
+      Constants.QUOTE_ASSET_SYMBOL,
       arguments.feeWallet
     );
 
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadArguments(
-          arguments.withdrawal.wallet,
-          arguments.oraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
-        ),
+        Margin.LoadArguments(arguments.withdrawal.wallet, arguments.oraclePrices, arguments.oracleWallet),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -113,7 +102,7 @@ library Withdrawing {
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
       arguments.withdrawal.grossQuantityInPips - arguments.withdrawal.gasFeeInPips,
-      arguments.quoteAssetDecimals
+      Constants.QUOTE_ASSET_DECIMALS
     );
     arguments.custodian.withdraw(
       arguments.withdrawal.wallet,
@@ -137,7 +126,6 @@ library Withdrawing {
   ) public returns (uint256, uint64) {
     Funding.updateWalletFundingInternal(
       arguments.wallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -157,7 +145,6 @@ library Withdrawing {
       ExitFund.getExitFundBalanceOpenedAtBlockNumber(
         arguments.exitFundWallet,
         exitFundPositionOpenedAtBlockNumber,
-        arguments.quoteAssetSymbol,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
@@ -173,13 +160,7 @@ library Withdrawing {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantityInPips) {
     int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
-      Margin.LoadArguments(
-        arguments.wallet,
-        new OraclePrice[](0),
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol
-      ),
+      Margin.LoadArguments(arguments.wallet, new OraclePrice[](0), arguments.oracleWallet),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
@@ -202,7 +183,7 @@ library Withdrawing {
     // Quote out from exit fund wallet
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.exitFundWallet,
-      arguments.quoteAssetSymbol
+      Constants.QUOTE_ASSET_SYMBOL
     );
     balance.balanceInPips -= quoteQuantityInPips;
   }
@@ -224,7 +205,7 @@ library Withdrawing {
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.wallet,
-      arguments.quoteAssetSymbol
+      Constants.QUOTE_ASSET_SYMBOL
     );
     quoteQuantityInPips += balance.balanceInPips;
     balance.balanceInPips = 0;
@@ -234,7 +215,7 @@ library Withdrawing {
     arguments.custodian.withdraw(
       arguments.wallet,
       arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantityInPips), arguments.quoteAssetDecimals)
+      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantityInPips), Constants.QUOTE_ASSET_DECIMALS)
     );
 
     return uint64(quoteQuantityInPips);

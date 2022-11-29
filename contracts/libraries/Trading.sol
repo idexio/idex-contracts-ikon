@@ -42,7 +42,6 @@ library Trading {
     // against the position size at the time of each historic multipler
     Funding.updateWalletFundingInternal(
       arguments.buy.wallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -51,7 +50,6 @@ library Trading {
     );
     Funding.updateWalletFundingInternal(
       arguments.sell.wallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -138,13 +136,7 @@ library Trading {
   ) private {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadArguments(
-          arguments.buy.wallet,
-          arguments.buyOraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
-        ),
+        Margin.LoadArguments(arguments.buy.wallet, arguments.buyOraclePrices, arguments.oracleWallet),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -154,13 +146,7 @@ library Trading {
     );
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadArguments(
-          arguments.sell.wallet,
-          arguments.sellOraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
-        ),
+        Margin.LoadArguments(arguments.sell.wallet, arguments.sellOraclePrices, arguments.oracleWallet),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,

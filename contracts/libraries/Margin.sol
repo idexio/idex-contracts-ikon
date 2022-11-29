@@ -23,8 +23,6 @@ library Margin {
     address wallet;
     OraclePrice[] oraclePrices;
     address oracleWallet;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
   }
 
   struct ValidateInsuranceFundCannotLiquidateWalletArguments {
@@ -34,14 +32,11 @@ library Margin {
     Market[] markets;
     uint64[] oraclePricesInPips;
     address oracleWallet;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
   }
 
   function loadTotalInitialMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
-    uint8 quoteAssetDecimals,
     address oracleWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -64,7 +59,6 @@ library Margin {
           marketOverridesByBaseAssetSymbolAndWallet
         ),
         oraclePrice,
-        quoteAssetDecimals,
         oracleWallet,
         balanceTracking
       );
@@ -74,7 +68,6 @@ library Margin {
   function loadTotalMaintenanceMarginRequirement(
     address wallet,
     OraclePrice[] memory oraclePrices,
-    uint8 quoteAssetDecimals,
     address oracleWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -95,7 +88,6 @@ library Margin {
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFractionInPips,
         oraclePrice,
-        quoteAssetDecimals,
         oracleWallet,
         balanceTracking
       );
@@ -168,7 +160,7 @@ library Margin {
   ) internal view returns (int64) {
     int64 totalAccountValueInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
       arguments.wallet,
-      arguments.quoteAssetSymbol
+      Constants.QUOTE_ASSET_SYMBOL
     );
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
@@ -176,7 +168,6 @@ library Margin {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
         arguments.oraclePrices[i],
-        arguments.quoteAssetDecimals,
         market,
         arguments.oracleWallet
       );
@@ -383,7 +374,7 @@ library Margin {
   ) internal view returns (int64) {
     int64 totalAccountValueInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
       arguments.wallet,
-      arguments.quoteAssetSymbol
+      Constants.QUOTE_ASSET_SYMBOL
     );
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
@@ -472,7 +463,6 @@ library Margin {
     string memory baseAssetSymbol,
     uint64 marginFractionInPips,
     OraclePrice memory oraclePrice,
-    uint8 quoteAssetDecimals,
     address oracleWallet,
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (uint64) {
@@ -484,7 +474,7 @@ library Margin {
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(wallet, baseAssetSymbol),
-            int64(AssetUnitConversions.assetUnitsToPips(oraclePrice.priceInAssetUnits, quoteAssetDecimals)),
+            int64(AssetUnitConversions.assetUnitsToPips(oraclePrice.priceInAssetUnits, Constants.QUOTE_ASSET_DECIMALS)),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
           int64(marginFractionInPips),
@@ -508,8 +498,7 @@ library Margin {
     uint64 oraclePriceInPips = Validations.validateAndUpdateOraclePriceAndConvertToPips(
       market,
       oraclePrice,
-      arguments.oracleWallet,
-      arguments.quoteAssetDecimals
+      arguments.oracleWallet
     );
 
     return

@@ -222,6 +222,8 @@ describe('Exchange', function () {
         oracle,
       );
 
+      await usdc.connect(dispatcher).faucet(dispatcher.address);
+
       await fundWallets([trader1, trader2], exchange, usdc);
 
       await (await exchange.setDelegateKeyExpirationPeriod(10000000)).wait();

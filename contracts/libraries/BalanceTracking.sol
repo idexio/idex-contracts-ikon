@@ -44,7 +44,6 @@ library BalanceTracking {
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    string memory quoteAssetSymbol,
     int64 quoteQuantityInPips,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -56,7 +55,6 @@ library BalanceTracking {
       counterpartyWallet,
       liquidatingWallet,
       market,
-      quoteAssetSymbol,
       quoteQuantityInPips,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
@@ -69,7 +67,6 @@ library BalanceTracking {
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    string memory quoteAssetSymbol,
     int64 quoteQuantityInPips,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -81,7 +78,6 @@ library BalanceTracking {
       counterpartyWallet,
       liquidatingWallet,
       market,
-      quoteAssetSymbol,
       quoteQuantityInPips,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
@@ -92,7 +88,6 @@ library BalanceTracking {
     Storage storage self,
     string memory baseAssetSymbol,
     address liquidatingWallet,
-    string memory quoteAssetSymbol,
     int64 quoteQuantityInPips,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal {
@@ -111,25 +106,24 @@ library BalanceTracking {
     );
 
     // Wallet receives or gives quote if long or short respectively
-    balance = loadBalanceAndMigrateIfNeeded(self, liquidatingWallet, quoteAssetSymbol);
+    balance = loadBalanceAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
     balance.balanceInPips += quoteQuantityInPips;
   }
 
   function updateQuoteForLiquidation(
     Storage storage self,
-    string memory quoteAssetSymbol,
     address counterpartyWallet,
     address liquidatingWallet
   ) internal {
     Balance storage balance;
 
     // Liquidating wallet quote balance goes to zero
-    balance = loadBalanceAndMigrateIfNeeded(self, liquidatingWallet, quoteAssetSymbol);
+    balance = loadBalanceAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
     int64 quoteQuantityInPips = balance.balanceInPips;
     balance.balanceInPips = 0;
     // Counterparty wallet takes any remaining quote from liquidating wallet
     if (quoteQuantityInPips != 0) {
-      balance = loadBalanceAndMigrateIfNeeded(self, counterpartyWallet, quoteAssetSymbol);
+      balance = loadBalanceAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
       balance.balanceInPips += quoteQuantityInPips;
     }
   }
@@ -449,7 +443,6 @@ library BalanceTracking {
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    string memory quoteAssetSymbol,
     int64 quoteQuantityInPips,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -495,17 +488,17 @@ library BalanceTracking {
     );
 
     // Wallet receives or gives quote if long or short respectively
-    balance = loadBalanceAndMigrateIfNeeded(self, liquidatingWallet, quoteAssetSymbol);
+    balance = loadBalanceAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
     balance.balanceInPips += quoteQuantityInPips;
     // Insurance or counterparty receives or gives quote if wallet short or long respectively
-    balance = loadBalanceAndMigrateIfNeeded(self, counterpartyWallet, quoteAssetSymbol);
+    balance = loadBalanceAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
     balance.balanceInPips -= quoteQuantityInPips;
   }
 
-  function _validatePositionUpdatedTowardsZero(int64 originalPositionSizeInPips, int64 newPositionSizeInPips)
-    private
-    pure
-  {
+  function _validatePositionUpdatedTowardsZero(
+    int64 originalPositionSizeInPips,
+    int64 newPositionSizeInPips
+  ) private pure {
     bool isValid = originalPositionSizeInPips < 0
       ? newPositionSizeInPips > originalPositionSizeInPips && newPositionSizeInPips <= 0
       : newPositionSizeInPips < originalPositionSizeInPips && newPositionSizeInPips >= 0;
