@@ -113,7 +113,8 @@ export async function deployAndAssociateContracts(
   oracle: SignerWithAddress = owner,
 ) {
   const [
-    Deleveraging,
+    AcquisitionDeleveraging,
+    ClosureDeleveraging,
     Depositing,
     Funding,
     Liquidation,
@@ -123,7 +124,8 @@ export async function deployAndAssociateContracts(
     Trading,
     Withdrawing,
   ] = await Promise.all([
-    ethers.getContractFactory('Deleveraging'),
+    ethers.getContractFactory('AcquisitionDeleveraging'),
+    ethers.getContractFactory('ClosureDeleveraging'),
     ethers.getContractFactory('Depositing'),
     ethers.getContractFactory('Funding'),
     ethers.getContractFactory('Liquidation'),
@@ -134,7 +136,8 @@ export async function deployAndAssociateContracts(
     ethers.getContractFactory('Withdrawing'),
   ]);
   const [
-    deleveraging,
+    acquisitionDeleveraging,
+    closureDeleveraging,
     depositing,
     funding,
     liquidation,
@@ -144,7 +147,8 @@ export async function deployAndAssociateContracts(
     trading,
     withdrawing,
   ] = await Promise.all([
-    (await Deleveraging.deploy()).deployed(),
+    (await AcquisitionDeleveraging.deploy()).deployed(),
+    (await ClosureDeleveraging.deploy()).deployed(),
     (await Depositing.deploy()).deployed(),
     (await Funding.deploy()).deployed(),
     (await Liquidation.deploy()).deployed(),
@@ -161,7 +165,8 @@ export async function deployAndAssociateContracts(
       ethers.getContractFactory('USDC'),
       ethers.getContractFactory('Exchange_v4', {
         libraries: {
-          Deleveraging: deleveraging.address,
+          AcquisitionDeleveraging: acquisitionDeleveraging.address,
+          ClosureDeleveraging: closureDeleveraging.address,
           Depositing: depositing.address,
           Funding: funding.address,
           Liquidation: liquidation.address,

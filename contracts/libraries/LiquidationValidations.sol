@@ -54,12 +54,11 @@ library LiquidationValidations {
   function validateExitFundClosureQuoteQuantity(
     int64 baseQuantity,
     uint64 oraclePrice,
-    int64 positionSize,
     int64 quoteQuantity,
     int64 totalAccountValue
   ) internal pure {
     int64 expectedLiquidationQuoteQuantities;
-    if (positionSize < 0) {
+    if (totalAccountValue < 0) {
       // Use bankruptcy price for negative total account value
       expectedLiquidationQuoteQuantities = _calculateLiquidationQuoteQuantityToZeroOutAccountValue(
         oraclePrice,
@@ -67,7 +66,7 @@ library LiquidationValidations {
         totalAccountValue
       );
     } else {
-      // Use oracle price for positive position
+      // Use oracle price for positive totalAccountValue
       expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
         baseQuantity,
         int64(oraclePrice),
@@ -180,8 +179,8 @@ library LiquidationValidations {
 
     int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
       (int64(Constants.PIP_PRICE_MULTIPLIER));
-    require(quoteQuantity < 2**63, "Pip quantity overflows int64");
-    require(quoteQuantity > -2**63, "Pip quantity underflows int64");
+    require(quoteQuantity < 2 ** 63, "Pip quantity overflows int64");
+    require(quoteQuantity > -2 ** 63, "Pip quantity underflows int64");
 
     return int64(quoteQuantity);
   }
@@ -196,8 +195,8 @@ library LiquidationValidations {
 
     int256 quoteQuantity = (positionNotionalValueInDoublePips - totalAccountValueInDoublePips) /
       (int256(positionSize) * int64(Constants.PIP_PRICE_MULTIPLIER));
-    require(quoteQuantity < 2**63, "Pip quantity overflows int64");
-    require(quoteQuantity > -2**63, "Pip quantity underflows int64");
+    require(quoteQuantity < 2 ** 63, "Pip quantity overflows int64");
+    require(quoteQuantity > -2 ** 63, "Pip quantity underflows int64");
 
     return int64(quoteQuantity);
   }

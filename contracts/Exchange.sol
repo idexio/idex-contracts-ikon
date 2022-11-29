@@ -2,11 +2,12 @@
 
 pragma solidity 0.8.17;
 
+import { AcquisitionDeleveraging } from "./libraries/AcquisitionDeleveraging.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { AssetUnitConversions } from "./libraries/AssetUnitConversions.sol";
 import { BalanceTracking } from "./libraries/BalanceTracking.sol";
+import { ClosureDeleveraging } from "./libraries/ClosureDeleveraging.sol";
 import { Constants } from "./libraries/Constants.sol";
-import { Deleveraging } from "./libraries/Deleveraging.sol";
 import { Depositing } from "./libraries/Depositing.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
 import { Funding } from "./libraries/Funding.sol";
@@ -19,10 +20,9 @@ import { Owned } from "./Owned.sol";
 import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, Withdrawal } from "./libraries/Structs.sol";
+import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
-import { NonceInvalidation, Withdrawal } from "./libraries/Structs.sol";
 
 // solhint-disable-next-line contract-name-camelcase
 contract Exchange_v4 is IExchange, Owned {
@@ -335,12 +335,10 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently deposited by `wallet`
    */
-  function loadBalanceBySymbol(address wallet, string calldata assetSymbol)
-    external
-    view
-    override
-    returns (Balance memory)
-  {
+  function loadBalanceBySymbol(
+    address wallet,
+    string calldata assetSymbol
+  ) external view override returns (Balance memory) {
     return _balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, assetSymbol);
   }
 
@@ -353,12 +351,10 @@ contract Exchange_v4 is IExchange, Owned {
    * @return The quantity denominated in pips of asset at `assetSymbol` currently deposited by
    * `wallet`
    */
-  function loadBalanceInPipsBySymbol(address wallet, string calldata assetSymbol)
-    external
-    view
-    override
-    returns (int64)
-  {
+  function loadBalanceInPipsBySymbol(
+    address wallet,
+    string calldata assetSymbol
+  ) external view override returns (int64) {
     return _balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(wallet, assetSymbol);
   }
 
@@ -696,8 +692,8 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata insuranceFundOraclePrices,
     OraclePrice[] calldata liquidatingWalletOraclePrices
   ) external onlyDispatcher {
-    Deleveraging.deleverageLiquidationAcquisition(
-      Deleveraging.DeleverageLiquidationAcquisitionArguments(
+    AcquisitionDeleveraging.deleverage(
+      AcquisitionDeleveraging.Arguments(
         DeleverageType.InMaintenanceAcquisition,
         baseAssetSymbol,
         deleveragingWallet,
@@ -734,8 +730,8 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata deleveragingWalletOraclePrices,
     OraclePrice[] calldata insuranceFundOraclePrices
   ) external onlyDispatcher {
-    Deleveraging.deleverageLiquidationClosure(
-      Deleveraging.DeleverageLiquidationClosureArguments(
+    ClosureDeleveraging.deleverage(
+      ClosureDeleveraging.Arguments(
         DeleverageType.InsuranceFundClosure,
         baseAssetSymbol,
         deleveragingWallet,
@@ -775,8 +771,8 @@ contract Exchange_v4 is IExchange, Owned {
   ) external onlyDispatcher {
     require(walletExits[liquidatingWallet].exists, "Wallet not exited");
 
-    Deleveraging.deleverageLiquidationAcquisition(
-      Deleveraging.DeleverageLiquidationAcquisitionArguments(
+    AcquisitionDeleveraging.deleverage(
+      AcquisitionDeleveraging.Arguments(
         DeleverageType.ExitAcquisition,
         baseAssetSymbol,
         deleveragingWallet,
@@ -813,8 +809,8 @@ contract Exchange_v4 is IExchange, Owned {
     OraclePrice[] calldata deleveragingWalletOraclePrices,
     OraclePrice[] calldata exitFundOraclePrices
   ) external onlyDispatcher {
-    _exitFundPositionOpenedAtBlockNumber = Deleveraging.deleverageLiquidationClosure(
-      Deleveraging.DeleverageLiquidationClosureArguments(
+    _exitFundPositionOpenedAtBlockNumber = ClosureDeleveraging.deleverage(
+      ClosureDeleveraging.Arguments(
         DeleverageType.ExitFundClosure,
         baseAssetSymbol,
         deleveragingWallet,
@@ -912,10 +908,10 @@ contract Exchange_v4 is IExchange, Owned {
    * _lastFundingRatePublishTimestampInMs. Pushes fundingRate × oraclePrice to _fundingMultipliersByBaseAssetAddress
    * TODO Validate funding rates
    */
-  function publishFundingMutipliers(int64[] calldata fundingRatesInPips, OraclePrice[] calldata oraclePrices)
-    external
-    onlyDispatcher
-  {
+  function publishFundingMutipliers(
+    int64[] calldata fundingRatesInPips,
+    OraclePrice[] calldata oraclePrices
+  ) external onlyDispatcher {
     Funding.publishFundingMutipliers(
       fundingRatesInPips,
       oraclePrices,
@@ -975,11 +971,10 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Calculate total initial margin requirement with formula Σ abs(Si × Pi × Ii). Note S can be negative
    */
-  function loadTotalInitialMarginRequirement(address wallet, OraclePrice[] calldata oraclePrices)
-    external
-    view
-    returns (uint64)
-  {
+  function loadTotalInitialMarginRequirement(
+    address wallet,
+    OraclePrice[] calldata oraclePrices
+  ) external view returns (uint64) {
     return
       Margin.loadTotalInitialMarginRequirement(
         wallet,
@@ -996,11 +991,10 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Calculate total maintenance margin requirement by formula Σ abs(Si × Pi × Mi). Note S can be negative
    */
-  function loadTotalMaintenanceMarginRequirement(address wallet, OraclePrice[] calldata oraclePrices)
-    external
-    view
-    returns (uint64)
-  {
+  function loadTotalMaintenanceMarginRequirement(
+    address wallet,
+    OraclePrice[] calldata oraclePrices
+  ) external view returns (uint64) {
     return
       Margin.loadTotalMaintenanceMarginRequirement(
         wallet,

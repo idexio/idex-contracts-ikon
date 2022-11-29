@@ -20,7 +20,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
   public static async deploy(
     args: Parameters<Exchange_v4__factory['deploy']>,
     libraryAddresses: {
-      deleveraging: string;
+      acquisitionDeleveraging: string;
+      closureDeleveraging: string;
       depositing: string;
       funding: string;
       liquidation: string;
@@ -35,8 +36,10 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
     const linkLibraryAddresses: ConstructorParameters<
       typeof Exchange_v4__factory
     >[0] = {
-      ['contracts/libraries/Deleveraging.sol:Deleveraging']:
-        libraryAddresses.deleveraging,
+      ['contracts/libraries/AcquisitionDeleveraging.sol:AcquisitionDeleveraging']:
+        libraryAddresses.acquisitionDeleveraging,
+      ['contracts/libraries/ClosureDeleveraging.sol:ClosureDeleveraging']:
+        libraryAddresses.closureDeleveraging,
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
       ['contracts/libraries/Funding.sol:Funding']: libraryAddresses.funding,
