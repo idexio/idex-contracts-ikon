@@ -35,7 +35,7 @@ library AcquisitionDeleveraging {
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
     address insuranceFundWallet;
-    address indexWallet;
+    address indexPriceCollectionServiceWallet;
   }
 
   function deleverage(
@@ -86,7 +86,7 @@ library AcquisitionDeleveraging {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
-          arguments.indexWallet
+          arguments.indexPriceCollectionServiceWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -153,7 +153,11 @@ library AcquisitionDeleveraging {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(indexPrice, market, arguments.indexWallet);
+    uint64 indexPriceInPips = Validations.validateIndexPrice(
+      indexPrice,
+      market,
+      arguments.indexPriceCollectionServiceWallet
+    );
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.liquidatingWallet,
@@ -201,7 +205,7 @@ library AcquisitionDeleveraging {
       Margin.LoadArguments(
         arguments.deleveragingWallet,
         arguments.deleveragingWalletIndexPrices,
-        arguments.indexWallet
+        arguments.indexPriceCollectionServiceWallet
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -230,17 +234,18 @@ library AcquisitionDeleveraging {
         arguments.liquidationQuoteQuantitiesInPips,
         new Market[](baseAssetSymbols.length),
         new uint64[](baseAssetSymbols.length),
-        arguments.indexWallet
+        arguments.indexPriceCollectionServiceWallet
       );
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       // Load market and index price for symbol
       loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      loadArguments.indexPricesInPips[i] = Validations.validateAndUpdateIndexPriceAndConvertToPips(
+      Validations.validateAndUpdateIndexPrice(
         marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         arguments.insuranceFundIndexPrices[i],
-        arguments.indexWallet
+        arguments.indexPriceCollectionServiceWallet
       );
+      loadArguments.indexPricesInPips[i] = arguments.insuranceFundIndexPrices[i].price;
 
       // Validate provided liquidation quote quantity
       if (arguments.deleverageType == DeleverageType.WalletInMaintenance) {

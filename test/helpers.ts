@@ -9,6 +9,7 @@ import {
   decimalToPips,
   getIndexPriceHash,
   getOrderHash,
+  indexPriceToArgumentStruct,
   IndexPrice,
   Order,
   OrderSide,
@@ -19,6 +20,8 @@ import {
 
 export const quoteAssetDecimals = 6;
 
+export const quoteAssetSymbol = 'USDC';
+
 const millisecondsInAnHour = 60 * 60 * 1000;
 
 export async function buildIndexPrice(
@@ -28,11 +31,11 @@ export async function buildIndexPrice(
 }
 
 const prices = [
-  '2000000000',
-  '2100000000',
-  '1950000000',
-  '1996790000',
-  '1724640000',
+  '2000.00000000',
+  '2100.00000000',
+  '1950.00000000',
+  '1996.79000000',
+  '1724.64000000',
 ];
 export async function buildIndexPrices(
   index: SignerWithAddress,
@@ -45,10 +48,12 @@ export async function buildIndexPrices(
         const indexPrice = {
           baseAssetSymbol: 'ETH',
           timestampInMs: getPastHourInMs(count - i),
-          priceInAssetUnits: prices[i % prices.length],
+          price: prices[i % prices.length],
         };
         const signature = await index.signMessage(
-          ethers.utils.arrayify(getIndexPriceHash(indexPrice)),
+          ethers.utils.arrayify(
+            getIndexPriceHash(indexPrice, quoteAssetSymbol),
+          ),
         );
 
         return { ...indexPrice, signature };
@@ -58,16 +63,16 @@ export async function buildIndexPrices(
 
 export async function buildIndexPriceWithValue(
   index: SignerWithAddress,
-  priceInAssetUnits: string,
+  price: string,
   baseAssetSymbol = 'ETH',
 ): Promise<IndexPrice> {
   const indexPrice = {
     baseAssetSymbol,
     timestampInMs: new Date().getTime(),
-    priceInAssetUnits,
+    price,
   };
   const signature = await index.signMessage(
-    ethers.utils.arrayify(getIndexPriceHash(indexPrice)),
+    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
   );
 
   return { ...indexPrice, signature };
@@ -315,7 +320,10 @@ export async function logWalletBalances(
 
   console.log(
     `Total account value: ${pipToDecimal(
-      await exchange.loadTotalAccountValue(wallet, indexPrices),
+      await exchange.loadTotalAccountValue(
+        wallet,
+        indexPrices.map(indexPriceToArgumentStruct),
+      ),
     )}`,
   );
   console.log(
@@ -325,12 +333,18 @@ export async function logWalletBalances(
   );
   console.log(
     `Initial margin requirement: ${pipToDecimal(
-      await exchange.loadTotalInitialMarginRequirement(wallet, indexPrices),
+      await exchange.loadTotalInitialMarginRequirement(
+        wallet,
+        indexPrices.map(indexPriceToArgumentStruct),
+      ),
     )}`,
   );
   console.log(
     `Maintenance margin requirement: ${pipToDecimal(
-      await exchange.loadTotalMaintenanceMarginRequirement(wallet, indexPrices),
+      await exchange.loadTotalMaintenanceMarginRequirement(
+        wallet,
+        indexPrices.map(indexPriceToArgumentStruct),
+      ),
     )}`,
   );
 }

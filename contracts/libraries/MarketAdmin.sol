@@ -36,16 +36,16 @@ library MarketAdmin {
   function deactivateMarket(
     string calldata baseAssetSymbol,
     IndexPrice memory indexPrice,
-    address indexWallet,
+    address indexPriceCollectionServiceWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market = marketsByBaseAssetSymbol[baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
-    uint64 indexPriceInPips = Validations.validateAndUpdateIndexPriceAndConvertToPips(market, indexPrice, indexWallet);
+    Validations.validateAndUpdateIndexPrice(market, indexPrice, indexPriceCollectionServiceWallet);
 
     market.isActive = false;
-    market.indexPriceInPipsAtDeactivation = indexPriceInPips;
+    market.indexPriceInPipsAtDeactivation = indexPrice.price;
   }
 
   // TODO Validations

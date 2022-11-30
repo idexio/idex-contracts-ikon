@@ -29,7 +29,7 @@ library Withdrawing {
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
     address feeWallet;
-    address indexWallet;
+    address indexPriceCollectionServiceWallet;
   }
 
   struct WithdrawExitArguments {
@@ -38,7 +38,7 @@ library Withdrawing {
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
-    address indexWallet;
+    address indexPriceCollectionServiceWallet;
     address quoteAssetAddress;
   }
 
@@ -90,7 +90,11 @@ library Withdrawing {
 
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        Margin.LoadArguments(arguments.withdrawal.wallet, arguments.indexPrices, arguments.indexWallet),
+        Margin.LoadArguments(
+          arguments.withdrawal.wallet,
+          arguments.indexPrices,
+          arguments.indexPriceCollectionServiceWallet
+        ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -160,7 +164,7 @@ library Withdrawing {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantityInPips) {
     int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
-      Margin.LoadArguments(arguments.wallet, new IndexPrice[](0), arguments.indexWallet),
+      Margin.LoadArguments(arguments.wallet, new IndexPrice[](0), arguments.indexPriceCollectionServiceWallet),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol

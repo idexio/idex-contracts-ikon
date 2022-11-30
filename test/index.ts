@@ -542,7 +542,7 @@ describe('Exchange', function () {
 
       const indexPrices = await Promise.all([
         buildIndexPrice(index),
-        buildIndexPriceWithValue(index, '30000000000', 'BTC'),
+        buildIndexPriceWithValue(index, '30000.00000000', 'BTC'),
       ]);
 
       await (
@@ -613,8 +613,8 @@ describe('Exchange', function () {
       await logWalletBalances(trader1.address, exchange, indexPrices);
 
       const newIndexLowPrices = await Promise.all([
-        buildIndexPriceWithValue(index, '2003000000'),
-        buildIndexPriceWithValue(index, '28200000000', 'BTC'),
+        buildIndexPriceWithValue(index, '2003.00000000'),
+        buildIndexPriceWithValue(index, '28200.00000000', 'BTC'),
       ]);
 
       console.log('--- BELOW WATER ---');
@@ -749,11 +749,11 @@ describe('Exchange', function () {
       /*
       const newIndexLowPrice = await buildIndexPriceWithValue(
         index,
-        '999000000',
+        '999.00000000',
       );
       const newIndexHighPrice = await buildIndexPriceWithValue(
         index,
-        new BigNumber(indexPrice.priceInAssetUnits).muln(2).toString(),
+        new BigNumber(indexPrice.price).muln(2).toFixed(8),
       );
 
       

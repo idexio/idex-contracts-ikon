@@ -136,7 +136,11 @@ library Trading {
   ) private {
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        Margin.LoadArguments(arguments.buy.wallet, arguments.buyIndexPrices, arguments.indexWallet),
+        Margin.LoadArguments(
+          arguments.buy.wallet,
+          arguments.buyIndexPrices,
+          arguments.indexPriceCollectionServiceWallet
+        ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -146,7 +150,11 @@ library Trading {
     );
     require(
       Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        Margin.LoadArguments(arguments.sell.wallet, arguments.sellIndexPrices, arguments.indexWallet),
+        Margin.LoadArguments(
+          arguments.sell.wallet,
+          arguments.sellIndexPrices,
+          arguments.indexPriceCollectionServiceWallet
+        ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,

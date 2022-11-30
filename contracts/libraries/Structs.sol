@@ -44,7 +44,7 @@ struct ExecuteOrderBookTradeArguments {
   address exitFundWallet;
   address feeWallet;
   address insuranceFundWallet;
-  address indexWallet;
+  address indexPriceCollectionServiceWallet;
 }
 
 /**
@@ -98,9 +98,9 @@ struct IndexPrice {
   string baseAssetSymbol;
   // Milliseconds since epoch
   uint64 timestampInMs;
-  // Price of base asset in quote asset units
-  uint256 priceInAssetUnits;
-  // Signature from index wallet
+  // Price of base asset in decimal pips * 10^8 in quote terms
+  uint64 price;
+  // Signature from index price collection service wallet
   bytes signature;
 }
 

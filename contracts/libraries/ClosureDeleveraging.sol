@@ -32,7 +32,7 @@ library ClosureDeleveraging {
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
     // Exchange state
-    address indexWallet;
+    address indexPriceCollectionServiceWallet;
   }
 
   function deleverage(
@@ -136,7 +136,7 @@ library ClosureDeleveraging {
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
-    uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(indexPrice, market, arguments.indexWallet);
+    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallet);
 
     if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
       LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(
@@ -151,7 +151,7 @@ library ClosureDeleveraging {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
-          arguments.indexWallet
+          arguments.indexPriceCollectionServiceWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -160,7 +160,7 @@ library ClosureDeleveraging {
 
       LiquidationValidations.validateExitFundClosureQuoteQuantity(
         arguments.liquidationBaseQuantityInPips,
-        indexPriceInPips,
+        indexPrice.price,
         arguments.liquidationQuoteQuantityInPips,
         totalAccountValueInPips
       );
@@ -182,7 +182,7 @@ library ClosureDeleveraging {
       Margin.LoadArguments(
         arguments.deleveragingWallet,
         arguments.deleveragingWalletIndexPrices,
-        arguments.indexWallet
+        arguments.indexPriceCollectionServiceWallet
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

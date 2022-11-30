@@ -66,7 +66,7 @@ export enum OrderTriggerType {
 export interface IndexPrice {
   baseAssetSymbol: string;
   timestampInMs: number;
-  priceInAssetUnits: string;
+  price: string;
   signature: string;
 }
 
@@ -136,11 +136,13 @@ export const decimalToPips = (decimal: string): string =>
 
 export const getIndexPriceHash = (
   indexPrice: Omit<IndexPrice, 'signature'>,
+  quoteAssetSymbol: string,
 ): string => {
   return solidityHashOfParams([
     ['string', indexPrice.baseAssetSymbol],
+    ['string', quoteAssetSymbol],
     ['uint64', indexPrice.timestampInMs],
-    ['uint256', indexPrice.priceInAssetUnits],
+    ['string', indexPrice.price],
   ]);
 };
 
@@ -263,11 +265,11 @@ export const pipsToAssetUnits = (pips: string, decimals: number): string =>
 const addressToUintString = (address: string): string =>
   new BigNumber(address.toLowerCase()).toFixed(0);
 
-const indexPriceToArgumentStruct = (o: IndexPrice) => {
+export const indexPriceToArgumentStruct = (o: IndexPrice) => {
   return {
     baseAssetSymbol: o.baseAssetSymbol,
     timestampInMs: o.timestampInMs,
-    priceInAssetUnits: o.priceInAssetUnits,
+    price: decimalToPips(o.price),
     signature: o.signature,
   };
 };

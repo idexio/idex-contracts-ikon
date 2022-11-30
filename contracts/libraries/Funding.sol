@@ -116,13 +116,13 @@ library Funding {
   function publishFundingMutipliers(
     int64[] memory fundingRatesInPips,
     IndexPrice[] memory indexPrices,
-    address indexWallet,
+    address indexPriceCollectionServiceWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) public {
     for (uint8 i = 0; i < indexPrices.length; i++) {
       (IndexPrice memory indexPrice, int64 fundingRateInPips) = (indexPrices[i], fundingRatesInPips[i]);
-      uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(indexPrice, indexWallet);
+      Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallet);
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
         indexPrice.baseAssetSymbol
@@ -136,7 +136,7 @@ library Funding {
 
       // TODO Cleanup typecasts
       int64 newFundingMultiplier = Math.multiplyPipsByFraction(
-        int64(indexPriceInPips),
+        int64(indexPrice.price),
         fundingRateInPips,
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );

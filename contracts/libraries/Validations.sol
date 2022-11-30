@@ -14,45 +14,38 @@ library Validations {
     return feeBasisPoints <= max;
   }
 
-  function validateAndUpdateIndexPriceAndConvertToPips(
+  function validateAndUpdateIndexPrice(
     Market storage market,
     IndexPrice memory indexPrice,
-    address indexWallet
+    address indexPriceCollectionServiceWallet
   ) internal returns (uint64) {
     market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
 
-    return validateIndexPriceAndConvertToPips(indexPrice, market, indexWallet);
+    return validateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallet);
   }
 
-  function validateIndexPriceAndConvertToPips(
+  function validateIndexPrice(
     IndexPrice memory indexPrice,
     Market memory market,
-    address indexWallet
+    address indexPriceCollectionServiceWallet
   ) internal pure returns (uint64) {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
 
     require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
 
-    return validateIndexPriceAndConvertToPips(indexPrice, indexWallet);
-  }
-
-  function validateIndexPriceAndConvertToPips(
-    IndexPrice memory indexPrice,
-    address indexWallet
-  ) internal pure returns (uint64) {
-    // TODO Validate timestamp recency
-    validateIndexPriceSignature(indexPrice, indexWallet);
-
-    return AssetUnitConversions.assetUnitsToPips(indexPrice.priceInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
+    validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallet);
   }
 
   function validateIndexPriceSignature(
     IndexPrice memory indexPrice,
-    address indexWallet
+    address indexPriceCollectionServiceWallet
   ) internal pure returns (bytes32) {
     bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
 
-    require(Hashing.isSignatureValid(indexPriceHash, indexPrice.signature, indexWallet), "Invalid index signature");
+    require(
+      Hashing.isSignatureValid(indexPriceHash, indexPrice.signature, indexPriceCollectionServiceWallet),
+      "Invalid index signature"
+    );
 
     return indexPriceHash;
   }

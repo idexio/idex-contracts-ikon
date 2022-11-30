@@ -22,7 +22,7 @@ library Margin {
   struct LoadArguments {
     address wallet;
     IndexPrice[] indexPrices;
-    address indexWallet;
+    address indexPriceCollectionServiceWallet;
   }
 
   struct ValidateInsuranceFundCannotLiquidateWalletArguments {
@@ -31,13 +31,13 @@ library Margin {
     int64[] liquidationQuoteQuantitiesInPips;
     Market[] markets;
     uint64[] indexPricesInPips;
-    address indexWallet;
+    address indexPriceCollectionServiceWallet;
   }
 
   function loadTotalInitialMarginRequirement(
     address wallet,
     IndexPrice[] memory indexPrices,
-    address indexWallet,
+    address indexPriceCollectionServiceWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -59,7 +59,7 @@ library Margin {
           marketOverridesByBaseAssetSymbolAndWallet
         ),
         indexPrice,
-        indexWallet,
+        indexPriceCollectionServiceWallet,
         balanceTracking
       );
     }
@@ -68,7 +68,7 @@ library Margin {
   function loadTotalMaintenanceMarginRequirement(
     address wallet,
     IndexPrice[] memory indexPrices,
-    address indexWallet,
+    address indexPriceCollectionServiceWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -88,7 +88,7 @@ library Margin {
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFractionInPips,
         indexPrice,
-        indexWallet,
+        indexPriceCollectionServiceWallet,
         balanceTracking
       );
     }
@@ -166,15 +166,11 @@ library Margin {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(
-        arguments.indexPrices[i],
-        market,
-        arguments.indexWallet
-      );
+      Validations.validateIndexPrice(arguments.indexPrices[i], market, arguments.indexPriceCollectionServiceWallet);
 
       totalAccountValueInPips += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
-        int64(indexPriceInPips),
+        int64(arguments.indexPrices[i].price),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
@@ -463,18 +459,18 @@ library Margin {
     string memory baseAssetSymbol,
     uint64 marginFractionInPips,
     IndexPrice memory indexPrice,
-    address indexWallet,
+    address indexPriceCollectionServiceWallet,
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (uint64) {
     require(String.isEqual(baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
-    Validations.validateIndexPriceSignature(indexPrice, indexWallet);
+    Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallet);
 
     return
       Math.abs(
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(wallet, baseAssetSymbol),
-            int64(AssetUnitConversions.assetUnitsToPips(indexPrice.priceInAssetUnits, Constants.QUOTE_ASSET_DECIMALS)),
+            int64(indexPrice.price),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
           int64(marginFractionInPips),
@@ -495,18 +491,14 @@ library Margin {
     BalanceTracking.Storage storage balanceTracking
   ) private returns (uint64) {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
-    uint64 indexPriceInPips = Validations.validateAndUpdateIndexPriceAndConvertToPips(
-      market,
-      indexPrice,
-      arguments.indexWallet
-    );
+    Validations.validateAndUpdateIndexPrice(market, indexPrice, arguments.indexPriceCollectionServiceWallet);
 
     return
       Math.abs(
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
-            int64(indexPriceInPips),
+            int64(indexPrice.price),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
           int64(marginFractionInPips),

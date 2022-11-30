@@ -34,7 +34,14 @@ library Hashing {
 
   function getIndexPriceHash(IndexPrice memory indexPrice) internal pure returns (bytes32) {
     return
-      keccak256(abi.encodePacked(indexPrice.baseAssetSymbol, indexPrice.timestampInMs, indexPrice.priceInAssetUnits));
+      keccak256(
+        abi.encodePacked(
+          indexPrice.baseAssetSymbol,
+          Constants.QUOTE_ASSET_SYMBOL,
+          indexPrice.timestampInMs,
+          _pipToDecimal(indexPrice.price)
+        )
+      );
   }
 
   /**
