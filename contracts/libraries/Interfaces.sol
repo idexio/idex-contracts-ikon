@@ -10,11 +10,6 @@ import { Balance } from "./Structs.sol";
  */
 interface ICustodian {
   /**
-   * @notice ETH can only be sent by the Exchange
-   */
-  receive() external payable;
-
-  /**
    * @notice Withdraw any asset and amount to a target wallet
    *
    * @dev No balance checking performed
@@ -23,11 +18,7 @@ interface ICustodian {
    * @param asset The address of the asset to withdraw (ERC-20 contract)
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
-  function withdraw(
-    address wallet,
-    address asset,
-    uint256 quantityInAssetUnits
-  ) external;
+  function withdraw(address wallet, address asset, uint256 quantityInAssetUnits) external;
 
   /**
    * @notice Load address of the currently whitelisted Exchange contract
@@ -84,7 +75,7 @@ interface IExchange {
    *
    * @return The address of the Custodian contract
    */
-  function loadCustodian() external view returns (ICustodian);
+  function custodian() external view returns (ICustodian);
 
   /**
    * @notice Load the number of deposits made to the contract, for use when upgrading to a new

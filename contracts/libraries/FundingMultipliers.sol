@@ -5,8 +5,6 @@ import { FundingMultiplierQuartet } from "./Structs.sol";
 
 pragma solidity 0.8.17;
 
-import "hardhat/console.sol";
-
 library FundingMultipliers {
   function publishFundingMultipler(FundingMultiplierQuartet[] storage self, int64 newFundingMultiplier) internal {
     if (self.length > 0) {
@@ -46,11 +44,10 @@ library FundingMultipliers {
     return aggregateMultiplier;
   }
 
-  function _calculateAggregateMultiplier(FundingMultiplierQuartet memory fundingMultipliers, uint256 offset)
-    private
-    pure
-    returns (int64)
-  {
+  function _calculateAggregateMultiplier(
+    FundingMultiplierQuartet memory fundingMultipliers,
+    uint256 offset
+  ) private pure returns (int64) {
     int64 aggregateMultiplier = 1;
     if (offset == 0) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier0;

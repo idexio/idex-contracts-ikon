@@ -153,11 +153,7 @@ library AcquisitionDeleveraging {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    uint64 indexPriceInPips = Validations.validateIndexPrice(
-      indexPrice,
-      market,
-      arguments.indexPriceCollectionServiceWallet
-    );
+    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallet);
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.liquidatingWallet,
@@ -170,7 +166,7 @@ library AcquisitionDeleveraging {
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFractionInPips,
-        indexPriceInPips,
+        indexPrice.price,
         balance.balanceInPips,
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips
@@ -184,7 +180,7 @@ library AcquisitionDeleveraging {
           balance.balanceInPips
         ),
         arguments.liquidationQuoteQuantityInPips,
-        indexPriceInPips,
+        indexPrice.price,
         balance.balanceInPips,
         totalAccountValueInPips
       );
