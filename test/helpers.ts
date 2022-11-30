@@ -7,9 +7,9 @@ import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import {
   decimalToAssetUnits,
   decimalToPips,
-  getOraclePriceHash,
+  getIndexPriceHash,
   getOrderHash,
-  OraclePrice,
+  IndexPrice,
   Order,
   OrderSide,
   OrderType,
@@ -21,10 +21,10 @@ export const quoteAssetDecimals = 6;
 
 const millisecondsInAnHour = 60 * 60 * 1000;
 
-export async function buildOraclePrice(
-  oracle: SignerWithAddress,
-): Promise<OraclePrice> {
-  return (await buildOraclePrices(oracle, 1))[0];
+export async function buildIndexPrice(
+  index: SignerWithAddress,
+): Promise<IndexPrice> {
+  return (await buildIndexPrices(index, 1))[0];
 }
 
 const prices = [
@@ -34,43 +34,43 @@ const prices = [
   '1996790000',
   '1724640000',
 ];
-export async function buildOraclePrices(
-  oracle: SignerWithAddress,
+export async function buildIndexPrices(
+  index: SignerWithAddress,
   count = 1,
-): Promise<OraclePrice[]> {
+): Promise<IndexPrice[]> {
   return Promise.all(
     Array(count)
       .fill(null)
       .map(async (_, i) => {
-        const oraclePrice = {
+        const indexPrice = {
           baseAssetSymbol: 'ETH',
           timestampInMs: getPastHourInMs(count - i),
           priceInAssetUnits: prices[i % prices.length],
         };
-        const signature = await oracle.signMessage(
-          ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
+        const signature = await index.signMessage(
+          ethers.utils.arrayify(getIndexPriceHash(indexPrice)),
         );
 
-        return { ...oraclePrice, signature };
+        return { ...indexPrice, signature };
       }),
   );
 }
 
-export async function buildOraclePriceWithValue(
-  oracle: SignerWithAddress,
+export async function buildIndexPriceWithValue(
+  index: SignerWithAddress,
   priceInAssetUnits: string,
   baseAssetSymbol = 'ETH',
-): Promise<OraclePrice> {
-  const oraclePrice = {
+): Promise<IndexPrice> {
+  const indexPrice = {
     baseAssetSymbol,
     timestampInMs: new Date().getTime(),
     priceInAssetUnits,
   };
-  const signature = await oracle.signMessage(
-    ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
+  const signature = await index.signMessage(
+    ethers.utils.arrayify(getIndexPriceHash(indexPrice)),
   );
 
-  return { ...oraclePrice, signature };
+  return { ...indexPrice, signature };
 }
 
 export async function buildLimitOrder(
@@ -110,7 +110,7 @@ export async function deployAndAssociateContracts(
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
-  oracle: SignerWithAddress = owner,
+  index: SignerWithAddress = owner,
 ) {
   const [
     AcquisitionDeleveraging,
@@ -197,7 +197,7 @@ export async function deployAndAssociateContracts(
         exitFundWallet.address,
         feeWallet.address,
         insuranceFund.address,
-        oracle.address,
+        index.address,
       )
     ).deployed(),
     (await Governance.deploy(0)).deployed(),
@@ -225,8 +225,8 @@ export async function deployAndAssociateContracts(
         incrementalPositionSizeInPips: '2800000000',
         maximumPositionSizeInPips: '282000000000',
         minimumPositionSizeInPips: '2000000000',
-        lastOraclePriceTimestampInMs: 0,
-        oraclePriceInPipsAtDeactivation: 0,
+        lastIndexPriceTimestampInMs: 0,
+        indexPriceInPipsAtDeactivation: 0,
       })
     ).wait(),
   ]);
@@ -288,7 +288,7 @@ function getPastHourInMs(hoursAgo = 0) {
 export async function logWalletBalances(
   wallet: string,
   exchange: Contract,
-  oraclePrices: OraclePrice[],
+  indexPrices: IndexPrice[],
 ) {
   console.log(
     `USDC balance: ${pipToDecimal(
@@ -296,30 +296,26 @@ export async function logWalletBalances(
     )}`,
   );
 
-  for (const oraclePrice of oraclePrices) {
+  for (const indexPrice of indexPrices) {
     console.log(
-      `${oraclePrice.baseAssetSymbol} balance:  ${pipToDecimal(
+      `${indexPrice.baseAssetSymbol} balance:  ${pipToDecimal(
         await exchange.loadBalanceInPipsBySymbol(
           wallet,
-          oraclePrice.baseAssetSymbol,
+          indexPrice.baseAssetSymbol,
         ),
       )}`,
     );
     console.log(
-      `${oraclePrice.baseAssetSymbol} cost basis: ${pipToDecimal(
-        (
-          await exchange.loadBalanceBySymbol(
-            wallet,
-            oraclePrice.baseAssetSymbol,
-          )
-        ).costBasisInPips,
+      `${indexPrice.baseAssetSymbol} cost basis: ${pipToDecimal(
+        (await exchange.loadBalanceBySymbol(wallet, indexPrice.baseAssetSymbol))
+          .costBasisInPips,
       )}`,
     );
   }
 
   console.log(
     `Total account value: ${pipToDecimal(
-      await exchange.loadTotalAccountValue(wallet, oraclePrices),
+      await exchange.loadTotalAccountValue(wallet, indexPrices),
     )}`,
   );
   console.log(
@@ -329,15 +325,12 @@ export async function logWalletBalances(
   );
   console.log(
     `Initial margin requirement: ${pipToDecimal(
-      await exchange.loadTotalInitialMarginRequirement(wallet, oraclePrices),
+      await exchange.loadTotalInitialMarginRequirement(wallet, indexPrices),
     )}`,
   );
   console.log(
     `Maintenance margin requirement: ${pipToDecimal(
-      await exchange.loadTotalMaintenanceMarginRequirement(
-        wallet,
-        oraclePrices,
-      ),
+      await exchange.loadTotalMaintenanceMarginRequirement(wallet, indexPrices),
     )}`,
   );
 }

@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import {
-  OraclePriceStruct,
+  IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
   WithdrawalStruct,
@@ -10,7 +10,7 @@ import {
 import * as contracts from './contracts';
 
 export {
-  OraclePriceStruct,
+  IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
   WithdrawalStruct,
@@ -63,7 +63,7 @@ export enum OrderTriggerType {
   Index,
 }
 
-export interface OraclePrice {
+export interface IndexPrice {
   baseAssetSymbol: string;
   timestampInMs: number;
   priceInAssetUnits: string;
@@ -134,13 +134,13 @@ export const decimalToPips = (decimal: string): string =>
     .integerValue(BigNumber.ROUND_DOWN)
     .toFixed(0);
 
-export const getOraclePriceHash = (
-  oraclePrice: Omit<OraclePrice, 'signature'>,
+export const getIndexPriceHash = (
+  indexPrice: Omit<IndexPrice, 'signature'>,
 ): string => {
   return solidityHashOfParams([
-    ['string', oraclePrice.baseAssetSymbol],
-    ['uint64', oraclePrice.timestampInMs],
-    ['uint256', oraclePrice.priceInAssetUnits],
+    ['string', indexPrice.baseAssetSymbol],
+    ['uint64', indexPrice.timestampInMs],
+    ['uint256', indexPrice.priceInAssetUnits],
   ]);
 };
 
@@ -205,16 +205,16 @@ export const getExecuteOrderBookTradeArguments = (
   sellOrder: Order,
   sellWalletSignature: string,
   trade: Trade,
-  buyOraclePrices: OraclePrice[],
-  sellOraclePrices: OraclePrice[],
+  buyIndexPrices: IndexPrice[],
+  sellIndexPrices: IndexPrice[],
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
 ): [
   OrderStruct,
   OrderStruct,
   OrderBookTradeStruct,
-  OraclePrice[],
-  OraclePrice[],
+  IndexPrice[],
+  IndexPrice[],
 ] => {
   return [
     orderToArgumentStruct(
@@ -228,8 +228,8 @@ export const getExecuteOrderBookTradeArguments = (
       sellDelegatedKeyAuthorization,
     ),
     tradeToArgumentStruct(trade, buyOrder),
-    buyOraclePrices.map(oraclePriceToArgumentStruct),
-    sellOraclePrices.map(oraclePriceToArgumentStruct),
+    buyIndexPrices.map(indexPriceToArgumentStruct),
+    sellIndexPrices.map(indexPriceToArgumentStruct),
   ];
 };
 
@@ -237,8 +237,8 @@ export const getWithdrawArguments = (
   withdrawal: Withdrawal,
   gasFee: string,
   walletSignature: string,
-  oraclePrices: OraclePrice[],
-): [WithdrawalStruct, OraclePriceStruct[]] => {
+  indexPrices: IndexPrice[],
+): [WithdrawalStruct, IndexPriceStruct[]] => {
   return [
     {
       nonce: uuidToHexString(withdrawal.nonce),
@@ -247,7 +247,7 @@ export const getWithdrawArguments = (
       gasFeeInPips: decimalToPips(gasFee),
       walletSignature,
     },
-    oraclePrices,
+    indexPrices,
   ];
 };
 
@@ -263,7 +263,7 @@ export const pipsToAssetUnits = (pips: string, decimals: number): string =>
 const addressToUintString = (address: string): string =>
   new BigNumber(address.toLowerCase()).toFixed(0);
 
-const oraclePriceToArgumentStruct = (o: OraclePrice) => {
+const indexPriceToArgumentStruct = (o: IndexPrice) => {
   return {
     baseAssetSymbol: o.baseAssetSymbol,
     timestampInMs: o.timestampInMs,

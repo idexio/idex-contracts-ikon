@@ -14,7 +14,7 @@ import { MarketOverrides } from "./MarketOverrides.sol";
 import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
 library ClosureDeleveraging {
   using BalanceTracking for BalanceTracking.Storage;
@@ -29,10 +29,10 @@ library ClosureDeleveraging {
     address liquidatingWallet;
     int64 liquidationBaseQuantityInPips;
     int64 liquidationQuoteQuantityInPips;
-    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
-    OraclePrice[] deleveragingWalletOraclePrices; // After acquiring IF positions
+    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+    IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
     // Exchange state
-    address oracleWallet;
+    address indexWallet;
   }
 
   function deleverage(
@@ -90,7 +90,7 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, OraclePrice memory oraclePrice) = _loadMarketAndOraclePrice(
+    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
       arguments,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
@@ -99,7 +99,7 @@ library ClosureDeleveraging {
     _validateQuoteQuantityAndDeleveragePosition(
       arguments,
       market,
-      oraclePrice,
+      indexPrice,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -107,16 +107,16 @@ library ClosureDeleveraging {
     );
   }
 
-  function _loadMarketAndOraclePrice(
+  function _loadMarketAndIndexPrice(
     Arguments memory arguments,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market, OraclePrice memory oraclePrice) {
+  ) private view returns (Market memory market, IndexPrice memory indexPrice) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
         market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-        oraclePrice = arguments.liquidatingWalletOraclePrices[i];
+        indexPrice = arguments.liquidatingWalletIndexPrices[i];
       }
     }
 
@@ -126,7 +126,7 @@ library ClosureDeleveraging {
   function _validateQuoteQuantityAndDeleveragePosition(
     Arguments memory arguments,
     Market memory market,
-    OraclePrice memory oraclePrice,
+    IndexPrice memory indexPrice,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -136,11 +136,7 @@ library ClosureDeleveraging {
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
-    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
-      oraclePrice,
-      market,
-      arguments.oracleWallet
-    );
+    uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(indexPrice, market, arguments.indexWallet);
 
     if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
       LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(
@@ -154,8 +150,8 @@ library ClosureDeleveraging {
       int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
-          arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet
+          arguments.liquidatingWalletIndexPrices,
+          arguments.indexWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -164,7 +160,7 @@ library ClosureDeleveraging {
 
       LiquidationValidations.validateExitFundClosureQuoteQuantity(
         arguments.liquidationBaseQuantityInPips,
-        oraclePriceInPips,
+        indexPriceInPips,
         arguments.liquidationQuoteQuantityInPips,
         totalAccountValueInPips
       );
@@ -185,8 +181,8 @@ library ClosureDeleveraging {
     Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
       Margin.LoadArguments(
         arguments.deleveragingWallet,
-        arguments.deleveragingWalletOraclePrices,
-        arguments.oracleWallet
+        arguments.deleveragingWalletIndexPrices,
+        arguments.indexWallet
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

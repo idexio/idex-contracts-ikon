@@ -7,33 +7,23 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 import { Constants } from "./Constants.sol";
 import { OrderType } from "./Enums.sol";
-import { DelegatedKeyAuthorization, OraclePrice, Order, Withdrawal } from "./Structs.sol";
+import { DelegatedKeyAuthorization, IndexPrice, Order, Withdrawal } from "./Structs.sol";
 
 /**
  * @notice Library helpers for building hashes and verifying wallet signatures
  */
 library Hashing {
-  function isSignatureValid(
-    bytes memory message,
-    bytes memory signature,
-    address signer
-  ) internal pure returns (bool) {
+  function isSignatureValid(bytes memory message, bytes memory signature, address signer) internal pure returns (bool) {
     return ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
   }
 
-  function isSignatureValid(
-    bytes32 hash,
-    bytes memory signature,
-    address signer
-  ) internal pure returns (bool) {
+  function isSignatureValid(bytes32 hash, bytes memory signature, address signer) internal pure returns (bool) {
     return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 
-  function getDelegatedKeyMessage(DelegatedKeyAuthorization memory delegatedKeyAuthorization)
-    internal
-    pure
-    returns (bytes memory)
-  {
+  function getDelegatedKeyMessage(
+    DelegatedKeyAuthorization memory delegatedKeyAuthorization
+  ) internal pure returns (bytes memory) {
     return
       abi.encodePacked(
         Constants.ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE,
@@ -42,11 +32,9 @@ library Hashing {
       );
   }
 
-  function getOraclePriceHash(OraclePrice memory oraclePrice) internal pure returns (bytes32) {
+  function getIndexPriceHash(IndexPrice memory indexPrice) internal pure returns (bytes32) {
     return
-      keccak256(
-        abi.encodePacked(oraclePrice.baseAssetSymbol, oraclePrice.timestampInMs, oraclePrice.priceInAssetUnits)
-      );
+      keccak256(abi.encodePacked(indexPrice.baseAssetSymbol, indexPrice.timestampInMs, indexPrice.priceInAssetUnits));
   }
 
   /**

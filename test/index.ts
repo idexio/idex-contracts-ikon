@@ -21,9 +21,9 @@ import {
 import {
   buildFundingRates,
   buildLimitOrder,
-  buildOraclePrice,
-  buildOraclePrices,
-  buildOraclePriceWithValue,
+  buildIndexPrice,
+  buildIndexPrices,
+  buildIndexPriceWithValue,
   quoteAssetDecimals,
   deployAndAssociateContracts,
   fundWallets,
@@ -32,7 +32,7 @@ import {
 
 describe('Exchange', function () {
   it('deposit and withdraw should work', async function () {
-    const [owner, dispatcher, trader, exitFund, fee, insurance, oracle] =
+    const [owner, dispatcher, trader, exitFund, fee, insurance, index] =
       await ethers.getSigners();
     const { exchange, usdc } = await deployAndAssociateContracts(
       owner,
@@ -40,7 +40,7 @@ describe('Exchange', function () {
       exitFund,
       fee,
       insurance,
-      oracle,
+      index,
     );
 
     const depositQuantity = ethers.utils.parseUnits('5.0', quoteAssetDecimals);
@@ -70,7 +70,7 @@ describe('Exchange', function () {
         .connect(dispatcher)
         .withdraw(
           ...getWithdrawArguments(withdrawal, '0.00000000', signature, [
-            await buildOraclePrice(oracle),
+            await buildIndexPrice(index),
           ]),
         )
     ).wait();
@@ -88,7 +88,7 @@ describe('Exchange', function () {
         .connect(dispatcher)
         .withdraw(
           ...getWithdrawArguments(withdrawal2, '0.00000000', signature2, [
-            await buildOraclePrice(oracle),
+            await buildIndexPrice(index),
           ]),
         )
     ).wait();
@@ -104,7 +104,7 @@ describe('Exchange', function () {
   });
 
   it('publishFundingMutipliers should work', async function () {
-    const [owner, dispatcher, exitFund, fee, insurance, oracle] =
+    const [owner, dispatcher, exitFund, fee, insurance, index] =
       await ethers.getSigners();
     const { exchange } = await deployAndAssociateContracts(
       owner,
@@ -112,7 +112,7 @@ describe('Exchange', function () {
       exitFund,
       fee,
       insurance,
-      oracle,
+      index,
     );
 
     await (
@@ -120,7 +120,7 @@ describe('Exchange', function () {
         .connect(dispatcher)
         .publishFundingMutipliers(
           buildFundingRates(5),
-          await buildOraclePrices(oracle, 5),
+          await buildIndexPrices(index, 5),
         )
     ).wait();
   });
@@ -133,7 +133,7 @@ describe('Exchange', function () {
         exitFund,
         fee,
         insurance,
-        oracle,
+        index,
         trader1,
         trader2,
       ] = await ethers.getSigners();
@@ -143,7 +143,7 @@ describe('Exchange', function () {
         exitFund,
         fee,
         insurance,
-        oracle,
+        index,
       );
 
       await fundWallets([trader1, trader2], exchange, usdc);
@@ -176,7 +176,7 @@ describe('Exchange', function () {
         makerSide: OrderSide.Sell,
       };
 
-      const oraclePrice = await buildOraclePrice(oracle);
+      const indexPrice = await buildIndexPrice(index);
 
       await (
         await exchange
@@ -188,17 +188,17 @@ describe('Exchange', function () {
               sellOrder,
               sellOrderSignature,
               trade,
-              [oraclePrice],
-              [oraclePrice],
+              [indexPrice],
+              [indexPrice],
             ),
           )
       ).wait();
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader1.address, exchange, [indexPrice]);
 
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader2.address, exchange, [indexPrice]);
     });
 
     it.only('can haz deebug', async function () {
@@ -208,7 +208,7 @@ describe('Exchange', function () {
         exitFund,
         fee,
         insurance,
-        oracle,
+        index,
         trader1,
         trader2,
         trader1Delegate,
@@ -219,7 +219,7 @@ describe('Exchange', function () {
         exitFund,
         fee,
         insurance,
-        oracle,
+        index,
       );
 
       await usdc.connect(dispatcher).faucet(dispatcher.address);
@@ -282,7 +282,7 @@ describe('Exchange', function () {
         makerSide: OrderSide.Sell,
       };
 
-      const oraclePrice = await buildOraclePrice(oracle);
+      const indexPrice = await buildIndexPrice(index);
 
       /*
       await (
@@ -309,8 +309,8 @@ describe('Exchange', function () {
               sellOrder,
               sellOrderSignature,
               trade,
-              [oraclePrice],
-              [oraclePrice],
+              [indexPrice],
+              [indexPrice],
               undefined,
               sellDelegatedKeyAuthorization,
             ),
@@ -319,7 +319,7 @@ describe('Exchange', function () {
 
       /*
       await (
-        await exchange.connect(dispatcher).deactivateMarket('ETH', oraclePrice)
+        await exchange.connect(dispatcher).deactivateMarket('ETH', indexPrice)
       ).wait();
 
       await (
@@ -329,7 +329,7 @@ describe('Exchange', function () {
             'ETH',
             trader1.address,
             decimalToPips('-20000.00000000'),
-            [oraclePrice],
+            [indexPrice],
           )
       ).wait();
       */
@@ -348,7 +348,7 @@ describe('Exchange', function () {
         .connect(dispatcher)
         .withdraw(
           ...getWithdrawArguments(withdrawal, '0.01000000', signature, [
-            await buildOraclePrice(oracle),
+            await buildIndexPrice(index),
           ]),
         )
     ).wait();
@@ -357,7 +357,7 @@ describe('Exchange', function () {
         await exchange
           .connect(dispatcher)
           .publishFundingMutipliers(
-            await buildOraclePrices(oracle, 50),
+            await buildIndexPrices(index, 50),
             buildFundingRates(50),
           )
       ).wait();
@@ -375,16 +375,16 @@ describe('Exchange', function () {
           .connect(dispatcher)
           .withdraw(
             ...getWithdrawArguments(withdrawal2, '0.01000000', signature2, [
-              await buildOraclePrice(oracle),
+              await buildIndexPrice(index),
             ]),
           )
       ).wait();*/
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader1.address, exchange, [indexPrice]);
 
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader2.address, exchange, [indexPrice]);
 
       console.log(await usdc.balanceOf(custodian.address));
 
@@ -392,10 +392,10 @@ describe('Exchange', function () {
       await exchange.withdrawExit(trader2.address);
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader1.address, exchange, [indexPrice]);
 
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader2.address, exchange, [indexPrice]);
 
       console.log(await usdc.balanceOf(custodian.address));
 
@@ -452,7 +452,7 @@ describe('Exchange', function () {
               sellOrder2,
               sellOrderSignature2,
               trade2,
-              [oraclePrice],
+              [indexPrice],
               undefined,
               sellDelegatedKeyAuthorization,
             ),
@@ -460,10 +460,10 @@ describe('Exchange', function () {
       ).wait();
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader1.address, exchange, [indexPrice]);
 
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, [oraclePrice]);
+      await logWalletBalances(trader2.address, exchange, [indexPrice]);
     });
     */
     });
@@ -477,7 +477,7 @@ describe('Exchange', function () {
         exitFund,
         fee,
         insuranceFund,
-        oracle,
+        index,
         trader1,
         trader2,
       ] = await ethers.getSigners();
@@ -488,7 +488,7 @@ describe('Exchange', function () {
           exitFund,
           fee,
           insuranceFund,
-          oracle,
+          index,
         );
 
       (
@@ -504,8 +504,8 @@ describe('Exchange', function () {
           incrementalPositionSizeInPips: '2800000000',
           maximumPositionSizeInPips: '282000000000',
           minimumPositionSizeInPips: '2000000000',
-          lastOraclePriceTimestampInMs: 0,
-          oraclePriceInPipsAtDeactivation: 0,
+          lastIndexPriceTimestampInMs: 0,
+          indexPriceInPipsAtDeactivation: 0,
         })
       ).wait();
       (await exchange.connect(dispatcher).activateMarket('BTC')).wait();
@@ -540,9 +540,9 @@ describe('Exchange', function () {
         makerSide: OrderSide.Sell,
       };
 
-      const oraclePrices = await Promise.all([
-        buildOraclePrice(oracle),
-        buildOraclePriceWithValue(oracle, '30000000000', 'BTC'),
+      const indexPrices = await Promise.all([
+        buildIndexPrice(index),
+        buildIndexPriceWithValue(index, '30000000000', 'BTC'),
       ]);
 
       await (
@@ -555,8 +555,8 @@ describe('Exchange', function () {
               sellOrder,
               sellOrderSignature,
               trade,
-              oraclePrices,
-              oraclePrices,
+              indexPrices,
+              indexPrices,
             ),
           )
       ).wait();
@@ -579,7 +579,7 @@ describe('Exchange', function () {
         );
       console.log('--- ABOVE WATER ---');
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, oraclePrices);
+      await logWalletBalances(trader1.address, exchange, indexPrices);
 
       const trade2: Trade = {
         baseAssetSymbol: 'BTC',
@@ -602,34 +602,34 @@ describe('Exchange', function () {
               sellOrder2,
               sellOrderSignature2,
               trade2,
-              oraclePrices,
-              oraclePrices,
+              indexPrices,
+              indexPrices,
             ),
           )
       ).wait();
 
       console.log('--- ABOVE WATER ---');
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, oraclePrices);
+      await logWalletBalances(trader1.address, exchange, indexPrices);
 
-      const newOracleLowPrices = await Promise.all([
-        buildOraclePriceWithValue(oracle, '2003000000'),
-        buildOraclePriceWithValue(oracle, '28200000000', 'BTC'),
+      const newIndexLowPrices = await Promise.all([
+        buildIndexPriceWithValue(index, '2003000000'),
+        buildIndexPriceWithValue(index, '28200000000', 'BTC'),
       ]);
 
       console.log('--- BELOW WATER ---');
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+      await logWalletBalances(trader1.address, exchange, newIndexLowPrices);
       console.log('Insurance fund');
       await logWalletBalances(
         insuranceFund.address,
         exchange,
-        newOracleLowPrices,
+        newIndexLowPrices,
       );
 
       /*
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
+      await logWalletBalances(trader2.address, exchange, newIndexLowPrices);
       */
 
       /*
@@ -653,20 +653,20 @@ describe('Exchange', function () {
           .liquidateWalletInMaintenance(
             trader1.address,
             ['1993.11863060', '28060.88136940'].map(decimalToPips),
-            newOracleLowPrices,
-            newOracleLowPrices,
+            newIndexLowPrices,
+            newIndexLowPrices,
           )
       ).wait();
 
       console.log('--- LIQUIDATED ---');
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+      await logWalletBalances(trader1.address, exchange, newIndexLowPrices);
       console.log('Insurance fund');
       await logWalletBalances(
         insuranceFund.address,
         exchange,
-        newOracleLowPrices,
+        newIndexLowPrices,
       );
 
       /*
@@ -677,7 +677,7 @@ describe('Exchange', function () {
             'ETH',
             trader1.address,
             decimalToPips('1993.11863060'),
-            newOracleLowPrices,
+            newIndexLowPrices,
           )
       ).wait();
 
@@ -695,10 +695,10 @@ describe('Exchange', function () {
           decimalToPips('996.55931530'),
           //decimalToPips('1.00000000'),
           //decimalToPips('1993.11863060'),
-          //[newOracleLowPrices[1]],
-          newOracleLowPrices,
-          newOracleLowPrices,
-          newOracleLowPrices,
+          //[newIndexLowPrices[1]],
+          newIndexLowPrices,
+          newIndexLowPrices,
+          newIndexLowPrices,
         )
       ).wait(); 
 
@@ -709,31 +709,31 @@ describe('Exchange', function () {
             'ETH',
             trader2.address,
             decimalToPips('-2003.00000000'),
-            newOracleLowPrices,
-            newOracleLowPrices,
+            newIndexLowPrices,
+            newIndexLowPrices,
           )
       ).wait();
 
       console.log('--- LIQUIDATED ---');
 
       console.log('Trader1');
-      await logWalletBalances(trader1.address, exchange, newOracleLowPrices);
+      await logWalletBalances(trader1.address, exchange, newIndexLowPrices);
       await logWalletBalances(trader1.address, exchange, [
-        newOracleLowPrices[1],
+        newIndexLowPrices[1],
       ]);
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, newOracleLowPrices);
+      await logWalletBalances(trader2.address, exchange, newIndexLowPrices);
       */
 
       /*
       console.log('Trader1');
       await logWalletBalances(trader1.address, exchange, [
-        newOracleLowPrices[1],
+        newIndexLowPrices[1],
       ]);
 
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [
-        newOracleLowPrices[1],
+        newIndexLowPrices[1],
       ]);
       */
 
@@ -742,18 +742,18 @@ describe('Exchange', function () {
       await logWalletBalances(
         insuranceFund.address,
         exchange,
-        newOracleLowPrices,
+        newIndexLowPrices,
       );
       */
 
       /*
-      const newOracleLowPrice = await buildOraclePriceWithValue(
-        oracle,
+      const newIndexLowPrice = await buildIndexPriceWithValue(
+        index,
         '999000000',
       );
-      const newOracleHighPrice = await buildOraclePriceWithValue(
-        oracle,
-        new BigNumber(oraclePrice.priceInAssetUnits).muln(2).toString(),
+      const newIndexHighPrice = await buildIndexPriceWithValue(
+        index,
+        new BigNumber(indexPrice.priceInAssetUnits).muln(2).toString(),
       );
 
       
@@ -761,25 +761,25 @@ describe('Exchange', function () {
      */
       /*
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, [newOracleHighPrice]);
+      await logWalletBalances(trader2.address, exchange, [newIndexHighPrice]);
 
       console.log('Insurance fund');
       await logWalletBalances(insuranceFund.address, exchange, [
-        newOracleLowPrice,
+        newIndexLowPrice,
       ]);
 
       await (
         await exchange
           .connect(dispatcher)
-          .liquidate(trader2.address, [newOracleHighPrice])
+          .liquidate(trader2.address, [newIndexHighPrice])
       ).wait();
 
       console.log('Trader2');
-      await logWalletBalances(trader2.address, exchange, [newOracleHighPrice]);
+      await logWalletBalances(trader2.address, exchange, [newIndexHighPrice]);
 
       console.log('Insurance fund');
       await logWalletBalances(insuranceFund.address, exchange, [
-        newOracleLowPrice,
+        newIndexLowPrice,
       ]);
       */
     });

@@ -13,7 +13,7 @@ import { Margin } from "./Margin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice, Withdrawal } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, IndexPrice, Withdrawal } from "./Structs.sol";
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -22,14 +22,14 @@ library Withdrawing {
   struct WithdrawArguments {
     // External arguments
     Withdrawal withdrawal;
-    OraclePrice[] oraclePrices;
+    IndexPrice[] indexPrices;
     // Exchange state
     address quoteAssetAddress;
     ICustodian custodian;
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
     address feeWallet;
-    address oracleWallet;
+    address indexWallet;
   }
 
   struct WithdrawExitArguments {
@@ -38,7 +38,7 @@ library Withdrawing {
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
-    address oracleWallet;
+    address indexWallet;
     address quoteAssetAddress;
   }
 
@@ -89,8 +89,8 @@ library Withdrawing {
     );
 
     require(
-      Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadArguments(arguments.withdrawal.wallet, arguments.oraclePrices, arguments.oracleWallet),
+      Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+        Margin.LoadArguments(arguments.withdrawal.wallet, arguments.indexPrices, arguments.indexWallet),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -160,7 +160,7 @@ library Withdrawing {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantityInPips) {
     int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
-      Margin.LoadArguments(arguments.wallet, new OraclePrice[](0), arguments.oracleWallet),
+      Margin.LoadArguments(arguments.wallet, new IndexPrice[](0), arguments.indexWallet),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol

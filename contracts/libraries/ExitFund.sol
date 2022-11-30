@@ -2,9 +2,6 @@
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
-import { Funding } from "./Funding.sol";
-import { Margin } from "./Margin.sol";
-import { FundingMultiplierQuartet, Market, OraclePrice } from "./Structs.sol";
 
 pragma solidity 0.8.17;
 

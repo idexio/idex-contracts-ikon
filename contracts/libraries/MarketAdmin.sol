@@ -5,7 +5,7 @@ pragma solidity 0.8.17;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { Validations } from "./Validations.sol";
-import { Market, OraclePrice } from "./Structs.sol";
+import { Market, IndexPrice } from "./Structs.sol";
 
 library MarketAdmin {
   // TODO Validations
@@ -16,8 +16,8 @@ library MarketAdmin {
 
     newMarket.exists = true;
     newMarket.isActive = false;
-    newMarket.lastOraclePriceTimestampInMs = 0;
-    newMarket.oraclePriceInPipsAtDeactivation = 0;
+    newMarket.lastIndexPriceTimestampInMs = 0;
+    newMarket.indexPriceInPipsAtDeactivation = 0;
 
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
   }
@@ -30,26 +30,22 @@ library MarketAdmin {
     require(market.exists && !market.isActive, "No deactived market found");
 
     market.isActive = true;
-    market.oraclePriceInPipsAtDeactivation = 0;
+    market.indexPriceInPipsAtDeactivation = 0;
   }
 
   function deactivateMarket(
     string calldata baseAssetSymbol,
-    OraclePrice memory oraclePrice,
-    address oracleWallet,
+    IndexPrice memory indexPrice,
+    address indexWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market = marketsByBaseAssetSymbol[baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
-    uint64 oraclePriceInPips = Validations.validateAndUpdateOraclePriceAndConvertToPips(
-      market,
-      oraclePrice,
-      oracleWallet
-    );
+    uint64 indexPriceInPips = Validations.validateAndUpdateIndexPriceAndConvertToPips(market, indexPrice, indexWallet);
 
     market.isActive = false;
-    market.oraclePriceInPipsAtDeactivation = oraclePriceInPips;
+    market.indexPriceInPipsAtDeactivation = indexPriceInPips;
   }
 
   // TODO Validations
@@ -62,8 +58,8 @@ library MarketAdmin {
     require(marketsByBaseAssetSymbol[marketOverrides.baseAssetSymbol].exists, "Market does not exist");
 
     marketOverrides.isActive = marketsByBaseAssetSymbol[marketOverrides.baseAssetSymbol].isActive;
-    marketOverrides.lastOraclePriceTimestampInMs = 0;
-    marketOverrides.oraclePriceInPipsAtDeactivation = 0;
+    marketOverrides.lastIndexPriceTimestampInMs = 0;
+    marketOverrides.indexPriceInPipsAtDeactivation = 0;
 
     marketOverridesByBaseAssetSymbolAndWallet[marketOverrides.baseAssetSymbol][wallet] = marketOverrides;
   }

@@ -6,7 +6,7 @@ import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Constants } from "./Constants.sol";
 import { Hashing } from "./Hashing.sol";
 import { String } from "./String.sol";
-import { Market, OraclePrice, Withdrawal } from "./Structs.sol";
+import { Market, IndexPrice, Withdrawal } from "./Structs.sol";
 
 library Validations {
   function isFeeQuantityValid(uint64 fee, uint64 total, uint64 max) internal pure returns (bool) {
@@ -14,47 +14,47 @@ library Validations {
     return feeBasisPoints <= max;
   }
 
-  function validateAndUpdateOraclePriceAndConvertToPips(
+  function validateAndUpdateIndexPriceAndConvertToPips(
     Market storage market,
-    OraclePrice memory oraclePrice,
-    address oracleWallet
+    IndexPrice memory indexPrice,
+    address indexWallet
   ) internal returns (uint64) {
-    market.lastOraclePriceTimestampInMs = oraclePrice.timestampInMs;
+    market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
 
-    return validateOraclePriceAndConvertToPips(oraclePrice, market, oracleWallet);
+    return validateIndexPriceAndConvertToPips(indexPrice, market, indexWallet);
   }
 
-  function validateOraclePriceAndConvertToPips(
-    OraclePrice memory oraclePrice,
+  function validateIndexPriceAndConvertToPips(
+    IndexPrice memory indexPrice,
     Market memory market,
-    address oracleWallet
+    address indexWallet
   ) internal pure returns (uint64) {
-    require(String.isEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol), "Oracle price mismatch");
+    require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
 
-    require(market.lastOraclePriceTimestampInMs <= oraclePrice.timestampInMs, "Outdated oracle price");
+    require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
 
-    return validateOraclePriceAndConvertToPips(oraclePrice, oracleWallet);
+    return validateIndexPriceAndConvertToPips(indexPrice, indexWallet);
   }
 
-  function validateOraclePriceAndConvertToPips(
-    OraclePrice memory oraclePrice,
-    address oracleWallet
+  function validateIndexPriceAndConvertToPips(
+    IndexPrice memory indexPrice,
+    address indexWallet
   ) internal pure returns (uint64) {
     // TODO Validate timestamp recency
-    validateOraclePriceSignature(oraclePrice, oracleWallet);
+    validateIndexPriceSignature(indexPrice, indexWallet);
 
-    return AssetUnitConversions.assetUnitsToPips(oraclePrice.priceInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
+    return AssetUnitConversions.assetUnitsToPips(indexPrice.priceInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
   }
 
-  function validateOraclePriceSignature(
-    OraclePrice memory oraclePrice,
-    address oracleWallet
+  function validateIndexPriceSignature(
+    IndexPrice memory indexPrice,
+    address indexWallet
   ) internal pure returns (bytes32) {
-    bytes32 oraclePriceHash = Hashing.getOraclePriceHash(oraclePrice);
+    bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
 
-    require(Hashing.isSignatureValid(oraclePriceHash, oraclePrice.signature, oracleWallet), "Invalid oracle signature");
+    require(Hashing.isSignatureValid(indexPriceHash, indexPrice.signature, indexWallet), "Invalid index signature");
 
-    return oraclePriceHash;
+    return indexPriceHash;
   }
 
   function validateWithdrawalSignature(Withdrawal memory withdrawal) internal pure returns (bytes32) {

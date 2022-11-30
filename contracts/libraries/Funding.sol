@@ -6,7 +6,7 @@ import { FundingMultipliers } from "./FundingMultipliers.sol";
 import { Math } from "./Math.sol";
 import { Margin } from "./Margin.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
 pragma solidity 0.8.17;
 
@@ -115,35 +115,35 @@ library Funding {
 
   function publishFundingMutipliers(
     int64[] memory fundingRatesInPips,
-    OraclePrice[] memory oraclePrices,
-    address oracleWallet,
+    IndexPrice[] memory indexPrices,
+    address indexWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) public {
-    for (uint8 i = 0; i < oraclePrices.length; i++) {
-      (OraclePrice memory oraclePrice, int64 fundingRateInPips) = (oraclePrices[i], fundingRatesInPips[i]);
-      uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(oraclePrice, oracleWallet);
+    for (uint8 i = 0; i < indexPrices.length; i++) {
+      (IndexPrice memory indexPrice, int64 fundingRateInPips) = (indexPrices[i], fundingRatesInPips[i]);
+      uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(indexPrice, indexWallet);
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-        oraclePrice.baseAssetSymbol
+        indexPrice.baseAssetSymbol
       ];
       require(
         lastPublishTimestampInMs > 0
-          ? lastPublishTimestampInMs + Constants.MS_IN_ONE_HOUR == oraclePrice.timestampInMs
-          : oraclePrice.timestampInMs % Constants.MS_IN_ONE_HOUR == 0,
+          ? lastPublishTimestampInMs + Constants.MS_IN_ONE_HOUR == indexPrice.timestampInMs
+          : indexPrice.timestampInMs % Constants.MS_IN_ONE_HOUR == 0,
         "Input price not hour-aligned"
       );
 
       // TODO Cleanup typecasts
       int64 newFundingMultiplier = Math.multiplyPipsByFraction(
-        int64(oraclePriceInPips),
+        int64(indexPriceInPips),
         fundingRateInPips,
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
 
-      fundingMultipliersByBaseAssetSymbol[oraclePrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
+      fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
 
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[oraclePrice.baseAssetSymbol] = oraclePrice.timestampInMs;
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = indexPrice.timestampInMs;
     }
   }
 

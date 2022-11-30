@@ -134,7 +134,7 @@ library BalanceTracking {
     Storage storage self,
     address exitFundWallet,
     Market memory market,
-    uint64 oraclePriceInPips,
+    uint64 indexPriceInPips,
     int64 totalAccountValueInPips,
     address wallet,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -150,7 +150,7 @@ library BalanceTracking {
 
     quoteQuantityInPips = LiquidationValidations.calculateExitQuoteQuantity(
       balance.costBasisInPips,
-      oraclePriceInPips,
+      indexPriceInPips,
       positionSizeInPips,
       totalAccountValueInPips
     );

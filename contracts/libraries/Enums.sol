@@ -44,7 +44,7 @@ enum OrderSide {
 enum OrderTimeInForce {
   // Good until cancelled
   gtc,
-  // Good until time
+  // Good until crossing
   gtx,
   // Immediate or cancel
   ioc,
@@ -57,7 +57,7 @@ enum OrderTriggerType {
   None,
   // Last trade price
   Last,
-  // Oracle price
+  // Index price
   Index
 }
 

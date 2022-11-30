@@ -7,7 +7,7 @@ import { Funding } from "./Funding.sol";
 import { Margin } from "./Margin.sol";
 import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
 import { OrderSide, OrderType } from "./Enums.sol";
-import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, OraclePrice, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
+import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, IndexPrice, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
@@ -64,7 +64,7 @@ library Trading {
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    _validateInitialMarginRequirementsAndUpdateLastOraclePrice(
+    _validateInitialMarginRequirementsAndUpdateLastIndexPrice(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -127,7 +127,7 @@ library Trading {
     }
   }
 
-  function _validateInitialMarginRequirementsAndUpdateLastOraclePrice(
+  function _validateInitialMarginRequirementsAndUpdateLastIndexPrice(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -135,8 +135,8 @@ library Trading {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     require(
-      Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadArguments(arguments.buy.wallet, arguments.buyOraclePrices, arguments.oracleWallet),
+      Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+        Margin.LoadArguments(arguments.buy.wallet, arguments.buyIndexPrices, arguments.indexWallet),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -145,8 +145,8 @@ library Trading {
       "Initial margin requirement not met for buy wallet"
     );
     require(
-      Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadArguments(arguments.sell.wallet, arguments.sellOraclePrices, arguments.oracleWallet),
+      Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+        Margin.LoadArguments(arguments.sell.wallet, arguments.sellIndexPrices, arguments.indexWallet),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,

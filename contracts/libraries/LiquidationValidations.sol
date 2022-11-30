@@ -8,39 +8,35 @@ import { Math } from "./Math.sol";
 library LiquidationValidations {
   function calculateExitQuoteQuantity(
     int64 costBasis,
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue
   ) internal pure returns (int64 quoteQuantity) {
-    quoteQuantity = Math.multiplyPipsByFraction(
-      positionSize,
-      int64(oraclePrice),
-      int64(Constants.PIP_PRICE_MULTIPLIER)
-    );
+    quoteQuantity = Math.multiplyPipsByFraction(positionSize, int64(indexPrice), int64(Constants.PIP_PRICE_MULTIPLIER));
 
-    // Quote value is the worse of the oracle price or entry price...
+    // Quote value is the worse of the index price or entry price...
     quoteQuantity = positionSize > 0 ? Math.min(quoteQuantity, costBasis) : Math.max(quoteQuantity, costBasis);
 
     // ...but never worse than the bankruptcy price
     quoteQuantity = positionSize > 0
       ? Math.max(
         quoteQuantity,
-        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
+        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(indexPrice, positionSize, totalAccountValue)
       )
       : Math.min(
         quoteQuantity,
-        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(oraclePrice, positionSize, totalAccountValue)
+        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(indexPrice, positionSize, totalAccountValue)
       );
   }
 
   function validateDeactivatedMarketLiquidationQuoteQuantity(
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 positionSize,
     int64 quoteQuantity
   ) internal pure {
     int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
       positionSize,
-      int64(oraclePrice),
+      int64(indexPrice),
       int64(Constants.PIP_PRICE_MULTIPLIER)
     );
 
@@ -53,7 +49,7 @@ library LiquidationValidations {
 
   function validateExitFundClosureQuoteQuantity(
     int64 baseQuantity,
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 quoteQuantity,
     int64 totalAccountValue
   ) internal pure {
@@ -61,15 +57,15 @@ library LiquidationValidations {
     if (totalAccountValue < 0) {
       // Use bankruptcy price for negative total account value
       expectedLiquidationQuoteQuantities = _calculateLiquidationQuoteQuantityToZeroOutAccountValue(
-        oraclePrice,
+        indexPrice,
         baseQuantity,
         totalAccountValue
       );
     } else {
-      // Use oracle price for positive totalAccountValue
+      // Use index price for positive totalAccountValue
       expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
         baseQuantity,
-        int64(oraclePrice),
+        int64(indexPrice),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
@@ -84,13 +80,13 @@ library LiquidationValidations {
   function validateExitQuoteQuantity(
     int64 costBasis,
     int64 liquidationQuoteQuantity,
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue
   ) internal pure {
     int64 expectedLiquidationQuoteQuantities = LiquidationValidations.calculateExitQuoteQuantity(
       costBasis,
-      oraclePrice,
+      indexPrice,
       positionSize,
       totalAccountValue
     );
@@ -119,14 +115,14 @@ library LiquidationValidations {
   function validateLiquidationQuoteQuantityToClosePositions(
     int64 liquidationQuoteQuantity,
     uint64 marginFraction,
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
     int64 expectedLiquidationQuoteQuantities = _calculateLiquidationQuoteQuantityToClosePositions(
       marginFraction,
-      oraclePrice,
+      indexPrice,
       positionSize,
       totalAccountValue,
       totalMaintenanceMarginRequirement
@@ -141,12 +137,12 @@ library LiquidationValidations {
   function validatePositionBelowMinimumLiquidationQuoteQuantity(
     uint64 positionBelowMinimumLiquidationPriceToleranceBasisPoints,
     int64 liquidationQuoteQuantity,
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 positionSize
   ) internal pure {
     int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
       positionSize,
-      int64(oraclePrice),
+      int64(indexPrice),
       int64(Constants.PIP_PRICE_MULTIPLIER)
     );
     uint64 tolerance = (positionBelowMinimumLiquidationPriceToleranceBasisPoints *
@@ -163,12 +159,12 @@ library LiquidationValidations {
 
   function _calculateLiquidationQuoteQuantityToClosePositions(
     uint64 maintenanceMarginFraction,
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) private pure returns (int64) {
-    int256 quoteQuantityInDoublePips = int256(positionSize) * int64(oraclePrice);
+    int256 quoteQuantityInDoublePips = int256(positionSize) * int64(indexPrice);
 
     int256 quotePenaltyInDoublePips = ((positionSize < 0 ? int256(1) : int256(-1)) *
       quoteQuantityInDoublePips *
@@ -186,11 +182,11 @@ library LiquidationValidations {
   }
 
   function _calculateLiquidationQuoteQuantityToZeroOutAccountValue(
-    uint64 oraclePrice,
+    uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue
   ) private pure returns (int64) {
-    int256 positionNotionalValueInDoublePips = int256(positionSize) * int64(oraclePrice);
+    int256 positionNotionalValueInDoublePips = int256(positionSize) * int64(indexPrice);
     int256 totalAccountValueInDoublePips = int256(totalAccountValue) * int64(Constants.PIP_PRICE_MULTIPLIER);
 
     int256 quoteQuantity = (positionNotionalValueInDoublePips - totalAccountValueInDoublePips) /

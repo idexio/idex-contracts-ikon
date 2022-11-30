@@ -14,7 +14,7 @@ import { MarketOverrides } from "./MarketOverrides.sol";
 import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
 library Liquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -29,12 +29,12 @@ library Liquidation {
     string baseAssetSymbol;
     address liquidatingWallet;
     int64 liquidationQuoteQuantityInPips; // For the position being liquidated
-    OraclePrice[] insuranceFundOraclePrices; // After acquiring liquidating position
-    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
+    IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
+    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
     uint64 dustPositionLiquidationPriceToleranceBasisPoints;
     address insuranceFundWallet;
-    address oracleWallet;
+    address indexWallet;
   }
 
   /**
@@ -45,9 +45,9 @@ library Liquidation {
     string baseAssetSymbol;
     address liquidatingWallet;
     int64 liquidationQuoteQuantityInPips; // For the position being liquidated
-    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
+    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
-    address oracleWallet;
+    address indexWallet;
   }
 
   /**
@@ -57,12 +57,12 @@ library Liquidation {
     // External arguments
     LiquidationType liquidationType;
     address counterpartyWallet; // Insurance Fund or Exit Fund
-    OraclePrice[] counterpartyWalletOraclePrices; // After acquiring liquidated positions
+    IndexPrice[] counterpartyWalletIndexPrices; // After acquiring liquidated positions
     address liquidatingWallet;
-    OraclePrice[] liquidatingWalletOraclePrices;
+    IndexPrice[] liquidatingWalletIndexPrices;
     int64[] liquidationQuoteQuantitiesInPips;
     // Exchange state
-    address oracleWallet;
+    address indexWallet;
   }
 
   function liquidatePositionBelowMinimum(
@@ -111,8 +111,8 @@ library Liquidation {
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
-          arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet
+          arguments.liquidatingWalletIndexPrices,
+          arguments.indexWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -171,8 +171,8 @@ library Liquidation {
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
-          arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet
+          arguments.liquidatingWalletIndexPrices,
+          arguments.indexWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -253,8 +253,8 @@ library Liquidation {
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
-          arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet
+          arguments.liquidatingWalletIndexPrices,
+          arguments.indexWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -295,8 +295,8 @@ library Liquidation {
       Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
         Margin.LoadArguments(
           arguments.counterpartyWallet,
-          arguments.counterpartyWalletOraclePrices,
-          arguments.oracleWallet
+          arguments.counterpartyWalletIndexPrices,
+          arguments.indexWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -313,7 +313,7 @@ library Liquidation {
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, OraclePrice memory oraclePrice) = _loadMarketAndOraclePrice(
+    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
       arguments,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
@@ -333,15 +333,11 @@ library Liquidation {
     );
 
     // Validate quote quantity
-    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
-      oraclePrice,
-      market,
-      arguments.oracleWallet
-    );
+    uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(indexPrice, market, arguments.indexWallet);
     LiquidationValidations.validatePositionBelowMinimumLiquidationQuoteQuantity(
       arguments.dustPositionLiquidationPriceToleranceBasisPoints,
       arguments.liquidationQuoteQuantityInPips,
-      oraclePriceInPips,
+      indexPriceInPips,
       positionSizeInPips
     );
 
@@ -366,7 +362,7 @@ library Liquidation {
 
     // Validate quote quantity
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
-      market.oraclePriceInPipsAtDeactivation,
+      market.indexPriceInPipsAtDeactivation,
       balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
       arguments.liquidationQuoteQuantityInPips
     );
@@ -393,10 +389,10 @@ library Liquidation {
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
-    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
-      arguments.liquidatingWalletOraclePrices[index],
+    uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(
+      arguments.liquidatingWalletIndexPrices[index],
       market,
-      arguments.oracleWallet
+      arguments.indexWallet
     );
 
     if (
@@ -408,7 +404,7 @@ library Liquidation {
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFractionInPips,
-        oraclePriceInPips,
+        indexPriceInPips,
         balance.balanceInPips,
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips
@@ -418,7 +414,7 @@ library Liquidation {
       LiquidationValidations.validateExitQuoteQuantity(
         balance.costBasisInPips,
         arguments.liquidationQuoteQuantitiesInPips[index],
-        oraclePriceInPips,
+        indexPriceInPips,
         balance.balanceInPips,
         totalAccountValueInPips
       );
@@ -450,16 +446,16 @@ library Liquidation {
     require(market.exists && !market.isActive, "No inactive market found");
   }
 
-  function _loadMarketAndOraclePrice(
+  function _loadMarketAndIndexPrice(
     LiquidatePositionBelowMinimumArguments memory arguments,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market, OraclePrice memory oraclePrice) {
+  ) private view returns (Market memory market, IndexPrice memory indexPrice) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
         market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-        oraclePrice = arguments.liquidatingWalletOraclePrices[i];
+        indexPrice = arguments.liquidatingWalletIndexPrices[i];
       }
     }
 

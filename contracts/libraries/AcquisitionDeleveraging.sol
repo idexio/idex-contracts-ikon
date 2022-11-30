@@ -14,7 +14,7 @@ import { MarketOverrides } from "./MarketOverrides.sol";
 import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
 library AcquisitionDeleveraging {
   using BalanceTracking for BalanceTracking.Storage;
@@ -30,12 +30,12 @@ library AcquisitionDeleveraging {
     int64[] liquidationQuoteQuantitiesInPips; // For all open positions
     int64 liquidationBaseQuantityInPips; // For the position being liquidated
     int64 liquidationQuoteQuantityInPips; // For the position being liquidated
-    OraclePrice[] deleveragingWalletOraclePrices; // After acquiring liquidating positions
-    OraclePrice[] insuranceFundOraclePrices; // After acquiring liquidating positions
-    OraclePrice[] liquidatingWalletOraclePrices; // Before liquidation
+    IndexPrice[] deleveragingWalletIndexPrices; // After acquiring liquidating positions
+    IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating positions
+    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
     address insuranceFundWallet;
-    address oracleWallet;
+    address indexWallet;
   }
 
   function deleverage(
@@ -85,8 +85,8 @@ library AcquisitionDeleveraging {
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
-          arguments.liquidatingWalletOraclePrices,
-          arguments.oracleWallet
+          arguments.liquidatingWalletIndexPrices,
+          arguments.indexWallet
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -123,16 +123,16 @@ library AcquisitionDeleveraging {
     );
   }
 
-  function _loadMarketAndOraclePrice(
+  function _loadMarketAndIndexPrice(
     Arguments memory arguments,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market, OraclePrice memory oraclePrice) {
+  ) private view returns (Market memory market, IndexPrice memory indexPrice) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
         market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-        oraclePrice = arguments.liquidatingWalletOraclePrices[i];
+        indexPrice = arguments.liquidatingWalletIndexPrices[i];
       }
     }
 
@@ -148,16 +148,12 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, OraclePrice memory oraclePrice) = _loadMarketAndOraclePrice(
+    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
       arguments,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    uint64 oraclePriceInPips = Validations.validateOraclePriceAndConvertToPips(
-      oraclePrice,
-      market,
-      arguments.oracleWallet
-    );
+    uint64 indexPriceInPips = Validations.validateIndexPriceAndConvertToPips(indexPrice, market, arguments.indexWallet);
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.liquidatingWallet,
@@ -170,7 +166,7 @@ library AcquisitionDeleveraging {
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFractionInPips,
-        oraclePriceInPips,
+        indexPriceInPips,
         balance.balanceInPips,
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips
@@ -184,7 +180,7 @@ library AcquisitionDeleveraging {
           balance.balanceInPips
         ),
         arguments.liquidationQuoteQuantityInPips,
-        oraclePriceInPips,
+        indexPriceInPips,
         balance.balanceInPips,
         totalAccountValueInPips
       );
@@ -204,8 +200,8 @@ library AcquisitionDeleveraging {
     Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
       Margin.LoadArguments(
         arguments.deleveragingWallet,
-        arguments.deleveragingWalletOraclePrices,
-        arguments.oracleWallet
+        arguments.deleveragingWalletIndexPrices,
+        arguments.indexWallet
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -234,16 +230,16 @@ library AcquisitionDeleveraging {
         arguments.liquidationQuoteQuantitiesInPips,
         new Market[](baseAssetSymbols.length),
         new uint64[](baseAssetSymbols.length),
-        arguments.oracleWallet
+        arguments.indexWallet
       );
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      // Load market and oracle price for symbol
+      // Load market and index price for symbol
       loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      loadArguments.oraclePricesInPips[i] = Validations.validateAndUpdateOraclePriceAndConvertToPips(
+      loadArguments.indexPricesInPips[i] = Validations.validateAndUpdateIndexPriceAndConvertToPips(
         marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        arguments.insuranceFundOraclePrices[i],
-        arguments.oracleWallet
+        arguments.insuranceFundIndexPrices[i],
+        arguments.indexWallet
       );
 
       // Validate provided liquidation quote quantity
@@ -254,7 +250,7 @@ library AcquisitionDeleveraging {
             .markets[i]
             .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
             .maintenanceMarginFractionInPips,
-          loadArguments.oraclePricesInPips[i],
+          loadArguments.indexPricesInPips[i],
           balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, baseAssetSymbols[i]).balanceInPips,
           liquidatingWalletTotalAccountValueInPips,
           liquidatingWalletTotalMaintenanceMarginRequirementInPips
@@ -272,7 +268,7 @@ library AcquisitionDeleveraging {
             balance.balanceInPips
           ),
           arguments.liquidationQuoteQuantitiesInPips[i],
-          loadArguments.oraclePricesInPips[i],
+          loadArguments.indexPricesInPips[i],
           balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, baseAssetSymbols[i]).balanceInPips,
           liquidatingWalletTotalAccountValueInPips
         );

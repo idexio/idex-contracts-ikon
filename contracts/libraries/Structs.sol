@@ -37,14 +37,14 @@ struct ExecuteOrderBookTradeArguments {
   Order buy;
   Order sell;
   OrderBookTrade orderBookTrade;
-  OraclePrice[] buyOraclePrices;
-  OraclePrice[] sellOraclePrices;
+  IndexPrice[] buyIndexPrices;
+  IndexPrice[] sellIndexPrices;
   // Exchange state
   uint64 delegateKeyExpirationPeriodInMs;
   address exitFundWallet;
   address feeWallet;
   address insuranceFundWallet;
-  address oracleWallet;
+  address indexWallet;
 }
 
 /**
@@ -85,22 +85,22 @@ struct Market {
   uint64 maximumPositionSizeInPips;
   // The min position size in base token
   uint64 minimumPositionSizeInPips;
-  // The timestamp of the latest oracle price provided for this market
-  uint64 lastOraclePriceTimestampInMs;
+  // The timestamp of the latest index price provided for this market
+  uint64 lastIndexPriceTimestampInMs;
   // Set when deactivating a market to determine price for all position liquidations in that market
-  uint64 oraclePriceInPipsAtDeactivation;
+  uint64 indexPriceInPipsAtDeactivation;
 }
 
 /**
- * @notice Index price data signed by oracle wallet
+ * @notice Index price data signed by index wallet
  */
-struct OraclePrice {
+struct IndexPrice {
   string baseAssetSymbol;
   // Milliseconds since epoch
   uint64 timestampInMs;
   // Price of base asset in quote asset units
   uint256 priceInAssetUnits;
-  // Signature from oracle wallet
+  // Signature from index wallet
   bytes signature;
 }
 
