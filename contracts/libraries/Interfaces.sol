@@ -63,12 +63,15 @@ interface IExchange {
    *
    * @return The quantity denominated in pips of asset at `assetSymbol` currently deposited by `wallet`
    */
-  function loadBalanceInPipsBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
+  function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
 
   /**
    * @notice Load a wallet's balance-tracking struct by asset address
    */
-  function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (Balance memory);
+  function loadBalanceStructBySymbol(
+    address wallet,
+    string calldata assetSymbol
+  ) external view returns (Balance memory);
 
   /**
    * @notice Load the address of the Custodian contract

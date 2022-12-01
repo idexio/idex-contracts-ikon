@@ -71,7 +71,7 @@ library Funding {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
-      Balance memory basePosition = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      Balance memory basePosition = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
         wallet,
         market.baseAssetSymbol
       );
@@ -180,7 +180,10 @@ library Funding {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
-      Balance storage basePosition = balanceTracking.loadBalanceAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
+      Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+        wallet,
+        market.baseAssetSymbol
+      );
 
       (marketFundingInPips, lastFundingMultiplierTimestampInMs) = loadWalletFundingForMarket(
         basePosition,
@@ -192,7 +195,10 @@ library Funding {
       basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
     }
 
-    Balance storage quoteBalance = balanceTracking.loadBalanceAndMigrateIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL);
+    Balance storage quoteBalance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
     quoteBalance.balanceInPips += fundingInPips;
   }
 }

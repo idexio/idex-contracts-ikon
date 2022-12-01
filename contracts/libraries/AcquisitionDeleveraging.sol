@@ -155,7 +155,7 @@ library AcquisitionDeleveraging {
     );
     Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
 
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
@@ -252,13 +252,13 @@ library AcquisitionDeleveraging {
             .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
             .maintenanceMarginFractionInPips,
           loadArguments.indexPricesInPips[i],
-          balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, baseAssetSymbols[i]).balanceInPips,
+          balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, baseAssetSymbols[i]),
           liquidatingWalletTotalAccountValueInPips,
           liquidatingWalletTotalMaintenanceMarginRequirementInPips
         );
       } else {
         // DeleverageType.WalletExited
-        Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+        Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
           arguments.liquidatingWallet,
           loadArguments.markets[i].baseAssetSymbol
         );
@@ -270,7 +270,7 @@ library AcquisitionDeleveraging {
           ),
           arguments.liquidationQuoteQuantitiesInPips[i],
           loadArguments.indexPricesInPips[i],
-          balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, baseAssetSymbols[i]).balanceInPips,
+          balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, baseAssetSymbols[i]),
           liquidatingWalletTotalAccountValueInPips
         );
       }

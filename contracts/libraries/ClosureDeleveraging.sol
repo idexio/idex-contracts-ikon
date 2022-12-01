@@ -132,7 +132,7 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );

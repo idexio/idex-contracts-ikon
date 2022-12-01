@@ -181,7 +181,7 @@ library Withdrawing {
     }
 
     // Quote out from exit fund wallet
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.exitFundWallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
@@ -203,7 +203,7 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );

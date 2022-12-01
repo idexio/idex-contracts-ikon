@@ -37,6 +37,6 @@ library ExitFund {
     isExitFundPositionOpen = baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0;
     isExitFundBalanceOpen =
       isExitFundPositionOpen ||
-      balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(exitFundWallet, Constants.QUOTE_ASSET_SYMBOL) > 0;
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(exitFundWallet, Constants.QUOTE_ASSET_SYMBOL) > 0;
   }
 }

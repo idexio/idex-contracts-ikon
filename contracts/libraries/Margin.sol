@@ -54,7 +54,7 @@ library Margin {
         wallet,
         market.baseAssetSymbol,
         market.loadInitialMarginFractionInPipsForWallet(
-          balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
+          balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
           wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         ),
@@ -158,7 +158,7 @@ library Margin {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64) {
-    int64 totalAccountValueInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+    int64 totalAccountValueInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
@@ -169,7 +169,7 @@ library Margin {
       Validations.validateIndexPrice(arguments.indexPrices[i], market, arguments.indexPriceCollectionServiceWallets);
 
       totalAccountValueInPips += Math.multiplyPipsByFraction(
-        balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
         int64(arguments.indexPrices[i].price),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
@@ -185,7 +185,7 @@ library Margin {
     int64 insuranceFundPositionSizeInPips;
     int64 liquidatingWalletPositionSizeInPips;
     for (uint8 i = 0; i < arguments.markets.length; i++) {
-      liquidatingWalletPositionSizeInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+      liquidatingWalletPositionSizeInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
         arguments.liquidatingWallet,
         arguments.markets[i].baseAssetSymbol
       );
@@ -197,7 +197,7 @@ library Margin {
 
       // Calculate Insurance Fund position size after acquiring position
       insuranceFundPositionSizeInPips =
-        balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
           arguments.insuranceFundWallet,
           arguments.markets[i].baseAssetSymbol
         ) +
@@ -222,11 +222,11 @@ library Margin {
   ) private view returns (uint64 totalInitialMarginRequirementInPips) {
     for (uint8 i = 0; i < arguments.markets.length; i++) {
       // Calculate Insurance Fund position size after acquiring position
-      int64 insuranceFundPositionSizeInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+      int64 insuranceFundPositionSizeInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
         arguments.insuranceFundWallet,
         arguments.markets[i].baseAssetSymbol
       ) +
-        balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
           arguments.liquidatingWallet,
           arguments.markets[i].baseAssetSymbol
         );
@@ -296,7 +296,7 @@ library Margin {
         arguments,
         market,
         market.loadInitialMarginFractionInPipsForWallet(
-          balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
+          balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
           arguments.wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         ),
@@ -321,7 +321,7 @@ library Margin {
       maintenanceMarginRequirement += Math.abs(
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.wallet, baseAssetSymbols[i]),
+            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, baseAssetSymbols[i]),
             int64(indexPriceInPips),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
@@ -368,7 +368,7 @@ library Margin {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64) {
-    int64 totalAccountValueInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+    int64 totalAccountValueInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
@@ -378,7 +378,7 @@ library Margin {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       uint64 indexPriceInPips = market.loadFeedPriceInPips();
 
-      Balance memory balance = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      Balance memory balance = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
         arguments.wallet,
         market.baseAssetSymbol
       );
@@ -427,14 +427,14 @@ library Margin {
     int64 insuranceFundPositionSizeInPips;
     int64 liquidatingWalletPositionSizeInPips;
     for (uint8 i = 0; i < arguments.markets.length; i++) {
-      liquidatingWalletPositionSizeInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+      liquidatingWalletPositionSizeInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
         arguments.liquidatingWallet,
         arguments.markets[i].baseAssetSymbol
       );
 
       // Calculate Insurance Fund position size after acquiring position
       insuranceFundPositionSizeInPips =
-        balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
           arguments.insuranceFundWallet,
           arguments.markets[i].baseAssetSymbol
         ) +
@@ -469,7 +469,7 @@ library Margin {
       Math.abs(
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(wallet, baseAssetSymbol),
+            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, baseAssetSymbol),
             int64(indexPrice.price),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
@@ -497,7 +497,7 @@ library Margin {
       Math.abs(
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
+            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
             int64(indexPrice.price),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),

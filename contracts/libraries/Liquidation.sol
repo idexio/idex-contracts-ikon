@@ -320,7 +320,7 @@ library Liquidation {
     );
 
     // Validate that position is under dust threshold
-    int64 positionSizeInPips = balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(
+    int64 positionSizeInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       arguments.liquidatingWallet,
       arguments.baseAssetSymbol
     );
@@ -363,7 +363,7 @@ library Liquidation {
     // Validate quote quantity
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
       market.indexPriceInPipsAtDeactivation,
-      balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
       arguments.liquidationQuoteQuantityInPips
     );
 
@@ -385,7 +385,7 @@ library Liquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
