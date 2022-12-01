@@ -116,13 +116,13 @@ library Funding {
   function publishFundingMutipliers(
     int64[] memory fundingRatesInPips,
     IndexPrice[] memory indexPrices,
-    address indexPriceCollectionServiceWallet,
+    address[] memory indexPriceCollectionServiceWallets,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) public {
     for (uint8 i = 0; i < indexPrices.length; i++) {
       (IndexPrice memory indexPrice, int64 fundingRateInPips) = (indexPrices[i], fundingRatesInPips[i]);
-      Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallet);
+      Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
         indexPrice.baseAssetSymbol

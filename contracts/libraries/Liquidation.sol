@@ -34,7 +34,7 @@ library Liquidation {
     // Exchange state
     uint64 dustPositionLiquidationPriceToleranceBasisPoints;
     address insuranceFundWallet;
-    address indexPriceCollectionServiceWallet;
+    address[] indexPriceCollectionServiceWallets;
   }
 
   /**
@@ -47,7 +47,7 @@ library Liquidation {
     int64 liquidationQuoteQuantityInPips; // For the position being liquidated
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
-    address indexPriceCollectionServiceWallet;
+    address[] indexPriceCollectionServiceWallets;
   }
 
   /**
@@ -62,7 +62,7 @@ library Liquidation {
     IndexPrice[] liquidatingWalletIndexPrices;
     int64[] liquidationQuoteQuantitiesInPips;
     // Exchange state
-    address indexPriceCollectionServiceWallet;
+    address[] indexPriceCollectionServiceWallets;
   }
 
   function liquidatePositionBelowMinimum(
@@ -112,7 +112,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallet
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -172,7 +172,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallet
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -254,7 +254,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallet
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -296,7 +296,7 @@ library Liquidation {
         Margin.LoadArguments(
           arguments.counterpartyWallet,
           arguments.counterpartyWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallet
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -333,7 +333,7 @@ library Liquidation {
     );
 
     // Validate quote quantity
-    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallet);
+    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
     LiquidationValidations.validatePositionBelowMinimumLiquidationQuoteQuantity(
       arguments.dustPositionLiquidationPriceToleranceBasisPoints,
       arguments.liquidationQuoteQuantityInPips,
@@ -392,7 +392,7 @@ library Liquidation {
     Validations.validateIndexPrice(
       arguments.liquidatingWalletIndexPrices[index],
       market,
-      arguments.indexPriceCollectionServiceWallet
+      arguments.indexPriceCollectionServiceWallets
     );
 
     if (

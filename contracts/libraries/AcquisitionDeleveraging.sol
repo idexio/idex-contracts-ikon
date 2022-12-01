@@ -35,7 +35,7 @@ library AcquisitionDeleveraging {
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
     address insuranceFundWallet;
-    address indexPriceCollectionServiceWallet;
+    address[] indexPriceCollectionServiceWallets;
   }
 
   function deleverage(
@@ -86,7 +86,7 @@ library AcquisitionDeleveraging {
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallet
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -153,7 +153,7 @@ library AcquisitionDeleveraging {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallet);
+    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
 
     Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.liquidatingWallet,
@@ -201,7 +201,7 @@ library AcquisitionDeleveraging {
       Margin.LoadArguments(
         arguments.deleveragingWallet,
         arguments.deleveragingWalletIndexPrices,
-        arguments.indexPriceCollectionServiceWallet
+        arguments.indexPriceCollectionServiceWallets
       ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -230,7 +230,7 @@ library AcquisitionDeleveraging {
         arguments.liquidationQuoteQuantitiesInPips,
         new Market[](baseAssetSymbols.length),
         new uint64[](baseAssetSymbols.length),
-        arguments.indexPriceCollectionServiceWallet
+        arguments.indexPriceCollectionServiceWallets
       );
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
@@ -239,7 +239,7 @@ library AcquisitionDeleveraging {
       Validations.validateAndUpdateIndexPrice(
         marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         arguments.insuranceFundIndexPrices[i],
-        arguments.indexPriceCollectionServiceWallet
+        arguments.indexPriceCollectionServiceWallets
       );
       loadArguments.indexPricesInPips[i] = arguments.insuranceFundIndexPrices[i].price;
 

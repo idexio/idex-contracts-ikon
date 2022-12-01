@@ -17,9 +17,9 @@ library Validations {
   function validateAndUpdateIndexPrice(
     Market storage market,
     IndexPrice memory indexPrice,
-    address indexPriceCollectionServiceWallet
+    address[] memory indexPriceCollectionServiceWallets
   ) internal {
-    validateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallet);
+    validateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallets);
 
     market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
   }
@@ -27,27 +27,27 @@ library Validations {
   function validateIndexPrice(
     IndexPrice memory indexPrice,
     Market memory market,
-    address indexPriceCollectionServiceWallet
+    address[] memory indexPriceCollectionServiceWallets
   ) internal pure {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
 
     require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
 
-    validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallet);
+    validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
   }
 
   function validateIndexPriceSignature(
     IndexPrice memory indexPrice,
-    address indexPriceCollectionServiceWallet
-  ) internal pure returns (bytes32) {
+    address[] memory indexPriceCollectionServiceWallets
+  ) internal pure {
     bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
 
-    require(
-      Hashing.isSignatureValid(indexPriceHash, indexPrice.signature, indexPriceCollectionServiceWallet),
-      "Invalid index signature"
-    );
-
-    return indexPriceHash;
+    address signer = Hashing.getSigner(indexPriceHash, indexPrice.signature);
+    bool isSignatureValid = false;
+    for (uint8 i = 0; i < indexPriceCollectionServiceWallets.length; i++) {
+      isSignatureValid = isSignatureValid || signer == indexPriceCollectionServiceWallets[i];
+    }
+    require(isSignatureValid, "Invalid index signature");
   }
 
   function validateWithdrawalSignature(Withdrawal memory withdrawal) internal pure returns (bytes32) {

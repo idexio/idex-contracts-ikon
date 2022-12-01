@@ -44,7 +44,7 @@ struct ExecuteOrderBookTradeArguments {
   address exitFundWallet;
   address feeWallet;
   address insuranceFundWallet;
-  address indexPriceCollectionServiceWallet;
+  address[] indexPriceCollectionServiceWallets;
 }
 
 /**

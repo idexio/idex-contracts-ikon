@@ -13,12 +13,16 @@ import { DelegatedKeyAuthorization, IndexPrice, Order, Withdrawal } from "./Stru
  * @notice Library helpers for building hashes and verifying wallet signatures
  */
 library Hashing {
+  function getSigner(bytes32 hash, bytes memory signature) internal pure returns (address) {
+    return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature);
+  }
+
   function isSignatureValid(bytes memory message, bytes memory signature, address signer) internal pure returns (bool) {
     return ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
   }
 
   function isSignatureValid(bytes32 hash, bytes memory signature, address signer) internal pure returns (bool) {
-    return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
+    return getSigner(hash, signature) == signer;
   }
 
   function getDelegatedKeyMessage(

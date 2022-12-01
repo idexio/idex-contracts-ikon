@@ -115,7 +115,7 @@ export async function deployAndAssociateContracts(
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
-  index: SignerWithAddress = owner,
+  indexPriceCollectionServiceWallet: SignerWithAddress = owner,
 ) {
   const [
     AcquisitionDeleveraging,
@@ -202,7 +202,7 @@ export async function deployAndAssociateContracts(
         exitFundWallet.address,
         feeWallet.address,
         insuranceFund.address,
-        index.address,
+        [indexPriceCollectionServiceWallet.address],
       )
     ).deployed(),
     (await Governance.deploy(0)).deployed(),

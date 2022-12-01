@@ -22,7 +22,7 @@ library Margin {
   struct LoadArguments {
     address wallet;
     IndexPrice[] indexPrices;
-    address indexPriceCollectionServiceWallet;
+    address[] indexPriceCollectionServiceWallets;
   }
 
   struct ValidateInsuranceFundCannotLiquidateWalletArguments {
@@ -31,13 +31,13 @@ library Margin {
     int64[] liquidationQuoteQuantitiesInPips;
     Market[] markets;
     uint64[] indexPricesInPips;
-    address indexPriceCollectionServiceWallet;
+    address[] indexPriceCollectionServiceWallets;
   }
 
   function loadTotalInitialMarginRequirement(
     address wallet,
     IndexPrice[] memory indexPrices,
-    address indexPriceCollectionServiceWallet,
+    address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -59,7 +59,7 @@ library Margin {
           marketOverridesByBaseAssetSymbolAndWallet
         ),
         indexPrice,
-        indexPriceCollectionServiceWallet,
+        indexPriceCollectionServiceWallets,
         balanceTracking
       );
     }
@@ -68,7 +68,7 @@ library Margin {
   function loadTotalMaintenanceMarginRequirement(
     address wallet,
     IndexPrice[] memory indexPrices,
-    address indexPriceCollectionServiceWallet,
+    address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -88,7 +88,7 @@ library Margin {
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFractionInPips,
         indexPrice,
-        indexPriceCollectionServiceWallet,
+        indexPriceCollectionServiceWallets,
         balanceTracking
       );
     }
@@ -166,7 +166,7 @@ library Margin {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      Validations.validateIndexPrice(arguments.indexPrices[i], market, arguments.indexPriceCollectionServiceWallet);
+      Validations.validateIndexPrice(arguments.indexPrices[i], market, arguments.indexPriceCollectionServiceWallets);
 
       totalAccountValueInPips += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceInPipsFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
@@ -459,11 +459,11 @@ library Margin {
     string memory baseAssetSymbol,
     uint64 marginFractionInPips,
     IndexPrice memory indexPrice,
-    address indexPriceCollectionServiceWallet,
+    address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (uint64) {
     require(String.isEqual(baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
-    Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallet);
+    Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
 
     return
       Math.abs(
@@ -491,7 +491,7 @@ library Margin {
     BalanceTracking.Storage storage balanceTracking
   ) private returns (uint64) {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
-    Validations.validateAndUpdateIndexPrice(market, indexPrice, arguments.indexPriceCollectionServiceWallet);
+    Validations.validateAndUpdateIndexPrice(market, indexPrice, arguments.indexPriceCollectionServiceWallets);
 
     return
       Math.abs(

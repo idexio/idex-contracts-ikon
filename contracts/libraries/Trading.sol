@@ -139,7 +139,7 @@ library Trading {
         Margin.LoadArguments(
           arguments.buy.wallet,
           arguments.buyIndexPrices,
-          arguments.indexPriceCollectionServiceWallet
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -153,7 +153,7 @@ library Trading {
         Margin.LoadArguments(
           arguments.sell.wallet,
           arguments.sellIndexPrices,
-          arguments.indexPriceCollectionServiceWallet
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
