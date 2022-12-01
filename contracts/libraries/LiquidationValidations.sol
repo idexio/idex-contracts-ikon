@@ -135,7 +135,7 @@ library LiquidationValidations {
   }
 
   function validatePositionBelowMinimumLiquidationQuoteQuantity(
-    uint64 positionBelowMinimumLiquidationPriceToleranceBasisPoints,
+    uint64 positionBelowMinimumLiquidationPriceTolerance,
     int64 liquidationQuoteQuantity,
     uint64 indexPrice,
     int64 positionSize
@@ -145,8 +145,8 @@ library LiquidationValidations {
       int64(indexPrice),
       int64(Constants.PIP_PRICE_MULTIPLIER)
     );
-    uint64 tolerance = (positionBelowMinimumLiquidationPriceToleranceBasisPoints *
-      Math.abs(expectedLiquidationQuoteQuantities)) / Constants.BASIS_POINTS_IN_TOTAL;
+    uint64 tolerance = (positionBelowMinimumLiquidationPriceTolerance * Math.abs(expectedLiquidationQuoteQuantities)) /
+      Constants.PIP_PRICE_MULTIPLIER;
 
     require(
       expectedLiquidationQuoteQuantities - int64(tolerance) <= liquidationQuoteQuantity &&

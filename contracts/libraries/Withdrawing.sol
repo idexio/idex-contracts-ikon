@@ -62,11 +62,7 @@ library Withdrawing {
       );
     }
     require(
-      Validations.isFeeQuantityValid(
-        arguments.withdrawal.gasFeeInPips,
-        arguments.withdrawal.grossQuantityInPips,
-        Constants.MAX_FEE_BASIS_POINTS
-      ),
+      Validations.isFeeQuantityValid(arguments.withdrawal.gasFeeInPips, arguments.withdrawal.grossQuantityInPips),
       "Excessive withdrawal fee"
     );
     bytes32 withdrawalHash = Validations.validateWithdrawalSignature(arguments.withdrawal);

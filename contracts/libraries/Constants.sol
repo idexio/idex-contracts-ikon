@@ -7,9 +7,6 @@ pragma solidity 0.8.17;
  */
 
 library Constants {
-  // 100 basis points/percent * 100 percent/total
-  uint64 public constant BASIS_POINTS_IN_TOTAL = 100 * 100;
-
   bytes public constant ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE =
     abi.encodePacked(
       "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
@@ -26,7 +23,7 @@ library Constants {
   uint256 public constant MAX_DELEGATE_KEY_EXPIRATION_PERIOD_IN_MS = 365 * 24 * 60 * 60 * 1000;
 
   // 20%
-  uint64 public constant MAX_FEE_BASIS_POINTS = 20 * 100;
+  uint64 public constant MAX_FEE_MULTIPLIER = 20 * 10 ** 6;
 
   uint64 public constant MS_IN_ONE_HOUR = 1000 * 60 * 60;
 

@@ -9,9 +9,9 @@ import { String } from "./String.sol";
 import { Market, IndexPrice, Withdrawal } from "./Structs.sol";
 
 library Validations {
-  function isFeeQuantityValid(uint64 fee, uint64 total, uint64 max) internal pure returns (bool) {
-    uint64 feeBasisPoints = (fee * Constants.BASIS_POINTS_IN_TOTAL) / total;
-    return feeBasisPoints <= max;
+  function isFeeQuantityValid(uint64 fee, uint64 total) internal pure returns (bool) {
+    uint64 feeMultiplier = (fee * Constants.PIP_PRICE_MULTIPLIER) / total;
+    return feeMultiplier <= Constants.MAX_FEE_MULTIPLIER;
   }
 
   function validateAndUpdateIndexPrice(

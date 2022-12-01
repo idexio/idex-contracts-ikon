@@ -32,7 +32,7 @@ library Liquidation {
     IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
-    uint64 dustPositionLiquidationPriceToleranceBasisPoints;
+    uint64 dustPositionLiquidationPriceTolerance;
     address insuranceFundWallet;
     address[] indexPriceCollectionServiceWallets;
   }
@@ -335,7 +335,7 @@ library Liquidation {
     // Validate quote quantity
     Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
     LiquidationValidations.validatePositionBelowMinimumLiquidationQuoteQuantity(
-      arguments.dustPositionLiquidationPriceToleranceBasisPoints,
+      arguments.dustPositionLiquidationPriceTolerance,
       arguments.liquidationQuoteQuantityInPips,
       indexPrice.price,
       positionSizeInPips

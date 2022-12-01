@@ -73,21 +73,13 @@ library OrderBookTradeValidations {
       require(Math.abs(trade.makerFeeQuantityInPips) <= trade.takerFeeQuantityInPips, "Excessive maker rebate");
     } else {
       require(
-        Validations.isFeeQuantityValid(
-          uint64(trade.makerFeeQuantityInPips),
-          trade.quoteQuantityInPips,
-          Constants.MAX_FEE_BASIS_POINTS
-        ),
+        Validations.isFeeQuantityValid(uint64(trade.makerFeeQuantityInPips), trade.quoteQuantityInPips),
         "Excessive maker fee"
       );
     }
 
     require(
-      Validations.isFeeQuantityValid(
-        trade.takerFeeQuantityInPips,
-        trade.quoteQuantityInPips,
-        Constants.MAX_FEE_BASIS_POINTS
-      ),
+      Validations.isFeeQuantityValid(trade.takerFeeQuantityInPips, trade.quoteQuantityInPips),
       "Excessive taker fee"
     );
   }

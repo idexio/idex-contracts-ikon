@@ -43,9 +43,9 @@ contract Exchange_v4 is IExchange, Owned {
   event DelegateKeyExpirationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
    * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
-   * with `setPositionBelowMinimumLiquidationPriceToleranceBasisPoints`
+   * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
    */
-  event PositionBelowMinimumLiquidationPriceToleranceChanged(uint256 previousValue, uint256 newValue);
+  event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
@@ -112,7 +112,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   uint256 _chainPropagationPeriodInBlocks;
   uint64 _delegateKeyExpirationPeriodInMs;
-  uint64 _positionBelowMinimumLiquidationPriceToleranceBasisPoints;
+  uint64 _positionBelowMinimumLiquidationPriceToleranceMultiplier;
   address _dispatcherWallet;
   address _exitFundWallet;
   // TODO Upgrade through Governance
@@ -221,26 +221,26 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Sets a new position below minimum liquidation price tolerance
+   * @notice Sets a new position below minimum liquidation price tolerance multiplier
    *
-   * @param newPositionBelowMinimumLiquidationPriceToleranceBasisPoints The new position below minimum liquidation price tolerance
-   * expressed as basis points. Must be less than `Constants.MAX_FEE_BASIS_POINTS`
+   * @param newPositionBelowMinimumLiquidationPriceToleranceMultiplier The new position below minimum liquidation price
+   * tolerance multiplier expressed in decimal pips * 10^8. Must be less than `Constants.MAX_FEE_MULTIPLIER`
    */
-  function setPositionBelowMinimumLiquidationPriceToleranceBasisPoints(
-    uint64 newPositionBelowMinimumLiquidationPriceToleranceBasisPoints
+  function setPositionBelowMinimumLiquidationPriceToleranceMultiplier(
+    uint64 newPositionBelowMinimumLiquidationPriceToleranceMultiplier
   ) external onlyAdmin {
     // TODO Do we want a separate constant cap for this?
     require(
-      newPositionBelowMinimumLiquidationPriceToleranceBasisPoints < Constants.MAX_FEE_BASIS_POINTS,
+      newPositionBelowMinimumLiquidationPriceToleranceMultiplier < Constants.MAX_FEE_MULTIPLIER,
       "Must be less than 20 percent"
     );
 
-    uint64 oldPositionBelowMinimumLiquidationPriceToleranceBasisPoints = _positionBelowMinimumLiquidationPriceToleranceBasisPoints;
-    _positionBelowMinimumLiquidationPriceToleranceBasisPoints = newPositionBelowMinimumLiquidationPriceToleranceBasisPoints;
+    uint64 oldPositionBelowMinimumLiquidationPriceToleranceMultiplier = _positionBelowMinimumLiquidationPriceToleranceMultiplier;
+    _positionBelowMinimumLiquidationPriceToleranceMultiplier = newPositionBelowMinimumLiquidationPriceToleranceMultiplier;
 
-    emit PositionBelowMinimumLiquidationPriceToleranceChanged(
-      oldPositionBelowMinimumLiquidationPriceToleranceBasisPoints,
-      newPositionBelowMinimumLiquidationPriceToleranceBasisPoints
+    emit PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(
+      oldPositionBelowMinimumLiquidationPriceToleranceMultiplier,
+      newPositionBelowMinimumLiquidationPriceToleranceMultiplier
     );
   }
 
@@ -511,7 +511,7 @@ contract Exchange_v4 is IExchange, Owned {
         liquidationQuoteQuantityInPips,
         insuranceFundIndexPrices,
         liquidatingWalletIndexPrices,
-        _positionBelowMinimumLiquidationPriceToleranceBasisPoints,
+        _positionBelowMinimumLiquidationPriceToleranceMultiplier,
         insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
