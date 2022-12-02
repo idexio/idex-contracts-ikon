@@ -24,12 +24,13 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       closureDeleveraging: string;
       depositing: string;
       funding: string;
-      liquidation: string;
       margin: string;
       marketAdmin: string;
       nonceInvalidations: string;
       positionBelowMinimumLiquidation: string;
+      positionInDeactivatedMarketLiquidation: string;
       trading: string;
+      walletLiquidation: string;
       withdrawing: string;
     },
     ownerWalletPrivateKey: string,
@@ -44,8 +45,6 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
       ['contracts/libraries/Funding.sol:Funding']: libraryAddresses.funding,
-      ['contracts/libraries/Liquidation.sol:Liquidation']:
-        libraryAddresses.liquidation,
       ['contracts/libraries/Margin.sol:Margin']: libraryAddresses.margin,
       ['contracts/libraries/MarketAdmin.sol:MarketAdmin']:
         libraryAddresses.marketAdmin,
@@ -53,7 +52,11 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
         libraryAddresses.nonceInvalidations,
       ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
         libraryAddresses.positionBelowMinimumLiquidation,
+      ['contracts/libraries/PositionInDeactivatedMarketLiquidation.sol:PositionInDeactivatedMarketLiquidation']:
+        libraryAddresses.positionInDeactivatedMarketLiquidation,
       ['contracts/libraries/Trading.sol:Trading']: libraryAddresses.trading,
+      ['contracts/libraries/WalletLiquidation.sol:WalletLiquidation']:
+        libraryAddresses.walletLiquidation,
       ['contracts/libraries/Withdrawing.sol:Withdrawing']:
         libraryAddresses.withdrawing,
     };

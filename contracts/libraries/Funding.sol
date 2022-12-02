@@ -58,6 +58,57 @@ library Funding {
       );
   }
 
+  function publishFundingMutipliers(
+    int64[] memory fundingRatesInPips,
+    IndexPrice[] memory indexPrices,
+    address[] memory indexPriceCollectionServiceWallets,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+  ) public {
+    for (uint8 i = 0; i < indexPrices.length; i++) {
+      (IndexPrice memory indexPrice, int64 fundingRateInPips) = (indexPrices[i], fundingRatesInPips[i]);
+      Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
+
+      uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+        indexPrice.baseAssetSymbol
+      ];
+      require(
+        lastPublishTimestampInMs > 0
+          ? lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS == indexPrice.timestampInMs
+          : indexPrice.timestampInMs % Constants.FUNDING_PERIOD_IN_MS == 0,
+        "Input price not period aligned"
+      );
+
+      int64 newFundingMultiplier = Math.multiplyPipsByFraction(
+        int64(indexPrice.price),
+        fundingRateInPips,
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
+
+      fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
+
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = indexPrice.timestampInMs;
+    }
+  }
+
+  function updateWalletFunding(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
+    updateWalletFundingInternal(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+  }
+
   function loadOutstandingWalletFundingInternal(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -111,57 +162,6 @@ library Funding {
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
-  }
-
-  function publishFundingMutipliers(
-    int64[] memory fundingRatesInPips,
-    IndexPrice[] memory indexPrices,
-    address[] memory indexPriceCollectionServiceWallets,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) public {
-    for (uint8 i = 0; i < indexPrices.length; i++) {
-      (IndexPrice memory indexPrice, int64 fundingRateInPips) = (indexPrices[i], fundingRatesInPips[i]);
-      Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
-
-      uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-        indexPrice.baseAssetSymbol
-      ];
-      require(
-        lastPublishTimestampInMs > 0
-          ? lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS == indexPrice.timestampInMs
-          : indexPrice.timestampInMs % Constants.FUNDING_PERIOD_IN_MS == 0,
-        "Input price not period aligned"
-      );
-
-      int64 newFundingMultiplier = Math.multiplyPipsByFraction(
-        int64(indexPrice.price),
-        fundingRateInPips,
-        int64(Constants.PIP_PRICE_MULTIPLIER)
-      );
-
-      fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
-
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = indexPrice.timestampInMs;
-    }
-  }
-
-  function updateWalletFunding(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public {
-    updateWalletFundingInternal(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
-    );
   }
 
   function updateWalletFundingInternal(

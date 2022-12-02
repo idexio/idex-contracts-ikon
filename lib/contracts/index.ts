@@ -24,12 +24,13 @@ export type LibraryName =
   | 'Deleveraging'
   | 'Depositing'
   | 'Funding'
-  | 'Liquidation'
   | 'Margin'
   | 'MarketAdmin'
   | 'NonceInvalidations'
   | 'PositionBelowMinimumLiquidation'
+  | 'PositionInDeactivatedMarketLiquidation'
   | 'Trading'
+  | 'WalletLiquidation'
   | 'Withdrawing';
 
 export async function deployLibrary(

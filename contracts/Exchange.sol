@@ -12,14 +12,15 @@ import { Depositing } from "./libraries/Depositing.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
-import { Liquidation } from "./libraries/Liquidation.sol";
 import { Margin } from "./libraries/Margin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
 import { Owned } from "./Owned.sol";
 import { PositionBelowMinimumLiquidation } from "./libraries/PositionBelowMinimumLiquidation.sol";
+import { PositionInDeactivatedMarketLiquidation } from "./libraries/PositionInDeactivatedMarketLiquidation.sol";
 import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
+import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
 import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, IndexPrice, Order, OrderBookTrade, NonceInvalidation, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
@@ -563,8 +564,8 @@ contract Exchange_v4 is IExchange, Owned {
     int64 liquidationQuoteQuantityInPips,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
-    Liquidation.liquidatePositionInDeactivatedMarket(
-      Liquidation.LiquidatePositionInDeactivatedMarketArguments(
+    PositionInDeactivatedMarketLiquidation.liquidate(
+      PositionInDeactivatedMarketLiquidation.Arguments(
         baseAssetSymbol,
         liquidatingWallet,
         liquidationQuoteQuantityInPips,
@@ -590,8 +591,8 @@ contract Exchange_v4 is IExchange, Owned {
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
-    Liquidation.liquidateWallet(
-      Liquidation.LiquidateWalletArguments(
+    WalletLiquidation.liquidate(
+      WalletLiquidation.Arguments(
         LiquidationType.WalletInMaintenance,
         insuranceFundWallet,
         insuranceFundIndexPrices,
@@ -621,8 +622,8 @@ contract Exchange_v4 is IExchange, Owned {
   ) external onlyDispatcher {
     require(exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
 
-    exitFundPositionOpenedAtBlockNumber = Liquidation.liquidateWallet(
-      Liquidation.LiquidateWalletArguments(
+    exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate(
+      WalletLiquidation.Arguments(
         LiquidationType.WalletInMaintenanceDuringSystemRecovery,
         exitFundWallet,
         new IndexPrice[](0),
@@ -652,8 +653,8 @@ contract Exchange_v4 is IExchange, Owned {
   ) external onlyDispatcher {
     require(walletExits[liquidatingWallet].exists, "Wallet not exited");
 
-    Liquidation.liquidateWallet(
-      Liquidation.LiquidateWalletArguments(
+    WalletLiquidation.liquidate(
+      WalletLiquidation.Arguments(
         LiquidationType.WalletExited,
         insuranceFundWallet,
         insuranceFundIndexPrices,
