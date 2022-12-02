@@ -234,9 +234,9 @@ library BalanceTracking {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    // Buyer receives base asset minus fees
+    // Buyer receives base asset
     balance = loadBalanceStructAndMigrateIfNeeded(self, arguments.buy.wallet, arguments.orderBookTrade.baseAssetSymbol);
-    if (arguments.sell.isReduceOnly) {
+    if (arguments.buy.isReduceOnly) {
       _validatePositionUpdatedTowardsZero(
         balance.balanceInPips,
         balance.balanceInPips + int64(arguments.orderBookTrade.baseQuantityInPips)

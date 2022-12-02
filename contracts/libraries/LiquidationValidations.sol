@@ -134,27 +134,6 @@ library LiquidationValidations {
     );
   }
 
-  function validatePositionBelowMinimumLiquidationQuoteQuantity(
-    uint64 positionBelowMinimumLiquidationPriceTolerance,
-    int64 liquidationQuoteQuantity,
-    uint64 indexPrice,
-    int64 positionSize
-  ) internal pure {
-    int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
-      positionSize,
-      int64(indexPrice),
-      int64(Constants.PIP_PRICE_MULTIPLIER)
-    );
-    uint64 tolerance = (positionBelowMinimumLiquidationPriceTolerance * Math.abs(expectedLiquidationQuoteQuantities)) /
-      Constants.PIP_PRICE_MULTIPLIER;
-
-    require(
-      expectedLiquidationQuoteQuantities - int64(tolerance) <= liquidationQuoteQuantity &&
-        expectedLiquidationQuoteQuantities + int64(tolerance) >= liquidationQuoteQuantity,
-      "Invalid liquidation quote quantity"
-    );
-  }
-
   // Private //
 
   function _calculateLiquidationQuoteQuantityToClosePositions(

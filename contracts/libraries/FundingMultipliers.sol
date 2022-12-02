@@ -30,11 +30,11 @@ library FundingMultipliers {
     uint64 fromTimestampInMs,
     uint64 toTimestampInMs
   ) internal view returns (int64) {
-    uint256 numberOfTrailingHours = (toTimestampInMs - fromTimestampInMs) / Constants.MS_IN_ONE_HOUR;
+    uint256 numberOfTrailingPeriods = (toTimestampInMs - fromTimestampInMs) / Constants.FUNDING_PERIOD_IN_MS;
     uint256 totalNumberOfEntries = self.length;
-    (uint256 startIndex, uint256 startOffset) = numberOfTrailingHours > totalNumberOfEntries * 4
+    (uint256 startIndex, uint256 startOffset) = numberOfTrailingPeriods > totalNumberOfEntries * 4
       ? (0, 0)
-      : (totalNumberOfEntries - (numberOfTrailingHours / 4), 4 - (numberOfTrailingHours % 4));
+      : (totalNumberOfEntries - (numberOfTrailingPeriods / 4), 4 - (numberOfTrailingPeriods % 4));
 
     int64 aggregateMultiplier = _calculateAggregateMultiplier(self[startIndex], startOffset);
     for (uint256 index = startIndex + 1; index < totalNumberOfEntries; index++) {
@@ -48,7 +48,7 @@ library FundingMultipliers {
     FundingMultiplierQuartet memory fundingMultipliers,
     uint256 offset
   ) private pure returns (int64) {
-    int64 aggregateMultiplier = 1;
+    int64 aggregateMultiplier = 0;
     if (offset == 0) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier0;
     }

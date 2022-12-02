@@ -17,6 +17,7 @@ import { Margin } from "./libraries/Margin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
 import { Owned } from "./Owned.sol";
+import { PositionBelowMinimumLiquidation } from "./libraries/PositionBelowMinimumLiquidation.sol";
 import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
@@ -391,8 +392,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Load the quantity filled so far for a partially filled orders
    *
    * @dev Invalidating an order nonce will not clear partial fill quantities for earlier orders
-   * because
-   * the gas cost would potentially be unbound
+   * because the gas cost would potentially be unbound
    *
    * @param orderHash The order hash as originally signed by placing wallet that uniquely
    * identifies an order
@@ -534,8 +534,8 @@ contract Exchange_v4 is IExchange, Owned {
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
-    Liquidation.liquidatePositionBelowMinimum(
-      Liquidation.LiquidatePositionBelowMinimumArguments(
+    PositionBelowMinimumLiquidation.liquidate(
+      PositionBelowMinimumLiquidation.Arguments(
         baseAssetSymbol,
         liquidatingWallet,
         liquidationQuoteQuantityInPips,
@@ -908,10 +908,10 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice True-ups base position funding debits/credits by walking all funding multipliers
-   * published since last position update
+   * @notice True-ups base position funding debits/credits by walking all funding multipliers published since last position
+   * update
    */
-  function updateWalletFunding(address wallet) public onlyDispatcher {
+  function updateWalletFunding(address wallet) public {
     Funding.updateWalletFunding(
       wallet,
       balanceTracking,
@@ -993,10 +993,9 @@ contract Exchange_v4 is IExchange, Owned {
   // Wallet exits //
 
   /**
-   * @notice Flags the sending wallet as exited, immediately disabling deposits and on-chain
-   * intitiation of liquidity changes upon mining. After the Chain Propagation Period passes
-   * trades, withdrawals, and liquidity change executions are also disabled for the wallet,
-   * and assets may then be withdrawn one at a time via `withdrawExit`
+   * @notice Flags the sending wallet as exited, immediately disabling deposits upon mining. After the Chain
+   * Propagation Period passes trades and withdrawals are also disabled for the wallet, and quote asset may then be
+   * withdrawn via `withdrawExit`
    */
   function exitWallet() external {
     require(!walletExits[msg.sender].exists, "Wallet already exited");
@@ -1007,9 +1006,8 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation
+   * @notice Close all open positions and withdraw the net quote balance for an exited wallet. The Chain Propagation
    * Period must have already passed since calling `exitWallet`
-   *
    */
   function withdrawExit(address wallet) external {
     require(_isWalletExitFinalized(wallet), "Wallet exit not finalized");

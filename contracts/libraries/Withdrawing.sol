@@ -6,6 +6,7 @@ import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { ExitFund } from "./ExitFund.sol";
+import { Hashing } from "./Hashing.sol";
 import { ICustodian } from "./Interfaces.sol";
 import { Funding } from "./Funding.sol";
 import { Liquidation } from "./Liquidation.sol";
@@ -65,7 +66,7 @@ library Withdrawing {
       Validations.isFeeQuantityValid(arguments.withdrawal.gasFeeInPips, arguments.withdrawal.grossQuantityInPips),
       "Excessive withdrawal fee"
     );
-    bytes32 withdrawalHash = Validations.validateWithdrawalSignature(arguments.withdrawal);
+    bytes32 withdrawalHash = _validateWithdrawalSignature(arguments.withdrawal);
     require(!completedWithdrawalHashes[withdrawalHash], "Hash already withdrawn");
 
     Funding.updateWalletFundingInternal(
@@ -186,6 +187,17 @@ library Withdrawing {
       Constants.QUOTE_ASSET_SYMBOL
     );
     balance.balanceInPips -= quoteQuantityInPips;
+  }
+
+  function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {
+    bytes32 withdrawalHash = Hashing.getWithdrawalHash(withdrawal);
+
+    require(
+      Hashing.isSignatureValid(withdrawalHash, withdrawal.walletSignature, withdrawal.wallet),
+      "Invalid wallet signature"
+    );
+
+    return withdrawalHash;
   }
 
   function _withdrawExit(

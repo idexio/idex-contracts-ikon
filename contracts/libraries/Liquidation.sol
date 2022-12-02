@@ -22,22 +22,6 @@ library Liquidation {
   using SortedStringSet for string[];
 
   /**
-   * @dev Argument for `liquidatePositionBelowMinimum`
-   */
-  struct LiquidatePositionBelowMinimumArguments {
-    // External arguments
-    string baseAssetSymbol;
-    address liquidatingWallet;
-    int64 liquidationQuoteQuantityInPips; // For the position being liquidated
-    IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
-    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
-    // Exchange state
-    uint64 dustPositionLiquidationPriceTolerance;
-    address insuranceFundWallet;
-    address[] indexPriceCollectionServiceWallets;
-  }
-
-  /**
    * @dev Argument for `liquidatePositionInDeactivatedMarket`
    */
   struct LiquidatePositionInDeactivatedMarketArguments {
@@ -63,74 +47,6 @@ library Liquidation {
     int64[] liquidationQuoteQuantitiesInPips;
     // Exchange state
     address[] indexPriceCollectionServiceWallets;
-  }
-
-  function liquidatePositionBelowMinimum(
-    Liquidation.LiquidatePositionBelowMinimumArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public {
-    Funding.updateWalletFundingInternal(
-      arguments.liquidatingWallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
-    );
-    Funding.updateWalletFundingInternal(
-      arguments.insuranceFundWallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
-    );
-
-    _liquidatePositionBelowMinimum(
-      arguments,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-  }
-
-  function _liquidatePositionBelowMinimum(
-    LiquidatePositionBelowMinimumArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private {
-    (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
-        Margin.LoadArguments(
-          arguments.liquidatingWallet,
-          arguments.liquidatingWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallets
-        ),
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    require(
-      totalAccountValueInPips >= int64(totalMaintenanceMarginRequirementInPips),
-      "Maintenance margin requirement not met"
-    );
-
-    _validateQuantitiesAndLiquidatePositionBelowMinimum(
-      arguments,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
   }
 
   function liquidatePositionInDeactivatedMarket(
@@ -272,11 +188,11 @@ library Liquidation {
     }
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
-    for (uint8 index = 0; index < baseAssetSymbols.length; index++) {
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       _validateQuoteQuantityAndLiquidatePosition(
-        index,
+        i,
         arguments,
-        marketsByBaseAssetSymbol[baseAssetSymbols[index]],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         totalAccountValueInPips,
         totalMaintenanceMarginRequirementInPips,
         balanceTracking,
@@ -304,52 +220,6 @@ library Liquidation {
         marketsByBaseAssetSymbol
       );
     }
-  }
-
-  function _validateQuantitiesAndLiquidatePositionBelowMinimum(
-    LiquidatePositionBelowMinimumArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private {
-    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
-      arguments,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    // Validate that position is under dust threshold
-    int64 positionSizeInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-      arguments.liquidatingWallet,
-      arguments.baseAssetSymbol
-    );
-    require(
-      Math.abs(positionSizeInPips) <
-        market
-          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .minimumPositionSizeInPips,
-      "Position size above minimum"
-    );
-
-    // Validate quote quantity
-    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
-    LiquidationValidations.validatePositionBelowMinimumLiquidationQuoteQuantity(
-      arguments.dustPositionLiquidationPriceTolerance,
-      arguments.liquidationQuoteQuantityInPips,
-      indexPrice.price,
-      positionSizeInPips
-    );
-
-    balanceTracking.updatePositionForLiquidation(
-      positionSizeInPips,
-      arguments.insuranceFundWallet,
-      arguments.liquidatingWallet,
-      market,
-      arguments.liquidationQuoteQuantityInPips,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet
-    );
   }
 
   function _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
@@ -444,21 +314,5 @@ library Liquidation {
     }
 
     require(market.exists && !market.isActive, "No inactive market found");
-  }
-
-  function _loadMarketAndIndexPrice(
-    LiquidatePositionBelowMinimumArguments memory arguments,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market, IndexPrice memory indexPrice) {
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
-        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-        indexPrice = arguments.liquidatingWalletIndexPrices[i];
-      }
-    }
-
-    require(market.exists && market.isActive, "No active market found");
   }
 }

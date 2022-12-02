@@ -44,7 +44,7 @@ enum OrderSide {
 enum OrderTimeInForce {
   // Good until cancelled
   gtc,
-  // Good until crossing
+  // Good until crossing (post-only)
   gtx,
   // Immediate or cancel
   ioc,

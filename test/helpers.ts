@@ -126,6 +126,7 @@ export async function deployAndAssociateContracts(
     Margin,
     MarketAdmin,
     NonceInvalidations,
+    PositionBelowMinimumLiquidation,
     Trading,
     Withdrawing,
   ] = await Promise.all([
@@ -137,6 +138,7 @@ export async function deployAndAssociateContracts(
     ethers.getContractFactory('Margin'),
     ethers.getContractFactory('MarketAdmin'),
     ethers.getContractFactory('NonceInvalidations'),
+    ethers.getContractFactory('PositionBelowMinimumLiquidation'),
     ethers.getContractFactory('Trading'),
     ethers.getContractFactory('Withdrawing'),
   ]);
@@ -149,6 +151,7 @@ export async function deployAndAssociateContracts(
     margin,
     marketAdmin,
     nonceInvalidations,
+    positionBelowMinimumLiquidation,
     trading,
     withdrawing,
   ] = await Promise.all([
@@ -160,6 +163,7 @@ export async function deployAndAssociateContracts(
     (await Margin.deploy()).deployed(),
     (await MarketAdmin.deploy()).deployed(),
     (await NonceInvalidations.deploy()).deployed(),
+    (await PositionBelowMinimumLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
     (await Withdrawing.deploy()).deployed(),
   ]);
@@ -178,6 +182,8 @@ export async function deployAndAssociateContracts(
           Margin: margin.address,
           MarketAdmin: marketAdmin.address,
           NonceInvalidations: nonceInvalidations.address,
+          PositionBelowMinimumLiquidation:
+            positionBelowMinimumLiquidation.address,
           Trading: trading.address,
           Withdrawing: withdrawing.address,
         },

@@ -28,6 +28,7 @@ export type LibraryName =
   | 'Margin'
   | 'MarketAdmin'
   | 'NonceInvalidations'
+  | 'PositionBelowMinimumLiquidation'
   | 'Trading'
   | 'Withdrawing';
 

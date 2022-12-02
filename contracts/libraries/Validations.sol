@@ -49,15 +49,4 @@ library Validations {
     }
     require(isSignatureValid, "Invalid index signature");
   }
-
-  function validateWithdrawalSignature(Withdrawal memory withdrawal) internal pure returns (bytes32) {
-    bytes32 withdrawalHash = Hashing.getWithdrawalHash(withdrawal);
-
-    require(
-      Hashing.isSignatureValid(withdrawalHash, withdrawal.walletSignature, withdrawal.wallet),
-      "Invalid wallet signature"
-    );
-
-    return withdrawalHash;
-  }
 }

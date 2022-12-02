@@ -50,7 +50,7 @@ interface ICustodian {
 }
 
 /**
- * @notice Interface to Whistler Exchange contract
+ * @notice Interface to Exchange contract
  *
  * @dev Used for lazy balance migrations from old to new Exchange after upgrade
  */
@@ -66,7 +66,7 @@ interface IExchange {
   function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
 
   /**
-   * @notice Load a wallet's balance-tracking struct by asset address
+   * @notice Load a wallet's balance-tracking struct by asset symbol
    */
   function loadBalanceStructBySymbol(
     address wallet,

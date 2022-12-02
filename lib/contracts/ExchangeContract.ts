@@ -28,6 +28,7 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       margin: string;
       marketAdmin: string;
       nonceInvalidations: string;
+      positionBelowMinimumLiquidation: string;
       trading: string;
       withdrawing: string;
     },
@@ -50,6 +51,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
         libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
+      ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
+        libraryAddresses.positionBelowMinimumLiquidation,
       ['contracts/libraries/Trading.sol:Trading']: libraryAddresses.trading,
       ['contracts/libraries/Withdrawing.sol:Withdrawing']:
         libraryAddresses.withdrawing,

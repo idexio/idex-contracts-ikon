@@ -17,6 +17,7 @@
     "artifacts/contracts/libraries/Margin.sol/Margin.json",
     "artifacts/contracts/libraries/MarketAdmin.sol/MarketAdmin.json",
     "artifacts/contracts/libraries/NonceInvalidations.sol/NonceInvalidations.json",
+    "artifacts/contracts/libraries/Liquidation.sol/PositionBelowMinimumLiquidation.json",
     "artifacts/contracts/libraries/Trading.sol/Trading.json",
     "artifacts/contracts/libraries/Withdrawing.sol/Withdrawing.json",
     "build/lib",
@@ -33,8 +34,7 @@
   },
   "repository": "https://github.com/idexio/idex-contracts-ikon",
   "dependencies": {
-    "chai": "4.2.0",
-    "ethers": "5.6.5",
+    "ethers": "5.7.2",
     "uuid": "8.3.2"
   },
   "devDependencies": {
@@ -51,6 +51,7 @@
     "@types/uuid": "^8.3.4",
     "@typescript-eslint/eslint-plugin": "^4.29.1",
     "@typescript-eslint/parser": "^4.29.1",
+    "chai": "4.2.0",
     "commitlint": "^17.3.0",
     "dotenv": "^10.0.0",
     "eslint": "^8.28.0",

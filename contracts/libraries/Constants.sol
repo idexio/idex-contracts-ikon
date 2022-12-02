@@ -25,7 +25,8 @@ library Constants {
   // 20%
   uint64 public constant MAX_FEE_MULTIPLIER = 20 * 10 ** 6;
 
-  uint64 public constant MS_IN_ONE_HOUR = 1000 * 60 * 60;
+  // 8 hours
+  uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
 
   string public constant QUOTE_ASSET_SYMBOL = "USDC";
 

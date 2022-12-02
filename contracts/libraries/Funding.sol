@@ -129,12 +129,11 @@ library Funding {
       ];
       require(
         lastPublishTimestampInMs > 0
-          ? lastPublishTimestampInMs + Constants.MS_IN_ONE_HOUR == indexPrice.timestampInMs
-          : indexPrice.timestampInMs % Constants.MS_IN_ONE_HOUR == 0,
-        "Input price not hour-aligned"
+          ? lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS == indexPrice.timestampInMs
+          : indexPrice.timestampInMs % Constants.FUNDING_PERIOD_IN_MS == 0,
+        "Input price not period aligned"
       );
 
-      // TODO Cleanup typecasts
       int64 newFundingMultiplier = Math.multiplyPipsByFraction(
         int64(indexPrice.price),
         fundingRateInPips,
