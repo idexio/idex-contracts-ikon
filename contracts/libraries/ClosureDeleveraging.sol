@@ -8,9 +8,10 @@ import { DeleverageType } from "./Enums.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Margin } from "./Margin.sol";
 import { Math } from "./Math.sol";
 import { MarketOverrides } from "./MarketOverrides.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
@@ -147,8 +148,8 @@ library ClosureDeleveraging {
       );
     } else {
       // DeleverageType.ExitFundClosure
-      int64 totalAccountValue = Margin.loadTotalAccountValue(
-        Margin.LoadArguments(
+      int64 totalAccountValue = NonMutatingMargin.loadTotalAccountValueInternal(
+        NonMutatingMargin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
@@ -177,9 +178,8 @@ library ClosureDeleveraging {
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
-    // TODO Should this be maintenance margin?
-    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-      Margin.LoadArguments(
+    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+      NonMutatingMargin.LoadArguments(
         arguments.deleveragingWallet,
         arguments.deleveragingWalletIndexPrices,
         arguments.indexPriceCollectionServiceWallets

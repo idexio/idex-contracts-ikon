@@ -4,7 +4,7 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { FundingMultipliers } from "./FundingMultipliers.sol";
 import { Math } from "./Math.sol";
-import { Margin } from "./Margin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
@@ -34,7 +34,7 @@ library Funding {
   }
 
   function loadTotalAccountValueIncludingOutstandingWalletFunding(
-    Margin.LoadArguments memory arguments,
+    NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
@@ -42,7 +42,7 @@ library Funding {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64) {
     return
-      Margin.loadTotalAccountValue(
+      NonMutatingMargin.loadTotalAccountValueInternal(
         arguments,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,

@@ -4,7 +4,8 @@ pragma solidity 0.8.17;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Funding } from "./Funding.sol";
-import { Margin } from "./Margin.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
 import { OrderSide, OrderType } from "./Enums.sol";
 import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, IndexPrice, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
@@ -129,8 +130,8 @@ library Trading {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     require(
-      Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        Margin.LoadArguments(
+      MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+        NonMutatingMargin.LoadArguments(
           arguments.buy.wallet,
           arguments.buyWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
@@ -143,8 +144,8 @@ library Trading {
       "Initial margin requirement not met for buy wallet"
     );
     require(
-      Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        Margin.LoadArguments(
+      MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+        NonMutatingMargin.LoadArguments(
           arguments.sell.wallet,
           arguments.sellWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets

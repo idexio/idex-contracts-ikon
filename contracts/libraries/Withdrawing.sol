@@ -9,9 +9,10 @@ import { ExitFund } from "./ExitFund.sol";
 import { Hashing } from "./Hashing.sol";
 import { ICustodian } from "./Interfaces.sol";
 import { Funding } from "./Funding.sol";
-import { Margin } from "./Margin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, IndexPrice, Withdrawal } from "./Structs.sol";
 
@@ -85,8 +86,8 @@ library Withdrawing {
     );
 
     require(
-      Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        Margin.LoadArguments(
+      MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+        NonMutatingMargin.LoadArguments(
           arguments.withdrawal.wallet,
           arguments.indexPrices,
           arguments.indexPriceCollectionServiceWallets
@@ -174,8 +175,12 @@ library Withdrawing {
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantity) {
-    int64 totalAccountValue = Margin.loadTotalWalletExitAccountValue(
-      Margin.LoadArguments(arguments.wallet, new IndexPrice[](0), arguments.indexPriceCollectionServiceWallets),
+    int64 totalAccountValue = NonMutatingMargin.loadTotalWalletExitAccountValue(
+      NonMutatingMargin.LoadArguments(
+        arguments.wallet,
+        new IndexPrice[](0),
+        arguments.indexPriceCollectionServiceWallets
+      ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol

@@ -24,9 +24,9 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       closureDeleveraging: string;
       depositing: string;
       funding: string;
-      margin: string;
       marketAdmin: string;
       nonceInvalidations: string;
+      nonMutatingMargin: string;
       positionBelowMinimumLiquidation: string;
       positionInDeactivatedMarketLiquidation: string;
       trading: string;
@@ -45,11 +45,12 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
       ['contracts/libraries/Funding.sol:Funding']: libraryAddresses.funding,
-      ['contracts/libraries/Margin.sol:Margin']: libraryAddresses.margin,
       ['contracts/libraries/MarketAdmin.sol:MarketAdmin']:
         libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
+      ['contracts/libraries/NonMutatingMargin.sol:NonMutatingMargin']:
+        libraryAddresses.nonMutatingMargin,
       ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
         libraryAddresses.positionBelowMinimumLiquidation,
       ['contracts/libraries/PositionInDeactivatedMarketLiquidation.sol:PositionInDeactivatedMarketLiquidation']:

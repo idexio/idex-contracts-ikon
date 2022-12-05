@@ -6,9 +6,10 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
 import { Math } from "./Math.sol";
-import { FundingMultiplierQuartet, IndexPrice } from "./Structs.sol";
-import { Margin, Market } from "./Margin.sol";
+import { FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
 import { MarketOverrides } from "./MarketOverrides.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
 
@@ -58,9 +59,9 @@ library PositionBelowMinimumLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
-        Margin.LoadArguments(
+        NonMutatingMargin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets

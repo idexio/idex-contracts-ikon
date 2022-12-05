@@ -12,7 +12,7 @@ import { Depositing } from "./libraries/Depositing.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
-import { Margin } from "./libraries/Margin.sol";
+import { NonMutatingMargin } from "./libraries/NonMutatingMargin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
 import { Owned } from "./Owned.sol";
@@ -944,7 +944,7 @@ contract Exchange_v4 is IExchange, Owned {
   function loadTotalAccountValue(address wallet, IndexPrice[] calldata indexPrices) external view returns (int64) {
     return
       Funding.loadTotalAccountValueIncludingOutstandingWalletFunding(
-        Margin.LoadArguments(wallet, indexPrices, indexPriceCollectionServiceWallets),
+        NonMutatingMargin.LoadArguments(wallet, indexPrices, indexPriceCollectionServiceWallets),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
@@ -961,7 +961,7 @@ contract Exchange_v4 is IExchange, Owned {
     IndexPrice[] calldata indexPrices
   ) external view returns (uint64) {
     return
-      Margin.loadTotalInitialMarginRequirement(
+      NonMutatingMargin.loadTotalInitialMarginRequirement(
         wallet,
         indexPrices,
         indexPriceCollectionServiceWallets,
@@ -980,7 +980,7 @@ contract Exchange_v4 is IExchange, Owned {
     IndexPrice[] calldata indexPrices
   ) external view returns (uint64) {
     return
-      Margin.loadTotalMaintenanceMarginRequirement(
+      NonMutatingMargin.loadTotalMaintenanceMarginRequirement(
         wallet,
         indexPrices,
         indexPriceCollectionServiceWallets,

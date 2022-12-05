@@ -8,9 +8,11 @@ import { DeleverageType } from "./Enums.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Margin } from "./Margin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { Math } from "./Math.sol";
 import { MarketOverrides } from "./MarketOverrides.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
@@ -81,9 +83,9 @@ library AcquisitionDeleveraging {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     // Validate that the liquidating account has fallen below margin requirements
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
-        Margin.LoadArguments(
+        NonMutatingMargin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
@@ -192,8 +194,8 @@ library AcquisitionDeleveraging {
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
-    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-      Margin.LoadArguments(
+    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+      NonMutatingMargin.LoadArguments(
         arguments.deleveragingWallet,
         arguments.deleveragingWalletIndexPrices,
         arguments.indexPriceCollectionServiceWallets
@@ -218,7 +220,7 @@ library AcquisitionDeleveraging {
       baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet]
     );
 
-    Margin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments = Margin
+    NonMutatingMargin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments = NonMutatingMargin
       .ValidateInsuranceFundCannotLiquidateWalletArguments(
         arguments.insuranceFundWallet,
         arguments.liquidatingWallet,
@@ -267,7 +269,7 @@ library AcquisitionDeleveraging {
       }
     }
 
-    Margin.validateInsuranceFundCannotLiquidateWallet(
+    NonMutatingMargin.validateInsuranceFundCannotLiquidateWallet(
       loadArguments,
       balanceTracking,
       marketOverridesByBaseAssetSymbolAndWallet

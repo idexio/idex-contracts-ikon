@@ -7,8 +7,9 @@ import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationType } from "./Enums.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Margin } from "./Margin.sol";
 import { MarketOverrides } from "./MarketOverrides.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
@@ -79,8 +80,8 @@ library WalletLiquidation {
       resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockNumber;
 
       // Validate that the Insurance Fund still meets its initial margin requirements
-      Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-        Margin.LoadArguments(
+      MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+        NonMutatingMargin.LoadArguments(
           arguments.counterpartyWallet,
           arguments.counterpartyWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
@@ -102,9 +103,9 @@ library WalletLiquidation {
   ) private {
     // FIXME Do not allow liquidation of insurance or exit funds
 
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
-        Margin.LoadArguments(
+        NonMutatingMargin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets

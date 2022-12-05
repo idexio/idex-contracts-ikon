@@ -5,7 +5,8 @@ pragma solidity 0.8.17;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Margin } from "./Margin.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
 
@@ -43,9 +44,9 @@ library PositionInDeactivatedMarketLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
-        Margin.LoadArguments(
+        NonMutatingMargin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
