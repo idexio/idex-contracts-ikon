@@ -22,7 +22,7 @@ import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, IndexPrice, Order, OrderBookTrade, NonceInvalidation, Withdrawal } from "./libraries/Structs.sol";
+import { Balance, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -128,7 +128,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Milliseconds since epoch, always aligned to hour
   mapping(string => uint64) public lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // Wallet-specific market parameter overrides
-  mapping(string => mapping(address => Market)) public marketOverridesByBaseAssetSymbolAndWallet;
+  mapping(string => mapping(address => MarketOverrides)) public marketOverridesByBaseAssetSymbolAndWallet;
   // Markets
   mapping(string => Market) public marketsByBaseAssetSymbol;
   // CLOB - mapping of wallet => last invalidated timestampInMs
@@ -879,10 +879,15 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   // TODO Validations
-  function setMarketOverrides(address wallet, Market calldata marketOverrides) external onlyAdmin {
+  function setMarketOverrides(
+    string calldata baseAssetSymbol,
+    OverridableMarketFields calldata overridableFields,
+    address wallet
+  ) external onlyAdmin {
     MarketAdmin.setMarketOverrides(
+      baseAssetSymbol,
+      overridableFields,
       wallet,
-      marketOverrides,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );

@@ -493,15 +493,17 @@ describe('Exchange', function () {
           isActive: false,
           baseAssetSymbol: 'BTC',
           chainlinkPriceFeedAddress: chainlinkAggregator.address,
-          initialMarginFraction: '5000000',
-          maintenanceMarginFraction: '3000000',
-          incrementalInitialMarginFraction: '1000000',
-          baselinePositionSize: '14000000000',
-          incrementalPositionSize: '2800000000',
-          maximumPositionSize: '282000000000',
-          minimumPositionSize: '2000000000',
           lastIndexPriceTimestampInMs: 0,
           indexPriceAtDeactivation: 0,
+          overridableFields: {
+            initialMarginFraction: '5000000',
+            maintenanceMarginFraction: '3000000',
+            incrementalInitialMarginFraction: '1000000',
+            baselinePositionSize: '14000000000',
+            incrementalPositionSize: '2800000000',
+            maximumPositionSize: '282000000000',
+            minimumPositionSize: '2000000000',
+          },
         })
       ).wait();
       (await exchange.connect(dispatcher).activateMarket('BTC')).wait();

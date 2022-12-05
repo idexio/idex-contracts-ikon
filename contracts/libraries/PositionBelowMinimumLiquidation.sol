@@ -6,16 +6,16 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
 import { Math } from "./Math.sol";
-import { FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
-import { MarketOverrides } from "./MarketOverrides.sol";
+import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
+import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library PositionBelowMinimumLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
-  using MarketOverrides for Market;
+  using MarketHelper for Market;
 
   /**
    * @dev Argument for `liquidate`
@@ -39,7 +39,7 @@ library PositionBelowMinimumLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFundingInternal(
@@ -124,7 +124,7 @@ library PositionBelowMinimumLiquidation {
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
@@ -142,6 +142,7 @@ library PositionBelowMinimumLiquidation {
       Math.abs(positionSize) <
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
           .minimumPositionSize,
       "Position size above minimum"
     );

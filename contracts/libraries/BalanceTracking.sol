@@ -5,15 +5,15 @@ pragma solidity 0.8.17;
 import { Constants } from "./Constants.sol";
 import { IExchange } from "./Interfaces.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { MarketOverrides } from "./MarketOverrides.sol";
+import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { OrderSide } from "./Enums.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { UUID } from "./UUID.sol";
-import { Balance, ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, Withdrawal } from "./Structs.sol";
+import { Balance, ExecuteOrderBookTradeArguments, Market, MarketOverrides, Order, OrderBookTrade, Withdrawal } from "./Structs.sol";
 
 library BalanceTracking {
-  using MarketOverrides for Market;
+  using MarketHelper for Market;
   using SortedStringSet for string[];
 
   struct Storage {
@@ -46,7 +46,7 @@ library BalanceTracking {
     Market memory market,
     int64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     _updatePositionForDeleverageOrLiquidation(
       self,
@@ -69,7 +69,7 @@ library BalanceTracking {
     Market memory market,
     int64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     _updatePositionForDeleverageOrLiquidation(
       self,
@@ -138,7 +138,7 @@ library BalanceTracking {
     int64 totalAccountValue,
     address wallet,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (int64 quoteQuantity) {
     // Calculate amount of quote to close position
     Balance storage balance = loadBalanceStructAndMigrateIfNeeded(self, wallet, market.baseAssetSymbol);
@@ -166,7 +166,12 @@ library BalanceTracking {
       marketOverridesByBaseAssetSymbolAndWallet
     );
     balance = loadBalanceStructAndMigrateIfNeeded(self, exitFundWallet, market.baseAssetSymbol);
-    _updatePosition(balance, positionSize, quoteQuantity, marketWithExitFundOverrides.maximumPositionSize);
+    _updatePosition(
+      balance,
+      positionSize,
+      quoteQuantity,
+      marketWithExitFundOverrides.overridableFields.maximumPositionSize
+    );
     _updateOpenPositionsForWallet(
       exitFundWallet,
       market.baseAssetSymbol,
@@ -189,7 +194,7 @@ library BalanceTracking {
     ExecuteOrderBookTradeArguments memory arguments,
     Market memory market,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     Balance storage balance;
 
@@ -228,6 +233,7 @@ library BalanceTracking {
       arguments.orderBookTrade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.sell.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
         .maximumPositionSize
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
@@ -252,6 +258,7 @@ library BalanceTracking {
       arguments.orderBookTrade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.buy.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
         .maximumPositionSize
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
@@ -444,7 +451,7 @@ library BalanceTracking {
     Market memory market,
     int64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
     Balance storage balance;
 
@@ -457,6 +464,7 @@ library BalanceTracking {
       quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
         .maximumPositionSize
     );
     _updateOpenPositionsForWallet(
@@ -477,6 +485,7 @@ library BalanceTracking {
       quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(counterpartyWallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
         .maximumPositionSize
     );
     _updateOpenPositionsForWallet(

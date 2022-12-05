@@ -69,6 +69,18 @@ struct Market {
   string baseAssetSymbol;
   // Chainlink price feed aggregator contract to use for on-chain exit withdrawals
   IChainlinkAggregator chainlinkPriceFeedAddress;
+  // The timestamp of the latest index price provided for this market
+  uint64 lastIndexPriceTimestampInMs;
+  // Set when deactivating a market to determine price for all position liquidations in that market
+  uint64 indexPriceAtDeactivation;
+  // Fields that can be overriden per wallet
+  OverridableMarketFields overridableFields;
+}
+
+/**
+ * @notice Argument type for `Exchange.setMarketOverrides`
+ */
+struct OverridableMarketFields {
   // The margin fraction needed to open a position
   uint64 initialMarginFraction;
   // The margin fraction required to prevent liquidation
@@ -85,10 +97,16 @@ struct Market {
   uint64 maximumPositionSize;
   // The min position size in base token
   uint64 minimumPositionSize;
-  // The timestamp of the latest index price provided for this market
-  uint64 lastIndexPriceTimestampInMs;
-  // Set when deactivating a market to determine price for all position liquidations in that market
-  uint64 indexPriceAtDeactivation;
+}
+
+/**
+ * @notice Internally used struct to track market overrides per wallet
+ */
+struct MarketOverrides {
+  // Flag to distinguish from empty struct
+  bool exists;
+  // Market fields that can be overriden per wallet
+  OverridableMarketFields overridableFields;
 }
 
 /**

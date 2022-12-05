@@ -8,7 +8,7 @@ import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
 import { OrderSide, OrderType } from "./Enums.sol";
-import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, IndexPrice, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
+import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, IndexPrice, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
@@ -20,7 +20,7 @@ library Trading {
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
@@ -126,7 +126,7 @@ library Trading {
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     require(

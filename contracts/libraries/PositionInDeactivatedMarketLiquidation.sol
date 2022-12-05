@@ -8,7 +8,7 @@ import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
-import { FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
+import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -32,7 +32,7 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFundingInternal(

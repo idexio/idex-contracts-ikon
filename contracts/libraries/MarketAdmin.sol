@@ -5,7 +5,7 @@ pragma solidity 0.8.17;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { Validations } from "./Validations.sol";
-import { Market, IndexPrice } from "./Structs.sol";
+import { IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
 
 library MarketAdmin {
   // TODO Validations
@@ -50,17 +50,17 @@ library MarketAdmin {
 
   // TODO Validations
   function setMarketOverrides(
+    string memory baseAssetSymbol,
+    OverridableMarketFields memory overridableFields,
     address wallet,
-    Market memory marketOverrides,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) external {
-    require(marketsByBaseAssetSymbol[marketOverrides.baseAssetSymbol].exists, "Market does not exist");
+    require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Market does not exist");
 
-    marketOverrides.isActive = marketsByBaseAssetSymbol[marketOverrides.baseAssetSymbol].isActive;
-    marketOverrides.lastIndexPriceTimestampInMs = 0;
-    marketOverrides.indexPriceAtDeactivation = 0;
-
-    marketOverridesByBaseAssetSymbolAndWallet[marketOverrides.baseAssetSymbol][wallet] = marketOverrides;
+    marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
+      exists: true,
+      overridableFields: overridableFields
+    });
   }
 }

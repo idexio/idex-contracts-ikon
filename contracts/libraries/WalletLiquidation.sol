@@ -7,16 +7,16 @@ import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationType } from "./Enums.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { MarketOverrides } from "./MarketOverrides.sol";
+import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library WalletLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
-  using MarketOverrides for Market;
+  using MarketHelper for Market;
   using SortedStringSet for string[];
 
   /**
@@ -41,7 +41,7 @@ library WalletLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256 resultingExitFundPositionOpenedAtBlockNumber) {
     Funding.updateWalletFundingInternal(
@@ -98,7 +98,7 @@ library WalletLiquidation {
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     // FIXME Do not allow liquidation of insurance or exit funds
@@ -147,7 +147,7 @@ library WalletLiquidation {
     uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
     Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.liquidatingWallet,
@@ -167,6 +167,7 @@ library WalletLiquidation {
         arguments.liquidationQuoteQuantities[index],
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
           .maintenanceMarginFraction,
         arguments.liquidatingWalletIndexPrices[index].price,
         balance.balance,

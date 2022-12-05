@@ -4,17 +4,15 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
-import { MarketOverrides } from "./MarketOverrides.sol";
 import { Math } from "./Math.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, Market, IndexPrice } from "./Structs.sol";
+import { Balance, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 pragma solidity 0.8.17;
 
 library NonMutatingMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
-  using MarketOverrides for Market;
 
   struct LoadArguments {
     address wallet;
@@ -52,7 +50,7 @@ library NonMutatingMargin {
     address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 initialMarginRequirement) {
     return
@@ -73,7 +71,7 @@ library NonMutatingMargin {
     address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 maintenanceMarginRequirement) {
     return
@@ -120,7 +118,7 @@ library NonMutatingMargin {
     address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (uint64 initialMarginRequirement) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
@@ -151,7 +149,7 @@ library NonMutatingMargin {
     address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (uint64 maintenanceMarginRequirement) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
@@ -166,6 +164,7 @@ library NonMutatingMargin {
         indexPriceCollectionServiceWallets,
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
           .maintenanceMarginFraction,
         market,
         wallet,
@@ -214,7 +213,7 @@ library NonMutatingMargin {
   function _loadTotalInitialMarginRequirementAfterLiquidationAcquisition(
     ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private view returns (uint64 totalInitialMarginRequirement) {
     for (uint8 i = 0; i < arguments.markets.length; i++) {
       // Calculate Insurance Fund position size after acquiring position
@@ -255,7 +254,7 @@ library NonMutatingMargin {
     LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (uint64 maintenanceMarginRequirement) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
@@ -273,6 +272,7 @@ library NonMutatingMargin {
           int64(
             market
               .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+              .overridableFields
               .maintenanceMarginFraction
           ),
           int64(Constants.PIP_PRICE_MULTIPLIER)
@@ -315,7 +315,7 @@ library NonMutatingMargin {
   function validateInsuranceFundCannotLiquidateWallet(
     ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal view {
     int64 totalAccountValue = _loadTotalAccountValueAfterLiquidationAcquisition(arguments, balanceTracking);
 
@@ -338,7 +338,7 @@ library NonMutatingMargin {
   function _isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
     ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private view returns (bool isMaximumPositionSizeExceeded) {
     int64 insuranceFundPositionSize;
     int64 liquidatingWalletPositionSize;
@@ -361,6 +361,7 @@ library NonMutatingMargin {
         arguments
           .markets[i]
           .loadMarketWithOverridesForWallet(arguments.insuranceFundWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
           .maximumPositionSize
       ) {
         return true;

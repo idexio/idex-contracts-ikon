@@ -2,17 +2,17 @@
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
-import { MarketOverrides } from "./MarketOverrides.sol";
+import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { Validations } from "./Validations.sol";
-import { Market, IndexPrice } from "./Structs.sol";
+import { IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 pragma solidity 0.8.17;
 
 library MutatingMargin {
   using BalanceTracking for BalanceTracking.Storage;
-  using MarketOverrides for Market;
+  using MarketHelper for Market;
 
   struct ValidateInsuranceFundCannotLiquidateWalletArguments {
     address insuranceFundWallet;
@@ -27,7 +27,7 @@ library MutatingMargin {
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (bool) {
     return
@@ -52,7 +52,7 @@ library MutatingMargin {
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
     totalAccountValue = NonMutatingMargin.loadTotalAccountValueInternal(
@@ -79,7 +79,7 @@ library MutatingMargin {
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
     totalAccountValue = NonMutatingMargin.loadTotalAccountValueInternal(
@@ -102,7 +102,7 @@ library MutatingMargin {
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (uint64 initialMarginRequirement) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
@@ -130,7 +130,7 @@ library MutatingMargin {
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (uint64 maintenanceMarginRequirement) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
@@ -145,6 +145,7 @@ library MutatingMargin {
         indexPrice,
         market
           .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
           .maintenanceMarginFraction,
         market,
         balanceTracking
