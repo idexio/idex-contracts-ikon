@@ -136,7 +136,7 @@ library ClosureDeleveraging {
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
-    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
+    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
     if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
       LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(

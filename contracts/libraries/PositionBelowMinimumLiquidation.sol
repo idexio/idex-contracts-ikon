@@ -59,7 +59,7 @@ library PositionBelowMinimumLiquidation {
     );
 
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+      .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
@@ -146,7 +146,7 @@ library PositionBelowMinimumLiquidation {
     );
 
     // Validate quote quantity
-    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
+    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
     _validatePositionBelowMinimumLiquidationQuoteQuantity(
       arguments.dustPositionLiquidationPriceTolerance,
       arguments.liquidationQuoteQuantity,

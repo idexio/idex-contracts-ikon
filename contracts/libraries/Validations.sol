@@ -19,15 +19,15 @@ library Validations {
     Market storage market,
     address[] memory indexPriceCollectionServiceWallets
   ) internal {
-    validateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallets);
+    validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
     market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
   }
 
   function validateIndexPrice(
     IndexPrice memory indexPrice,
-    Market memory market,
-    address[] memory indexPriceCollectionServiceWallets
+    address[] memory indexPriceCollectionServiceWallets,
+    Market memory market
   ) internal pure {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
 

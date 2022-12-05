@@ -93,7 +93,7 @@ library BalanceTracking {
   ) internal {
     Balance storage balance;
 
-    // Wallet position decreases by specified base quantity
+    // Zero out wallet position for market
     balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, baseAssetSymbol);
     balance.balance = 0;
     balance.costBasis = 0;
@@ -280,7 +280,7 @@ library BalanceTracking {
 
     // Maker fee to fee wallet
     balance = loadBalanceStructAndMigrateIfNeeded(self, arguments.feeWallet, arguments.orderBookTrade.quoteAssetSymbol);
-    balance.balance += arguments.orderBookTrade.makerFeeQuantity + int64(arguments.orderBookTrade.takerFeeQuantity);
+    balance.balance += buyFee + sellFee;
   }
 
   // Withdrawing //
@@ -384,7 +384,7 @@ library BalanceTracking {
     if (balance.balance >= 0) {
       // Increase position
       balance.costBasis += int64(quoteQuantity);
-    } else if (balance.balance + int64(baseQuantity) > 0) {
+    } else if (newBalance > 0) {
       /*
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
@@ -410,7 +410,7 @@ library BalanceTracking {
     if (balance.balance <= 0) {
       // Increase position
       balance.costBasis -= int64(quoteQuantity);
-    } else if (balance.balance - int64(baseQuantity) < 0) {
+    } else if (newBalance < 0) {
       /*
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.

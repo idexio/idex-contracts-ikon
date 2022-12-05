@@ -103,7 +103,7 @@ library WalletLiquidation {
     // FIXME Do not allow liquidation of insurance or exit funds
 
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+      .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
@@ -154,8 +154,8 @@ library WalletLiquidation {
     );
     Validations.validateIndexPrice(
       arguments.liquidatingWalletIndexPrices[index],
-      market,
-      arguments.indexPriceCollectionServiceWallets
+      arguments.indexPriceCollectionServiceWallets,
+      market
     );
 
     if (

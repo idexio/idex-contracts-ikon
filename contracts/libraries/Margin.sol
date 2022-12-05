@@ -51,15 +51,15 @@ library Margin {
       );
 
       initialMarginRequirement += _loadMarginRequirement(
-        wallet,
-        market.baseAssetSymbol,
+        indexPrice,
+        indexPriceCollectionServiceWallets,
         market.loadInitialMarginFractionForWallet(
           balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
           wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         ),
-        indexPrice,
-        indexPriceCollectionServiceWallets,
+        market,
+        wallet,
         balanceTracking
       );
     }
@@ -82,13 +82,13 @@ library Margin {
       );
 
       maintenanceMarginRequirement += _loadMarginRequirement(
-        wallet,
-        market.baseAssetSymbol,
+        indexPrice,
+        indexPriceCollectionServiceWallets,
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFraction,
-        indexPrice,
-        indexPriceCollectionServiceWallets,
+        market,
+        wallet,
         balanceTracking
       );
     }
@@ -163,7 +163,7 @@ library Margin {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      Validations.validateIndexPrice(arguments.indexPrices[i], market, arguments.indexPriceCollectionServiceWallets);
+      Validations.validateIndexPrice(arguments.indexPrices[i], arguments.indexPriceCollectionServiceWallets, market);
 
       totalAccountValue += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
@@ -252,7 +252,7 @@ library Margin {
     }
   }
 
-  function loadTotalAccountValueAndMaintenanceMarginRequirement(
+  function loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
     Margin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -291,13 +291,13 @@ library Margin {
 
       initialMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
         arguments,
-        market,
+        indexPrice,
         market.loadInitialMarginFractionForWallet(
           balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
           arguments.wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         ),
-        indexPrice,
+        market,
         balanceTracking
       );
     }
@@ -349,11 +349,11 @@ library Margin {
 
       maintenanceMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
         arguments,
-        market,
+        indexPrice,
         market
           .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .maintenanceMarginFraction,
-        indexPrice,
+        market,
         balanceTracking
       );
     }
@@ -449,21 +449,20 @@ library Margin {
   }
 
   function _loadMarginRequirement(
-    address wallet,
-    string memory baseAssetSymbol,
-    uint64 marginFraction,
     IndexPrice memory indexPrice,
     address[] memory indexPriceCollectionServiceWallets,
+    uint64 marginFraction,
+    Market memory market,
+    address wallet,
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (uint64) {
-    require(String.isEqual(baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
-    Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
+    Validations.validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
     return
       Math.abs(
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, baseAssetSymbol),
+            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
             int64(indexPrice.price),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
@@ -479,12 +478,11 @@ library Margin {
    */
   function _loadMarginRequirementAndUpdateLastIndexPrice(
     LoadArguments memory arguments,
-    Market storage market,
-    uint64 marginFraction,
     IndexPrice memory indexPrice,
+    uint64 marginFraction,
+    Market storage market,
     BalanceTracking.Storage storage balanceTracking
   ) private returns (uint64) {
-    require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
     Validations.validateAndUpdateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
 
     return

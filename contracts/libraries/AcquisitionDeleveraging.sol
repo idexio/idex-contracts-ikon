@@ -82,7 +82,7 @@ library AcquisitionDeleveraging {
   ) private {
     // Validate that the liquidating account has fallen below margin requirements
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+      .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
@@ -152,7 +152,7 @@ library AcquisitionDeleveraging {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
+    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
     Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.liquidatingWallet,

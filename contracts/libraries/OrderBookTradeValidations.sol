@@ -201,6 +201,10 @@ library OrderBookTradeValidations {
         _isLimitOrderType(order.orderType) && trade.makerSide == (isBuy ? OrderSide.Buy : OrderSide.Sell),
         "gtx order must be limit maker"
       );
+    } else if (order.timeInForce == OrderTimeInForce.ioc) {
+      require(trade.makerSide == (isBuy ? OrderSide.Sell : OrderSide.Buy), "ioc order must be taker");
+    } else if (order.timeInForce == OrderTimeInForce.fok) {
+      require(trade.makerSide == (isBuy ? OrderSide.Sell : OrderSide.Buy), "fok order must be taker");
     }
   }
 
