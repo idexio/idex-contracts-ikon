@@ -19,7 +19,7 @@ library PositionInDeactivatedMarketLiquidation {
     // External arguments
     string baseAssetSymbol;
     address liquidatingWallet;
-    int64 liquidationQuoteQuantityInPips; // For the position being liquidated
+    int64 liquidationQuoteQuantity; // For the position being liquidated
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
     address[] indexPriceCollectionServiceWallets;
@@ -43,7 +43,7 @@ library PositionInDeactivatedMarketLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
@@ -55,10 +55,7 @@ library PositionInDeactivatedMarketLiquidation {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-    require(
-      totalAccountValueInPips >= int64(totalMaintenanceMarginRequirementInPips),
-      "Maintenance margin requirement not met"
-    );
+    require(totalAccountValue >= int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement not met");
 
     _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
       arguments,
@@ -94,15 +91,15 @@ library PositionInDeactivatedMarketLiquidation {
 
     // Validate quote quantity
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
-      market.indexPriceInPipsAtDeactivation,
+      market.indexPriceAtDeactivation,
       balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
-      arguments.liquidationQuoteQuantityInPips
+      arguments.liquidationQuoteQuantity
     );
 
     balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,
       arguments.liquidatingWallet,
-      arguments.liquidationQuoteQuantityInPips,
+      arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
   }

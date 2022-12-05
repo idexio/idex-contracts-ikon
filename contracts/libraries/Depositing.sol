@@ -18,15 +18,15 @@ library Depositing {
     address quoteAssetAddress,
     ICustodian custodian,
     BalanceTracking.Storage storage balanceTracking
-  ) public returns (uint64 quantityInPips, int64 newExchangeBalanceInPips) {
-    quantityInPips = AssetUnitConversions.assetUnitsToPips(quantityInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
-    require(quantityInPips > 0, "Quantity is too low");
+  ) public returns (uint64 quantity, int64 newExchangeBalance) {
+    quantity = AssetUnitConversions.assetUnitsToPips(quantityInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
+    require(quantity > 0, "Quantity is too low");
 
     // Convert from pips back into asset units to remove any fractional amount that is too small
     // to express in pips. The `Exchange` will call `transferFrom` without this fractional amount
     // and there will be no dust
     uint256 quantityInAssetUnitsWithoutFractionalPips = AssetUnitConversions.pipsToAssetUnits(
-      quantityInPips,
+      quantity,
       Constants.QUOTE_ASSET_DECIMALS
     );
 
@@ -34,6 +34,6 @@ library Depositing {
     IERC20(quoteAssetAddress).transferFrom(wallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
 
     // Update balance with actual transferred quantity
-    newExchangeBalanceInPips = balanceTracking.updateForDeposit(wallet, Constants.QUOTE_ASSET_SYMBOL, quantityInPips);
+    newExchangeBalance = balanceTracking.updateForDeposit(wallet, Constants.QUOTE_ASSET_SYMBOL, quantity);
   }
 }

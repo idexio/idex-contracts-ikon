@@ -7,14 +7,14 @@ import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contra
 import { Owned } from "../Owned.sol";
 
 contract ChainlinkAggregator is IChainlinkAggregator, Owned {
-  int256 public priceInPips;
+  int256 public price;
 
   constructor() Owned() {}
 
-  function setPrice(int256 newPriceInPips) external onlyAdmin {
-    require(newPriceInPips > 0, "Price cannot be zero");
-    require(newPriceInPips < 2**64, "Price overflows uint64");
-    priceInPips = newPriceInPips;
+  function setPrice(int256 newPrice) external onlyAdmin {
+    require(newPrice > 0, "Price cannot be zero");
+    require(newPrice < 2 ** 64, "Price overflows uint64");
+    price = newPrice;
   }
 
   function decimals() external pure override returns (uint8) {
@@ -25,34 +25,24 @@ contract ChainlinkAggregator is IChainlinkAggregator, Owned {
     return "DIL / USDC";
   }
 
-  function getRoundData(uint80 _roundId)
+  function getRoundData(
+    uint80 _roundId
+  )
     external
     view
     override
-    returns (
-      uint80 roundId,
-      int256 answer,
-      uint256 startedAt,
-      uint256 updatedAt,
-      uint80 answeredInRound
-    )
+    returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
   {
-    return (_roundId, priceInPips, block.timestamp, block.timestamp, 1);
+    return (_roundId, price, block.timestamp, block.timestamp, 1);
   }
 
   function latestRoundData()
     external
     view
     override
-    returns (
-      uint80 roundId,
-      int256 answer,
-      uint256 startedAt,
-      uint256 updatedAt,
-      uint80 answeredInRound
-    )
+    returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
   {
-    return (1, int256(priceInPips), block.timestamp, block.timestamp, 1);
+    return (1, int256(price), block.timestamp, block.timestamp, 1);
   }
 
   function version() external pure override returns (uint256) {

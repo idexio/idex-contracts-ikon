@@ -51,7 +51,7 @@ library Withdrawing {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public returns (int64 newExchangeBalanceInPips) {
+  ) public returns (int64 newExchangeBalance) {
     // Validations
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
       require(
@@ -62,7 +62,7 @@ library Withdrawing {
       );
     }
     require(
-      Validations.isFeeQuantityValid(arguments.withdrawal.gasFeeInPips, arguments.withdrawal.grossQuantityInPips),
+      Validations.isFeeQuantityValid(arguments.withdrawal.gasFee, arguments.withdrawal.grossQuantity),
       "Excessive withdrawal fee"
     );
     bytes32 withdrawalHash = _validateWithdrawalSignature(arguments.withdrawal);
@@ -78,7 +78,7 @@ library Withdrawing {
     );
 
     // Update wallet balances
-    newExchangeBalanceInPips = balanceTracking.updateForWithdrawal(
+    newExchangeBalance = balanceTracking.updateForWithdrawal(
       arguments.withdrawal,
       Constants.QUOTE_ASSET_SYMBOL,
       arguments.feeWallet
@@ -101,7 +101,7 @@ library Withdrawing {
 
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
-      arguments.withdrawal.grossQuantityInPips - arguments.withdrawal.gasFeeInPips,
+      arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
       Constants.QUOTE_ASSET_DECIMALS
     );
     arguments.custodian.withdraw(
@@ -133,7 +133,7 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    int64 quoteQuantityInPips = _updatePositionsForExit(
+    int64 quoteQuantity = _updatePositionsForExit(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -145,15 +145,15 @@ library Withdrawing {
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    quoteQuantityInPips += balance.balanceInPips;
-    balance.balanceInPips = 0;
+    quoteQuantity += balance.balance;
+    balance.balance = 0;
 
-    require(quoteQuantityInPips >= 0, "Negative quote after exit");
+    require(quoteQuantity >= 0, "Negative quote after exit");
 
     arguments.custodian.withdraw(
       arguments.wallet,
       arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantityInPips), Constants.QUOTE_ASSET_DECIMALS)
+      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantity), Constants.QUOTE_ASSET_DECIMALS)
     );
 
     return (
@@ -163,7 +163,7 @@ library Withdrawing {
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
-      uint64(quoteQuantityInPips)
+      uint64(quoteQuantity)
     );
   }
 
@@ -173,8 +173,8 @@ library Withdrawing {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (int64 quoteQuantityInPips) {
-    int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
+  ) private returns (int64 quoteQuantity) {
+    int64 totalAccountValue = Margin.loadTotalWalletExitAccountValue(
       Margin.LoadArguments(arguments.wallet, new IndexPrice[](0), arguments.indexPriceCollectionServiceWallets),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -185,11 +185,11 @@ library Withdrawing {
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       // Sum quote quantites needed to close each wallet position
-      quoteQuantityInPips += balanceTracking.updateForExit(
+      quoteQuantity += balanceTracking.updateForExit(
         arguments.exitFundWallet,
         market,
-        market.loadFeedPriceInPips(),
-        totalAccountValueInPips,
+        market.loadFeedPrice(),
+        totalAccountValue,
         arguments.wallet,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet
@@ -201,7 +201,7 @@ library Withdrawing {
       arguments.exitFundWallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    balance.balanceInPips -= quoteQuantityInPips;
+    balance.balance -= quoteQuantity;
   }
 
   function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {

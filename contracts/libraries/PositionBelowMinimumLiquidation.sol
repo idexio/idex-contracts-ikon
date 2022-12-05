@@ -23,7 +23,7 @@ library PositionBelowMinimumLiquidation {
     // External arguments
     string baseAssetSymbol;
     address liquidatingWallet;
-    int64 liquidationQuoteQuantityInPips; // For the position being liquidated
+    int64 liquidationQuoteQuantity; // For the position being liquidated
     IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
@@ -58,7 +58,7 @@ library PositionBelowMinimumLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
@@ -70,10 +70,7 @@ library PositionBelowMinimumLiquidation {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-    require(
-      totalAccountValueInPips >= int64(totalMaintenanceMarginRequirementInPips),
-      "Maintenance margin requirement not met"
-    );
+    require(totalAccountValue >= int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement not met");
 
     _validateQuantitiesAndLiquidatePositionBelowMinimum(
       arguments,
@@ -136,15 +133,15 @@ library PositionBelowMinimumLiquidation {
     );
 
     // Validate that position is under dust threshold
-    int64 positionSizeInPips = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+    int64 positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       arguments.liquidatingWallet,
       arguments.baseAssetSymbol
     );
     require(
-      Math.abs(positionSizeInPips) <
+      Math.abs(positionSize) <
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .minimumPositionSizeInPips,
+          .minimumPositionSize,
       "Position size above minimum"
     );
 
@@ -152,17 +149,17 @@ library PositionBelowMinimumLiquidation {
     Validations.validateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
     _validatePositionBelowMinimumLiquidationQuoteQuantity(
       arguments.dustPositionLiquidationPriceTolerance,
-      arguments.liquidationQuoteQuantityInPips,
+      arguments.liquidationQuoteQuantity,
       indexPrice.price,
-      positionSizeInPips
+      positionSize
     );
 
     balanceTracking.updatePositionForLiquidation(
-      positionSizeInPips,
+      positionSize,
       arguments.insuranceFundWallet,
       arguments.liquidatingWallet,
       market,
-      arguments.liquidationQuoteQuantityInPips,
+      arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );

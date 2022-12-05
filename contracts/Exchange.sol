@@ -63,7 +63,7 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(uint64 index, address wallet, uint64 quantityInPips, int64 newExchangeBalanceInPips);
+  event Deposited(uint64 index, address wallet, uint64 quantity, int64 newExchangeBalance);
   /**
    * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
    */
@@ -72,7 +72,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with
    * `withdrawExit`
    */
-  event WalletExitWithdrawn(address wallet, uint64 quantityInPips);
+  event WalletExitWithdrawn(address wallet, uint64 quantity);
   /**
    * @notice Emitted when a user clears the exited status of a wallet previously exited with
    * `exitWallet`
@@ -87,8 +87,8 @@ contract Exchange_v4 is IExchange, Owned {
     address sellWallet,
     string baseAssetSymbol,
     string quoteAssetSymbol,
-    uint64 baseQuantityInPips,
-    uint64 quoteQuantityInPips,
+    uint64 baseQuantity,
+    uint64 quoteQuantity,
     OrderSide takerSide
   );
   /**
@@ -98,7 +98,7 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
-  event Withdrawn(address wallet, uint64 quantityInPips, int64 newExchangeBalanceInPips);
+  event Withdrawn(address wallet, uint64 quantity, int64 newExchangeBalance);
 
   // Internally used structs //
 
@@ -134,7 +134,7 @@ contract Exchange_v4 is IExchange, Owned {
   // CLOB - mapping of wallet => last invalidated timestampInMs
   mapping(address => NonceInvalidation) public nonceInvalidationsByWallet;
   // CLOB - mapping of order hash => filled quantity in pips
-  mapping(bytes32 => uint64) public partiallyFilledOrderQuantitiesInPips;
+  mapping(bytes32 => uint64) public partiallyFilledOrderQuantities;
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteAssetAddress;
   // Exits
@@ -401,8 +401,8 @@ contract Exchange_v4 is IExchange, Owned {
    * @return For partially filled orders, the amount filled so far in pips. For orders in all other
    * states, 0
    */
-  function loadPartiallyFilledOrderQuantityInPips(bytes32 orderHash) external view returns (uint64) {
-    return partiallyFilledOrderQuantitiesInPips[orderHash];
+  function loadPartiallyFilledOrderQuantity(bytes32 orderHash) external view returns (uint64) {
+    return partiallyFilledOrderQuantities[orderHash];
   }
 
   // Dispatcher whitelisting //
@@ -451,7 +451,7 @@ contract Exchange_v4 is IExchange, Owned {
     // `_isWalletExitFinalized`
     require(!walletExits[msg.sender].exists, "Wallet exited");
 
-    (uint64 quantityInPips, int64 newExchangeBalanceInPips) = Depositing.deposit(
+    (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit(
       msg.sender,
       quantityInAssetUnits,
       quoteAssetAddress,
@@ -461,7 +461,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     depositIndex++;
 
-    emit Deposited(depositIndex, msg.sender, quantityInPips, newExchangeBalanceInPips);
+    emit Deposited(depositIndex, msg.sender, quantity, newExchangeBalance);
   }
 
   // Trades //
@@ -508,7 +508,7 @@ contract Exchange_v4 is IExchange, Owned {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
       nonceInvalidationsByWallet,
-      partiallyFilledOrderQuantitiesInPips
+      partiallyFilledOrderQuantities
     );
 
     emit OrderBookTradeExecuted(
@@ -516,8 +516,8 @@ contract Exchange_v4 is IExchange, Owned {
       sell.wallet,
       orderBookTrade.baseAssetSymbol,
       orderBookTrade.quoteAssetSymbol,
-      orderBookTrade.baseQuantityInPips,
-      orderBookTrade.quoteQuantityInPips,
+      orderBookTrade.baseQuantity,
+      orderBookTrade.quoteQuantity,
       orderBookTrade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy
     );
   }
@@ -525,13 +525,13 @@ contract Exchange_v4 is IExchange, Owned {
   // Liquidation //
 
   /**
-   * @notice Liquidates a single position below the market's configured `minimumPositionSizeInPips` to the Insurance
+   * @notice Liquidates a single position below the market's configured `minimumPositionSize` to the Insurance
    * Fund at the current index price
    */
   function liquidatePositionBelowMinimum(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
-    int64 liquidationQuoteQuantityInPips,
+    int64 liquidationQuoteQuantity,
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
@@ -539,7 +539,7 @@ contract Exchange_v4 is IExchange, Owned {
       PositionBelowMinimumLiquidation.Arguments(
         baseAssetSymbol,
         liquidatingWallet,
-        liquidationQuoteQuantityInPips,
+        liquidationQuoteQuantity,
         insuranceFundIndexPrices,
         liquidatingWalletIndexPrices,
         positionBelowMinimumLiquidationPriceToleranceMultiplier,
@@ -561,14 +561,14 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidatePositionInDeactivatedMarket(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
-    int64 liquidationQuoteQuantityInPips,
+    int64 liquidationQuoteQuantity,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
     PositionInDeactivatedMarketLiquidation.liquidate(
       PositionInDeactivatedMarketLiquidation.Arguments(
         baseAssetSymbol,
         liquidatingWallet,
-        liquidationQuoteQuantityInPips,
+        liquidationQuoteQuantity,
         liquidatingWalletIndexPrices,
         indexPriceCollectionServiceWallets
       ),
@@ -587,7 +587,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidateWalletInMaintenance(
     address liquidatingWallet,
-    int64[] calldata liquidationQuoteQuantitiesInPips,
+    int64[] calldata liquidationQuoteQuantities,
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
@@ -598,7 +598,7 @@ contract Exchange_v4 is IExchange, Owned {
         insuranceFundIndexPrices,
         liquidatingWallet,
         liquidatingWalletIndexPrices,
-        liquidationQuoteQuantitiesInPips,
+        liquidationQuoteQuantities,
         indexPriceCollectionServiceWallets
       ),
       0,
@@ -617,7 +617,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     address liquidatingWallet,
-    int64[] calldata liquidationQuoteQuantitiesInPips,
+    int64[] calldata liquidationQuoteQuantities,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
     require(exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
@@ -629,7 +629,7 @@ contract Exchange_v4 is IExchange, Owned {
         new IndexPrice[](0),
         liquidatingWallet,
         liquidatingWalletIndexPrices,
-        liquidationQuoteQuantitiesInPips,
+        liquidationQuoteQuantities,
         indexPriceCollectionServiceWallets
       ),
       exitFundPositionOpenedAtBlockNumber,
@@ -647,7 +647,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidateWalletExited(
     address liquidatingWallet,
-    int64[] calldata liquidationQuoteQuantitiesInPips,
+    int64[] calldata liquidationQuoteQuantities,
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
@@ -660,7 +660,7 @@ contract Exchange_v4 is IExchange, Owned {
         insuranceFundIndexPrices,
         liquidatingWallet,
         liquidatingWalletIndexPrices,
-        liquidationQuoteQuantitiesInPips,
+        liquidationQuoteQuantities,
         indexPriceCollectionServiceWallets
       ),
       0,
@@ -683,9 +683,9 @@ contract Exchange_v4 is IExchange, Owned {
     string calldata baseAssetSymbol,
     address deleveragingWallet,
     address liquidatingWallet,
-    int64[] memory liquidationQuoteQuantitiesInPips,
-    int64 liquidationBaseQuantityInPips,
-    int64 liquidationQuoteQuantityInPips,
+    int64[] memory liquidationQuoteQuantities,
+    int64 liquidationBaseQuantity,
+    int64 liquidationQuoteQuantity,
     IndexPrice[] calldata deleveragingWalletIndexPrices,
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
@@ -696,9 +696,9 @@ contract Exchange_v4 is IExchange, Owned {
         baseAssetSymbol,
         deleveragingWallet,
         liquidatingWallet,
-        liquidationQuoteQuantitiesInPips,
-        liquidationBaseQuantityInPips,
-        liquidationQuoteQuantityInPips,
+        liquidationQuoteQuantities,
+        liquidationBaseQuantity,
+        liquidationQuoteQuantity,
         deleveragingWalletIndexPrices,
         insuranceFundIndexPrices,
         liquidatingWalletIndexPrices,
@@ -721,8 +721,8 @@ contract Exchange_v4 is IExchange, Owned {
   function deleverageInsuranceFundClosure(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
-    int64 liquidationBaseQuantityInPips,
-    int64 liquidationQuoteQuantityInPips,
+    int64 liquidationBaseQuantity,
+    int64 liquidationQuoteQuantity,
     IndexPrice[] calldata deleveragingWalletIndexPrices,
     IndexPrice[] calldata insuranceFundIndexPrices
   ) external onlyDispatcher {
@@ -732,8 +732,8 @@ contract Exchange_v4 is IExchange, Owned {
         baseAssetSymbol,
         deleveragingWallet,
         insuranceFundWallet,
-        liquidationBaseQuantityInPips,
-        liquidationQuoteQuantityInPips,
+        liquidationBaseQuantity,
+        liquidationQuoteQuantity,
         insuranceFundIndexPrices,
         deleveragingWalletIndexPrices,
         indexPriceCollectionServiceWallets
@@ -756,9 +756,9 @@ contract Exchange_v4 is IExchange, Owned {
     string calldata baseAssetSymbol,
     address deleveragingWallet,
     address liquidatingWallet,
-    int64[] memory liquidationQuoteQuantitiesInPips,
-    int64 liquidationBaseQuantityInPips,
-    int64 liquidationQuoteQuantityInPips,
+    int64[] memory liquidationQuoteQuantities,
+    int64 liquidationBaseQuantity,
+    int64 liquidationQuoteQuantity,
     IndexPrice[] calldata deleveragingWalletIndexPrices,
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
@@ -771,9 +771,9 @@ contract Exchange_v4 is IExchange, Owned {
         baseAssetSymbol,
         deleveragingWallet,
         liquidatingWallet,
-        liquidationQuoteQuantitiesInPips,
-        liquidationBaseQuantityInPips,
-        liquidationQuoteQuantityInPips,
+        liquidationQuoteQuantities,
+        liquidationBaseQuantity,
+        liquidationQuoteQuantity,
         deleveragingWalletIndexPrices,
         insuranceFundIndexPrices,
         liquidatingWalletIndexPrices,
@@ -796,8 +796,8 @@ contract Exchange_v4 is IExchange, Owned {
   function deleverageExitFundClosure(
     string calldata baseAssetSymbol,
     address deleveragingWallet,
-    int64 liquidationBaseQuantityInPips,
-    int64 liquidationQuoteQuantityInPips,
+    int64 liquidationBaseQuantity,
+    int64 liquidationQuoteQuantity,
     IndexPrice[] calldata deleveragingWalletIndexPrices,
     IndexPrice[] calldata exitFundIndexPrices
   ) external onlyDispatcher {
@@ -807,8 +807,8 @@ contract Exchange_v4 is IExchange, Owned {
         baseAssetSymbol,
         deleveragingWallet,
         exitFundWallet,
-        liquidationBaseQuantityInPips,
-        liquidationQuoteQuantityInPips,
+        liquidationBaseQuantity,
+        liquidationQuoteQuantity,
         exitFundIndexPrices,
         deleveragingWalletIndexPrices,
         indexPriceCollectionServiceWallets
@@ -834,7 +834,7 @@ contract Exchange_v4 is IExchange, Owned {
   function withdraw(Withdrawal memory withdrawal, IndexPrice[] calldata indexPrices) public onlyDispatcher {
     require(!_isWalletExitFinalized(withdrawal.wallet), "Wallet exited");
 
-    int64 newExchangeBalanceInPips = Withdrawing.withdraw(
+    int64 newExchangeBalance = Withdrawing.withdraw(
       Withdrawing.WithdrawArguments(
         withdrawal,
         indexPrices,
@@ -854,7 +854,7 @@ contract Exchange_v4 is IExchange, Owned {
       marketsByBaseAssetSymbol
     );
 
-    emit Withdrawn(withdrawal.wallet, withdrawal.grossQuantityInPips, newExchangeBalanceInPips);
+    emit Withdrawn(withdrawal.wallet, withdrawal.grossQuantity, newExchangeBalance);
   }
 
   // Market management //
@@ -896,11 +896,11 @@ contract Exchange_v4 is IExchange, Owned {
    * TODO Validate funding rates
    */
   function publishFundingMutipliers(
-    int64[] calldata fundingRatesInPips,
+    int64[] calldata fundingRates,
     IndexPrice[] calldata indexPrices
   ) external onlyDispatcher {
     Funding.publishFundingMutipliers(
-      fundingRatesInPips,
+      fundingRates,
       indexPrices,
       indexPriceCollectionServiceWallets,
       fundingMultipliersByBaseAssetSymbol,
@@ -1013,7 +1013,7 @@ contract Exchange_v4 is IExchange, Owned {
   function withdrawExit(address wallet) external {
     require(_isWalletExitFinalized(wallet), "Wallet exit not finalized");
 
-    (uint256 exitFundPositionOpenedAtTimestampInMs, uint64 quantityInPips) = Withdrawing.withdrawExit(
+    (uint256 exitFundPositionOpenedAtTimestampInMs, uint64 quantity) = Withdrawing.withdrawExit(
       Withdrawing.WithdrawExitArguments(
         wallet,
         custodian,
@@ -1031,7 +1031,7 @@ contract Exchange_v4 is IExchange, Owned {
     );
     exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtTimestampInMs;
 
-    emit WalletExitWithdrawn(wallet, quantityInPips);
+    emit WalletExitWithdrawn(wallet, quantity);
   }
 
   /**

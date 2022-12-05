@@ -22,7 +22,7 @@ library Trading {
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation) storage nonceInvalidations,
-    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
+    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) public {
     (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
       arguments,
@@ -30,13 +30,7 @@ library Trading {
       nonceInvalidations
     );
 
-    _updateOrderFilledQuantities(
-      arguments,
-      buyHash,
-      sellHash,
-      completedOrderHashes,
-      partiallyFilledOrderQuantitiesInPips
-    );
+    _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);
 
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
@@ -78,23 +72,23 @@ library Trading {
     bytes32 buyHash,
     bytes32 sellHash,
     mapping(bytes32 => bool) storage completedOrderHashes,
-    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
+    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) private {
     // Buy side
     _updateOrderFilledQuantity(
       arguments.buy,
       buyHash,
-      arguments.orderBookTrade.baseQuantityInPips,
+      arguments.orderBookTrade.baseQuantity,
       completedOrderHashes,
-      partiallyFilledOrderQuantitiesInPips
+      partiallyFilledOrderQuantities
     );
     // Sell side
     _updateOrderFilledQuantity(
       arguments.sell,
       sellHash,
-      arguments.orderBookTrade.baseQuantityInPips,
+      arguments.orderBookTrade.baseQuantity,
       completedOrderHashes,
-      partiallyFilledOrderQuantitiesInPips
+      partiallyFilledOrderQuantities
     );
   }
 
@@ -102,27 +96,27 @@ library Trading {
   function _updateOrderFilledQuantity(
     Order memory order,
     bytes32 orderHash,
-    uint64 grossBaseQuantityInPips,
+    uint64 grossBaseQuantity,
     mapping(bytes32 => bool) storage completedOrderHashes,
-    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantitiesInPips
+    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) private {
     require(!completedOrderHashes[orderHash], "Order double filled");
 
     // Total quantity of above filled as a result of all trade executions, including this one
-    uint64 newFilledQuantityInPips;
+    uint64 newFilledQuantity;
 
     // Ttrack partially filled quantities in base terms
-    newFilledQuantityInPips = grossBaseQuantityInPips + partiallyFilledOrderQuantitiesInPips[orderHash];
+    newFilledQuantity = grossBaseQuantity + partiallyFilledOrderQuantities[orderHash];
 
-    uint64 quantityInPips = order.quantityInPips;
-    require(newFilledQuantityInPips <= quantityInPips, "Order overfilled");
-    if (newFilledQuantityInPips < quantityInPips) {
+    uint64 quantity = order.quantity;
+    require(newFilledQuantity <= quantity, "Order overfilled");
+    if (newFilledQuantity < quantity) {
       // If the order was partially filled, track the new filled quantity
-      partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
+      partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
     } else {
       // If the order was completed, delete any partial fill tracking and instead track its completion
       // to prevent future double fills
-      delete partiallyFilledOrderQuantitiesInPips[orderHash];
+      delete partiallyFilledOrderQuantities[orderHash];
       completedOrderHashes[orderHash] = true;
     }
   }

@@ -28,7 +28,7 @@ library WalletLiquidation {
     IndexPrice[] counterpartyWalletIndexPrices; // After acquiring liquidated positions
     address liquidatingWallet;
     IndexPrice[] liquidatingWalletIndexPrices;
-    int64[] liquidationQuoteQuantitiesInPips;
+    int64[] liquidationQuoteQuantities;
     // Exchange state
     address[] indexPriceCollectionServiceWallets;
   }
@@ -102,7 +102,7 @@ library WalletLiquidation {
   ) private {
     // FIXME Do not allow liquidation of insurance or exit funds
 
-    (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
@@ -118,10 +118,7 @@ library WalletLiquidation {
       arguments.liquidationType == LiquidationType.WalletInMaintenance ||
       arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
-      require(
-        totalAccountValueInPips < int64(totalMaintenanceMarginRequirementInPips),
-        "Maintenance margin requirement met"
-      );
+      require(totalAccountValue < int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement met");
     }
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
@@ -130,8 +127,8 @@ library WalletLiquidation {
         i,
         arguments,
         marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips,
+        totalAccountValue,
+        totalMaintenanceMarginRequirement,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet
@@ -145,8 +142,8 @@ library WalletLiquidation {
     uint8 index,
     Arguments memory arguments,
     Market memory market,
-    int64 totalAccountValueInPips,
-    uint64 totalMaintenanceMarginRequirementInPips,
+    int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -166,32 +163,32 @@ library WalletLiquidation {
       arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
-        arguments.liquidationQuoteQuantitiesInPips[index],
+        arguments.liquidationQuoteQuantities[index],
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .maintenanceMarginFractionInPips,
+          .maintenanceMarginFraction,
         arguments.liquidatingWalletIndexPrices[index].price,
-        balance.balanceInPips,
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips
+        balance.balance,
+        totalAccountValue,
+        totalMaintenanceMarginRequirement
       );
     } else {
       // LiquidationType.WalletExited
       LiquidationValidations.validateExitQuoteQuantity(
-        balance.costBasisInPips,
-        arguments.liquidationQuoteQuantitiesInPips[index],
+        balance.costBasis,
+        arguments.liquidationQuoteQuantities[index],
         arguments.liquidatingWalletIndexPrices[index].price,
-        balance.balanceInPips,
-        totalAccountValueInPips
+        balance.balance,
+        totalAccountValue
       );
     }
 
     balanceTracking.updatePositionForLiquidation(
-      balance.balanceInPips,
+      balance.balance,
       arguments.counterpartyWallet,
       arguments.liquidatingWallet,
       market,
-      arguments.liquidationQuoteQuantitiesInPips[index],
+      arguments.liquidationQuoteQuantities[index],
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );

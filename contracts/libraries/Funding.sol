@@ -21,7 +21,7 @@ library Funding {
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64 fundingInPips) {
+  ) public view returns (int64 funding) {
     return
       loadOutstandingWalletFundingInternal(
         wallet,
@@ -59,14 +59,14 @@ library Funding {
   }
 
   function publishFundingMutipliers(
-    int64[] memory fundingRatesInPips,
+    int64[] memory fundingRates,
     IndexPrice[] memory indexPrices,
     address[] memory indexPriceCollectionServiceWallets,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) public {
     for (uint8 i = 0; i < indexPrices.length; i++) {
-      (IndexPrice memory indexPrice, int64 fundingRateInPips) = (indexPrices[i], fundingRatesInPips[i]);
+      (IndexPrice memory indexPrice, int64 fundingRate) = (indexPrices[i], fundingRates[i]);
       Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
@@ -81,7 +81,7 @@ library Funding {
 
       int64 newFundingMultiplier = Math.multiplyPipsByFraction(
         int64(indexPrice.price),
-        fundingRateInPips,
+        fundingRate,
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
 
@@ -116,8 +116,8 @@ library Funding {
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 fundingInPips) {
-    int64 marketFundingInPips;
+  ) internal view returns (int64 funding) {
+    int64 marketFunding;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
@@ -127,13 +127,13 @@ library Funding {
         market.baseAssetSymbol
       );
 
-      (marketFundingInPips, ) = loadWalletFundingForMarket(
+      (marketFunding, ) = loadWalletFundingForMarket(
         basePosition,
         market,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
-      fundingInPips += marketFundingInPips;
+      funding += marketFunding;
     }
   }
 
@@ -142,7 +142,7 @@ library Funding {
     Market memory market,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) internal view returns (int64 fundingInPips, uint64 lastFundingMultiplierTimestampInMs) {
+  ) internal view returns (int64 funding, uint64 lastFundingMultiplierTimestampInMs) {
     // Load funding rates and index
     FundingMultiplierQuartet[] storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
       market.baseAssetSymbol
@@ -150,14 +150,14 @@ library Funding {
     lastFundingMultiplierTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
 
     // Apply hourly funding payments if new rates were published since this balance was last updated
-    if (basePosition.balanceInPips != 0 && basePosition.lastUpdateTimestampInMs < lastFundingMultiplierTimestampInMs) {
+    if (basePosition.balance != 0 && basePosition.lastUpdateTimestampInMs < lastFundingMultiplierTimestampInMs) {
       int64 aggregateFundingMultiplier = fundingMultipliersForMarket.loadAggregateMultiplier(
         basePosition.lastUpdateTimestampInMs,
         lastFundingMultiplierTimestampInMs
       );
 
-      fundingInPips += Math.multiplyPipsByFraction(
-        basePosition.balanceInPips,
+      funding += Math.multiplyPipsByFraction(
+        basePosition.balance,
         aggregateFundingMultiplier,
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
@@ -172,8 +172,8 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal {
-    int64 fundingInPips;
-    int64 marketFundingInPips;
+    int64 funding;
+    int64 marketFunding;
     uint64 lastFundingMultiplierTimestampInMs;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
@@ -184,13 +184,13 @@ library Funding {
         market.baseAssetSymbol
       );
 
-      (marketFundingInPips, lastFundingMultiplierTimestampInMs) = loadWalletFundingForMarket(
+      (marketFunding, lastFundingMultiplierTimestampInMs) = loadWalletFundingForMarket(
         basePosition,
         market,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
-      fundingInPips += marketFundingInPips;
+      funding += marketFunding;
       basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
     }
 
@@ -198,6 +198,6 @@ library Funding {
       wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    quoteBalance.balanceInPips += fundingInPips;
+    quoteBalance.balance += funding;
   }
 }

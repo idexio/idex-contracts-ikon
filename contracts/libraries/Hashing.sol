@@ -72,14 +72,14 @@ library Hashing {
             uint8(order.side),
             // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal
             // values
-            _pipToDecimal(order.quantityInPips)
+            _pipToDecimal(order.quantity)
           ),
           abi.encodePacked(
-            order.limitPriceInPips > 0 ? _pipToDecimal(order.limitPriceInPips) : Constants.EMPTY_DECIMAL_STRING,
-            order.triggerPriceInPips > 0 ? _pipToDecimal(order.triggerPriceInPips) : Constants.EMPTY_DECIMAL_STRING,
+            order.limitPrice > 0 ? _pipToDecimal(order.limitPrice) : Constants.EMPTY_DECIMAL_STRING,
+            order.triggerPrice > 0 ? _pipToDecimal(order.triggerPrice) : Constants.EMPTY_DECIMAL_STRING,
             order.triggerType,
             order.orderType == OrderType.TrailingStop
-              ? _pipToDecimal(order.callbackRateInPips)
+              ? _pipToDecimal(order.callbackRate)
               : Constants.EMPTY_DECIMAL_STRING,
             order.conditionalOrderId,
             order.isReduceOnly,
@@ -93,8 +93,7 @@ library Hashing {
   }
 
   function getWithdrawalHash(Withdrawal memory withdrawal) internal pure returns (bytes32) {
-    return
-      keccak256(abi.encodePacked(withdrawal.nonce, withdrawal.wallet, _pipToDecimal(withdrawal.grossQuantityInPips)));
+    return keccak256(abi.encodePacked(withdrawal.nonce, withdrawal.wallet, _pipToDecimal(withdrawal.grossQuantity)));
   }
 
   /**

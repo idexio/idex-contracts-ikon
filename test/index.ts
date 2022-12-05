@@ -53,7 +53,7 @@ describe('Exchange', function () {
     );
 
     expect(depositedEvents.length).to.equal(1);
-    expect(depositedEvents[0].args?.quantityInPips).to.equal(
+    expect(depositedEvents[0].args?.quantity).to.equal(
       decimalToPips('5.00000000'),
     );
 
@@ -98,7 +98,7 @@ describe('Exchange', function () {
     );
     expect(withdrawnEvents.length).to.equal(2);
     expect(withdrawnEvents.length).to.equal(2);
-    expect(withdrawnEvents[0].args?.quantityInPips).to.equal(
+    expect(withdrawnEvents[0].args?.quantity).to.equal(
       decimalToPips('1.00000000'),
     );
   });
@@ -386,8 +386,6 @@ describe('Exchange', function () {
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [indexPrice]);
 
-      console.log(await usdc.balanceOf(custodian.address));
-
       await exchange.connect(trader2).exitWallet();
       await exchange.withdrawExit(trader2.address);
 
@@ -396,8 +394,6 @@ describe('Exchange', function () {
 
       console.log('Trader2');
       await logWalletBalances(trader2.address, exchange, [indexPrice]);
-
-      console.log(await usdc.balanceOf(custodian.address));
 
       //console.log(await usdc.balanceOf(custodian.address));
       /*
@@ -497,15 +493,15 @@ describe('Exchange', function () {
           isActive: false,
           baseAssetSymbol: 'BTC',
           chainlinkPriceFeedAddress: chainlinkAggregator.address,
-          initialMarginFractionInPips: '5000000',
-          maintenanceMarginFractionInPips: '3000000',
-          incrementalInitialMarginFractionInPips: '1000000',
-          baselinePositionSizeInPips: '14000000000',
-          incrementalPositionSizeInPips: '2800000000',
-          maximumPositionSizeInPips: '282000000000',
-          minimumPositionSizeInPips: '2000000000',
+          initialMarginFraction: '5000000',
+          maintenanceMarginFraction: '3000000',
+          incrementalInitialMarginFraction: '1000000',
+          baselinePositionSize: '14000000000',
+          incrementalPositionSize: '2800000000',
+          maximumPositionSize: '282000000000',
+          minimumPositionSize: '2000000000',
           lastIndexPriceTimestampInMs: 0,
-          indexPriceInPipsAtDeactivation: 0,
+          indexPriceAtDeactivation: 0,
         })
       ).wait();
       (await exchange.connect(dispatcher).activateMarket('BTC')).wait();

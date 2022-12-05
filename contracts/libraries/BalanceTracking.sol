@@ -28,34 +28,34 @@ library BalanceTracking {
     Storage storage self,
     address wallet,
     string memory assetSymbol,
-    uint64 quantityInPips
-  ) internal returns (int64 newBalanceInPips) {
+    uint64 quantity
+  ) internal returns (int64 newBalance) {
     Balance storage balance = loadBalanceStructAndMigrateIfNeeded(self, wallet, assetSymbol);
-    balance.balanceInPips += int64(quantityInPips);
+    balance.balance += int64(quantity);
 
-    return balance.balanceInPips;
+    return balance.balance;
   }
 
   // Liquidation //
 
   function updatePositionForDeleverage(
     Storage storage self,
-    int64 baseQuantityInPips,
+    int64 baseQuantity,
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    int64 quoteQuantityInPips,
+    int64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     _updatePositionForDeleverageOrLiquidation(
       self,
       true,
-      baseQuantityInPips,
+      baseQuantity,
       counterpartyWallet,
       liquidatingWallet,
       market,
-      quoteQuantityInPips,
+      quoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );
@@ -63,22 +63,22 @@ library BalanceTracking {
 
   function updatePositionForLiquidation(
     Storage storage self,
-    int64 positionSizeInPips,
+    int64 positionSize,
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    int64 quoteQuantityInPips,
+    int64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     _updatePositionForDeleverageOrLiquidation(
       self,
       false,
-      -1 * positionSizeInPips,
+      -1 * positionSize,
       counterpartyWallet,
       liquidatingWallet,
       market,
-      quoteQuantityInPips,
+      quoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );
@@ -88,26 +88,26 @@ library BalanceTracking {
     Storage storage self,
     string memory baseAssetSymbol,
     address liquidatingWallet,
-    int64 quoteQuantityInPips,
+    int64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal {
     Balance storage balance;
 
     // Wallet position decreases by specified base quantity
     balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, baseAssetSymbol);
-    balance.balanceInPips = 0;
-    balance.costBasisInPips = 0;
+    balance.balance = 0;
+    balance.costBasis = 0;
 
     _updateOpenPositionsForWallet(
       liquidatingWallet,
       baseAssetSymbol,
-      balance.balanceInPips,
+      balance.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Wallet receives or gives quote if long or short respectively
     balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
-    balance.balanceInPips += quoteQuantityInPips;
+    balance.balance += quoteQuantity;
   }
 
   function updateQuoteForLiquidation(
@@ -119,12 +119,12 @@ library BalanceTracking {
 
     // Liquidating wallet quote balance goes to zero
     balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
-    int64 quoteQuantityInPips = balance.balanceInPips;
-    balance.balanceInPips = 0;
+    int64 quoteQuantity = balance.balance;
+    balance.balance = 0;
     // Counterparty wallet takes any remaining quote from liquidating wallet
-    if (quoteQuantityInPips != 0) {
+    if (quoteQuantity != 0) {
       balance = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
-      balance.balanceInPips += quoteQuantityInPips;
+      balance.balance += quoteQuantity;
     }
   }
 
@@ -134,29 +134,29 @@ library BalanceTracking {
     Storage storage self,
     address exitFundWallet,
     Market memory market,
-    uint64 indexPriceInPips,
-    int64 totalAccountValueInPips,
+    uint64 indexPrice,
+    int64 totalAccountValue,
     address wallet,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
-  ) internal returns (int64 quoteQuantityInPips) {
+  ) internal returns (int64 quoteQuantity) {
     // Calculate amount of quote to close position
     Balance storage balance = loadBalanceStructAndMigrateIfNeeded(self, wallet, market.baseAssetSymbol);
-    int64 positionSizeInPips = balance.balanceInPips;
-    quoteQuantityInPips = LiquidationValidations.calculateExitQuoteQuantity(
-      balance.costBasisInPips,
-      indexPriceInPips,
-      positionSizeInPips,
-      totalAccountValueInPips
+    int64 positionSize = balance.balance;
+    quoteQuantity = LiquidationValidations.calculateExitQuoteQuantity(
+      balance.costBasis,
+      indexPrice,
+      positionSize,
+      totalAccountValue
     );
 
     // Zero out wallet position for market
-    balance.balanceInPips = 0;
-    balance.costBasisInPips = 0;
+    balance.balance = 0;
+    balance.costBasis = 0;
     _updateOpenPositionsForWallet(
       wallet,
       market.baseAssetSymbol,
-      balance.balanceInPips,
+      balance.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
@@ -166,16 +166,11 @@ library BalanceTracking {
       marketOverridesByBaseAssetSymbolAndWallet
     );
     balance = loadBalanceStructAndMigrateIfNeeded(self, exitFundWallet, market.baseAssetSymbol);
-    _updatePosition(
-      balance,
-      positionSizeInPips,
-      quoteQuantityInPips,
-      marketWithExitFundOverrides.maximumPositionSizeInPips
-    );
+    _updatePosition(balance, positionSize, quoteQuantity, marketWithExitFundOverrides.maximumPositionSize);
     _updateOpenPositionsForWallet(
       exitFundWallet,
       market.baseAssetSymbol,
-      balance.balanceInPips,
+      balance.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
@@ -199,19 +194,19 @@ library BalanceTracking {
     Balance storage balance;
 
     (
-      int64 buyFeeInPips,
-      int64 sellFeeInPips,
+      int64 buyFee,
+      int64 sellFee,
       // Use the taker order nonce timestamp as the time of execution
       uint64 executionTimestampInMs
     ) = arguments.orderBookTrade.makerSide == OrderSide.Buy
         ? (
-          arguments.orderBookTrade.makerFeeQuantityInPips,
-          int64(arguments.orderBookTrade.takerFeeQuantityInPips),
+          arguments.orderBookTrade.makerFeeQuantity,
+          int64(arguments.orderBookTrade.takerFeeQuantity),
           UUID.getTimestampInMsFromUuidV1(arguments.sell.nonce)
         )
         : (
-          int64(arguments.orderBookTrade.takerFeeQuantityInPips),
-          arguments.orderBookTrade.makerFeeQuantityInPips,
+          int64(arguments.orderBookTrade.takerFeeQuantity),
+          arguments.orderBookTrade.makerFeeQuantity,
           UUID.getTimestampInMsFromUuidV1(arguments.buy.nonce)
         );
 
@@ -223,23 +218,23 @@ library BalanceTracking {
     );
     if (arguments.sell.isReduceOnly) {
       _validatePositionUpdatedTowardsZero(
-        balance.balanceInPips,
-        balance.balanceInPips - int64(arguments.orderBookTrade.baseQuantityInPips)
+        balance.balance,
+        balance.balance - int64(arguments.orderBookTrade.baseQuantity)
       );
     }
     _subtractFromPosition(
       balance,
-      arguments.orderBookTrade.baseQuantityInPips,
-      arguments.orderBookTrade.quoteQuantityInPips,
+      arguments.orderBookTrade.baseQuantity,
+      arguments.orderBookTrade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.sell.wallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .maximumPositionSizeInPips
+        .maximumPositionSize
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     _updateOpenPositionsForWallet(
       arguments.sell.wallet,
       arguments.orderBookTrade.baseAssetSymbol,
-      balance.balanceInPips,
+      balance.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
@@ -247,23 +242,23 @@ library BalanceTracking {
     balance = loadBalanceStructAndMigrateIfNeeded(self, arguments.buy.wallet, arguments.orderBookTrade.baseAssetSymbol);
     if (arguments.buy.isReduceOnly) {
       _validatePositionUpdatedTowardsZero(
-        balance.balanceInPips,
-        balance.balanceInPips + int64(arguments.orderBookTrade.baseQuantityInPips)
+        balance.balance,
+        balance.balance + int64(arguments.orderBookTrade.baseQuantity)
       );
     }
     _addToPosition(
       balance,
-      arguments.orderBookTrade.baseQuantityInPips,
-      arguments.orderBookTrade.quoteQuantityInPips,
+      arguments.orderBookTrade.baseQuantity,
+      arguments.orderBookTrade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.buy.wallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .maximumPositionSizeInPips
+        .maximumPositionSize
     );
     balance.lastUpdateTimestampInMs = executionTimestampInMs;
     _updateOpenPositionsForWallet(
       arguments.buy.wallet,
       arguments.orderBookTrade.baseAssetSymbol,
-      balance.balanceInPips,
+      balance.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
@@ -273,7 +268,7 @@ library BalanceTracking {
       arguments.buy.wallet,
       arguments.orderBookTrade.quoteAssetSymbol
     );
-    balance.balanceInPips -= int64(arguments.orderBookTrade.quoteQuantityInPips) + buyFeeInPips;
+    balance.balance -= int64(arguments.orderBookTrade.quoteQuantity) + buyFee;
 
     // Seller receives quote asset minus fees
     balance = loadBalanceStructAndMigrateIfNeeded(
@@ -281,13 +276,11 @@ library BalanceTracking {
       arguments.sell.wallet,
       arguments.orderBookTrade.quoteAssetSymbol
     );
-    balance.balanceInPips += int64(arguments.orderBookTrade.quoteQuantityInPips) - sellFeeInPips;
+    balance.balance += int64(arguments.orderBookTrade.quoteQuantity) - sellFee;
 
     // Maker fee to fee wallet
     balance = loadBalanceStructAndMigrateIfNeeded(self, arguments.feeWallet, arguments.orderBookTrade.quoteAssetSymbol);
-    balance.balanceInPips +=
-      arguments.orderBookTrade.makerFeeQuantityInPips +
-      int64(arguments.orderBookTrade.takerFeeQuantityInPips);
+    balance.balance += arguments.orderBookTrade.makerFeeQuantity + int64(arguments.orderBookTrade.takerFeeQuantity);
   }
 
   // Withdrawing //
@@ -297,18 +290,18 @@ library BalanceTracking {
     Withdrawal memory withdrawal,
     string memory assetSymbol,
     address feeWallet
-  ) internal returns (int64 newExchangeBalanceInPips) {
+  ) internal returns (int64 newExchangeBalance) {
     Balance storage balance;
 
     balance = loadBalanceStructAndMigrateIfNeeded(self, withdrawal.wallet, assetSymbol);
     // Reverts if balance is overdrawn
-    balance.balanceInPips -= int64(withdrawal.grossQuantityInPips);
-    newExchangeBalanceInPips = balance.balanceInPips;
+    balance.balance -= int64(withdrawal.grossQuantity);
+    newExchangeBalance = balance.balance;
 
-    if (withdrawal.gasFeeInPips > 0) {
+    if (withdrawal.gasFee > 0) {
       balance = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, assetSymbol);
 
-      balance.balanceInPips += int64(withdrawal.gasFeeInPips);
+      balance.balance += int64(withdrawal.gasFee);
     }
   }
 
@@ -319,7 +312,7 @@ library BalanceTracking {
     address wallet,
     string memory assetSymbol
   ) internal view returns (int64) {
-    return loadBalanceStructFromMigrationSourceIfNeeded(self, wallet, assetSymbol).balanceInPips;
+    return loadBalanceStructFromMigrationSourceIfNeeded(self, wallet, assetSymbol).balance;
   }
 
   function loadBalanceStructFromMigrationSourceIfNeeded(
@@ -343,7 +336,7 @@ library BalanceTracking {
     address wallet,
     string memory assetSymbol
   ) internal returns (int64) {
-    return loadBalanceStructAndMigrateIfNeeded(self, wallet, assetSymbol).balanceInPips;
+    return loadBalanceStructAndMigrateIfNeeded(self, wallet, assetSymbol).balance;
   }
 
   function loadBalanceStructAndMigrateIfNeeded(
@@ -357,7 +350,7 @@ library BalanceTracking {
     if (!balance.isMigrated && address(self.migrationSource) != address(0x0)) {
       migratedBalance = self.migrationSource.loadBalanceStructBySymbol(wallet, assetSymbol);
       balance.isMigrated = true;
-      balance.balanceInPips = migratedBalance.balanceInPips;
+      balance.balance = migratedBalance.balance;
       balance.lastUpdateTimestampInMs = migratedBalance.lastUpdateTimestampInMs;
     }
 
@@ -368,97 +361,76 @@ library BalanceTracking {
 
   function _updatePosition(
     Balance storage balance,
-    int64 baseQuantityInPips,
-    int64 quoteQuantityInPips,
-    uint64 maximumPositionSizeInPips
+    int64 baseQuantity,
+    int64 quoteQuantity,
+    uint64 maximumPositionSize
   ) private {
-    if (baseQuantityInPips > 0) {
-      _addToPosition(balance, Math.abs(baseQuantityInPips), Math.abs(quoteQuantityInPips), maximumPositionSizeInPips);
+    if (baseQuantity > 0) {
+      _addToPosition(balance, Math.abs(baseQuantity), Math.abs(quoteQuantity), maximumPositionSize);
     } else {
-      _subtractFromPosition(
-        balance,
-        Math.abs(baseQuantityInPips),
-        Math.abs(quoteQuantityInPips),
-        maximumPositionSizeInPips
-      );
+      _subtractFromPosition(balance, Math.abs(baseQuantity), Math.abs(quoteQuantity), maximumPositionSize);
     }
   }
 
   function _addToPosition(
     Balance storage balance,
-    uint64 baseQuantityInPips,
-    uint64 quoteQuantityInPips,
-    uint64 maximumPositionSizeInPips
+    uint64 baseQuantity,
+    uint64 quoteQuantity,
+    uint64 maximumPositionSize
   ) private {
-    int64 newBalanceInPips = balance.balanceInPips + int64(baseQuantityInPips);
-    require(Math.abs(newBalanceInPips) <= maximumPositionSizeInPips, "Max position size exceeded");
+    int64 newBalance = balance.balance + int64(baseQuantity);
+    require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
 
-    if (balance.balanceInPips >= 0) {
+    if (balance.balance >= 0) {
       // Increase position
-      balance.costBasisInPips += int64(quoteQuantityInPips);
-    } else if (balance.balanceInPips + int64(baseQuantityInPips) > 0) {
+      balance.costBasis += int64(quoteQuantity);
+    } else if (balance.balance + int64(baseQuantity) > 0) {
       /*
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasisInPips = Math.multiplyPipsByFraction(
-        int64(quoteQuantityInPips),
-        newBalanceInPips,
-        int64(baseQuantityInPips)
-      );
+      balance.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasisInPips += Math.multiplyPipsByFraction(
-        balance.costBasisInPips,
-        int64(baseQuantityInPips),
-        balance.balanceInPips
-      );
+      balance.costBasis += Math.multiplyPipsByFraction(balance.costBasis, int64(baseQuantity), balance.balance);
     }
 
-    balance.balanceInPips = newBalanceInPips;
+    balance.balance = newBalance;
   }
 
   function _subtractFromPosition(
     Balance storage balance,
-    uint64 baseQuantityInPips,
-    uint64 quoteQuantityInPips,
-    uint64 maximumPositionSizeInPips
+    uint64 baseQuantity,
+    uint64 quoteQuantity,
+    uint64 maximumPositionSize
   ) private {
-    int64 newBalanceInPips = balance.balanceInPips - int64(baseQuantityInPips);
-    require(Math.abs(newBalanceInPips) <= maximumPositionSizeInPips, "Max position size exceeded");
+    int64 newBalance = balance.balance - int64(baseQuantity);
+    require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
 
-    if (balance.balanceInPips <= 0) {
+    if (balance.balance <= 0) {
       // Increase position
-      balance.costBasisInPips -= int64(quoteQuantityInPips);
-    } else if (balance.balanceInPips - int64(baseQuantityInPips) < 0) {
+      balance.costBasis -= int64(quoteQuantity);
+    } else if (balance.balance - int64(baseQuantity) < 0) {
       /*
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasisInPips = Math.multiplyPipsByFraction(
-        int64(quoteQuantityInPips),
-        newBalanceInPips,
-        int64(baseQuantityInPips)
-      );
+      balance.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasisInPips -= Math.multiplyPipsByFraction(
-        balance.costBasisInPips,
-        int64(baseQuantityInPips),
-        balance.balanceInPips
-      );
+      balance.costBasis -= Math.multiplyPipsByFraction(balance.costBasis, int64(baseQuantity), balance.balance);
     }
 
-    balance.balanceInPips = newBalanceInPips;
+    balance.balance = newBalance;
   }
 
   function _updateOpenPositionsForWallet(
     address wallet,
     string memory assetSymbol,
-    int64 balanceInPips,
+    int64 balance,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
   ) private {
-    baseAssetSymbolsWithOpenPositionsByWallet[wallet] = balanceInPips == 0
+    baseAssetSymbolsWithOpenPositionsByWallet[wallet] = balance == 0
       ? baseAssetSymbolsWithOpenPositionsByWallet[wallet].remove(assetSymbol)
       : baseAssetSymbolsWithOpenPositionsByWallet[wallet].insertSorted(assetSymbol);
   }
@@ -466,11 +438,11 @@ library BalanceTracking {
   function _updatePositionForDeleverageOrLiquidation(
     Storage storage self,
     bool isDeleverage,
-    int64 baseQuantityInPips,
+    int64 baseQuantity,
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    int64 quoteQuantityInPips,
+    int64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
@@ -478,57 +450,54 @@ library BalanceTracking {
 
     // Wallet position decreases by specified base quantity
     balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, market.baseAssetSymbol);
-    _validatePositionUpdatedTowardsZero(balance.balanceInPips, balance.balanceInPips + baseQuantityInPips);
+    _validatePositionUpdatedTowardsZero(balance.balance, balance.balance + baseQuantity);
     _updatePosition(
       balance,
-      baseQuantityInPips,
-      quoteQuantityInPips,
+      baseQuantity,
+      quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .maximumPositionSizeInPips
+        .maximumPositionSize
     );
     _updateOpenPositionsForWallet(
       liquidatingWallet,
       market.baseAssetSymbol,
-      balance.balanceInPips,
+      balance.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Counterparty position takes on specified base quantity
     balance = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, market.baseAssetSymbol);
     if (isDeleverage) {
-      _validatePositionUpdatedTowardsZero(balance.balanceInPips, balance.balanceInPips - baseQuantityInPips);
+      _validatePositionUpdatedTowardsZero(balance.balance, balance.balance - baseQuantity);
     }
     _updatePosition(
       balance,
-      -1 * baseQuantityInPips,
-      quoteQuantityInPips,
+      -1 * baseQuantity,
+      quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(counterpartyWallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .maximumPositionSizeInPips
+        .maximumPositionSize
     );
     _updateOpenPositionsForWallet(
       counterpartyWallet,
       market.baseAssetSymbol,
-      balance.balanceInPips,
+      balance.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Wallet receives or gives quote if long or short respectively
     balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
-    balance.balanceInPips += quoteQuantityInPips;
+    balance.balance += quoteQuantity;
     // Insurance or counterparty receives or gives quote if wallet short or long respectively
     balance = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
-    balance.balanceInPips -= quoteQuantityInPips;
+    balance.balance -= quoteQuantity;
   }
 
-  function _validatePositionUpdatedTowardsZero(
-    int64 originalPositionSizeInPips,
-    int64 newPositionSizeInPips
-  ) private pure {
-    bool isValid = originalPositionSizeInPips < 0
-      ? newPositionSizeInPips > originalPositionSizeInPips && newPositionSizeInPips <= 0
-      : newPositionSizeInPips < originalPositionSizeInPips && newPositionSizeInPips >= 0;
+  function _validatePositionUpdatedTowardsZero(int64 originalPositionSize, int64 newPositionSize) private pure {
+    bool isValid = originalPositionSize < 0
+      ? newPositionSize > originalPositionSize && newPositionSize <= 0
+      : newPositionSize < originalPositionSize && newPositionSize >= 0;
     require(isValid, "Position must move toward zero");
   }
 }

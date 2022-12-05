@@ -11,10 +11,10 @@ import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType
  */
 struct Balance {
   bool isMigrated;
-  int64 balanceInPips;
+  int64 balance;
   // The last funding update timestamp and cost basis are only relevant for base asset positions
   uint64 lastUpdateTimestampInMs;
-  int64 costBasisInPips;
+  int64 costBasis;
 }
 
 /**
@@ -70,25 +70,25 @@ struct Market {
   // Chainlink price feed aggregator contract to use for on-chain exit withdrawals
   IChainlinkAggregator chainlinkPriceFeedAddress;
   // The margin fraction needed to open a position
-  uint64 initialMarginFractionInPips;
+  uint64 initialMarginFraction;
   // The margin fraction required to prevent liquidation
-  uint64 maintenanceMarginFractionInPips;
+  uint64 maintenanceMarginFraction;
   // The increase of initialMarginFraction for each incrementalPositionSize above the
   // baselinePositionSize
-  uint64 incrementalInitialMarginFractionInPips;
+  uint64 incrementalInitialMarginFraction;
   // The max position size in base token before increasing the initial-margin-fraction.
-  uint64 baselinePositionSizeInPips;
+  uint64 baselinePositionSize;
   // The step size (in base token) for increasing the initialMarginFraction by
   // (incrementalInitialMarginFraction per step)
-  uint64 incrementalPositionSizeInPips;
+  uint64 incrementalPositionSize;
   // The max position size in base token
-  uint64 maximumPositionSizeInPips;
+  uint64 maximumPositionSize;
   // The min position size in base token
-  uint64 minimumPositionSizeInPips;
+  uint64 minimumPositionSize;
   // The timestamp of the latest index price provided for this market
   uint64 lastIndexPriceTimestampInMs;
   // Set when deactivating a market to determine price for all position liquidations in that market
-  uint64 indexPriceInPipsAtDeactivation;
+  uint64 indexPriceAtDeactivation;
 }
 
 /**
@@ -119,15 +119,15 @@ struct Order {
   // Order side wallet is on
   OrderSide side;
   // Order quantity in base asset terms
-  uint64 quantityInPips;
+  uint64 quantity;
   // For limit orders, price in decimal pips * 10^8 in quote terms
-  uint64 limitPriceInPips;
+  uint64 limitPrice;
   // For stop orders, stop loss or take profit price in decimal pips * 10^8 in quote terms
-  uint64 triggerPriceInPips;
+  uint64 triggerPrice;
   // Type of trigger condition
   OrderTriggerType triggerType;
   // Percentage of price movement in opposite direction before triggering trailing stop
-  uint64 callbackRateInPips;
+  uint64 callbackRate;
   // Public ID of a separate order that must be filled before this stop order becomes active
   uint128 conditionalOrderId;
   // If true, order execution must move wallet position size towards zero
@@ -155,15 +155,15 @@ struct OrderBookTrade {
   // Quote asset symbol
   string quoteAssetSymbol;
   // Amount of base asset executed
-  uint64 baseQuantityInPips;
+  uint64 baseQuantity;
   // Amount of quote asset executed
-  uint64 quoteQuantityInPips;
+  uint64 quoteQuantity;
   // Fee paid by (or, if negative, rebated to) liquidity maker in quote (collateral) asset
-  int64 makerFeeQuantityInPips;
+  int64 makerFeeQuantity;
   // Fee paid by liquidity taker in quote (collateral) asset
-  uint64 takerFeeQuantityInPips;
+  uint64 takerFeeQuantity;
   // Execution price of trade in decimal pips * 10^8 in quote terms
-  uint64 priceInPips;
+  uint64 price;
   // Which side of the order (buy or sell) the liquidity maker was on
   OrderSide makerSide;
 }
@@ -186,9 +186,9 @@ struct Withdrawal {
   // Address of wallet to which funds will be returned
   address payable wallet;
   // Withdrawal quantity
-  uint64 grossQuantityInPips;
+  uint64 grossQuantity;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs
-  uint64 gasFeeInPips;
+  uint64 gasFee;
   // The ECDSA signature of the withdrawal hash as produced by Hashing.getWithdrawalWalletHash
   bytes walletSignature;
 }

@@ -33,11 +33,8 @@ library OrderBookTradeValidations {
     _validateFees(arguments.orderBookTrade);
   }
 
-  function _calculateImpliedQuoteQuantityInPips(
-    uint64 baseQuantityInPips,
-    uint64 limitPriceInPips
-  ) private pure returns (uint64) {
-    return Math.multiplyPipsByFraction(baseQuantityInPips, limitPriceInPips, Constants.PIP_PRICE_MULTIPLIER);
+  function _calculateImpliedQuoteQuantity(uint64 baseQuantity, uint64 limitPrice) private pure returns (uint64) {
+    return Math.multiplyPipsByFraction(baseQuantity, limitPrice, Constants.PIP_PRICE_MULTIPLIER);
   }
 
   function _isLimitOrderType(OrderType orderType) private pure returns (bool) {
@@ -69,19 +66,16 @@ library OrderBookTradeValidations {
   }
 
   function _validateFees(OrderBookTrade memory trade) private pure {
-    if (trade.makerFeeQuantityInPips < 0) {
-      require(Math.abs(trade.makerFeeQuantityInPips) <= trade.takerFeeQuantityInPips, "Excessive maker rebate");
+    if (trade.makerFeeQuantity < 0) {
+      require(Math.abs(trade.makerFeeQuantity) <= trade.takerFeeQuantity, "Excessive maker rebate");
     } else {
       require(
-        Validations.isFeeQuantityValid(uint64(trade.makerFeeQuantityInPips), trade.quoteQuantityInPips),
+        Validations.isFeeQuantityValid(uint64(trade.makerFeeQuantity), trade.quoteQuantity),
         "Excessive maker fee"
       );
     }
 
-    require(
-      Validations.isFeeQuantityValid(trade.takerFeeQuantityInPips, trade.quoteQuantityInPips),
-      "Excessive taker fee"
-    );
+    require(Validations.isFeeQuantityValid(trade.takerFeeQuantity, trade.quoteQuantity), "Excessive taker fee");
   }
 
   function _validateExecutionConditions(
@@ -91,8 +85,8 @@ library OrderBookTradeValidations {
     address exitFundWallet,
     address insuranceFundWallet
   ) private pure {
-    require(trade.baseQuantityInPips > 0, "Base quantity must be greater than zero");
-    require(trade.quoteQuantityInPips > 0, "Quote quantity must be greater than zero");
+    require(trade.baseQuantity > 0, "Base quantity must be greater than zero");
+    require(trade.quoteQuantity > 0, "Quote quantity must be greater than zero");
 
     _validateExecutionConditions(buy, trade, true, exitFundWallet, insuranceFundWallet);
     _validateExecutionConditions(sell, trade, false, exitFundWallet, insuranceFundWallet);
@@ -118,18 +112,15 @@ library OrderBookTradeValidations {
 
   function _validateLimitPrice(Order memory order, OrderBookTrade memory trade, bool isBuy) private pure {
     if (_isLimitOrderType(order.orderType)) {
-      require(order.limitPriceInPips > 0, "Invalid limit price");
+      require(order.limitPrice > 0, "Invalid limit price");
 
-      uint64 impliedQuoteQuantity = _calculateImpliedQuoteQuantityInPips(
-        trade.baseQuantityInPips,
-        order.limitPriceInPips
-      );
+      uint64 impliedQuoteQuantity = _calculateImpliedQuoteQuantity(trade.baseQuantity, order.limitPrice);
       require(
-        isBuy ? impliedQuoteQuantity >= trade.quoteQuantityInPips : impliedQuoteQuantity <= trade.quoteQuantityInPips,
+        isBuy ? impliedQuoteQuantity >= trade.quoteQuantity : impliedQuoteQuantity <= trade.quoteQuantity,
         "Order limit price exceeded"
       );
     } else {
-      require(order.limitPriceInPips == 0, "Invalid limit price");
+      require(order.limitPrice == 0, "Invalid limit price");
     }
   }
 
@@ -220,20 +211,18 @@ library OrderBookTradeValidations {
       order.orderType == OrderType.TakeProfitMarket ||
       order.orderType == OrderType.TakeProfitLimit
     ) {
-      require(order.triggerPriceInPips > 0, "Missing trigger price");
+      require(order.triggerPrice > 0, "Missing trigger price");
     } else if (order.orderType != OrderType.TrailingStop) {
-      require(order.triggerPriceInPips == 0, "Invalid trigger price");
+      require(order.triggerPrice == 0, "Invalid trigger price");
     }
 
     require(
-      order.orderType == OrderType.TrailingStop ? order.callbackRateInPips > 0 : order.callbackRateInPips == 0,
+      order.orderType == OrderType.TrailingStop ? order.callbackRate > 0 : order.callbackRate == 0,
       "Invalid callback rate"
     );
 
     require(
-      order.triggerPriceInPips == 0
-        ? order.triggerType == OrderTriggerType.None
-        : order.triggerType != OrderTriggerType.None,
+      order.triggerPrice == 0 ? order.triggerType == OrderTriggerType.None : order.triggerType != OrderTriggerType.None,
       "Invalid trigger type"
     );
   }

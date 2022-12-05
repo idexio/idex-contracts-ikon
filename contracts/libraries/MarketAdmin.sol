@@ -17,7 +17,7 @@ library MarketAdmin {
     newMarket.exists = true;
     newMarket.isActive = false;
     newMarket.lastIndexPriceTimestampInMs = 0;
-    newMarket.indexPriceInPipsAtDeactivation = 0;
+    newMarket.indexPriceAtDeactivation = 0;
 
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
   }
@@ -30,7 +30,7 @@ library MarketAdmin {
     require(market.exists && !market.isActive, "No deactived market found");
 
     market.isActive = true;
-    market.indexPriceInPipsAtDeactivation = 0;
+    market.indexPriceAtDeactivation = 0;
   }
 
   function deactivateMarket(
@@ -45,7 +45,7 @@ library MarketAdmin {
     Validations.validateAndUpdateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallets);
 
     market.isActive = false;
-    market.indexPriceInPipsAtDeactivation = indexPrice.price;
+    market.indexPriceAtDeactivation = indexPrice.price;
   }
 
   // TODO Validations
@@ -59,7 +59,7 @@ library MarketAdmin {
 
     marketOverrides.isActive = marketsByBaseAssetSymbol[marketOverrides.baseAssetSymbol].isActive;
     marketOverrides.lastIndexPriceTimestampInMs = 0;
-    marketOverrides.indexPriceInPipsAtDeactivation = 0;
+    marketOverrides.indexPriceAtDeactivation = 0;
 
     marketOverridesByBaseAssetSymbolAndWallet[marketOverrides.baseAssetSymbol][wallet] = marketOverrides;
   }

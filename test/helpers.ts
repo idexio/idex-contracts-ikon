@@ -235,15 +235,15 @@ export async function deployAndAssociateContracts(
         isActive: false,
         baseAssetSymbol: 'ETH',
         chainlinkPriceFeedAddress: chainlinkAggregator.address,
-        initialMarginFractionInPips: '5000000',
-        maintenanceMarginFractionInPips: '3000000',
-        incrementalInitialMarginFractionInPips: '1000000',
-        baselinePositionSizeInPips: '14000000000',
-        incrementalPositionSizeInPips: '2800000000',
-        maximumPositionSizeInPips: '282000000000',
-        minimumPositionSizeInPips: '2000000000',
+        initialMarginFraction: '5000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '2000000000',
         lastIndexPriceTimestampInMs: 0,
-        indexPriceInPipsAtDeactivation: 0,
+        indexPriceAtDeactivation: 0,
       })
     ).wait(),
   ]);
@@ -309,23 +309,24 @@ export async function logWalletBalances(
 ) {
   console.log(
     `USDC balance: ${pipToDecimal(
-      await exchange.loadBalanceInPipsBySymbol(wallet, 'USDC'),
+      await exchange.loadBalanceStructBySymbol(wallet, 'USDC'),
     )}`,
   );
 
   for (const indexPrice of indexPrices) {
     console.log(
       `${indexPrice.baseAssetSymbol} balance:  ${pipToDecimal(
-        await exchange.loadBalanceInPipsBySymbol(
-          wallet,
-          indexPrice.baseAssetSymbol,
-        ),
+        await exchange.loadBalanceBySymbol(wallet, indexPrice.baseAssetSymbol),
       )}`,
     );
     console.log(
       `${indexPrice.baseAssetSymbol} cost basis: ${pipToDecimal(
-        (await exchange.loadBalanceBySymbol(wallet, indexPrice.baseAssetSymbol))
-          .costBasisInPips,
+        (
+          await exchange.loadBalanceStructBySymbol(
+            wallet,
+            indexPrice.baseAssetSymbol,
+          )
+        ).costBasis,
       )}`,
     );
   }

@@ -27,8 +27,8 @@ library ClosureDeleveraging {
     string baseAssetSymbol;
     address deleveragingWallet;
     address liquidatingWallet;
-    int64 liquidationBaseQuantityInPips;
-    int64 liquidationQuoteQuantityInPips;
+    int64 liquidationBaseQuantity;
+    int64 liquidationQuoteQuantity;
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
     // Exchange state
@@ -140,14 +140,14 @@ library ClosureDeleveraging {
 
     if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
       LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(
-        arguments.liquidationBaseQuantityInPips,
-        balance.costBasisInPips,
-        balance.balanceInPips,
-        arguments.liquidationQuoteQuantityInPips
+        arguments.liquidationBaseQuantity,
+        balance.costBasis,
+        balance.balance,
+        arguments.liquidationQuoteQuantity
       );
     } else {
       // DeleverageType.ExitFundClosure
-      int64 totalAccountValueInPips = Margin.loadTotalAccountValue(
+      int64 totalAccountValue = Margin.loadTotalAccountValue(
         Margin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,
@@ -159,19 +159,19 @@ library ClosureDeleveraging {
       );
 
       LiquidationValidations.validateExitFundClosureQuoteQuantity(
-        arguments.liquidationBaseQuantityInPips,
+        arguments.liquidationBaseQuantity,
         indexPrice.price,
-        arguments.liquidationQuoteQuantityInPips,
-        totalAccountValueInPips
+        arguments.liquidationQuoteQuantity,
+        totalAccountValue
       );
     }
 
     balanceTracking.updatePositionForDeleverage(
-      arguments.liquidationBaseQuantityInPips,
+      arguments.liquidationBaseQuantity,
       arguments.deleveragingWallet,
       arguments.liquidatingWallet,
       market,
-      arguments.liquidationQuoteQuantityInPips,
+      arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );
