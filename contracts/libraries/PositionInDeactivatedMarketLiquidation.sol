@@ -43,22 +43,6 @@ library PositionInDeactivatedMarketLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    _liquidatePositionInDeactivatedMarket(
-      arguments,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-  }
-
-  function _liquidatePositionInDeactivatedMarket(
-    Arguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private {
     (int64 totalAccountValueInPips, uint64 totalMaintenanceMarginRequirementInPips) = Margin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         Margin.LoadArguments(

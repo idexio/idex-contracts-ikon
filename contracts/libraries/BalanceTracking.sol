@@ -140,14 +140,9 @@ library BalanceTracking {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal returns (int64 quoteQuantityInPips) {
+    // Calculate amount of quote to close position
     Balance storage balance = loadBalanceStructAndMigrateIfNeeded(self, wallet, market.baseAssetSymbol);
     int64 positionSizeInPips = balance.balanceInPips;
-
-    Market memory marketWithOverrides = market.loadMarketWithOverridesForWallet(
-      exitFundWallet,
-      marketOverridesByBaseAssetSymbolAndWallet
-    );
-
     quoteQuantityInPips = LiquidationValidations.calculateExitQuoteQuantity(
       balance.costBasisInPips,
       indexPriceInPips,
@@ -155,6 +150,7 @@ library BalanceTracking {
       totalAccountValueInPips
     );
 
+    // Zero out wallet position for market
     balance.balanceInPips = 0;
     balance.costBasisInPips = 0;
     _updateOpenPositionsForWallet(
@@ -164,14 +160,27 @@ library BalanceTracking {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
+    // Exit Fund wallet assumes wallet's position
+    Market memory marketWithExitFundOverrides = market.loadMarketWithOverridesForWallet(
+      exitFundWallet,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
     balance = loadBalanceStructAndMigrateIfNeeded(self, exitFundWallet, market.baseAssetSymbol);
-    _updatePosition(balance, positionSizeInPips, quoteQuantityInPips, marketWithOverrides.maximumPositionSizeInPips);
+    _updatePosition(
+      balance,
+      positionSizeInPips,
+      quoteQuantityInPips,
+      marketWithExitFundOverrides.maximumPositionSizeInPips
+    );
     _updateOpenPositionsForWallet(
       exitFundWallet,
       market.baseAssetSymbol,
       balance.balanceInPips,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
+
+    // The Exit Fund quote balance is not updated here, but instead is updated a single time in the calling function
+    // after summing the quote quantities needed to close each wallet position
   }
 
   // Trading //

@@ -480,8 +480,8 @@ contract Exchange_v4 is IExchange, Owned {
     Order calldata buy,
     Order calldata sell,
     OrderBookTrade calldata orderBookTrade,
-    IndexPrice[] calldata buyIndexPrices,
-    IndexPrice[] calldata sellIndexPrices
+    IndexPrice[] calldata buyWalletIndexPrices,
+    IndexPrice[] calldata sellWalletIndexPrices
   ) external onlyDispatcher {
     require(!_isWalletExitFinalized(buy.wallet), "Buy wallet exit finalized");
     require(!_isWalletExitFinalized(sell.wallet), "Sell wallet exit finalized");
@@ -492,8 +492,8 @@ contract Exchange_v4 is IExchange, Owned {
         buy,
         sell,
         orderBookTrade,
-        buyIndexPrices,
-        sellIndexPrices,
+        buyWalletIndexPrices,
+        sellWalletIndexPrices,
         delegateKeyExpirationPeriodInMs,
         exitFundWallet,
         feeWallet,

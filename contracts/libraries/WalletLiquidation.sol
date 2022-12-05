@@ -35,14 +35,14 @@ library WalletLiquidation {
 
   function liquidate(
     Arguments memory arguments,
-    uint256 exitFundPositionOpenedAtBlockNumber,
+    uint256 currentExitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public returns (uint256) {
+  ) public returns (uint256 resultingExitFundPositionOpenedAtBlockNumber) {
     Funding.updateWalletFundingInternal(
       arguments.liquidatingWallet,
       balanceTracking,
@@ -60,7 +60,7 @@ library WalletLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    _liquidate(
+    _validateQuoteQuantitiesAndLiquidatePositions(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -69,19 +69,31 @@ library WalletLiquidation {
     );
 
     if (arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
-      return
-        ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-          arguments.liquidatingWallet,
-          exitFundPositionOpenedAtBlockNumber,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet
-        );
-    }
+      resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+        arguments.liquidatingWallet,
+        currentExitFundPositionOpenedAtBlockNumber,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet
+      );
+    } else {
+      resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockNumber;
 
-    return exitFundPositionOpenedAtBlockNumber;
+      // Validate that the Insurance Fund still meets its initial margin requirements
+      Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+        Margin.LoadArguments(
+          arguments.counterpartyWallet,
+          arguments.counterpartyWalletIndexPrices,
+          arguments.indexPriceCollectionServiceWallets
+        ),
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+    }
   }
 
-  function _liquidate(
+  function _validateQuoteQuantitiesAndLiquidatePositions(
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -127,24 +139,6 @@ library WalletLiquidation {
     }
 
     balanceTracking.updateQuoteForLiquidation(arguments.counterpartyWallet, arguments.liquidatingWallet);
-
-    if (
-      arguments.liquidationType == LiquidationType.WalletExited ||
-      arguments.liquidationType == LiquidationType.WalletInMaintenance
-    ) {
-      // Validate that the Insurance Fund still meets its initial margin requirements
-      Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-        Margin.LoadArguments(
-          arguments.counterpartyWallet,
-          arguments.counterpartyWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallets
-        ),
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    }
   }
 
   function _validateQuoteQuantityAndLiquidatePosition(

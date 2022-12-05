@@ -20,12 +20,17 @@ library ExitFund {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
+    // Position opened when none was before, return current block number
     if (currentExitFundBalanceOpenedAtBlockNumber == 0 && isExitFundPositionOpen) {
       return block.number;
-    } else if (currentExitFundBalanceOpenedAtBlockNumber > 0 && !isExitFundBalanceOpen) {
+    }
+
+    // Position or quote was open before but both are now closed, reset block number
+    if (currentExitFundBalanceOpenedAtBlockNumber > 0 && !isExitFundBalanceOpen) {
       return 0;
     }
 
+    // No change in balance or quote opened block number
     return currentExitFundBalanceOpenedAtBlockNumber;
   }
 

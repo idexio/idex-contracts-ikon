@@ -42,7 +42,7 @@ library MarketAdmin {
     Market storage market = marketsByBaseAssetSymbol[baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
-    Validations.validateAndUpdateIndexPrice(market, indexPrice, indexPriceCollectionServiceWallets);
+    Validations.validateAndUpdateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallets);
 
     market.isActive = false;
     market.indexPriceInPipsAtDeactivation = indexPrice.price;

@@ -37,8 +37,8 @@ struct ExecuteOrderBookTradeArguments {
   Order buy;
   Order sell;
   OrderBookTrade orderBookTrade;
-  IndexPrice[] buyIndexPrices;
-  IndexPrice[] sellIndexPrices;
+  IndexPrice[] buyWalletIndexPrices;
+  IndexPrice[] sellWalletIndexPrices;
   // Exchange state
   uint64 delegateKeyExpirationPeriodInMs;
   address exitFundWallet;
@@ -128,22 +128,22 @@ struct Order {
   OrderTriggerType triggerType;
   // Percentage of price movement in opposite direction before triggering trailing stop
   uint64 callbackRateInPips;
-  // UUIDv1 public ID of a separate order that must be filled before this stop order becomes active
+  // Public ID of a separate order that must be filled before this stop order becomes active
   uint128 conditionalOrderId;
-  // Optional custom client order ID
-  string clientOrderId;
   // If true, order execution must move wallet position size towards zero
   bool isReduceOnly;
   // TIF option specified by wallet for order
   OrderTimeInForce timeInForce;
   // STP behavior specified by wallet for order
   OrderSelfTradePrevention selfTradePrevention;
-  // The ECDSA signature of the order hash as produced by Hashing.getOrderWalletHash
-  bytes walletSignature;
   // Asserted when signed by delegated key instead of custody wallet
   bool isSignedByDelegatedKey;
   // If non-zero, an authorization for a delegate key signer authorized by the custody wallet
   DelegatedKeyAuthorization delegatedKeyAuthorization;
+  // Optional custom client order ID
+  string clientOrderId;
+  // The ECDSA signature of the order hash as produced by Hashing.getOrderWalletHash
+  bytes walletSignature;
 }
 
 /**

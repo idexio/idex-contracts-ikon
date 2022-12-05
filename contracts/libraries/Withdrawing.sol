@@ -133,12 +133,27 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    uint64 quoteQuantityInPips = _withdrawExit(
+    int64 quoteQuantityInPips = _updatePositionsForExit(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
+    );
+
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+      arguments.wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    quoteQuantityInPips += balance.balanceInPips;
+    balance.balanceInPips = 0;
+
+    require(quoteQuantityInPips >= 0, "Negative quote after exit");
+
+    arguments.custodian.withdraw(
+      arguments.wallet,
+      arguments.quoteAssetAddress,
+      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantityInPips), Constants.QUOTE_ASSET_DECIMALS)
     );
 
     return (
@@ -148,7 +163,7 @@ library Withdrawing {
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
-      quoteQuantityInPips
+      uint64(quoteQuantityInPips)
     );
   }
 
@@ -169,6 +184,7 @@ library Withdrawing {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      // Sum quote quantites needed to close each wallet position
       quoteQuantityInPips += balanceTracking.updateForExit(
         arguments.exitFundWallet,
         market,
@@ -180,7 +196,7 @@ library Withdrawing {
       );
     }
 
-    // Quote out from exit fund wallet
+    // Total quote out from Exit Fund wallet calculated in loop
     Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.exitFundWallet,
       Constants.QUOTE_ASSET_SYMBOL
@@ -197,38 +213,5 @@ library Withdrawing {
     );
 
     return withdrawalHash;
-  }
-
-  function _withdrawExit(
-    WithdrawExitArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (uint64) {
-    int64 quoteQuantityInPips = _updatePositionsForExit(
-      arguments,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
-      arguments.wallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
-    quoteQuantityInPips += balance.balanceInPips;
-    balance.balanceInPips = 0;
-
-    require(quoteQuantityInPips > 0, "Negative quote after exit");
-
-    arguments.custodian.withdraw(
-      arguments.wallet,
-      arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantityInPips), Constants.QUOTE_ASSET_DECIMALS)
-    );
-
-    return uint64(quoteQuantityInPips);
   }
 }

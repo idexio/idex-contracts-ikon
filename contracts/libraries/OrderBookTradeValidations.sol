@@ -159,8 +159,11 @@ library OrderBookTradeValidations {
     if (order.isSignedByDelegatedKey) {
       uint64 issuedTimestampInMs = UUID.getTimestampInMsFromUuidV1(order.delegatedKeyAuthorization.nonce);
       require(
-        issuedTimestampInMs > lastInvalidatedTimestamp &&
-          issuedTimestampInMs + delegateKeyExpirationPeriodInMs > orderTimestampInMs,
+        issuedTimestampInMs > lastInvalidatedTimestamp,
+        order.side == OrderSide.Buy ? "Buy order delegated key invalidated" : "Sell order delegated key invalidated"
+      );
+      require(
+        issuedTimestampInMs + delegateKeyExpirationPeriodInMs > orderTimestampInMs,
         order.side == OrderSide.Buy ? "Buy order delegated key expired" : "Sell order delegated key expired"
       );
     }

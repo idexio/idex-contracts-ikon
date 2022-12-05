@@ -138,7 +138,7 @@ library Trading {
       Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
         Margin.LoadArguments(
           arguments.buy.wallet,
-          arguments.buyIndexPrices,
+          arguments.buyWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
@@ -152,7 +152,7 @@ library Trading {
       Margin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
         Margin.LoadArguments(
           arguments.sell.wallet,
-          arguments.sellIndexPrices,
+          arguments.sellWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,

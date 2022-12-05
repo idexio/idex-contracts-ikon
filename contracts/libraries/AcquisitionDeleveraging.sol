@@ -128,11 +128,13 @@ library AcquisitionDeleveraging {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market, IndexPrice memory indexPrice) {
+    market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
-        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
         indexPrice = arguments.liquidatingWalletIndexPrices[i];
+        break;
       }
     }
 
@@ -237,8 +239,8 @@ library AcquisitionDeleveraging {
       // Load market and index price for symbol
       loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       Validations.validateAndUpdateIndexPrice(
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         arguments.insuranceFundIndexPrices[i],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
         arguments.indexPriceCollectionServiceWallets
       );
       loadArguments.indexPricesInPips[i] = arguments.insuranceFundIndexPrices[i].price;

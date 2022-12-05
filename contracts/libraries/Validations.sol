@@ -15,8 +15,8 @@ library Validations {
   }
 
   function validateAndUpdateIndexPrice(
-    Market storage market,
     IndexPrice memory indexPrice,
+    Market storage market,
     address[] memory indexPriceCollectionServiceWallets
   ) internal {
     validateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallets);

@@ -207,8 +207,8 @@ export const getExecuteOrderBookTradeArguments = (
   sellOrder: Order,
   sellWalletSignature: string,
   trade: Trade,
-  buyIndexPrices: IndexPrice[],
-  sellIndexPrices: IndexPrice[],
+  buyWalletIndexPrices: IndexPrice[],
+  sellWalletIndexPrices: IndexPrice[],
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
 ): [
@@ -230,8 +230,8 @@ export const getExecuteOrderBookTradeArguments = (
       sellDelegatedKeyAuthorization,
     ),
     tradeToArgumentStruct(trade, buyOrder),
-    buyIndexPrices.map(indexPriceToArgumentStruct),
-    sellIndexPrices.map(indexPriceToArgumentStruct),
+    buyWalletIndexPrices.map(indexPriceToArgumentStruct),
+    sellWalletIndexPrices.map(indexPriceToArgumentStruct),
   ];
 };
 

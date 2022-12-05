@@ -383,13 +383,10 @@ library Margin {
         market.baseAssetSymbol
       );
 
-      totalAccountValueInPips += Math.min(
+      totalAccountValueInPips += LiquidationValidations.calculateExitQuoteQuantity(
         balance.costBasisInPips,
-        Math.multiplyPipsByFraction(
-          balance.balanceInPips,
-          int64(indexPriceInPips),
-          int64(Constants.PIP_PRICE_MULTIPLIER)
-        )
+        indexPriceInPips,
+        balance.balanceInPips
       );
     }
 
@@ -491,7 +488,7 @@ library Margin {
     BalanceTracking.Storage storage balanceTracking
   ) private returns (uint64) {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
-    Validations.validateAndUpdateIndexPrice(market, indexPrice, arguments.indexPriceCollectionServiceWallets);
+    Validations.validateAndUpdateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
 
     return
       Math.abs(

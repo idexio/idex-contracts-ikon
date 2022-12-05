@@ -9,13 +9,22 @@ library LiquidationValidations {
   function calculateExitQuoteQuantity(
     int64 costBasis,
     uint64 indexPrice,
-    int64 positionSize,
-    int64 totalAccountValue
+    int64 positionSize
   ) internal pure returns (int64 quoteQuantity) {
     quoteQuantity = Math.multiplyPipsByFraction(positionSize, int64(indexPrice), int64(Constants.PIP_PRICE_MULTIPLIER));
 
     // Quote value is the worse of the index price or entry price...
     quoteQuantity = positionSize > 0 ? Math.min(quoteQuantity, costBasis) : Math.max(quoteQuantity, costBasis);
+  }
+
+  function calculateExitQuoteQuantity(
+    int64 costBasis,
+    uint64 indexPrice,
+    int64 positionSize,
+    int64 totalAccountValue
+  ) internal pure returns (int64 quoteQuantity) {
+    // Quote value is the worse of the index price or entry price...
+    quoteQuantity = calculateExitQuoteQuantity(costBasis, indexPrice, positionSize);
 
     // ...but never worse than the bankruptcy price
     quoteQuantity = positionSize > 0
