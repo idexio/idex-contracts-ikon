@@ -9,7 +9,11 @@ import { IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./
 
 library MarketAdmin {
   // TODO Validations
-  function addMarket(Market memory newMarket, mapping(string => Market) storage marketsByBaseAssetSymbol) public {
+  // solhint-disable-next-line func-name-mixedcase
+  function addMarket_delegatecall(
+    Market memory newMarket,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
 
     require(Address.isContract(address(newMarket.chainlinkPriceFeedAddress)), "Invalid Chainlink price feed");
@@ -22,7 +26,8 @@ library MarketAdmin {
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
   }
 
-  function activateMarket(
+  // solhint-disable-next-line func-name-mixedcase
+  function activateMarket_delegatecall(
     string calldata baseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
@@ -33,7 +38,8 @@ library MarketAdmin {
     market.indexPriceAtDeactivation = 0;
   }
 
-  function deactivateMarket(
+  // solhint-disable-next-line func-name-mixedcase
+  function deactivateMarket_delegatecall(
     string calldata baseAssetSymbol,
     IndexPrice memory indexPrice,
     address[] memory indexPriceCollectionServiceWallets,
@@ -49,13 +55,14 @@ library MarketAdmin {
   }
 
   // TODO Validations
-  function setMarketOverrides(
+  // solhint-disable-next-line func-name-mixedcase
+  function setMarketOverrides_delegatecall(
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
     address wallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) external {
+  ) public {
     require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Market does not exist");
 
     marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({

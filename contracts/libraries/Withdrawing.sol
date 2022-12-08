@@ -43,7 +43,8 @@ library Withdrawing {
     address quoteAssetAddress;
   }
 
-  function withdraw(
+  // solhint-disable-next-line func-name-mixedcase
+  function withdraw_delegatecall(
     WithdrawArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -69,7 +70,7 @@ library Withdrawing {
     bytes32 withdrawalHash = _validateWithdrawalSignature(arguments.withdrawal);
     require(!completedWithdrawalHashes[withdrawalHash], "Hash already withdrawn");
 
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.withdrawal.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -115,7 +116,8 @@ library Withdrawing {
     completedWithdrawalHashes[withdrawalHash] = true;
   }
 
-  function withdrawExit(
+  // solhint-disable-next-line func-name-mixedcase
+  function withdrawExit_delegatecall(
     Withdrawing.WithdrawExitArguments memory arguments,
     uint256 exitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
@@ -125,7 +127,7 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256, uint64) {
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -175,7 +177,7 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantity) {
-    int64 totalAccountValue = NonMutatingMargin.loadTotalWalletExitAccountValue(
+    int64 totalAccountValue = NonMutatingMargin.loadTotalAccountValueForExit(
       NonMutatingMargin.LoadArguments(
         arguments.wallet,
         new IndexPrice[](0),
@@ -193,7 +195,7 @@ library Withdrawing {
       quoteQuantity += balanceTracking.updateForExit(
         arguments.exitFundWallet,
         market,
-        market.loadFeedPrice(),
+        market.loadOnChainFeedPrice(),
         totalAccountValue,
         arguments.wallet,
         baseAssetSymbolsWithOpenPositionsByWallet,

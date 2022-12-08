@@ -31,7 +31,7 @@ library MutatingMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (bool) {
     return
-      NonMutatingMargin.loadTotalAccountValueInternal(
+      NonMutatingMargin.loadTotalAccountValue(
         arguments,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -55,7 +55,7 @@ library MutatingMargin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
-    totalAccountValue = NonMutatingMargin.loadTotalAccountValueInternal(
+    totalAccountValue = NonMutatingMargin.loadTotalAccountValue(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -82,7 +82,7 @@ library MutatingMargin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
-    totalAccountValue = NonMutatingMargin.loadTotalAccountValueInternal(
+    totalAccountValue = NonMutatingMargin.loadTotalAccountValue(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

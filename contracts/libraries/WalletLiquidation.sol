@@ -34,7 +34,8 @@ library WalletLiquidation {
     address[] indexPriceCollectionServiceWallets;
   }
 
-  function liquidate(
+  // solhint-disable-next-line func-name-mixedcase
+  function liquidate_delegatecall(
     Arguments memory arguments,
     uint256 currentExitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
@@ -44,7 +45,7 @@ library WalletLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256 resultingExitFundPositionOpenedAtBlockNumber) {
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -52,7 +53,7 @@ library WalletLiquidation {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.counterpartyWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

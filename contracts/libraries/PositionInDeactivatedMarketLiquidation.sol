@@ -26,7 +26,8 @@ library PositionInDeactivatedMarketLiquidation {
     address[] indexPriceCollectionServiceWallets;
   }
 
-  function liquidate(
+  // solhint-disable-next-line func-name-mixedcase
+  function liquidate_delegatecall(
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -35,7 +36,7 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

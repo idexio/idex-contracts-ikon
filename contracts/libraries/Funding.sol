@@ -5,6 +5,7 @@ import { Constants } from "./Constants.sol";
 import { FundingMultipliers } from "./FundingMultipliers.sol";
 import { Math } from "./Math.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
+import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
@@ -14,7 +15,8 @@ library Funding {
   using BalanceTracking for BalanceTracking.Storage;
   using FundingMultipliers for FundingMultiplierQuartet[];
 
-  function loadOutstandingWalletFunding(
+  // solhint-disable-next-line func-name-mixedcase
+  function loadOutstandingWalletFunding_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -23,7 +25,7 @@ library Funding {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64 funding) {
     return
-      loadOutstandingWalletFundingInternal(
+      loadOutstandingWalletFunding(
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -33,7 +35,8 @@ library Funding {
       );
   }
 
-  function loadTotalAccountValueIncludingOutstandingWalletFunding(
+  // solhint-disable-next-line func-name-mixedcase
+  function loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -41,14 +44,23 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64) {
-    return
-      NonMutatingMargin.loadTotalAccountValueInternal(
+    int64 totalAccountValue = arguments.indexPrices.length == 0
+      ? OnChainPriceFeedMargin.loadTotalAccountValue(
+        arguments.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      )
+      : NonMutatingMargin.loadTotalAccountValue(
         arguments,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketsByBaseAssetSymbol
-      ) +
-      loadOutstandingWalletFundingInternal(
+      );
+
+    return
+      totalAccountValue +
+      loadOutstandingWalletFunding(
         arguments.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -58,7 +70,8 @@ library Funding {
       );
   }
 
-  function publishFundingMutipliers(
+  // solhint-disable-next-line func-name-mixedcase
+  function publishFundingMutipliers_delegatecall(
     int64[] memory fundingRates,
     IndexPrice[] memory indexPrices,
     address[] memory indexPriceCollectionServiceWallets,
@@ -72,12 +85,35 @@ library Funding {
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
         indexPrice.baseAssetSymbol
       ];
-      require(
-        lastPublishTimestampInMs > 0
-          ? lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS == indexPrice.timestampInMs
-          : indexPrice.timestampInMs % Constants.FUNDING_PERIOD_IN_MS == 0,
-        "Input price not period aligned"
-      );
+
+      uint64 nextPublishTimestampInMs;
+      if (lastPublishTimestampInMs == 0) {
+        // No funding rates published yet, use closest period starting before index price timestamp
+        nextPublishTimestampInMs =
+          indexPrice.timestampInMs -
+          (indexPrice.timestampInMs % Constants.FUNDING_PERIOD_IN_MS);
+      } else {
+        // Previous funding rate exists, next publish timestamp is exactly one period length from previous period start
+        nextPublishTimestampInMs = lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS;
+
+        if (indexPrice.timestampInMs < nextPublishTimestampInMs) {
+          // Validate index price is not stale for next period
+          require(
+            nextPublishTimestampInMs - indexPrice.timestampInMs < Constants.FUNDING_PERIOD_IN_MS / 2,
+            "Index price too far before next period"
+          );
+        } else if (nextPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS / 2 < indexPrice.timestampInMs) {
+          // Backfill missing periods with a multiplier of 0 (no funding payments made)
+          uint64 periodsToBackfill = Math.divideRoundNearest(
+            indexPrice.timestampInMs - nextPublishTimestampInMs,
+            Constants.FUNDING_PERIOD_IN_MS
+          );
+          for (uint64 j = 0; j < periodsToBackfill; j++) {
+            fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(0);
+          }
+          nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
+        }
+      }
 
       int64 newFundingMultiplier = Math.multiplyPipsByFraction(
         int64(indexPrice.price),
@@ -87,11 +123,12 @@ library Funding {
 
       fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
 
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = indexPrice.timestampInMs;
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = nextPublishTimestampInMs;
     }
   }
 
-  function updateWalletFunding(
+  // solhint-disable-next-line func-name-mixedcase
+  function updateWalletFunding_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -99,7 +136,7 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
-    updateWalletFundingInternal(
+    updateWalletFunding(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -109,7 +146,7 @@ library Funding {
     );
   }
 
-  function loadOutstandingWalletFundingInternal(
+  function loadOutstandingWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -164,7 +201,7 @@ library Funding {
     }
   }
 
-  function updateWalletFundingInternal(
+  function updateWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,

@@ -36,7 +36,8 @@ library ClosureDeleveraging {
     address[] indexPriceCollectionServiceWallets;
   }
 
-  function deleverage(
+  // solhint-disable-next-line func-name-mixedcase
+  function deleverage_delegatecall(
     Arguments memory arguments,
     uint256 exitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
@@ -46,7 +47,7 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256) {
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -54,7 +55,7 @@ library ClosureDeleveraging {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -148,7 +149,7 @@ library ClosureDeleveraging {
       );
     } else {
       // DeleverageType.ExitFundClosure
-      int64 totalAccountValue = NonMutatingMargin.loadTotalAccountValueInternal(
+      int64 totalAccountValue = NonMutatingMargin.loadTotalAccountValue(
         NonMutatingMargin.LoadArguments(
           arguments.liquidatingWallet,
           arguments.liquidatingWalletIndexPrices,

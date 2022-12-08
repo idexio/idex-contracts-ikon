@@ -13,7 +13,8 @@ import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, Marke
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
 
-  function executeOrderBookTrade(
+  // solhint-disable-next-line func-name-mixedcase
+  function executeOrderBookTrade_delegatecall(
     ExecuteOrderBookTradeArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -35,7 +36,7 @@ library Trading {
 
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.buy.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -43,7 +44,7 @@ library Trading {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.sell.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
