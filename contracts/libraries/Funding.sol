@@ -2,7 +2,7 @@
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
-import { FundingMultipliers } from "./FundingMultipliers.sol";
+import { FundingMultiplierQuartetHelper } from "./FundingMultiplierQuartetHelper.sol";
 import { Math } from "./Math.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
@@ -14,7 +14,7 @@ pragma solidity 0.8.17;
 
 library Funding {
   using BalanceTracking for BalanceTracking.Storage;
-  using FundingMultipliers for FundingMultiplierQuartet[];
+  using FundingMultiplierQuartetHelper for FundingMultiplierQuartet[];
   using SortedStringSet for string[];
 
   // solhint-disable-next-line func-name-mixedcase
@@ -81,6 +81,8 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
+    require(fundingRates.length == indexPrices.length, "Rate and index price mismatch");
+
     for (uint8 i = 0; i < indexPrices.length; i++) {
       IndexPrice memory indexPrice = indexPrices[i];
       int64 fundingRate = fundingRates[i];
@@ -129,7 +131,7 @@ library Funding {
         // funding credit or debit
         -1 * fundingRate,
         int64(Constants.PIP_PRICE_MULTIPLIER)
-      );
+      ) / int64(Constants.PIP_PRICE_MULTIPLIER);
 
       fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
 

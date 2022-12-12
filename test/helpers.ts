@@ -7,6 +7,7 @@ import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import {
   decimalToAssetUnits,
   decimalToPips,
+  fundingPeriodLengthInMs,
   getIndexPriceHash,
   getOrderHash,
   indexPriceToArgumentStruct,
@@ -17,12 +18,13 @@ import {
   pipsDecimals,
   signatureHashVersion,
 } from '../lib';
+import { Exchange_v4, USDC } from '../typechain-types';
 
 export const quoteAssetDecimals = 6;
 
-export const quoteAssetSymbol = 'USDC';
+export const baseAssetSymbol = 'ETH';
 
-const millisecondsInAnHour = 60 * 60 * 1000;
+export const quoteAssetSymbol = 'USDC';
 
 export async function buildIndexPrice(
   index: SignerWithAddress,
@@ -46,8 +48,8 @@ export async function buildIndexPrices(
       .fill(null)
       .map(async (_, i) => {
         const indexPrice = {
-          baseAssetSymbol: 'ETH',
-          timestampInMs: getPastHourInMs(count - i),
+          baseAssetSymbol,
+          timestampInMs: getPastPeriodInMs(count - i),
           price: prices[i % prices.length],
         };
         const signature = await index.signMessage(
@@ -64,10 +66,10 @@ export async function buildIndexPrices(
 export async function buildIndexPriceWithValue(
   index: SignerWithAddress,
   price: string,
-  baseAssetSymbol = 'ETH',
+  baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
   const indexPrice = {
-    baseAssetSymbol,
+    baseAssetSymbol: baseAssetSymbol_,
     timestampInMs: new Date().getTime(),
     price,
   };
@@ -81,7 +83,7 @@ export async function buildIndexPriceWithValue(
 export async function buildLimitOrder(
   signer: SignerWithAddress,
   side: OrderSide,
-  market = 'ETH-USDC',
+  market = `${baseAssetSymbol}-USDC`,
   quantity = '1.00000000',
   price = '2000.00000000',
 ) {
@@ -233,7 +235,7 @@ export async function deployAndAssociateContracts(
       await exchange.addMarket({
         exists: true,
         isActive: false,
-        baseAssetSymbol: 'ETH',
+        baseAssetSymbol,
         chainlinkPriceFeedAddress: chainlinkAggregator.address,
         lastIndexPriceTimestampInMs: 0,
         indexPriceAtDeactivation: 0,
@@ -249,15 +251,15 @@ export async function deployAndAssociateContracts(
       })
     ).wait(),
   ]);
-  (await exchange.connect(dispatcher).activateMarket('ETH')).wait();
+  (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
 
   return { chainlinkAggregator, usdc, custodian, exchange, governance };
 }
 
 export async function fundWallets(
   wallets: SignerWithAddress[],
-  exchange: Contract,
-  usdc: Contract,
+  exchange: Exchange_v4,
+  usdc: USDC,
   quantity = '2000.00000000',
 ) {
   await Promise.all(
@@ -295,13 +297,41 @@ export async function fundWallets(
   );
 }
 
-function getPastHourInMs(hoursAgo = 0) {
+function getPastPeriodInMs(periodsAgo = 0) {
   return new Date(
     Math.round(
-      (new Date().getTime() - hoursAgo * millisecondsInAnHour) /
-        millisecondsInAnHour,
-    ) * millisecondsInAnHour,
+      (new Date().getTime() - periodsAgo * fundingPeriodLengthInMs) /
+        fundingPeriodLengthInMs,
+    ) * fundingPeriodLengthInMs,
   ).getTime();
+}
+
+export async function loadFundingMultipliers(
+  exchange: Exchange_v4,
+  baseAssetSymbol_ = baseAssetSymbol,
+) {
+  const multipliers: string[][] = [];
+  try {
+    let i = 0;
+    while (true) {
+      multipliers.push(
+        (
+          await exchange.fundingMultipliersByBaseAssetSymbol(
+            baseAssetSymbol_,
+            i,
+          )
+        ).map((m) => m.toString()),
+      );
+
+      i += 1;
+    }
+  } catch (e) {
+    if (e instanceof Error && !e.message.match(/^call revert exception/)) {
+      console.error(e.message);
+    }
+  }
+
+  return multipliers;
 }
 
 export async function logWalletBalances(

@@ -103,28 +103,6 @@ describe('Exchange', function () {
     );
   });
 
-  it('publishFundingMutipliers should work', async function () {
-    const [owner, dispatcher, exitFund, fee, insurance, index] =
-      await ethers.getSigners();
-    const { exchange } = await deployAndAssociateContracts(
-      owner,
-      dispatcher,
-      exitFund,
-      fee,
-      insurance,
-      index,
-    );
-
-    await (
-      await exchange
-        .connect(dispatcher)
-        .publishFundingMutipliers(
-          buildFundingRates(5),
-          await buildIndexPrices(index, 5),
-        )
-    ).wait();
-  });
-
   describe('executeOrderBookTrade', async function () {
     it('should work with maker rebate', async function () {
       const [
@@ -201,7 +179,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [indexPrice]);
     });
 
-    it.only('can haz deebug', async function () {
+    it('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
