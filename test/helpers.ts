@@ -7,9 +7,10 @@ import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import {
   decimalToAssetUnits,
   decimalToPips,
-  getOraclePriceHash,
+  getIndexPriceHash,
   getOrderHash,
-  OraclePrice,
+  indexPriceToArgumentStruct,
+  IndexPrice,
   Order,
   OrderSide,
   OrderType,
@@ -19,58 +20,62 @@ import {
 
 export const quoteAssetDecimals = 6;
 
+export const quoteAssetSymbol = 'USDC';
+
 const millisecondsInAnHour = 60 * 60 * 1000;
 
-export async function buildOraclePrice(
-  oracle: SignerWithAddress,
-): Promise<OraclePrice> {
-  return (await buildOraclePrices(oracle, 1))[0];
+export async function buildIndexPrice(
+  index: SignerWithAddress,
+): Promise<IndexPrice> {
+  return (await buildIndexPrices(index, 1))[0];
 }
 
 const prices = [
-  '2000000000',
-  '2100000000',
-  '1950000000',
-  '1996790000',
-  '1724640000',
+  '2000.00000000',
+  '2100.00000000',
+  '1950.00000000',
+  '1996.79000000',
+  '1724.64000000',
 ];
-export async function buildOraclePrices(
-  oracle: SignerWithAddress,
+export async function buildIndexPrices(
+  index: SignerWithAddress,
   count = 1,
-): Promise<OraclePrice[]> {
+): Promise<IndexPrice[]> {
   return Promise.all(
     Array(count)
       .fill(null)
       .map(async (_, i) => {
-        const oraclePrice = {
+        const indexPrice = {
           baseAssetSymbol: 'ETH',
           timestampInMs: getPastHourInMs(count - i),
-          priceInAssetUnits: prices[i % prices.length],
+          price: prices[i % prices.length],
         };
-        const signature = await oracle.signMessage(
-          ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
+        const signature = await index.signMessage(
+          ethers.utils.arrayify(
+            getIndexPriceHash(indexPrice, quoteAssetSymbol),
+          ),
         );
 
-        return { ...oraclePrice, signature };
+        return { ...indexPrice, signature };
       }),
   );
 }
 
-export async function buildOraclePriceWithValue(
-  oracle: SignerWithAddress,
-  priceInAssetUnits: string,
+export async function buildIndexPriceWithValue(
+  index: SignerWithAddress,
+  price: string,
   baseAssetSymbol = 'ETH',
-): Promise<OraclePrice> {
-  const oraclePrice = {
+): Promise<IndexPrice> {
+  const indexPrice = {
     baseAssetSymbol,
     timestampInMs: new Date().getTime(),
-    priceInAssetUnits,
+    price,
   };
-  const signature = await oracle.signMessage(
-    ethers.utils.arrayify(getOraclePriceHash(oraclePrice)),
+  const signature = await index.signMessage(
+    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
   );
 
-  return { ...oraclePrice, signature };
+  return { ...indexPrice, signature };
 }
 
 export async function buildLimitOrder(
@@ -110,48 +115,60 @@ export async function deployAndAssociateContracts(
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
-  oracle: SignerWithAddress = owner,
+  indexPriceCollectionServiceWallet: SignerWithAddress = owner,
 ) {
   const [
-    Deleveraging,
+    AcquisitionDeleveraging,
+    ClosureDeleveraging,
     Depositing,
     Funding,
-    Liquidation,
-    Margin,
     MarketAdmin,
     NonceInvalidations,
+    NonMutatingMargin,
+    PositionBelowMinimumLiquidation,
+    PositionInDeactivatedMarketLiquidation,
     Trading,
+    WalletLiquidation,
     Withdrawing,
   ] = await Promise.all([
-    ethers.getContractFactory('Deleveraging'),
+    ethers.getContractFactory('AcquisitionDeleveraging'),
+    ethers.getContractFactory('ClosureDeleveraging'),
     ethers.getContractFactory('Depositing'),
     ethers.getContractFactory('Funding'),
-    ethers.getContractFactory('Liquidation'),
-    ethers.getContractFactory('Margin'),
     ethers.getContractFactory('MarketAdmin'),
     ethers.getContractFactory('NonceInvalidations'),
+    ethers.getContractFactory('NonMutatingMargin'),
+    ethers.getContractFactory('PositionBelowMinimumLiquidation'),
+    ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
     ethers.getContractFactory('Trading'),
+    ethers.getContractFactory('WalletLiquidation'),
     ethers.getContractFactory('Withdrawing'),
   ]);
   const [
-    deleveraging,
+    acquisitionDeleveraging,
+    closureDeleveraging,
     depositing,
     funding,
-    liquidation,
-    margin,
     marketAdmin,
     nonceInvalidations,
+    nonMutatingMargin,
+    positionBelowMinimumLiquidation,
+    positionInDeactivatedMarketLiquidation,
     trading,
+    walletLiquidation,
     withdrawing,
   ] = await Promise.all([
-    (await Deleveraging.deploy()).deployed(),
+    (await AcquisitionDeleveraging.deploy()).deployed(),
+    (await ClosureDeleveraging.deploy()).deployed(),
     (await Depositing.deploy()).deployed(),
     (await Funding.deploy()).deployed(),
-    (await Liquidation.deploy()).deployed(),
-    (await Margin.deploy()).deployed(),
     (await MarketAdmin.deploy()).deployed(),
     (await NonceInvalidations.deploy()).deployed(),
+    (await NonMutatingMargin.deploy()).deployed(),
+    (await PositionBelowMinimumLiquidation.deploy()).deployed(),
+    (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
+    (await WalletLiquidation.deploy()).deployed(),
     (await Withdrawing.deploy()).deployed(),
   ]);
 
@@ -161,14 +178,19 @@ export async function deployAndAssociateContracts(
       ethers.getContractFactory('USDC'),
       ethers.getContractFactory('Exchange_v4', {
         libraries: {
-          Deleveraging: deleveraging.address,
+          AcquisitionDeleveraging: acquisitionDeleveraging.address,
+          ClosureDeleveraging: closureDeleveraging.address,
           Depositing: depositing.address,
           Funding: funding.address,
-          Liquidation: liquidation.address,
-          Margin: margin.address,
           MarketAdmin: marketAdmin.address,
           NonceInvalidations: nonceInvalidations.address,
+          NonMutatingMargin: nonMutatingMargin.address,
+          PositionBelowMinimumLiquidation:
+            positionBelowMinimumLiquidation.address,
+          PositionInDeactivatedMarketLiquidation:
+            positionInDeactivatedMarketLiquidation.address,
           Trading: trading.address,
+          WalletLiquidation: walletLiquidation.address,
           Withdrawing: withdrawing.address,
         },
       }),
@@ -189,12 +211,10 @@ export async function deployAndAssociateContracts(
       await Exchange_v4.deploy(
         ethers.constants.AddressZero,
         usdc.address,
-        'USDC',
-        quoteAssetDecimals,
         exitFundWallet.address,
         feeWallet.address,
         insuranceFund.address,
-        oracle.address,
+        [indexPriceCollectionServiceWallet.address],
       )
     ).deployed(),
     (await Governance.deploy(0)).deployed(),
@@ -215,15 +235,17 @@ export async function deployAndAssociateContracts(
         isActive: false,
         baseAssetSymbol: 'ETH',
         chainlinkPriceFeedAddress: chainlinkAggregator.address,
-        initialMarginFractionInPips: '5000000',
-        maintenanceMarginFractionInPips: '3000000',
-        incrementalInitialMarginFractionInPips: '1000000',
-        baselinePositionSizeInPips: '14000000000',
-        incrementalPositionSizeInPips: '2800000000',
-        maximumPositionSizeInPips: '282000000000',
-        minimumPositionSizeInPips: '2000000000',
-        lastOraclePriceTimestampInMs: 0,
-        oraclePriceInPipsAtDeactivation: 0,
+        lastIndexPriceTimestampInMs: 0,
+        indexPriceAtDeactivation: 0,
+        overridableFields: {
+          initialMarginFraction: '5000000',
+          maintenanceMarginFraction: '3000000',
+          incrementalInitialMarginFraction: '1000000',
+          baselinePositionSize: '14000000000',
+          incrementalPositionSize: '2800000000',
+          maximumPositionSize: '282000000000',
+          minimumPositionSize: '2000000000',
+        },
       })
     ).wait(),
   ]);
@@ -285,38 +307,38 @@ function getPastHourInMs(hoursAgo = 0) {
 export async function logWalletBalances(
   wallet: string,
   exchange: Contract,
-  oraclePrices: OraclePrice[],
+  indexPrices: IndexPrice[],
 ) {
   console.log(
     `USDC balance: ${pipToDecimal(
-      await exchange.loadBalanceInPipsBySymbol(wallet, 'USDC'),
+      await exchange.loadBalanceBySymbol(wallet, 'USDC'),
     )}`,
   );
 
-  for (const oraclePrice of oraclePrices) {
+  for (const indexPrice of indexPrices) {
     console.log(
-      `${oraclePrice.baseAssetSymbol} balance:  ${pipToDecimal(
-        await exchange.loadBalanceInPipsBySymbol(
-          wallet,
-          oraclePrice.baseAssetSymbol,
-        ),
+      `${indexPrice.baseAssetSymbol} balance:  ${pipToDecimal(
+        await exchange.loadBalanceBySymbol(wallet, indexPrice.baseAssetSymbol),
       )}`,
     );
     console.log(
-      `${oraclePrice.baseAssetSymbol} cost basis: ${pipToDecimal(
+      `${indexPrice.baseAssetSymbol} cost basis: ${pipToDecimal(
         (
-          await exchange.loadBalanceBySymbol(
+          await exchange.loadBalanceStructBySymbol(
             wallet,
-            oraclePrice.baseAssetSymbol,
+            indexPrice.baseAssetSymbol,
           )
-        ).costBasisInPips,
+        ).costBasis,
       )}`,
     );
   }
 
   console.log(
     `Total account value: ${pipToDecimal(
-      await exchange.loadTotalAccountValue(wallet, oraclePrices),
+      await exchange.loadTotalAccountValue(
+        wallet,
+        indexPrices.map(indexPriceToArgumentStruct),
+      ),
     )}`,
   );
   console.log(
@@ -326,14 +348,17 @@ export async function logWalletBalances(
   );
   console.log(
     `Initial margin requirement: ${pipToDecimal(
-      await exchange.loadTotalInitialMarginRequirement(wallet, oraclePrices),
+      await exchange.loadTotalInitialMarginRequirement(
+        wallet,
+        indexPrices.map(indexPriceToArgumentStruct),
+      ),
     )}`,
   );
   console.log(
     `Maintenance margin requirement: ${pipToDecimal(
       await exchange.loadTotalMaintenanceMarginRequirement(
         wallet,
-        oraclePrices,
+        indexPrices.map(indexPriceToArgumentStruct),
       ),
     )}`,
   );

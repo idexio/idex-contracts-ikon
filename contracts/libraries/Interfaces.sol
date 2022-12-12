@@ -2,18 +2,13 @@
 
 pragma solidity 0.8.17;
 
-import { Balance } from './Structs.sol';
+import { Balance } from "./Structs.sol";
 
 /**
  * @notice Interface to Custodian contract. Used by Exchange and Governance contracts for internal
  * delegate calls
  */
 interface ICustodian {
-  /**
-   * @notice ETH can only be sent by the Exchange
-   */
-  receive() external payable;
-
   /**
    * @notice Withdraw any asset and amount to a target wallet
    *
@@ -23,11 +18,7 @@ interface ICustodian {
    * @param asset The address of the asset to withdraw (ERC-20 contract)
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
-  function withdraw(
-    address wallet,
-    address asset,
-    uint256 quantityInAssetUnits
-  ) external;
+  function withdraw(address wallet, address asset, uint256 quantityInAssetUnits) external;
 
   /**
    * @notice Load address of the currently whitelisted Exchange contract
@@ -59,7 +50,7 @@ interface ICustodian {
 }
 
 /**
- * @notice Interface to Whistler Exchange contract
+ * @notice Interface to Exchange contract
  *
  * @dev Used for lazy balance migrations from old to new Exchange after upgrade
  */
@@ -72,25 +63,22 @@ interface IExchange {
    *
    * @return The quantity denominated in pips of asset at `assetSymbol` currently deposited by `wallet`
    */
-  function loadBalanceInPipsBySymbol(
-    address wallet,
-    string calldata assetSymbol
-  ) external view returns (int64);
+  function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
 
   /**
-   * @notice Load a wallet's balance-tracking struct by asset address
+   * @notice Load a wallet's balance-tracking struct by asset symbol
    */
-  function loadBalanceBySymbol(address wallet, string calldata assetSymbol)
-    external
-    view
-    returns (Balance memory);
+  function loadBalanceStructBySymbol(
+    address wallet,
+    string calldata assetSymbol
+  ) external view returns (Balance memory);
 
   /**
    * @notice Load the address of the Custodian contract
    *
    * @return The address of the Custodian contract
    */
-  function loadCustodian() external view returns (ICustodian);
+  function custodian() external view returns (ICustodian);
 
   /**
    * @notice Load the number of deposits made to the contract, for use when upgrading to a new
@@ -98,5 +86,5 @@ interface IExchange {
    *
    * @return The number of deposits successfully made to the Exchange
    */
-  function _depositIndex() external view returns (uint64);
+  function depositIndex() external view returns (uint64);
 }

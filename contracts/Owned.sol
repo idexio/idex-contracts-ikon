@@ -6,15 +6,15 @@ pragma solidity 0.8.17;
  * @notice Mixin that provide separate owner and admin roles for RBAC
  */
 abstract contract Owned {
-  address immutable _owner;
+  address _owner;
   address _admin;
 
   modifier onlyOwner() {
-    require(msg.sender == _owner, 'Caller must be owner');
+    require(msg.sender == _owner, "Caller must be owner");
     _;
   }
   modifier onlyAdmin() {
-    require(msg.sender == _admin, 'Caller must be admin');
+    require(msg.sender == _admin, "Caller must be admin");
     _;
   }
 
@@ -32,8 +32,8 @@ abstract contract Owned {
    * @param newAdmin The new whitelisted admin wallet. Must be different from the current one
    */
   function setAdmin(address newAdmin) external onlyOwner {
-    require(newAdmin != address(0x0), 'Invalid wallet address');
-    require(newAdmin != _admin, 'Must be different from current admin');
+    require(newAdmin != address(0x0), "Invalid wallet address");
+    require(newAdmin != _admin, "Must be different from current admin");
 
     _admin = newAdmin;
   }
@@ -44,5 +44,12 @@ abstract contract Owned {
    */
   function removeAdmin() external onlyOwner {
     _admin = address(0x0);
+  }
+
+  /**
+   * @notice Permanently clears the owner wallet, effectively disabling any functions requiring the owner role
+   */
+  function removeOwner() external onlyOwner {
+    _owner = address(0x0);
   }
 }

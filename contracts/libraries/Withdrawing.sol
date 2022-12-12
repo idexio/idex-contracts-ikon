@@ -2,18 +2,19 @@
 
 pragma solidity 0.8.17;
 
-import { AssetUnitConversions } from './AssetUnitConversions.sol';
-import { BalanceTracking } from './BalanceTracking.sol';
-import { Constants } from './Constants.sol';
-import { ExitFund } from './ExitFund.sol';
-import { ICustodian } from './Interfaces.sol';
-import { Funding } from './Funding.sol';
-import { Liquidation } from './Liquidation.sol';
-import { Margin } from './Margin.sol';
-import { MarketHelper } from './MarketHelper.sol';
-import { Math } from './Math.sol';
-import { Validations } from './Validations.sol';
-import { Balance, FundingMultiplierQuartet, Market, OraclePrice, Withdrawal } from './Structs.sol';
+import { AssetUnitConversions } from "./AssetUnitConversions.sol";
+import { BalanceTracking } from "./BalanceTracking.sol";
+import { Constants } from "./Constants.sol";
+import { ExitFund } from "./ExitFund.sol";
+import { Hashing } from "./Hashing.sol";
+import { ICustodian } from "./Interfaces.sol";
+import { Funding } from "./Funding.sol";
+import { MarketHelper } from "./MarketHelper.sol";
+import { Math } from "./Math.sol";
+import { MutatingMargin } from "./MutatingMargin.sol";
+import { NonMutatingMargin } from "./NonMutatingMargin.sol";
+import { Validations } from "./Validations.sol";
+import { Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -22,16 +23,14 @@ library Withdrawing {
   struct WithdrawArguments {
     // External arguments
     Withdrawal withdrawal;
-    OraclePrice[] oraclePrices;
+    IndexPrice[] indexPrices;
     // Exchange state
     address quoteAssetAddress;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
     ICustodian custodian;
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
     address feeWallet;
-    address oracleWallet;
+    address[] indexPriceCollectionServiceWallets;
   }
 
   struct WithdrawExitArguments {
@@ -40,55 +39,38 @@ library Withdrawing {
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
-    address oracleWallet;
+    address[] indexPriceCollectionServiceWallets;
     address quoteAssetAddress;
-    uint8 quoteAssetDecimals;
-    string quoteAssetSymbol;
   }
 
-  function withdraw(
+  // solhint-disable-next-line func-name-mixedcase
+  function withdraw_delegatecall(
     WithdrawArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedWithdrawalHashes,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public returns (int64 newExchangeBalanceInPips) {
+  ) public returns (int64 newExchangeBalance) {
     // Validations
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
       require(
         arguments.exitFundPositionOpenedAtBlockNumber == 0 ||
-          arguments.exitFundPositionOpenedAtBlockNumber +
-            Constants.maxChainPropagationPeriodInBlocks >=
-          block.number,
-        'EF position opened too recently'
+          arguments.exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS >= block.number,
+        "EF position opened too recently"
       );
     }
     require(
-      Validations.isFeeQuantityValid(
-        arguments.withdrawal.gasFeeInPips,
-        arguments.withdrawal.grossQuantityInPips,
-        Constants.maxFeeBasisPoints
-      ),
-      'Excessive withdrawal fee'
+      Validations.isFeeQuantityValid(arguments.withdrawal.gasFee, arguments.withdrawal.grossQuantity),
+      "Excessive withdrawal fee"
     );
-    bytes32 withdrawalHash = Validations.validateWithdrawalSignature(
-      arguments.withdrawal
-    );
-    require(
-      !completedWithdrawalHashes[withdrawalHash],
-      'Hash already withdrawn'
-    );
+    bytes32 withdrawalHash = _validateWithdrawalSignature(arguments.withdrawal);
+    require(!completedWithdrawalHashes[withdrawalHash], "Hash already withdrawn");
 
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.withdrawal.wallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -97,36 +79,32 @@ library Withdrawing {
     );
 
     // Update wallet balances
-    newExchangeBalanceInPips = balanceTracking.updateForWithdrawal(
+    newExchangeBalance = balanceTracking.updateForWithdrawal(
       arguments.withdrawal,
-      arguments.quoteAssetSymbol,
+      Constants.QUOTE_ASSET_SYMBOL,
       arguments.feeWallet
     );
 
     require(
-      Margin.isInitialMarginRequirementMetAndUpdateLastOraclePrice(
-        Margin.LoadArguments(
+      MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+        NonMutatingMargin.LoadArguments(
           arguments.withdrawal.wallet,
-          arguments.oraclePrices,
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
+          arguments.indexPrices,
+          arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       ),
-      'Initial margin requirement not met for buy wallet'
+      "Initial margin requirement not met for buy wallet"
     );
 
     // Transfer funds from Custodian to wallet
-    uint256 netAssetQuantityInAssetUnits = AssetUnitConversions
-      .pipsToAssetUnits(
-        arguments.withdrawal.grossQuantityInPips -
-          arguments.withdrawal.gasFeeInPips,
-        arguments.quoteAssetDecimals
-      );
+    uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
+      arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
+      Constants.QUOTE_ASSET_DECIMALS
+    );
     arguments.custodian.withdraw(
       arguments.withdrawal.wallet,
       arguments.quoteAssetAddress,
@@ -137,23 +115,19 @@ library Withdrawing {
     completedWithdrawalHashes[withdrawalHash] = true;
   }
 
-  function withdrawExit(
+  // solhint-disable-next-line func-name-mixedcase
+  function withdrawExit_delegatecall(
     Withdrawing.WithdrawExitArguments memory arguments,
     uint256 exitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[])
-      storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64)
-      storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256, uint64) {
-    Funding.updateWalletFundingInternal(
+    Funding.updateWalletFunding(
       arguments.wallet,
-      arguments.quoteAssetSymbol,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -161,147 +135,89 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    uint64 quoteQuantityInPips = withdrawExit(
+    int64 quoteQuantity = _updatePositionsForExit(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
+    );
+
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+      arguments.wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    quoteQuantity += balance.balance;
+    balance.balance = 0;
+
+    require(quoteQuantity >= 0, "Negative quote after exit");
+
+    arguments.custodian.withdraw(
+      arguments.wallet,
+      arguments.quoteAssetAddress,
+      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantity), Constants.QUOTE_ASSET_DECIMALS)
     );
 
     return (
       ExitFund.getExitFundBalanceOpenedAtBlockNumber(
         arguments.exitFundWallet,
         exitFundPositionOpenedAtBlockNumber,
-        arguments.quoteAssetSymbol,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
-      quoteQuantityInPips
+      uint64(quoteQuantity)
     );
   }
 
-  function withdrawExit(
+  function _updatePositionsForExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (uint64) {
-    int64 quoteQuantityInPips = updatePositionsForExit(
-      arguments,
+  ) private returns (int64 quoteQuantity) {
+    int64 totalAccountValue = NonMutatingMargin.loadTotalAccountValueForExit(
+      NonMutatingMargin.LoadArguments(
+        arguments.wallet,
+        new IndexPrice[](0),
+        arguments.indexPriceCollectionServiceWallets
+      ),
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
 
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
-      arguments.wallet,
-      arguments.quoteAssetSymbol
-    );
-    quoteQuantityInPips += balance.balanceInPips;
-    balance.balanceInPips = 0;
-
-    require(quoteQuantityInPips > 0, 'Negative quote after exit');
-
-    arguments.custodian.withdraw(
-      arguments.wallet,
-      arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(
-        uint64(quoteQuantityInPips),
-        arguments.quoteAssetDecimals
-      )
-    );
-
-    return uint64(quoteQuantityInPips);
-  }
-
-  function updatePositionsForExit(
-    WithdrawExitArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (int64 quoteQuantityInPips) {
-    (
-      int64 totalAccountValueInPips,
-      uint64 totalMaintenanceMarginRequirementInPips
-    ) = loadTotalAccountValueAndMarginRequirement(
-        arguments,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-
-    string[]
-      memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[
-        arguments.wallet
-      ];
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      quoteQuantityInPips += balanceTracking.updateForExit(
+      // Sum quote quantites needed to close each wallet position
+      quoteQuantity += balanceTracking.updateForExit(
         arguments.exitFundWallet,
         market,
-        market.loadFeedPriceInPips(),
-        totalAccountValueInPips,
-        totalMaintenanceMarginRequirementInPips,
+        market.loadOnChainFeedPrice(),
+        totalAccountValue,
         arguments.wallet,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet
       );
     }
 
-    // Quote out from exit fund wallet
-    Balance storage balance = balanceTracking.loadBalanceAndMigrateIfNeeded(
+    // Total quote out from Exit Fund wallet calculated in loop
+    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.exitFundWallet,
-      arguments.quoteAssetSymbol
+      Constants.QUOTE_ASSET_SYMBOL
     );
-    balance.balanceInPips -= quoteQuantityInPips;
+    balance.balance -= quoteQuantity;
   }
 
-  function loadTotalAccountValueAndMarginRequirement(
-    WithdrawExitArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[])
-      storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => Market))
-      storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (int64, uint64) {
-    int64 totalAccountValueInPips = Margin.loadTotalWalletExitAccountValue(
-      Margin.LoadArguments(
-        arguments.wallet,
-        new OraclePrice[](0),
-        arguments.oracleWallet,
-        arguments.quoteAssetDecimals,
-        arguments.quoteAssetSymbol
-      ),
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
+  function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {
+    bytes32 withdrawalHash = Hashing.getWithdrawalHash(withdrawal);
+
+    require(
+      Hashing.isSignatureValid(withdrawalHash, withdrawal.walletSignature, withdrawal.wallet),
+      "Invalid wallet signature"
     );
 
-    uint64 totalMaintenanceMarginRequirementInPips = Margin
-      .loadTotalExitMaintenanceMarginRequirement(
-        Margin.LoadArguments(
-          arguments.wallet,
-          new OraclePrice[](0),
-          arguments.oracleWallet,
-          arguments.quoteAssetDecimals,
-          arguments.quoteAssetSymbol
-        ),
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-
-    return (totalAccountValueInPips, totalMaintenanceMarginRequirementInPips);
+    return withdrawalHash;
   }
 }

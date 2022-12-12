@@ -20,14 +20,17 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
   public static async deploy(
     args: Parameters<Exchange_v4__factory['deploy']>,
     libraryAddresses: {
-      deleveraging: string;
+      acquisitionDeleveraging: string;
+      closureDeleveraging: string;
       depositing: string;
       funding: string;
-      liquidation: string;
-      margin: string;
       marketAdmin: string;
       nonceInvalidations: string;
+      nonMutatingMargin: string;
+      positionBelowMinimumLiquidation: string;
+      positionInDeactivatedMarketLiquidation: string;
       trading: string;
+      walletLiquidation: string;
       withdrawing: string;
     },
     ownerWalletPrivateKey: string,
@@ -35,19 +38,26 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
     const linkLibraryAddresses: ConstructorParameters<
       typeof Exchange_v4__factory
     >[0] = {
-      ['contracts/libraries/Deleveraging.sol:Deleveraging']:
-        libraryAddresses.deleveraging,
+      ['contracts/libraries/AcquisitionDeleveraging.sol:AcquisitionDeleveraging']:
+        libraryAddresses.acquisitionDeleveraging,
+      ['contracts/libraries/ClosureDeleveraging.sol:ClosureDeleveraging']:
+        libraryAddresses.closureDeleveraging,
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
       ['contracts/libraries/Funding.sol:Funding']: libraryAddresses.funding,
-      ['contracts/libraries/Liquidation.sol:Liquidation']:
-        libraryAddresses.liquidation,
-      ['contracts/libraries/Margin.sol:Margin']: libraryAddresses.margin,
       ['contracts/libraries/MarketAdmin.sol:MarketAdmin']:
         libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
+      ['contracts/libraries/NonMutatingMargin.sol:NonMutatingMargin']:
+        libraryAddresses.nonMutatingMargin,
+      ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
+        libraryAddresses.positionBelowMinimumLiquidation,
+      ['contracts/libraries/PositionInDeactivatedMarketLiquidation.sol:PositionInDeactivatedMarketLiquidation']:
+        libraryAddresses.positionInDeactivatedMarketLiquidation,
       ['contracts/libraries/Trading.sol:Trading']: libraryAddresses.trading,
+      ['contracts/libraries/WalletLiquidation.sol:WalletLiquidation']:
+        libraryAddresses.walletLiquidation,
       ['contracts/libraries/Withdrawing.sol:Withdrawing']:
         libraryAddresses.withdrawing,
     };

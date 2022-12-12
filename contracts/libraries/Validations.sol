@@ -2,112 +2,51 @@
 
 pragma solidity 0.8.17;
 
-import { AssetUnitConversions } from './AssetUnitConversions.sol';
-import { Constants } from './Constants.sol';
-import { Hashing } from './Hashing.sol';
-import { String } from './String.sol';
-import { Market, OraclePrice, Withdrawal } from './Structs.sol';
+import { AssetUnitConversions } from "./AssetUnitConversions.sol";
+import { Constants } from "./Constants.sol";
+import { Hashing } from "./Hashing.sol";
+import { String } from "./String.sol";
+import { Market, IndexPrice, Withdrawal } from "./Structs.sol";
 
 library Validations {
-  function isFeeQuantityValid(
-    uint64 fee,
-    uint64 total,
-    uint64 max
-  ) internal pure returns (bool) {
-    uint64 feeBasisPoints = (fee * Constants.basisPointsInTotal) / total;
-    return feeBasisPoints <= max;
+  function isFeeQuantityValid(uint64 fee, uint64 total) internal pure returns (bool) {
+    uint64 feeMultiplier = (fee * Constants.PIP_PRICE_MULTIPLIER) / total;
+    return feeMultiplier <= Constants.MAX_FEE_MULTIPLIER;
   }
 
-  function validateAndUpdateOraclePriceAndConvertToPips(
+  function validateAndUpdateIndexPrice(
+    IndexPrice memory indexPrice,
     Market storage market,
-    OraclePrice memory oraclePrice,
-    address oracleWallet,
-    uint8 quoteAssetDecimals
-  ) internal returns (uint64) {
-    market.lastOraclePriceTimestampInMs = oraclePrice.timestampInMs;
+    address[] memory indexPriceCollectionServiceWallets
+  ) internal {
+    validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
-    return
-      validateOraclePriceAndConvertToPips(
-        oraclePrice,
-        quoteAssetDecimals,
-        market,
-        oracleWallet
-      );
+    market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
   }
 
-  function validateOraclePriceAndConvertToPips(
-    OraclePrice memory oraclePrice,
-    uint8 quoteAssetDecimals,
-    Market memory market,
-    address oracleWallet
-  ) internal pure returns (uint64) {
-    require(
-      String.isEqual(market.baseAssetSymbol, oraclePrice.baseAssetSymbol),
-      'Oracle price mismatch'
-    );
+  function validateIndexPrice(
+    IndexPrice memory indexPrice,
+    address[] memory indexPriceCollectionServiceWallets,
+    Market memory market
+  ) internal pure {
+    require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
 
-    require(
-      market.lastOraclePriceTimestampInMs <= oraclePrice.timestampInMs,
-      'Outdated oracle price'
-    );
+    require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
 
-    return
-      validateOraclePriceAndConvertToPips(
-        oraclePrice,
-        quoteAssetDecimals,
-        oracleWallet
-      );
+    validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
   }
 
-  function validateOraclePriceAndConvertToPips(
-    OraclePrice memory oraclePrice,
-    uint8 quoteAssetDecimals,
-    address oracleWallet
-  ) internal pure returns (uint64) {
-    // TODO Validate timestamp recency
-    validateOraclePriceSignature(oraclePrice, oracleWallet);
+  function validateIndexPriceSignature(
+    IndexPrice memory indexPrice,
+    address[] memory indexPriceCollectionServiceWallets
+  ) internal pure {
+    bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
 
-    return
-      AssetUnitConversions.assetUnitsToPips(
-        oraclePrice.priceInAssetUnits,
-        quoteAssetDecimals
-      );
-  }
-
-  function validateOraclePriceSignature(
-    OraclePrice memory oraclePrice,
-    address oracleWallet
-  ) internal pure returns (bytes32) {
-    bytes32 oraclePriceHash = Hashing.getOraclePriceHash(oraclePrice);
-
-    require(
-      Hashing.isSignatureValid(
-        oraclePriceHash,
-        oraclePrice.signature,
-        oracleWallet
-      ),
-      'Invalid oracle signature'
-    );
-
-    return oraclePriceHash;
-  }
-
-  function validateWithdrawalSignature(Withdrawal memory withdrawal)
-    internal
-    pure
-    returns (bytes32)
-  {
-    bytes32 withdrawalHash = Hashing.getWithdrawalHash(withdrawal);
-
-    require(
-      Hashing.isSignatureValid(
-        withdrawalHash,
-        withdrawal.walletSignature,
-        withdrawal.wallet
-      ),
-      'Invalid wallet signature'
-    );
-
-    return withdrawalHash;
+    address signer = Hashing.getSigner(indexPriceHash, indexPrice.signature);
+    bool isSignatureValid = false;
+    for (uint8 i = 0; i < indexPriceCollectionServiceWallets.length; i++) {
+      isSignatureValid = isSignatureValid || signer == indexPriceCollectionServiceWallets[i];
+    }
+    require(isSignatureValid, "Invalid index signature");
   }
 }

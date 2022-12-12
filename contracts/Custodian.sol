@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.17;
 
-import { Address } from '@openzeppelin/contracts/utils/Address.sol';
-import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { ICustodian } from './libraries/Interfaces.sol';
-import { Owned } from './Owned.sol';
+import { ICustodian } from "./libraries/Interfaces.sol";
+import { Owned } from "./Owned.sol";
 
 /**
  * @notice The Custodian contract. Holds custody of all deposited funds for whitelisted Exchange
@@ -38,11 +38,8 @@ contract Custodian is ICustodian, Owned {
    * @param governance ddress of deployed Governance contract to whitelist
    */
   constructor(address exchange, address governance) Owned() {
-    require(Address.isContract(exchange), 'Invalid exchange contract address');
-    require(
-      Address.isContract(governance),
-      'Invalid governance contract address'
-    );
+    require(Address.isContract(exchange), "Invalid exchange contract address");
+    require(Address.isContract(governance), "Invalid governance contract address");
 
     _exchange = exchange;
     _governance = governance;
@@ -50,11 +47,6 @@ contract Custodian is ICustodian, Owned {
     emit ExchangeChanged(address(0x0), exchange);
     emit GovernanceChanged(address(0x0), governance);
   }
-
-  /**
-   * @notice ETH can only be sent by the Exchange
-   */
-  receive() external payable override onlyExchange {}
 
   /**
    * @notice Withdraw any asset and amount to a target wallet
@@ -65,11 +57,7 @@ contract Custodian is ICustodian, Owned {
    * @param asset The address of the asset to withdraw (ERC-20 contract)
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
-  function withdraw(
-    address wallet,
-    address asset,
-    uint256 quantityInAssetUnits
-  ) external override onlyExchange {
+  function withdraw(address wallet, address asset, uint256 quantityInAssetUnits) external override onlyExchange {
     IERC20(asset).transfer(wallet, quantityInAssetUnits);
   }
 
@@ -88,7 +76,7 @@ contract Custodian is ICustodian, Owned {
    * @param newExchange The address of the new whitelisted Exchange contract
    */
   function setExchange(address newExchange) external override onlyGovernance {
-    require(Address.isContract(newExchange), 'Invalid contract address');
+    require(Address.isContract(newExchange), "Invalid contract address");
 
     address oldExchange = _exchange;
     _exchange = newExchange;
@@ -110,12 +98,8 @@ contract Custodian is ICustodian, Owned {
    *
    * @param newGovernance The address of the new whitelisted Governance contract
    */
-  function setGovernance(address newGovernance)
-    external
-    override
-    onlyGovernance
-  {
-    require(Address.isContract(newGovernance), 'Invalid contract address');
+  function setGovernance(address newGovernance) external override onlyGovernance {
+    require(Address.isContract(newGovernance), "Invalid contract address");
 
     address oldGovernance = _governance;
     _governance = newGovernance;
@@ -126,12 +110,12 @@ contract Custodian is ICustodian, Owned {
   // RBAC //
 
   modifier onlyExchange() {
-    require(msg.sender == _exchange, 'Caller must be Exchange contract');
+    require(msg.sender == _exchange, "Caller must be Exchange contract");
     _;
   }
 
   modifier onlyGovernance() {
-    require(msg.sender == _governance, 'Caller must be Governance contract');
+    require(msg.sender == _governance, "Caller must be Governance contract");
     _;
   }
 }
