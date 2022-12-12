@@ -8,10 +8,12 @@ import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
+import { SortedStringSet } from "./SortedStringSet.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
+  using SortedStringSet for string[];
 
   /**
    * @dev Argument for `liquidatePositionInDeactivatedMarket`
@@ -67,29 +69,20 @@ library PositionInDeactivatedMarketLiquidation {
     );
   }
 
-  function _loadMarket(
-    Arguments memory arguments,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market) {
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
-        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-        break;
-      }
-    }
-
-    require(market.exists && !market.isActive, "No inactive market found");
-  }
-
   function _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Market memory market = _loadMarket(arguments, baseAssetSymbolsWithOpenPositionsByWallet, marketsByBaseAssetSymbol);
+    Market memory market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+    require(market.exists && !market.isActive, "No inactive market found");
+
+    require(
+      baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(arguments.baseAssetSymbol) !=
+        SortedStringSet.NOT_FOUND,
+      "No open position in market"
+    );
 
     // Validate quote quantity
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(

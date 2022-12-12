@@ -58,8 +58,7 @@ library Withdrawing {
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
       require(
         arguments.exitFundPositionOpenedAtBlockNumber == 0 ||
-          arguments.exitFundPositionOpenedAtBlockNumber + Constants.MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS >=
-          block.number,
+          arguments.exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS >= block.number,
         "EF position opened too recently"
       );
     }

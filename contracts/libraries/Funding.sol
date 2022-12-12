@@ -6,6 +6,7 @@ import { FundingMultipliers } from "./FundingMultipliers.sol";
 import { Math } from "./Math.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
+import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
@@ -14,6 +15,7 @@ pragma solidity 0.8.17;
 library Funding {
   using BalanceTracking for BalanceTracking.Storage;
   using FundingMultipliers for FundingMultiplierQuartet[];
+  using SortedStringSet for string[];
 
   // solhint-disable-next-line func-name-mixedcase
   function loadOutstandingWalletFunding_delegatecall(
@@ -76,11 +78,16 @@ library Funding {
     IndexPrice[] memory indexPrices,
     address[] memory indexPriceCollectionServiceWallets,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     for (uint8 i = 0; i < indexPrices.length; i++) {
-      (IndexPrice memory indexPrice, int64 fundingRate) = (indexPrices[i], fundingRates[i]);
+      IndexPrice memory indexPrice = indexPrices[i];
+      int64 fundingRate = fundingRates[i];
       Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
+
+      Market memory market = marketsByBaseAssetSymbol[indexPrices[i].baseAssetSymbol];
+      require(market.exists && market.isActive, "No active market found");
 
       uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
         indexPrice.baseAssetSymbol
@@ -117,7 +124,10 @@ library Funding {
 
       int64 newFundingMultiplier = Math.multiplyPipsByFraction(
         int64(indexPrice.price),
-        fundingRate,
+        // The funding rate is positive when longs pay shorts, and negative when shorts pay longs. Flipping the sign
+        // on the stored multiplier allows it to be directly multiplied by a wallet's position size to determine its
+        // funding credit or debit
+        -1 * fundingRate,
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
 
@@ -128,7 +138,8 @@ library Funding {
   }
 
   // solhint-disable-next-line func-name-mixedcase
-  function updateWalletFunding_delegatecall(
+  function updateWalletFundingForMarket_delegatecall(
+    string memory baseAssetSymbol,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -136,14 +147,28 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
-    updateWalletFunding(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
+    Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists, "Market not found");
+    require(
+      baseAssetSymbolsWithOpenPositionsByWallet[wallet].indexOf(market.baseAssetSymbol) != SortedStringSet.NOT_FOUND,
+      "No open position in market"
     );
+
+    Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
+    (int64 funding, uint64 toTimestampInMs) = _loadWalletFundingForMarket(
+      basePosition,
+      true,
+      market,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+    );
+    basePosition.lastUpdateTimestampInMs = toTimestampInMs;
+
+    Balance storage quoteBalance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    quoteBalance.balance += funding;
   }
 
   function loadOutstandingWalletFunding(
@@ -164,40 +189,14 @@ library Funding {
         market.baseAssetSymbol
       );
 
-      (marketFunding, ) = loadWalletFundingForMarket(
+      (marketFunding, ) = _loadWalletFundingForMarket(
         basePosition,
+        false,
         market,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
       funding += marketFunding;
-    }
-  }
-
-  function loadWalletFundingForMarket(
-    Balance memory basePosition,
-    Market memory market,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) internal view returns (int64 funding, uint64 lastFundingMultiplierTimestampInMs) {
-    // Load funding rates and index
-    FundingMultiplierQuartet[] storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
-      market.baseAssetSymbol
-    ];
-    lastFundingMultiplierTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
-
-    // Apply hourly funding payments if new rates were published since this balance was last updated
-    if (basePosition.balance != 0 && basePosition.lastUpdateTimestampInMs < lastFundingMultiplierTimestampInMs) {
-      int64 aggregateFundingMultiplier = fundingMultipliersForMarket.loadAggregateMultiplier(
-        basePosition.lastUpdateTimestampInMs,
-        lastFundingMultiplierTimestampInMs
-      );
-
-      funding += Math.multiplyPipsByFraction(
-        basePosition.balance,
-        aggregateFundingMultiplier,
-        int64(Constants.PIP_PRICE_MULTIPLIER)
-      );
     }
   }
 
@@ -221,8 +220,9 @@ library Funding {
         market.baseAssetSymbol
       );
 
-      (marketFunding, lastFundingMultiplierTimestampInMs) = loadWalletFundingForMarket(
+      (marketFunding, lastFundingMultiplierTimestampInMs) = _loadWalletFundingForMarket(
         basePosition,
+        false,
         market,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol
@@ -236,5 +236,56 @@ library Funding {
       Constants.QUOTE_ASSET_SYMBOL
     );
     quoteBalance.balance += funding;
+  }
+
+  function _loadWalletFundingForMarket(
+    Balance memory basePosition,
+    bool limitMaxTimePeriod,
+    Market memory market,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+  ) private view returns (int64, uint64) {
+    // Load funding rates and index
+    FundingMultiplierQuartet[] storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
+      market.baseAssetSymbol
+    ];
+    uint64 lastFundingRatePublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+      market.baseAssetSymbol
+    ];
+
+    // Apply funding payments if new multipliers were published since the position was last updated
+    if (basePosition.balance != 0 && basePosition.lastUpdateTimestampInMs < lastFundingRatePublishTimestampInMs) {
+      // To calculate the number of multipliers to apply, start from the first funding multiplier following the last
+      // position update and go up to the last published multiplier
+      uint64 fromTimestampInMs = basePosition.lastUpdateTimestampInMs +
+        Constants.FUNDING_PERIOD_IN_MS -
+        (basePosition.lastUpdateTimestampInMs % Constants.FUNDING_PERIOD_IN_MS);
+
+      uint64 toTimestampInMs;
+      if (limitMaxTimePeriod) {
+        toTimestampInMs = Math.min(
+          fromTimestampInMs + Constants.MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS,
+          lastFundingRatePublishTimestampInMs
+        );
+      } else {
+        toTimestampInMs = lastFundingRatePublishTimestampInMs;
+      }
+
+      int64 aggregateFundingMultiplier = fundingMultipliersForMarket.loadAggregateMultiplier(
+        fromTimestampInMs,
+        toTimestampInMs,
+        lastFundingRatePublishTimestampInMs
+      );
+
+      int64 funding = Math.multiplyPipsByFraction(
+        basePosition.balance,
+        aggregateFundingMultiplier,
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
+
+      return (funding, toTimestampInMs);
+    }
+
+    return (0, basePosition.lastUpdateTimestampInMs);
   }
 }

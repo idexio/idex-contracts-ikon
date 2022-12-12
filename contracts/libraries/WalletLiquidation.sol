@@ -31,6 +31,8 @@ library WalletLiquidation {
     IndexPrice[] liquidatingWalletIndexPrices;
     int64[] liquidationQuoteQuantities;
     // Exchange state
+    address exitFundWallet;
+    address insuranceFundWallet;
     address[] indexPriceCollectionServiceWallets;
   }
 
@@ -45,6 +47,9 @@ library WalletLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256 resultingExitFundPositionOpenedAtBlockNumber) {
+    require(arguments.liquidatingWallet != arguments.exitFundWallet, "Cannot liquidate EF");
+    require(arguments.liquidatingWallet != arguments.insuranceFundWallet, "Cannot liquidate IF");
+
     Funding.updateWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,

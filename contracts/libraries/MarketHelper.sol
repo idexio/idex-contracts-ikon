@@ -31,8 +31,10 @@ library MarketHelper {
       return marketWithOverrides.overridableFields.initialMarginFraction;
     }
 
-    uint64 increments = (absolutePositionSize - marketWithOverrides.overridableFields.baselinePositionSize) /
-      marketWithOverrides.overridableFields.incrementalPositionSize;
+    uint64 increments = Math.divideRoundUp(
+      (absolutePositionSize - marketWithOverrides.overridableFields.baselinePositionSize),
+      marketWithOverrides.overridableFields.incrementalPositionSize
+    );
     return
       marketWithOverrides.overridableFields.initialMarginFraction +
       (increments * marketWithOverrides.overridableFields.incrementalInitialMarginFraction);

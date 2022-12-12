@@ -10,12 +10,14 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { String } from "./String.sol";
+import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library PositionBelowMinimumLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
+  using SortedStringSet for string[];
 
   /**
    * @dev Argument for `liquidate`
@@ -88,16 +90,15 @@ library PositionBelowMinimumLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market, IndexPrice memory indexPrice) {
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
-        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-        indexPrice = arguments.liquidatingWalletIndexPrices[i];
-        break;
-      }
-    }
-
+    market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
+
+    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(
+      arguments.baseAssetSymbol
+    );
+    require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
+
+    indexPrice = arguments.liquidatingWalletIndexPrices[i];
   }
 
   function _validatePositionBelowMinimumLiquidationQuoteQuantity(
@@ -133,9 +134,10 @@ library PositionBelowMinimumLiquidation {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
+    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
     // Validate that position is under dust threshold
-    int64 positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+    int64 positionSize = balanceTracking.loadBalanceAndMigrateIfNeeded(
       arguments.liquidatingWallet,
       arguments.baseAssetSymbol
     );
@@ -149,7 +151,6 @@ library PositionBelowMinimumLiquidation {
     );
 
     // Validate quote quantity
-    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
     _validatePositionBelowMinimumLiquidationQuoteQuantity(
       arguments.dustPositionLiquidationPriceTolerance,
       arguments.liquidationQuoteQuantity,

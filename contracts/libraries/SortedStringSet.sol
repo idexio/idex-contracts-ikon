@@ -5,6 +5,18 @@ pragma solidity 0.8.17;
 import { String } from "./String.sol";
 
 library SortedStringSet {
+  uint256 public constant NOT_FOUND = 2 ** 256 - 1;
+
+  function indexOf(string[] memory array, string memory element) internal pure returns (uint256) {
+    for (uint256 i = 0; i < array.length; i++) {
+      if (String.isEqual(array[i], element)) {
+        return i;
+      }
+    }
+
+    return NOT_FOUND;
+  }
+
   function insertSorted(string[] memory array, string memory element) internal pure returns (string[] memory result) {
     result = new string[](array.length + 1);
 
@@ -45,6 +57,8 @@ library SortedStringSet {
       }
       result[i] = indexFound ? array[i + 1] : array[i];
     }
+
+    require(indexFound || String.isEqual(array[array.length - 1], element), "Element to remove not found");
   }
 
   function _isLessThan(string memory a, string memory b) private pure returns (bool) {

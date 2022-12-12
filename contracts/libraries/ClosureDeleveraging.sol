@@ -33,6 +33,8 @@ library ClosureDeleveraging {
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
     // Exchange state
+    address exitFundWallet;
+    address insuranceFundWallet;
     address[] indexPriceCollectionServiceWallets;
   }
 
@@ -47,6 +49,15 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256) {
+    if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
+      require(arguments.liquidatingWallet != arguments.exitFundWallet, "Cannot liquidate EF");
+    } else {
+      // DeleverageType.ExitFundClosure
+      require(arguments.liquidatingWallet != arguments.insuranceFundWallet, "Cannot liquidate IF");
+    }
+    require(arguments.deleveragingWallet != arguments.exitFundWallet, "Cannot deleverage EF");
+    require(arguments.deleveragingWallet != arguments.insuranceFundWallet, "Cannot deleverage IF");
+
     Funding.updateWalletFunding(
       arguments.deleveragingWallet,
       balanceTracking,
@@ -114,15 +125,15 @@ library ClosureDeleveraging {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market, IndexPrice memory indexPrice) {
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
-        market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-        indexPrice = arguments.liquidatingWalletIndexPrices[i];
-      }
-    }
-
+    market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
+
+    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(
+      arguments.baseAssetSymbol
+    );
+    require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
+
+    indexPrice = arguments.liquidatingWalletIndexPrices[i];
   }
 
   function _validateQuoteQuantityAndDeleveragePosition(

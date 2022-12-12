@@ -29,7 +29,7 @@ import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 // solhint-disable-next-line contract-name-camelcase
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
-  using NonceInvalidations for mapping(address => NonceInvalidation);
+  using NonceInvalidations for mapping(address => NonceInvalidation[]);
 
   // Internally used structs //
 
@@ -63,7 +63,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Markets
   mapping(string => Market) public marketsByBaseAssetSymbol;
   // CLOB - mapping of wallet => last invalidated timestampInMs
-  mapping(address => NonceInvalidation) public nonceInvalidationsByWallet;
+  mapping(address => NonceInvalidation[]) public nonceInvalidationsByWallet;
   // CLOB - mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) public partiallyFilledOrderQuantities;
   // Address of ERC20 contract used as collateral and quote for all markets
@@ -306,12 +306,14 @@ contract Exchange_v4 is IExchange, Owned {
     require(newExitFundWallet != address(0x0), "Invalid EF wallet address");
     require(newExitFundWallet != exitFundWallet, "Must be different from current");
 
-    (, bool isExitFundBalanceOpen) = ExitFund.isExitFundPositionOrBalanceOpen(
-      exitFundWallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet
+    require(
+      !ExitFund.isExitFundPositionOrQuoteOpen(
+        exitFundWallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet
+      ),
+      "EF cannot have open balance"
     );
-    require(!isExitFundBalanceOpen, "EF cannot have open balance");
 
     address oldExitFundWallet = exitFundWallet;
     exitFundWallet = newExitFundWallet;
@@ -400,14 +402,12 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Load the quantity filled so far for a partially filled orders
    *
-   * @dev Invalidating an order nonce will not clear partial fill quantities for earlier orders
-   * because the gas cost would potentially be unbound
+   * @dev Invalidating an order nonce will not clear partial fill quantities for earlier orders because the gas cost
+   * would potentially be unbound
    *
-   * @param orderHash The order hash as originally signed by placing wallet that uniquely
-   * identifies an order
+   * @param orderHash The order hash as originally signed by placing wallet that uniquely identifies an order
    *
-   * @return For partially filled orders, the amount filled so far in pips. For orders in all other
-   * states, 0
+   * @return For partially filled orders, the amount filled so far in pips. For orders in all other states, 0
    */
   function loadPartiallyFilledOrderQuantity(bytes32 orderHash) external view returns (uint64) {
     return partiallyFilledOrderQuantities[orderHash];
@@ -416,11 +416,10 @@ contract Exchange_v4 is IExchange, Owned {
   // Dispatcher whitelisting //
 
   /**
-   * @notice Sets the wallet whitelisted to dispatch transactions calling the
-   * `executeOrderBookTrade` and `withdraw` functions
+   * @notice Sets the wallet whitelisted to dispatch transactions calling the `executeOrderBookTrade` and `withdraw`
+   * functions
    *
-   * @param newDispatcherWallet The new whitelisted dispatcher wallet. Must be different from the
-   * current one
+   * @param newDispatcherWallet The new whitelisted dispatcher wallet. Must be different from the current one
    */
   function setDispatcher(address newDispatcherWallet) external onlyAdmin {
     require(newDispatcherWallet != address(0x0), "Invalid wallet address");
@@ -430,8 +429,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Clears the currently set whitelisted dispatcher wallet, effectively disabling calling
-   * the `executeOrderBookTrade`, `withdraw` functions until a new wallet is set with
-   * `setDispatcher`
+   * the `executeOrderBookTrade`, `withdraw` functions until a new wallet is set with `setDispatcher`
    */
   function removeDispatcher() external onlyAdmin {
     dispatcherWallet = address(0x0);
@@ -442,16 +440,15 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Deposit quote token
    *
-   * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the
-   * `approve` method on the token contract for at least this quantity first
+   * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
+   * the token contract for at least this quantity first
    */
   function deposit(uint256 quantityInAssetUnits) external {
     // Deposits are disabled until `setDepositIndex` is called successfully
     require(depositIndex != Constants.DEPOSIT_INDEX_NOT_SET, "Deposits disabled");
 
-    // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and
-    // trades which respect the Chain Propagation Period given by `effectiveBlockNumber` via
-    // `_isWalletExitFinalized`
+    // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and trades which respect
+    // the Chain Propagation Period given by `effectiveBlockNumber` via `_isWalletExitFinalized`
     require(!walletExits[msg.sender].exists, "Wallet exited");
 
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit(
@@ -472,12 +469,9 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Settles a trade between two orders submitted and matched off-chain
    *
-   * @param buy An `Order` struct encoding the parameters of the buy-side order (receiving base,
-   * giving quote)
-   * @param sell An `Order` struct encoding the parameters of the sell-side order (giving base,
-   * receiving quote)
-   * @param orderBookTrade An `OrderBookTrade` struct encoding the parameters of this trade
-   * execution of the two orders
+   * @param buy An `Order` struct encoding the parameters of the buy-side order (receiving base, giving quote)
+   * @param sell An `Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
+   * @param orderBookTrade An `OrderBookTrade` struct encoding the parameters of this trade execution of the two orders
    */
   function executeOrderBookTrade(
     Order calldata buy,
@@ -528,8 +522,8 @@ contract Exchange_v4 is IExchange, Owned {
   // Liquidation //
 
   /**
-   * @notice Liquidates a single position below the market's configured `minimumPositionSize` to the Insurance
-   * Fund at the current index price
+   * @notice Liquidates a single position below the market's configured `minimumPositionSize` to the Insurance Fund
+   * at the current index price
    */
   function liquidatePositionBelowMinimum(
     string calldata baseAssetSymbol,
@@ -602,6 +596,8 @@ contract Exchange_v4 is IExchange, Owned {
         liquidatingWallet,
         liquidatingWalletIndexPrices,
         liquidationQuoteQuantities,
+        exitFundWallet,
+        insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
       0,
@@ -633,6 +629,8 @@ contract Exchange_v4 is IExchange, Owned {
         liquidatingWallet,
         liquidatingWalletIndexPrices,
         liquidationQuoteQuantities,
+        exitFundWallet,
+        insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
       exitFundPositionOpenedAtBlockNumber,
@@ -664,6 +662,8 @@ contract Exchange_v4 is IExchange, Owned {
         liquidatingWallet,
         liquidatingWalletIndexPrices,
         liquidationQuoteQuantities,
+        exitFundWallet,
+        insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
       0,
@@ -705,6 +705,7 @@ contract Exchange_v4 is IExchange, Owned {
         deleveragingWalletIndexPrices,
         insuranceFundIndexPrices,
         liquidatingWalletIndexPrices,
+        exitFundWallet,
         insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
@@ -739,6 +740,8 @@ contract Exchange_v4 is IExchange, Owned {
         liquidationQuoteQuantity,
         insuranceFundIndexPrices,
         deleveragingWalletIndexPrices,
+        exitFundWallet,
+        insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
       0,
@@ -780,6 +783,7 @@ contract Exchange_v4 is IExchange, Owned {
         deleveragingWalletIndexPrices,
         insuranceFundIndexPrices,
         liquidatingWalletIndexPrices,
+        exitFundWallet,
         insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
@@ -814,6 +818,8 @@ contract Exchange_v4 is IExchange, Owned {
         liquidationQuoteQuantity,
         exitFundIndexPrices,
         deleveragingWalletIndexPrices,
+        exitFundWallet,
+        insuranceFundWallet,
         indexPriceCollectionServiceWallets
       ),
       exitFundPositionOpenedAtBlockNumber,
@@ -912,16 +918,17 @@ contract Exchange_v4 is IExchange, Owned {
       indexPrices,
       indexPriceCollectionServiceWallets,
       fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
     );
   }
 
   /**
-   * @notice True-ups base position funding debits/credits by walking all funding multipliers published since last position
-   * update
+   * @notice Updates quote balance with historical funding payments for a market by walking funding multipliers published since last position update up to max allowable by gas constraints
    */
-  function updateWalletFunding(address wallet) public {
-    Funding.updateWalletFunding_delegatecall(
+  function updateWalletFundingForMarket(address wallet, string calldata baseAssetSymbol) public {
+    Funding.updateWalletFundingForMarket_delegatecall(
+      baseAssetSymbol,
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -967,7 +974,10 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total initial margin requirement for a wallet by summing each open position's initial margin
-   * requirement as calculated from provided index prices
+   * requirement
+   *
+   * @param wallet The wallet address to calculate total initial margin requirement for
+   * @param indexPrices If empty, position notional values will be calculated from on-chain price feed instead
    */
   function loadTotalInitialMarginRequirement(
     address wallet,
@@ -988,6 +998,9 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Calculate total maintanence margin requirement for a wallet by summing each open position's maintanence
    * margin requirement as calculated from provided index prices
+   *
+   * @param wallet The wallet address to calculate total maintanence margin requirement for
+   * @param indexPrices If empty, position notional values will be calculated from on-chain price feed instead
    */
   function loadTotalMaintenanceMarginRequirement(
     address wallet,

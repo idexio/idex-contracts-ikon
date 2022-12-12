@@ -17,6 +17,9 @@ library Constants {
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
   // 1 week at 3s/block
+  uint256 public constant EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
+
+  // 1 week at 3s/block
   uint256 public constant MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
 
   // 1 year
@@ -24,6 +27,9 @@ library Constants {
 
   // 20%
   uint64 public constant MAX_FEE_MULTIPLIER = 20 * 10 ** 6;
+
+  // 1 year
+  uint64 public constant MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS = 365 * 24 * 60 * 60 * 1000;
 
   // 8 hours
   uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;

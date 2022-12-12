@@ -14,19 +14,19 @@ library ExitFund {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal view returns (uint256) {
-    (bool isExitFundPositionOpen, bool isExitFundBalanceOpen) = isExitFundPositionOrBalanceOpen(
+    bool isPositionOpen = baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0;
+    bool isQuoteOpen = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       exitFundWallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet
-    );
+      Constants.QUOTE_ASSET_SYMBOL
+    ) > 0;
 
     // Position opened when none was before, return current block number
-    if (currentExitFundBalanceOpenedAtBlockNumber == 0 && isExitFundPositionOpen) {
+    if (currentExitFundBalanceOpenedAtBlockNumber == 0 && isPositionOpen) {
       return block.number;
     }
 
     // Position or quote was open before but both are now closed, reset block number
-    if (currentExitFundBalanceOpenedAtBlockNumber > 0 && !isExitFundBalanceOpen) {
+    if (currentExitFundBalanceOpenedAtBlockNumber > 0 && !(isPositionOpen || isQuoteOpen)) {
       return 0;
     }
 
@@ -34,14 +34,13 @@ library ExitFund {
     return currentExitFundBalanceOpenedAtBlockNumber;
   }
 
-  function isExitFundPositionOrBalanceOpen(
+  function isExitFundPositionOrQuoteOpen(
     address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
-  ) internal view returns (bool isExitFundPositionOpen, bool isExitFundBalanceOpen) {
-    isExitFundPositionOpen = baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0;
-    isExitFundBalanceOpen =
-      isExitFundPositionOpen ||
+  ) internal view returns (bool) {
+    return
+      baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0 ||
       balanceTracking.loadBalanceFromMigrationSourceIfNeeded(exitFundWallet, Constants.QUOTE_ASSET_SYMBOL) > 0;
   }
 }

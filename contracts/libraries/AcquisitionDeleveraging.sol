@@ -36,6 +36,7 @@ library AcquisitionDeleveraging {
     IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating positions
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
+    address exitFundWallet;
     address insuranceFundWallet;
     address[] indexPriceCollectionServiceWallets;
   }
@@ -50,6 +51,11 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
+    require(arguments.liquidatingWallet != arguments.exitFundWallet, "Cannot liquidate EF");
+    require(arguments.liquidatingWallet != arguments.insuranceFundWallet, "Cannot liquidate IF");
+    require(arguments.deleveragingWallet != arguments.exitFundWallet, "Cannot deleverage EF");
+    require(arguments.deleveragingWallet != arguments.insuranceFundWallet, "Cannot deleverage IF");
+
     Funding.updateWalletFunding(
       arguments.deleveragingWallet,
       balanceTracking,
@@ -129,16 +135,14 @@ library AcquisitionDeleveraging {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market, IndexPrice memory indexPrice) {
     market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      if (String.isEqual(baseAssetSymbols[i], arguments.baseAssetSymbol)) {
-        indexPrice = arguments.liquidatingWalletIndexPrices[i];
-        break;
-      }
-    }
-
     require(market.exists && market.isActive, "No active market found");
+
+    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(
+      arguments.baseAssetSymbol
+    );
+    require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
+
+    indexPrice = arguments.liquidatingWalletIndexPrices[i];
   }
 
   function _validateQuoteQuantityAndDeleveragePosition(

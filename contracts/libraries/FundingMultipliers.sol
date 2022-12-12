@@ -2,10 +2,17 @@
 
 import { Constants } from "./Constants.sol";
 import { FundingMultiplierQuartet } from "./Structs.sol";
+import { Math } from "./Math.sol";
 
 pragma solidity 0.8.17;
 
 library FundingMultipliers {
+  // Avoid magic numbers
+  uint64 private constant _QUARTET_SIZE = 4;
+
+  /**
+   * @dev Adds a new funding multiplier to an array of quartets
+   */
   function publishFundingMultipler(FundingMultiplierQuartet[] storage self, int64 newFundingMultiplier) internal {
     if (self.length > 0) {
       FundingMultiplierQuartet storage fundingMultiplierQuartet = self[self.length - 1];
@@ -25,43 +32,104 @@ library FundingMultipliers {
     }
   }
 
+  /**
+   * @dev Given a start and end timestamp, scans an array of funding multiplier quartets and calculates the aggreagate
+   * funding rate multiplier
+   *
+   * @param self The array of funding multiplier quartets
+   * @param fromTimestampInMs The publish timestamp of the first funding multiplier to apply
+   * @param toTimestampInMs The publish timestamp of the last funding multiplier to apply
+   * @param lastFundingRatePublishTimestampInMs The publish timestamp of the latest funding multiplier in the array
+   */
   function loadAggregateMultiplier(
     FundingMultiplierQuartet[] storage self,
     uint64 fromTimestampInMs,
-    uint64 toTimestampInMs
+    uint64 toTimestampInMs,
+    uint64 lastFundingRatePublishTimestampInMs
   ) internal view returns (int64) {
-    uint256 numberOfTrailingPeriods = (toTimestampInMs - fromTimestampInMs) / Constants.FUNDING_PERIOD_IN_MS;
-    uint256 totalNumberOfEntries = self.length;
-    (uint256 startIndex, uint256 startOffset) = numberOfTrailingPeriods > totalNumberOfEntries * 4
-      ? (0, 0)
-      : (totalNumberOfEntries - (numberOfTrailingPeriods / 4), 4 - (numberOfTrailingPeriods % 4));
+    (uint256 startIndex, uint64 startOffset) = _calculateIndexAndOffsetForTimestampInMs(
+      self,
+      fromTimestampInMs,
+      lastFundingRatePublishTimestampInMs
+    );
+    (uint256 endIndex, uint64 endOffset) = _calculateIndexAndOffsetForTimestampInMs(
+      self,
+      toTimestampInMs,
+      lastFundingRatePublishTimestampInMs
+    );
 
-    int64 aggregateMultiplier = _calculateAggregateMultiplier(self[startIndex], startOffset);
-    for (uint256 index = startIndex + 1; index < totalNumberOfEntries; index++) {
-      aggregateMultiplier += _calculateAggregateMultiplier(self[index], 0);
+    if (startIndex == endIndex) {
+      return _calculateAggregateMultiplierForQuartet(self[startIndex], startOffset, endOffset);
     }
+
+    int64 aggregateMultiplier = _calculateAggregateMultiplierForQuartet(
+      self[startIndex],
+      startOffset,
+      _QUARTET_SIZE - 1
+    );
+    for (uint256 i = startIndex + 1; i < endIndex; i++) {
+      aggregateMultiplier += _calculateAggregateMultiplierForQuartet(self[i], 0, _QUARTET_SIZE - 1);
+    }
+    aggregateMultiplier += _calculateAggregateMultiplierForQuartet(self[endIndex], 0, endOffset);
 
     return aggregateMultiplier;
   }
 
-  function _calculateAggregateMultiplier(
+  /**
+   * @dev Calculates the aggreagate funding rate multiplier for one quartet
+   */
+  function _calculateAggregateMultiplierForQuartet(
     FundingMultiplierQuartet memory fundingMultipliers,
-    uint256 offset
-  ) private pure returns (int64) {
-    int64 aggregateMultiplier = 0;
-    if (offset == 0) {
+    uint256 startOffset,
+    uint256 endOffset
+  ) private pure returns (int64 aggregateMultiplier) {
+    if (startOffset >= 0) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier0;
     }
-    if (offset <= 1) {
+    if (startOffset <= 1 && endOffset >= 1) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier1;
     }
-    if (offset <= 2) {
+    if (startOffset <= 2 && endOffset >= 2) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier2;
     }
-    if (offset <= 3) {
+    if (startOffset <= 3 && endOffset >= 3) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier3;
     }
+  }
 
-    return aggregateMultiplier;
+  /**
+   * @dev Calculates the aggreagate funding rate multiplier for one quartet
+   */
+  function _countMultipliersInQuartet(
+    FundingMultiplierQuartet memory fundingMultipliers
+  ) private pure returns (uint64 multiplierCount) {
+    if (fundingMultipliers.fundingMultiplier3 != 0) {
+      return 4;
+    }
+    if (fundingMultipliers.fundingMultiplier2 != 0) {
+      return 3;
+    }
+    if (fundingMultipliers.fundingMultiplier1 != 0) {
+      return 2;
+    }
+
+    return 1;
+  }
+
+  function _calculateIndexAndOffsetForTimestampInMs(
+    FundingMultiplierQuartet[] storage self,
+    uint64 timestampInMs,
+    uint64 lastTimestampInMs
+  ) private view returns (uint256 index, uint64 offset) {
+    uint64 numberOfTrailingMultipliers = (lastTimestampInMs - timestampInMs) / Constants.FUNDING_PERIOD_IN_MS;
+    uint64 multipliersInLastQuartet = _countMultipliersInQuartet(self[self.length - 1]);
+
+    if (numberOfTrailingMultipliers <= multipliersInLastQuartet) {
+      index = self.length - 1;
+      offset = multipliersInLastQuartet - numberOfTrailingMultipliers;
+    } else {
+      index = self.length - Math.divideRoundUp(numberOfTrailingMultipliers, _QUARTET_SIZE);
+      offset = multipliersInLastQuartet - (numberOfTrailingMultipliers % _QUARTET_SIZE);
+    }
   }
 }

@@ -311,7 +311,7 @@ export async function logWalletBalances(
 ) {
   console.log(
     `USDC balance: ${pipToDecimal(
-      await exchange.loadBalanceStructBySymbol(wallet, 'USDC'),
+      await exchange.loadBalanceBySymbol(wallet, 'USDC'),
     )}`,
   );
 

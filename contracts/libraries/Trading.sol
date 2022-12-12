@@ -23,13 +23,13 @@ library Trading {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => NonceInvalidation) storage nonceInvalidations,
+    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) public {
     (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
       arguments,
       marketsByBaseAssetSymbol,
-      nonceInvalidations
+      nonceInvalidationsByWallet
     );
 
     _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);

@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import { Constants } from "./Constants.sol";
 import { Hashing } from "./Hashing.sol";
 import { Math } from "./Math.sol";
+import { NonceInvalidations } from "./NonceInvalidations.sol";
 import { String } from "./String.sol";
 import { UUID } from "./UUID.sol";
 import { Validations } from "./Validations.sol";
@@ -12,10 +13,12 @@ import { ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, NonceInv
 import { OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
 
 library OrderBookTradeValidations {
+  using NonceInvalidations for mapping(address => NonceInvalidation[]);
+
   function validateOrderBookTrade(
     ExecuteOrderBookTradeArguments memory arguments,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => NonceInvalidation) storage nonceInvalidations
+    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet
   ) internal view returns (bytes32 buyHash, bytes32 sellHash, Market memory market) {
     require(arguments.buy.wallet != arguments.sell.wallet, "Self-trading not allowed");
 
@@ -28,7 +31,12 @@ library OrderBookTradeValidations {
       arguments.insuranceFundWallet,
       arguments.exitFundWallet
     );
-    _validateNonces(arguments.buy, arguments.sell, arguments.delegateKeyExpirationPeriodInMs, nonceInvalidations);
+    _validateNonces(
+      arguments.buy,
+      arguments.sell,
+      arguments.delegateKeyExpirationPeriodInMs,
+      nonceInvalidationsByWallet
+    );
     (buyHash, sellHash) = _validateSignatures(arguments.buy, arguments.sell, arguments.orderBookTrade);
     _validateFees(arguments.orderBookTrade);
   }
@@ -40,17 +48,6 @@ library OrderBookTradeValidations {
   function _isLimitOrderType(OrderType orderType) private pure returns (bool) {
     return
       orderType == OrderType.Limit || orderType == OrderType.StopLossLimit || orderType == OrderType.TakeProfitLimit;
-  }
-
-  function _loadLastInvalidatedTimestamp(
-    address wallet,
-    mapping(address => NonceInvalidation) storage nonceInvalidations
-  ) private view returns (uint64) {
-    if (nonceInvalidations[wallet].exists && nonceInvalidations[wallet].effectiveBlockNumber <= block.number) {
-      return nonceInvalidations[wallet].timestampInMs;
-    }
-
-    return 0;
   }
 
   function _validateAssetPair(
@@ -128,20 +125,20 @@ library OrderBookTradeValidations {
     Order memory buy,
     Order memory sell,
     uint64 delegateKeyExpirationPeriodInMs,
-    mapping(address => NonceInvalidation) storage nonceInvalidations
+    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet
   ) private view {
-    _validateNonce(buy, delegateKeyExpirationPeriodInMs, nonceInvalidations);
-    _validateNonce(sell, delegateKeyExpirationPeriodInMs, nonceInvalidations);
+    _validateNonce(buy, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
+    _validateNonce(sell, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
   }
 
   function _validateNonce(
     Order memory order,
     uint64 delegateKeyExpirationPeriodInMs,
-    mapping(address => NonceInvalidation) storage nonceInvalidations
+    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet
   ) private view {
     uint64 orderTimestampInMs = UUID.getTimestampInMsFromUuidV1(order.nonce);
 
-    uint64 lastInvalidatedTimestamp = _loadLastInvalidatedTimestamp(order.wallet, nonceInvalidations);
+    uint64 lastInvalidatedTimestamp = nonceInvalidationsByWallet.loadLastInvalidatedTimestamp(order.wallet);
     require(
       orderTimestampInMs > lastInvalidatedTimestamp,
       order.side == OrderSide.Buy ? "Buy order nonce timestamp too low" : "Sell order nonce timestamp too low"

@@ -7,6 +7,7 @@ import { Constants } from "./Constants.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
+import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
@@ -30,22 +31,6 @@ library NonMutatingMargin {
   }
 
   // solhint-disable-next-line func-name-mixedcase
-  function loadTotalAccountValue_delegatecall(
-    LoadArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64) {
-    return
-      loadTotalAccountValue(
-        arguments,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
   function loadTotalInitialMarginRequirement_delegatecall(
     address wallet,
     IndexPrice[] memory indexPrices,
@@ -56,15 +41,23 @@ library NonMutatingMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 initialMarginRequirement) {
     return
-      loadTotalInitialMarginRequirement(
-        wallet,
-        indexPrices,
-        indexPriceCollectionServiceWallets,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
+      indexPrices.length > 0
+        ? loadTotalInitialMarginRequirement(
+          wallet,
+          indexPrices,
+          indexPriceCollectionServiceWallets,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
+        )
+        : OnChainPriceFeedMargin.loadTotalInitialMarginRequirement(
+          wallet,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
+        );
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -78,15 +71,23 @@ library NonMutatingMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 maintenanceMarginRequirement) {
     return
-      loadTotalMaintenanceMarginRequirement(
-        wallet,
-        indexPrices,
-        indexPriceCollectionServiceWallets,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
+      indexPrices.length > 0
+        ? loadTotalMaintenanceMarginRequirement(
+          wallet,
+          indexPrices,
+          indexPriceCollectionServiceWallets,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
+        )
+        : OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement(
+          wallet,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
+        );
   }
 
   function loadTotalAccountValueForExit(
@@ -157,10 +158,8 @@ library NonMutatingMargin {
   ) internal view returns (uint64 initialMarginRequirement) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      (Market memory market, IndexPrice memory indexPrice) = (
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        indexPrices[i]
-      );
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      IndexPrice memory indexPrice = indexPrices[i];
 
       initialMarginRequirement += _loadMarginRequirement(
         indexPrice,
@@ -188,10 +187,8 @@ library NonMutatingMargin {
   ) internal view returns (uint64 maintenanceMarginRequirement) {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      (Market memory market, IndexPrice memory indexPrice) = (
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        indexPrices[i]
-      );
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      IndexPrice memory indexPrice = indexPrices[i];
 
       maintenanceMarginRequirement += _loadMarginRequirement(
         indexPrice,

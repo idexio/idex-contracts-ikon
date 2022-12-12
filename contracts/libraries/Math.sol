@@ -7,6 +7,10 @@ library Math {
     return uint64(signed < 0 ? -1 * signed : signed);
   }
 
+  function divideRoundUp(uint64 a, uint64 b) internal pure returns (uint64) {
+    return ((a + b - 1) / b) * b;
+  }
+
   function divideRoundNearest(uint64 a, uint64 b) internal pure returns (uint64) {
     uint64 halfB = (b % 2 == 0) ? (b / 2) : (b / 2 + 1);
     return (a % b >= halfB) ? (a / b + 1) : (a / b);
@@ -17,6 +21,10 @@ library Math {
   }
 
   function min(int64 a, int64 b) internal pure returns (int64) {
+    return a <= b ? a : b;
+  }
+
+  function min(uint64 a, uint64 b) internal pure returns (uint64) {
     return a <= b ? a : b;
   }
 
