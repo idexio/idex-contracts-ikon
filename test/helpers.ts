@@ -1,13 +1,14 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'hardhat';
+import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
-import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 
 import {
   decimalToAssetUnits,
   decimalToPips,
   fundingPeriodLengthInMs,
+  getExecuteOrderBookTradeArguments,
   getIndexPriceHash,
   getOrderHash,
   indexPriceToArgumentStruct,
@@ -17,6 +18,7 @@ import {
   OrderType,
   pipsDecimals,
   signatureHashVersion,
+  Trade,
 } from '../lib';
 import { Exchange_v4, USDC } from '../typechain-types';
 
@@ -246,7 +248,7 @@ export async function deployAndAssociateContracts(
           baselinePositionSize: '14000000000',
           incrementalPositionSize: '2800000000',
           maximumPositionSize: '282000000000',
-          minimumPositionSize: '2000000000',
+          minimumPositionSize: '10000000',
         },
       })
     ).wait(),
@@ -254,6 +256,71 @@ export async function deployAndAssociateContracts(
   (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
 
   return { chainlinkAggregator, usdc, custodian, exchange, governance };
+}
+
+export async function executeTrade(
+  exchange: Exchange_v4,
+  dispatcher: SignerWithAddress,
+  indexPrice: IndexPrice,
+  trader1: SignerWithAddress,
+  trader2: SignerWithAddress,
+) {
+  const sellOrder: Order = {
+    signatureHashVersion,
+    nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
+    wallet: trader1.address,
+    market: `${baseAssetSymbol}-USDC`,
+    type: OrderType.Limit,
+    side: OrderSide.Sell,
+    quantity: '10.00000000',
+    price: '2000.00000000',
+  };
+  const sellOrderSignature = await trader1.signMessage(
+    ethers.utils.arrayify(getOrderHash(sellOrder)),
+  );
+
+  const buyOrder: Order = {
+    signatureHashVersion,
+    nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
+    wallet: trader2.address,
+    market: `${baseAssetSymbol}-USDC`,
+    type: OrderType.Limit,
+    side: OrderSide.Buy,
+    quantity: '10.00000000',
+    price: '2000.00000000',
+  };
+  const buyOrderSignature = await trader2.signMessage(
+    ethers.utils.arrayify(getOrderHash(buyOrder)),
+  );
+
+  const trade: Trade = {
+    baseAssetSymbol: baseAssetSymbol,
+    quoteAssetSymbol: 'USD',
+    baseQuantity: '10.00000000',
+    quoteQuantity: '20000.00000000',
+    makerFeeQuantity: '20.00000000',
+    takerFeeQuantity: '40.00000000',
+    price: '2000.00000000',
+    makerSide: OrderSide.Sell,
+  };
+
+  await (
+    await exchange
+      .connect(dispatcher)
+      .executeOrderBookTrade(
+        ...getExecuteOrderBookTradeArguments(
+          buyOrder,
+          buyOrderSignature,
+          sellOrder,
+          sellOrderSignature,
+          trade,
+          [indexPrice],
+          [indexPrice],
+          undefined,
+          undefined,
+        ),
+      )
+  ).wait();
 }
 
 export async function fundWallets(

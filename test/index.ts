@@ -30,7 +30,7 @@ import {
   logWalletBalances,
 } from './helpers';
 
-describe('Exchange', function () {
+describe.skip('Exchange', function () {
   it('deposit and withdraw should work', async function () {
     const [owner, dispatcher, trader, exitFund, fee, insurance, index] =
       await ethers.getSigners();
