@@ -18,6 +18,8 @@ export {
 
 export { contracts };
 
+export const fundingPeriodLengthInMs = 8 * 60 * 60 * 1000;
+
 /** The fixed number of digits following the decimal in quantities expressed as pips */
 export const pipsDecimals = 8;
 
@@ -201,6 +203,16 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
   ]);
 };
 
+export const getPublishFundingMutipliersArguments = (
+  fundingRates: string[],
+  indexPrices: IndexPrice[],
+): [string[], IndexPriceStruct[]] => {
+  return [
+    fundingRates.map(decimalToPips),
+    indexPrices.map(indexPriceToArgumentStruct),
+  ];
+};
+
 export const getExecuteOrderBookTradeArguments = (
   buyOrder: Order,
   buyWalletSignature: string,
@@ -215,8 +227,8 @@ export const getExecuteOrderBookTradeArguments = (
   OrderStruct,
   OrderStruct,
   OrderBookTradeStruct,
-  IndexPrice[],
-  IndexPrice[],
+  IndexPriceStruct[],
+  IndexPriceStruct[],
 ] => {
   return [
     orderToArgumentStruct(
@@ -253,6 +265,15 @@ export const getWithdrawArguments = (
   ];
 };
 
+export const indexPriceToArgumentStruct = (o: IndexPrice) => {
+  return {
+    baseAssetSymbol: o.baseAssetSymbol,
+    timestampInMs: o.timestampInMs,
+    price: decimalToPips(o.price),
+    signature: o.signature,
+  };
+};
+
 /**
  * Convert pips to native token quantity, taking the nunmber of decimals into account
  */
@@ -262,17 +283,11 @@ export const pipsToAssetUnits = (pips: string, decimals: number): string =>
     .integerValue(BigNumber.ROUND_DOWN)
     .toFixed(0);
 
+export const uuidToHexString = (uuid: string): string =>
+  `0x${uuid.replace(/-/g, '')}`;
+
 const addressToUintString = (address: string): string =>
   new BigNumber(address.toLowerCase()).toFixed(0);
-
-export const indexPriceToArgumentStruct = (o: IndexPrice) => {
-  return {
-    baseAssetSymbol: o.baseAssetSymbol,
-    timestampInMs: o.timestampInMs,
-    price: decimalToPips(o.price),
-    signature: o.signature,
-  };
-};
 
 const orderToArgumentStruct = (
   o: Order,
@@ -337,8 +352,6 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
     makerSide: t.makerSide,
   };
 };
-
-const uuidToHexString = (uuid: string): string => `0x${uuid.replace(/-/g, '')}`;
 
 const uuidToUint8Array = (uuid: string): Uint8Array =>
   ethers.utils.arrayify(uuidToHexString(uuid));

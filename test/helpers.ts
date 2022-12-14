@@ -1,12 +1,14 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'hardhat';
+import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
-import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 
 import {
   decimalToAssetUnits,
   decimalToPips,
+  fundingPeriodLengthInMs,
+  getExecuteOrderBookTradeArguments,
   getIndexPriceHash,
   getOrderHash,
   indexPriceToArgumentStruct,
@@ -16,13 +18,15 @@ import {
   OrderType,
   pipsDecimals,
   signatureHashVersion,
+  Trade,
 } from '../lib';
+import { Exchange_v4, USDC } from '../typechain-types';
 
 export const quoteAssetDecimals = 6;
 
-export const quoteAssetSymbol = 'USDC';
+export const baseAssetSymbol = 'ETH';
 
-const millisecondsInAnHour = 60 * 60 * 1000;
+export const quoteAssetSymbol = 'USDC';
 
 export async function buildIndexPrice(
   index: SignerWithAddress,
@@ -46,8 +50,8 @@ export async function buildIndexPrices(
       .fill(null)
       .map(async (_, i) => {
         const indexPrice = {
-          baseAssetSymbol: 'ETH',
-          timestampInMs: getPastHourInMs(count - i),
+          baseAssetSymbol,
+          timestampInMs: getPastPeriodInMs(count - i),
           price: prices[i % prices.length],
         };
         const signature = await index.signMessage(
@@ -64,10 +68,10 @@ export async function buildIndexPrices(
 export async function buildIndexPriceWithValue(
   index: SignerWithAddress,
   price: string,
-  baseAssetSymbol = 'ETH',
+  baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
   const indexPrice = {
-    baseAssetSymbol,
+    baseAssetSymbol: baseAssetSymbol_,
     timestampInMs: new Date().getTime(),
     price,
   };
@@ -81,7 +85,7 @@ export async function buildIndexPriceWithValue(
 export async function buildLimitOrder(
   signer: SignerWithAddress,
   side: OrderSide,
-  market = 'ETH-USDC',
+  market = `${baseAssetSymbol}-USDC`,
   quantity = '1.00000000',
   price = '2000.00000000',
 ) {
@@ -233,7 +237,7 @@ export async function deployAndAssociateContracts(
       await exchange.addMarket({
         exists: true,
         isActive: false,
-        baseAssetSymbol: 'ETH',
+        baseAssetSymbol,
         chainlinkPriceFeedAddress: chainlinkAggregator.address,
         lastIndexPriceTimestampInMs: 0,
         indexPriceAtDeactivation: 0,
@@ -244,20 +248,85 @@ export async function deployAndAssociateContracts(
           baselinePositionSize: '14000000000',
           incrementalPositionSize: '2800000000',
           maximumPositionSize: '282000000000',
-          minimumPositionSize: '2000000000',
+          minimumPositionSize: '10000000',
         },
       })
     ).wait(),
   ]);
-  (await exchange.connect(dispatcher).activateMarket('ETH')).wait();
+  (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
 
   return { chainlinkAggregator, usdc, custodian, exchange, governance };
 }
 
+export async function executeTrade(
+  exchange: Exchange_v4,
+  dispatcher: SignerWithAddress,
+  indexPrice: IndexPrice,
+  trader1: SignerWithAddress,
+  trader2: SignerWithAddress,
+) {
+  const sellOrder: Order = {
+    signatureHashVersion,
+    nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
+    wallet: trader1.address,
+    market: `${baseAssetSymbol}-USDC`,
+    type: OrderType.Limit,
+    side: OrderSide.Sell,
+    quantity: '10.00000000',
+    price: '2000.00000000',
+  };
+  const sellOrderSignature = await trader1.signMessage(
+    ethers.utils.arrayify(getOrderHash(sellOrder)),
+  );
+
+  const buyOrder: Order = {
+    signatureHashVersion,
+    nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
+    wallet: trader2.address,
+    market: `${baseAssetSymbol}-USDC`,
+    type: OrderType.Limit,
+    side: OrderSide.Buy,
+    quantity: '10.00000000',
+    price: '2000.00000000',
+  };
+  const buyOrderSignature = await trader2.signMessage(
+    ethers.utils.arrayify(getOrderHash(buyOrder)),
+  );
+
+  const trade: Trade = {
+    baseAssetSymbol: baseAssetSymbol,
+    quoteAssetSymbol: 'USD',
+    baseQuantity: '10.00000000',
+    quoteQuantity: '20000.00000000',
+    makerFeeQuantity: '20.00000000',
+    takerFeeQuantity: '40.00000000',
+    price: '2000.00000000',
+    makerSide: OrderSide.Sell,
+  };
+
+  await (
+    await exchange
+      .connect(dispatcher)
+      .executeOrderBookTrade(
+        ...getExecuteOrderBookTradeArguments(
+          buyOrder,
+          buyOrderSignature,
+          sellOrder,
+          sellOrderSignature,
+          trade,
+          [indexPrice],
+          [indexPrice],
+          undefined,
+          undefined,
+        ),
+      )
+  ).wait();
+}
+
 export async function fundWallets(
   wallets: SignerWithAddress[],
-  exchange: Contract,
-  usdc: Contract,
+  exchange: Exchange_v4,
+  usdc: USDC,
   quantity = '2000.00000000',
 ) {
   await Promise.all(
@@ -295,13 +364,41 @@ export async function fundWallets(
   );
 }
 
-function getPastHourInMs(hoursAgo = 0) {
+function getPastPeriodInMs(periodsAgo = 0) {
   return new Date(
     Math.round(
-      (new Date().getTime() - hoursAgo * millisecondsInAnHour) /
-        millisecondsInAnHour,
-    ) * millisecondsInAnHour,
+      (new Date().getTime() - periodsAgo * fundingPeriodLengthInMs) /
+        fundingPeriodLengthInMs,
+    ) * fundingPeriodLengthInMs,
   ).getTime();
+}
+
+export async function loadFundingMultipliers(
+  exchange: Exchange_v4,
+  baseAssetSymbol_ = baseAssetSymbol,
+) {
+  const multipliers: string[][] = [];
+  try {
+    let i = 0;
+    while (true) {
+      multipliers.push(
+        (
+          await exchange.fundingMultipliersByBaseAssetSymbol(
+            baseAssetSymbol_,
+            i,
+          )
+        ).map((m) => m.toString()),
+      );
+
+      i += 1;
+    }
+  } catch (e) {
+    if (e instanceof Error && !e.message.match(/^call revert exception/)) {
+      console.error(e.message);
+    }
+  }
+
+  return multipliers;
 }
 
 export async function logWalletBalances(

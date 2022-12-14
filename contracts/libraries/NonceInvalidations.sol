@@ -24,7 +24,7 @@ library NonceInvalidations {
 
     // Changing the Chain Propagation Period will not affect the effectiveBlockNumber for this invalidation
     effectiveBlockNumber = block.number + chainPropagationPeriodInBlocks;
-    self[msg.sender].push(NonceInvalidation(true, timestampInMs, effectiveBlockNumber));
+    self[msg.sender].push(NonceInvalidation(timestampInMs, effectiveBlockNumber));
   }
 
   function loadLastInvalidatedTimestamp(

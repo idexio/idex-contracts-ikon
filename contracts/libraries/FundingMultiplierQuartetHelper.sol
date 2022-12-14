@@ -6,9 +6,11 @@ import { Math } from "./Math.sol";
 
 pragma solidity 0.8.17;
 
-library FundingMultipliers {
+library FundingMultiplierQuartetHelper {
   // Avoid magic numbers
   uint64 private constant _QUARTET_SIZE = 4;
+
+  int64 private constant _EMPTY = 2 ** 63 - 1;
 
   /**
    * @dev Adds a new funding multiplier to an array of quartets
@@ -16,19 +18,19 @@ library FundingMultipliers {
   function publishFundingMultipler(FundingMultiplierQuartet[] storage self, int64 newFundingMultiplier) internal {
     if (self.length > 0) {
       FundingMultiplierQuartet storage fundingMultiplierQuartet = self[self.length - 1];
-      if (fundingMultiplierQuartet.fundingMultiplier3 != 0) {
+      if (fundingMultiplierQuartet.fundingMultiplier3 != _EMPTY) {
         // Quartet is fully populated, add new entry
-        self.push(FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0));
-      } else if (fundingMultiplierQuartet.fundingMultiplier1 == 0) {
+        self.push(FundingMultiplierQuartet(newFundingMultiplier, _EMPTY, _EMPTY, _EMPTY));
+      } else if (fundingMultiplierQuartet.fundingMultiplier1 == _EMPTY) {
         fundingMultiplierQuartet.fundingMultiplier1 = newFundingMultiplier;
-      } else if (fundingMultiplierQuartet.fundingMultiplier2 == 0) {
+      } else if (fundingMultiplierQuartet.fundingMultiplier2 == _EMPTY) {
         fundingMultiplierQuartet.fundingMultiplier2 = newFundingMultiplier;
       } else {
         fundingMultiplierQuartet.fundingMultiplier3 = newFundingMultiplier;
       }
     } else {
       // First multiplier for market, add new entry
-      self.push(FundingMultiplierQuartet(newFundingMultiplier, 0, 0, 0));
+      self.push(FundingMultiplierQuartet(newFundingMultiplier, _EMPTY, _EMPTY, _EMPTY));
     }
   }
 
@@ -103,13 +105,13 @@ library FundingMultipliers {
   function _countMultipliersInQuartet(
     FundingMultiplierQuartet memory fundingMultipliers
   ) private pure returns (uint64 multiplierCount) {
-    if (fundingMultipliers.fundingMultiplier3 != 0) {
+    if (fundingMultipliers.fundingMultiplier3 != _EMPTY) {
       return 4;
     }
-    if (fundingMultipliers.fundingMultiplier2 != 0) {
+    if (fundingMultipliers.fundingMultiplier2 != _EMPTY) {
       return 3;
     }
-    if (fundingMultipliers.fundingMultiplier1 != 0) {
+    if (fundingMultipliers.fundingMultiplier1 != _EMPTY) {
       return 2;
     }
 

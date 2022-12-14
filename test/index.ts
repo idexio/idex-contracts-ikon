@@ -30,7 +30,7 @@ import {
   logWalletBalances,
 } from './helpers';
 
-describe('Exchange', function () {
+describe.skip('Exchange', function () {
   it('deposit and withdraw should work', async function () {
     const [owner, dispatcher, trader, exitFund, fee, insurance, index] =
       await ethers.getSigners();
@@ -101,28 +101,6 @@ describe('Exchange', function () {
     expect(withdrawnEvents[0].args?.quantity).to.equal(
       decimalToPips('1.00000000'),
     );
-  });
-
-  it('publishFundingMutipliers should work', async function () {
-    const [owner, dispatcher, exitFund, fee, insurance, index] =
-      await ethers.getSigners();
-    const { exchange } = await deployAndAssociateContracts(
-      owner,
-      dispatcher,
-      exitFund,
-      fee,
-      insurance,
-      index,
-    );
-
-    await (
-      await exchange
-        .connect(dispatcher)
-        .publishFundingMutipliers(
-          buildFundingRates(5),
-          await buildIndexPrices(index, 5),
-        )
-    ).wait();
   });
 
   describe('executeOrderBookTrade', async function () {
@@ -201,7 +179,7 @@ describe('Exchange', function () {
       await logWalletBalances(trader2.address, exchange, [indexPrice]);
     });
 
-    it.only('can haz deebug', async function () {
+    it('can haz deebug', async function () {
       const [
         owner,
         dispatcher,
