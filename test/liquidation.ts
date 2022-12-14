@@ -9,7 +9,7 @@ import {
   fundWallets,
 } from './helpers';
 
-describe('Liquidation', function () {
+describe('Exchange', function () {
   describe('liquidatePositionBelowMinimum', async function () {
     it('should work for valid wallet position', async function () {
       const [

@@ -110,6 +110,14 @@ struct MarketOverrides {
 }
 
 /**
+ * @notice Internally used struct capturing wallet order nonce invalidations created via `invalidateOrderNonce`
+ */
+struct NonceInvalidation {
+  uint64 timestampInMs;
+  uint256 effectiveBlockNumber;
+}
+
+/**
  * @notice Index price data signed by index wallet
  */
 struct IndexPrice {
@@ -184,15 +192,6 @@ struct OrderBookTrade {
   uint64 price;
   // Which side of the order (buy or sell) the liquidity maker was on
   OrderSide makerSide;
-}
-
-/**
- * @notice Internally used struct capturing wallet order nonce invalidations created via `invalidateOrderNonce`
- */
-struct NonceInvalidation {
-  bool exists;
-  uint64 timestampInMs;
-  uint256 effectiveBlockNumber;
 }
 
 /**

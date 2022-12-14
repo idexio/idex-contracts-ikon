@@ -11,7 +11,7 @@ import {
   loadFundingMultipliers,
 } from './helpers';
 
-describe('Funding', function () {
+describe('Exchange', function () {
   describe('publishFundingMutipliers', async function () {
     it('should work for multiple consecutive periods', async function () {
       const [owner, dispatcher, exitFund, fee, insurance, index] =
