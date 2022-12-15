@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { DeleverageType } from "./Enums.sol";
+import { Deleveraging } from "./Deleveraging.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
@@ -89,6 +90,11 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
+    require(
+      balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, arguments.baseAssetSymbol) != 0,
+      "No open position in market"
+    );
+
     // Validate that the liquidating account has fallen below margin requirements
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
@@ -129,22 +135,6 @@ library AcquisitionDeleveraging {
     );
   }
 
-  function _loadMarketAndIndexPrice(
-    Arguments memory arguments,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market, IndexPrice memory indexPrice) {
-    market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-    require(market.exists && market.isActive, "No active market found");
-
-    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(
-      arguments.baseAssetSymbol
-    );
-    require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
-
-    indexPrice = arguments.liquidatingWalletIndexPrices[i];
-  }
-
   function _validateQuoteQuantityAndDeleveragePosition(
     Arguments memory arguments,
     int64 totalAccountValue,
@@ -154,8 +144,10 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
-      arguments,
+    (Market memory market, IndexPrice memory indexPrice) = Deleveraging.loadMarketAndIndexPrice(
+      arguments.baseAssetSymbol,
+      arguments.liquidatingWallet,
+      arguments.liquidatingWalletIndexPrices,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
@@ -181,7 +173,7 @@ library AcquisitionDeleveraging {
     } else {
       // DeleverageType.WalletExited
       LiquidationValidations.validateExitQuoteQuantity(
-        Math.multiplyPipsByFraction(balance.costBasis, arguments.liquidationBaseQuantity, balance.balance),
+        Math.multiplyPipsByFraction(balance.costBasis, -1 * arguments.liquidationBaseQuantity, balance.balance),
         arguments.liquidationQuoteQuantity,
         indexPrice.price,
         balance.balance,
@@ -264,13 +256,13 @@ library AcquisitionDeleveraging {
         // DeleverageType.WalletExited
         Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
           arguments.liquidatingWallet,
-          loadArguments.markets[i].baseAssetSymbol
+          baseAssetSymbols[i]
         );
         LiquidationValidations.validateExitQuoteQuantity(
-          Math.multiplyPipsByFraction(balance.costBasis, arguments.liquidationBaseQuantity, balance.balance),
+          balance.costBasis,
           arguments.liquidationQuoteQuantities[i],
           loadArguments.indexPrices[i],
-          balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, baseAssetSymbols[i]),
+          balance.balance,
           liquidatingWalletTotalAccountValue
         );
       }

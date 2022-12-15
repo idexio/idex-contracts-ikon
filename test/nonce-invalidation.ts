@@ -5,7 +5,7 @@ import { deployAndAssociateContracts } from './helpers';
 import { uuidToHexString } from '../lib';
 
 describe('Exchange', function () {
-  describe.only('invalidateOrderNonce', async function () {
+  describe('invalidateOrderNonce', async function () {
     it('should work on initial call', async function () {
       const [
         ownerWallet,

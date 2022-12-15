@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { DeleverageType } from "./Enums.sol";
+import { Deleveraging } from "./Deleveraging.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
@@ -27,7 +28,7 @@ library ClosureDeleveraging {
     DeleverageType deleverageType;
     string baseAssetSymbol;
     address deleveragingWallet;
-    address liquidatingWallet;
+    address liquidatingWallet; // IF or EF depending on delerageType
     int64 liquidationBaseQuantity;
     int64 liquidationQuoteQuantity;
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
@@ -49,12 +50,6 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256) {
-    if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
-      require(arguments.liquidatingWallet != arguments.exitFundWallet, "Cannot liquidate EF");
-    } else {
-      // DeleverageType.ExitFundClosure
-      require(arguments.liquidatingWallet != arguments.insuranceFundWallet, "Cannot liquidate IF");
-    }
     require(arguments.deleveragingWallet != arguments.exitFundWallet, "Cannot deleverage EF");
     require(arguments.deleveragingWallet != arguments.insuranceFundWallet, "Cannot deleverage IF");
 
@@ -103,8 +98,10 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
-      arguments,
+    (Market memory market, IndexPrice memory indexPrice) = Deleveraging.loadMarketAndIndexPrice(
+      arguments.baseAssetSymbol,
+      arguments.liquidatingWallet,
+      arguments.liquidatingWalletIndexPrices,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
@@ -118,22 +115,6 @@ library ClosureDeleveraging {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-  }
-
-  function _loadMarketAndIndexPrice(
-    Arguments memory arguments,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market, IndexPrice memory indexPrice) {
-    market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
-    require(market.exists && market.isActive, "No active market found");
-
-    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(
-      arguments.baseAssetSymbol
-    );
-    require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
-
-    indexPrice = arguments.liquidatingWalletIndexPrices[i];
   }
 
   function _validateQuoteQuantityAndDeleveragePosition(
@@ -172,7 +153,7 @@ library ClosureDeleveraging {
       );
 
       LiquidationValidations.validateExitFundClosureQuoteQuantity(
-        arguments.liquidationBaseQuantity,
+        -1 * arguments.liquidationBaseQuantity,
         indexPrice.price,
         arguments.liquidationQuoteQuantity,
         totalAccountValue

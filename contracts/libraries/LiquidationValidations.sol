@@ -5,6 +5,8 @@ pragma solidity 0.8.17;
 import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 
+import "hardhat/console.sol";
+
 library LiquidationValidations {
   function calculateExitQuoteQuantity(
     int64 costBasis,
@@ -13,8 +15,10 @@ library LiquidationValidations {
   ) internal pure returns (int64 quoteQuantity) {
     quoteQuantity = Math.multiplyPipsByFraction(positionSize, int64(indexPrice), int64(Constants.PIP_PRICE_MULTIPLIER));
 
-    // Quote value is the worse of the index price or entry price...
-    quoteQuantity = positionSize > 0 ? Math.min(quoteQuantity, costBasis) : Math.max(quoteQuantity, costBasis);
+    // Quote value is the worse of the index price or entry price. For long positions, quote is positive so at a worse
+    // price quote is closer to zero (receive less); for short positions, quote is negative so at a worse price is
+    // further from zero (give more)
+    quoteQuantity = Math.min(quoteQuantity, costBasis);
   }
 
   function calculateExitQuoteQuantity(
@@ -26,16 +30,13 @@ library LiquidationValidations {
     // Quote value is the worse of the index price or entry price...
     quoteQuantity = calculateExitQuoteQuantity(costBasis, indexPrice, positionSize);
 
-    // ...but never worse than the bankruptcy price
-    quoteQuantity = positionSize > 0
-      ? Math.max(
-        quoteQuantity,
-        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(indexPrice, positionSize, totalAccountValue)
-      )
-      : Math.min(
-        quoteQuantity,
-        _calculateLiquidationQuoteQuantityToZeroOutAccountValue(indexPrice, positionSize, totalAccountValue)
-      );
+    // ...but never worse than the bankruptcy price. For long positions, quote is positive so at a better price quote
+    // is further from zero (receive more); for short positions, quote is negative so at a better price is closer to
+    // zero (give less)
+    quoteQuantity = Math.max(
+      quoteQuantity,
+      _calculateLiquidationQuoteQuantityToZeroOutAccountValue(indexPrice, positionSize, totalAccountValue)
+    );
   }
 
   function validateDeactivatedMarketLiquidationQuoteQuantity(
@@ -62,17 +63,17 @@ library LiquidationValidations {
     int64 quoteQuantity,
     int64 totalAccountValue
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantities;
+    int64 expectedLiquidationQuoteQuantity;
     if (totalAccountValue < 0) {
       // Use bankruptcy price for negative total account value
-      expectedLiquidationQuoteQuantities = _calculateLiquidationQuoteQuantityToZeroOutAccountValue(
+      expectedLiquidationQuoteQuantity = _calculateLiquidationQuoteQuantityToZeroOutAccountValue(
         indexPrice,
         baseQuantity,
         totalAccountValue
       );
     } else {
       // Use index price for positive totalAccountValue
-      expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
+      expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
         baseQuantity,
         int64(indexPrice),
         int64(Constants.PIP_PRICE_MULTIPLIER)
@@ -80,29 +81,27 @@ library LiquidationValidations {
     }
 
     require(
-      expectedLiquidationQuoteQuantities - 1 <= quoteQuantity &&
-        expectedLiquidationQuoteQuantities + 1 >= quoteQuantity,
+      expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
     );
   }
 
   function validateExitQuoteQuantity(
     int64 costBasis,
-    int64 liquidationQuoteQuantity,
+    int64 exitQuoteQuantity,
     uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantities = LiquidationValidations.calculateExitQuoteQuantity(
+    int64 expectedExitQuoteQuantity = LiquidationValidations.calculateExitQuoteQuantity(
       costBasis,
       indexPrice,
       positionSize,
       totalAccountValue
     );
     require(
-      expectedLiquidationQuoteQuantities - 1 <= liquidationQuoteQuantity &&
-        expectedLiquidationQuoteQuantities + 1 >= liquidationQuoteQuantity,
-      "Invalid liquidation quote quantity"
+      expectedExitQuoteQuantity - 1 <= exitQuoteQuantity && expectedExitQuoteQuantity + 1 >= exitQuoteQuantity,
+      "Invalid exit quote quantity"
     );
   }
 
@@ -178,7 +177,7 @@ library LiquidationValidations {
     int256 totalAccountValueInDoublePips = int256(totalAccountValue) * int64(Constants.PIP_PRICE_MULTIPLIER);
 
     int256 quoteQuantity = (positionNotionalValueInDoublePips - totalAccountValueInDoublePips) /
-      (int256(positionSize) * int64(Constants.PIP_PRICE_MULTIPLIER));
+      int64(Constants.PIP_PRICE_MULTIPLIER);
     require(quoteQuantity < 2 ** 63, "Pip quantity overflows int64");
     require(quoteQuantity > -2 ** 63, "Pip quantity underflows int64");
 
