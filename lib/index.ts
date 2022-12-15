@@ -203,14 +203,11 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
   ]);
 };
 
-export const getPublishFundingMutipliersArguments = (
-  fundingRates: string[],
-  indexPrices: IndexPrice[],
-): [string[], IndexPriceStruct[]] => {
-  return [
-    fundingRates.map(decimalToPips),
-    indexPrices.map(indexPriceToArgumentStruct),
-  ];
+export const getPublishFundingMutiplierArguments = (
+  fundingRate: string,
+  indexPrice: IndexPrice,
+): [string, IndexPriceStruct] => {
+  return [decimalToPips(fundingRate), indexPriceToArgumentStruct(indexPrice)];
 };
 
 export const getExecuteOrderBookTradeArguments = (

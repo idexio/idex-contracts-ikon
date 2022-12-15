@@ -62,17 +62,23 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(dispatcherWallet)
-          .deleverageInMaintenanceAcquisition(
+          .deleverageInMaintenanceAcquisition({
             baseAssetSymbol,
-            trader2Wallet.address,
-            trader1Wallet.address,
-            ['-21980.00000000'].map(decimalToPips),
-            decimalToPips('10.00000000'),
-            decimalToPips('-21980.00000000'),
-            [indexPriceToArgumentStruct(newIndexPrice)],
-            [indexPriceToArgumentStruct(newIndexPrice)],
-            [indexPriceToArgumentStruct(newIndexPrice)],
-          )
+            deleveragingWallet: trader2Wallet.address,
+            liquidatingWallet: trader1Wallet.address,
+            liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+            liquidationBaseQuantity: decimalToPips('10.00000000'),
+            liquidationQuoteQuantity: decimalToPips('-21980.00000000'),
+            deleveragingWalletIndexPrices: [
+              indexPriceToArgumentStruct(newIndexPrice),
+            ],
+            insuranceFundIndexPrices: [
+              indexPriceToArgumentStruct(newIndexPrice),
+            ],
+            liquidatingWalletIndexPrices: [
+              indexPriceToArgumentStruct(newIndexPrice),
+            ],
+          })
       ).wait();
     });
   });
@@ -82,6 +88,7 @@ describe('Exchange', function () {
       const {
         dispatcherWallet,
         exchange,
+        insuranceWallet,
         liquidationIndexPrice,
         counterpartyWallet,
       } = await bootstrapLiquidatedWallet();
@@ -89,14 +96,19 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(dispatcherWallet)
-          .deleverageInsuranceFundClosure(
+          .deleverageInsuranceFundClosure({
             baseAssetSymbol,
-            counterpartyWallet.address,
-            decimalToPips('10.00000000'),
-            decimalToPips('-21980.00000000'),
-            [indexPriceToArgumentStruct(liquidationIndexPrice)],
-            [indexPriceToArgumentStruct(liquidationIndexPrice)],
-          )
+            deleveragingWallet: counterpartyWallet.address,
+            liquidatingWallet: insuranceWallet.address,
+            liquidationBaseQuantity: decimalToPips('10.00000000'),
+            liquidationQuoteQuantity: decimalToPips('-21980.00000000'),
+            liquidatingWalletIndexPrices: [
+              indexPriceToArgumentStruct(liquidationIndexPrice),
+            ],
+            deleveragingWalletIndexPrices: [
+              indexPriceToArgumentStruct(liquidationIndexPrice),
+            ],
+          })
       ).wait();
     });
   });
@@ -141,19 +153,21 @@ describe('Exchange', function () {
       await exchange.connect(trader2Wallet).exitWallet();
 
       await (
-        await exchange
-          .connect(dispatcherWallet)
-          .deleverageExitAcquisition(
-            baseAssetSymbol,
-            trader1Wallet.address,
-            trader2Wallet.address,
-            ['20000.00000000'].map(decimalToPips),
-            decimalToPips('-10.00000000'),
-            decimalToPips('20000.00000000'),
-            [indexPriceToArgumentStruct(indexPrice)],
-            [indexPriceToArgumentStruct(indexPrice)],
-            [indexPriceToArgumentStruct(indexPrice)],
-          )
+        await exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: trader1Wallet.address,
+          liquidatingWallet: trader2Wallet.address,
+          liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('-10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+          deleveragingWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+          insuranceFundIndexPrices: [indexPriceToArgumentStruct(indexPrice)],
+          liquidatingWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+        })
       ).wait();
     });
   });
@@ -203,16 +217,19 @@ describe('Exchange', function () {
       await exchange.withdrawExit(trader1Wallet.address);
 
       await (
-        await exchange
-          .connect(dispatcherWallet)
-          .deleverageExitFundClosure(
-            baseAssetSymbol,
-            trader2Wallet.address,
-            decimalToPips('10.00000000'),
-            decimalToPips('-20000.00000000'),
-            [indexPriceToArgumentStruct(indexPrice)],
-            [indexPriceToArgumentStruct(indexPrice)],
-          )
+        await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+          baseAssetSymbol,
+          deleveragingWallet: trader2Wallet.address,
+          liquidatingWallet: exitFundWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('-20000.00000000'),
+          liquidatingWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+          deleveragingWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+        })
       ).wait();
     });
   });

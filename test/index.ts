@@ -623,6 +623,7 @@ describe.skip('Exchange', function () {
       ).wait();
       */
 
+      /*
       await (
         await exchange
           .connect(dispatcher)
@@ -633,6 +634,7 @@ describe.skip('Exchange', function () {
             newIndexLowPrices,
           )
       ).wait();
+      */
 
       console.log('--- LIQUIDATED ---');
 

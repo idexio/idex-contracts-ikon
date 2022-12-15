@@ -189,12 +189,11 @@ library Withdrawing {
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       // Sum quote quantites needed to close each wallet position
       quoteQuantity += balanceTracking.updateForExit(
         arguments.exitFundWallet,
-        market,
-        market.loadOnChainFeedPrice(),
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]].loadOnChainFeedPrice(),
         totalAccountValue,
         arguments.wallet,
         baseAssetSymbolsWithOpenPositionsByWallet,

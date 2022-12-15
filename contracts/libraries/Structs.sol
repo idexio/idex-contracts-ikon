@@ -7,6 +7,21 @@ import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contra
 import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
 
 /**
+ * @notice Argument type for `Exchange.deleverageInMaintenanceAcquisition` and `Exchange.deleverageExitAcquisition`
+ */
+struct AcquisitionDeleverageArguments {
+  string baseAssetSymbol;
+  address deleveragingWallet;
+  address liquidatingWallet;
+  int64[] liquidationQuoteQuantities; // For all open positions
+  int64 liquidationBaseQuantity; // For the position being liquidated
+  int64 liquidationQuoteQuantity; // For the position being liquidated
+  IndexPrice[] deleveragingWalletIndexPrices; // After acquiring liquidating positions
+  IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating positions
+  IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+}
+
+/**
  * @notice Internally used struct for tracking wallet balances and funding updates
  */
 struct Balance {
@@ -15,6 +30,19 @@ struct Balance {
   // The last funding update timestamp and cost basis are only relevant for base asset positions
   uint64 lastUpdateTimestampInMs;
   int64 costBasis;
+}
+
+/**
+ * @notice Argument type for `Exchange.deleverageInsuranceFundClosure` and `Exchange.deleverageExitFundClosure`
+ */
+struct ClosureDeleverageArguments {
+  string baseAssetSymbol;
+  address deleveragingWallet;
+  address liquidatingWallet; // IF or EF depending on delerageType
+  int64 liquidationBaseQuantity;
+  int64 liquidationQuoteQuantity;
+  IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+  IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
 }
 
 /**
@@ -192,6 +220,18 @@ struct OrderBookTrade {
   uint64 price;
   // Which side of the order (buy or sell) the liquidity maker was on
   OrderSide makerSide;
+}
+
+/**
+ * @notice Argument type for `Exchange.liquidateWalletInMaintenance`,
+ * `Exchange.liquidateWalletInMaintenanceDuringSystemRecovery`, and `Exchange.liquidateWalletExited`
+ */
+struct WalletLiquidationArguments {
+  address counterpartyWallet; // Insurance Fund or Exit Fund
+  IndexPrice[] counterpartyWalletIndexPrices; // After acquiring liquidated positions
+  address liquidatingWallet;
+  IndexPrice[] liquidatingWalletIndexPrices;
+  int64[] liquidationQuoteQuantities;
 }
 
 /**

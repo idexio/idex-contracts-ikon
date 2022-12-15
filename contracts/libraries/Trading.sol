@@ -26,14 +26,6 @@ library Trading {
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) public {
-    (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
-      arguments,
-      marketsByBaseAssetSymbol,
-      nonceInvalidationsByWallet
-    );
-
-    _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);
-
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
     Funding.updateWalletFunding(
@@ -52,6 +44,36 @@ library Trading {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
+
+    _executeOrderBookTradeAfterFunding(
+      arguments,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      completedOrderHashes,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol,
+      nonceInvalidationsByWallet,
+      partiallyFilledOrderQuantities
+    );
+  }
+
+  function _executeOrderBookTradeAfterFunding(
+    ExecuteOrderBookTradeArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(bytes32 => bool) storage completedOrderHashes,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
+    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
+  ) private {
+    (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
+      arguments,
+      marketsByBaseAssetSymbol,
+      nonceInvalidationsByWallet
+    );
+
+    _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);
 
     balanceTracking.updateForOrderBookTrade(
       arguments,

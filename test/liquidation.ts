@@ -194,11 +194,15 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(dispatcherWallet)
-          .liquidateWalletInMaintenanceDuringSystemRecovery(
-            trader1Wallet.address,
-            ['-21980.00000000'].map(decimalToPips),
-            [indexPriceToArgumentStruct(newIndexPrice)],
-          )
+          .liquidateWalletInMaintenanceDuringSystemRecovery({
+            counterpartyWallet: exitFundWallet.address,
+            counterpartyWalletIndexPrices: [],
+            liquidatingWallet: trader1Wallet.address,
+            liquidatingWalletIndexPrices: [
+              indexPriceToArgumentStruct(newIndexPrice),
+            ],
+            liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+          })
       ).wait();
     });
   });
@@ -247,14 +251,17 @@ describe('Exchange', function () {
       await exchange.connect(trader1Wallet).exitWallet();
 
       await (
-        await exchange
-          .connect(dispatcherWallet)
-          .liquidateWalletExited(
-            trader1Wallet.address,
-            ['-20000.00000000'].map(decimalToPips),
-            [indexPriceToArgumentStruct(indexPrice)],
-            [indexPriceToArgumentStruct(indexPrice)],
-          )
+        await exchange.connect(dispatcherWallet).liquidateWalletExited({
+          counterpartyWallet: insuranceWallet.address,
+          counterpartyWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+          liquidatingWallet: trader1Wallet.address,
+          liquidatingWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+          liquidationQuoteQuantities: ['-20000.00000000'].map(decimalToPips),
+        })
       ).wait();
     });
   });

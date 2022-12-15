@@ -72,19 +72,21 @@ export async function bootstrapLiquidatedWallet() {
   );
 
   await (
-    await exchange
-      .connect(dispatcherWallet)
-      .liquidateWalletInMaintenance(
-        trader1Wallet.address,
-        ['-21980.00000000'].map(decimalToPips),
-        [indexPriceToArgumentStruct(newIndexPrice)],
-        [indexPriceToArgumentStruct(newIndexPrice)],
-      )
+    await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+      counterpartyWallet: insuranceWallet.address,
+      counterpartyWalletIndexPrices: [
+        indexPriceToArgumentStruct(newIndexPrice),
+      ],
+      liquidatingWallet: trader1Wallet.address,
+      liquidatingWalletIndexPrices: [indexPriceToArgumentStruct(newIndexPrice)],
+      liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+    })
   ).wait();
 
   return {
     dispatcherWallet,
     exchange,
+    insuranceWallet,
     liquidationIndexPrice: newIndexPrice,
     liquidatedWallet: trader1Wallet,
     counterpartyWallet: trader2Wallet,
