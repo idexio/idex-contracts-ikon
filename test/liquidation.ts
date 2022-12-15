@@ -2,11 +2,13 @@ import { ethers } from 'hardhat';
 import { decimalToPips, indexPriceToArgumentStruct } from '../lib';
 import {
   baseAssetSymbol,
+  bootstrapLiquidatedWallet,
   buildIndexPrice,
   buildIndexPriceWithValue,
   deployAndAssociateContracts,
   executeTrade,
   fundWallets,
+  logWalletBalances,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -136,60 +138,7 @@ describe('Exchange', function () {
 
   describe('liquidateWalletInMaintenance', async function () {
     it('should work for valid wallet', async function () {
-      const [
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-        trader1Wallet,
-        trader2Wallet,
-      ] = await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-      );
-
-      await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
-
-      await fundWallets(
-        [trader1Wallet, trader2Wallet, insuranceWallet],
-        exchange,
-        usdc,
-      );
-
-      const indexPrice = await buildIndexPrice(
-        indexPriceCollectionServiceWallet,
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        indexPrice,
-        trader1Wallet,
-        trader2Wallet,
-      );
-
-      const newIndexPrice = await buildIndexPriceWithValue(
-        indexPriceCollectionServiceWallet,
-        '2150.00000000',
-      );
-
-      await (
-        await exchange
-          .connect(dispatcherWallet)
-          .liquidateWalletInMaintenance(
-            trader1Wallet.address,
-            ['-21980.00000000'].map(decimalToPips),
-            [indexPriceToArgumentStruct(newIndexPrice)],
-            [indexPriceToArgumentStruct(newIndexPrice)],
-          )
-      ).wait();
+      await bootstrapLiquidatedWallet();
     });
   });
 
@@ -245,11 +194,15 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(dispatcherWallet)
-          .liquidateWalletInMaintenanceDuringSystemRecovery(
-            trader1Wallet.address,
-            ['-21980.00000000'].map(decimalToPips),
-            [indexPriceToArgumentStruct(newIndexPrice)],
-          )
+          .liquidateWalletInMaintenanceDuringSystemRecovery({
+            counterpartyWallet: exitFundWallet.address,
+            counterpartyWalletIndexPrices: [],
+            liquidatingWallet: trader1Wallet.address,
+            liquidatingWalletIndexPrices: [
+              indexPriceToArgumentStruct(newIndexPrice),
+            ],
+            liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+          })
       ).wait();
     });
   });
@@ -298,14 +251,17 @@ describe('Exchange', function () {
       await exchange.connect(trader1Wallet).exitWallet();
 
       await (
-        await exchange
-          .connect(dispatcherWallet)
-          .liquidateWalletExited(
-            trader1Wallet.address,
-            ['-20000.00000000'].map(decimalToPips),
-            [indexPriceToArgumentStruct(indexPrice)],
-            [indexPriceToArgumentStruct(indexPrice)],
-          )
+        await exchange.connect(dispatcherWallet).liquidateWalletExited({
+          counterpartyWallet: insuranceWallet.address,
+          counterpartyWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+          liquidatingWallet: trader1Wallet.address,
+          liquidatingWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+          liquidationQuoteQuantities: ['-20000.00000000'].map(decimalToPips),
+        })
       ).wait();
     });
   });

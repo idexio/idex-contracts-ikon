@@ -159,10 +159,9 @@ library NonMutatingMargin {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      IndexPrice memory indexPrice = indexPrices[i];
 
       initialMarginRequirement += _loadMarginRequirement(
-        indexPrice,
+        indexPrices[i],
         indexPriceCollectionServiceWallets,
         market.loadInitialMarginFractionForWallet(
           balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
@@ -188,10 +187,9 @@ library NonMutatingMargin {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      IndexPrice memory indexPrice = indexPrices[i];
 
       maintenanceMarginRequirement += _loadMarginRequirement(
-        indexPrice,
+        indexPrices[i],
         indexPriceCollectionServiceWallets,
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)

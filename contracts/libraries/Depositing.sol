@@ -12,7 +12,8 @@ import { ICustodian } from "./Interfaces.sol";
 library Depositing {
   using BalanceTracking for BalanceTracking.Storage;
 
-  function deposit(
+  // solhint-disable-next-line func-name-mixedcase
+  function deposit_delegatecall(
     address wallet,
     uint256 quantityInAssetUnits,
     address quoteAssetAddress,

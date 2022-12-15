@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
-import { getPublishFundingMutipliersArguments } from '../lib';
+import { getPublishFundingMutiplierArguments } from '../lib';
 
 import {
   buildFundingRates,
@@ -27,13 +27,18 @@ describe('Exchange', function () {
 
       const fundingRates = buildFundingRates(5);
       const indexPrices = await buildIndexPrices(index, 5);
-      await (
-        await exchange
-          .connect(dispatcher)
-          .publishFundingMutipliers(
-            ...getPublishFundingMutipliersArguments(fundingRates, indexPrices),
-          )
-      ).wait();
+      for (const i of [...Array(5).keys()]) {
+        await (
+          await exchange
+            .connect(dispatcher)
+            .publishFundingMutiplier(
+              ...getPublishFundingMutiplierArguments(
+                fundingRates[i],
+                indexPrices[i],
+              ),
+            )
+        ).wait();
+      }
 
       const fundingMultipliers = await loadFundingMultipliers(exchange);
 
@@ -67,13 +72,18 @@ describe('Exchange', function () {
       const indexPrices = await buildIndexPrices(index, 5);
       indexPrices.splice(2, 1);
 
-      await (
-        await exchange
-          .connect(dispatcher)
-          .publishFundingMutipliers(
-            ...getPublishFundingMutipliersArguments(fundingRates, indexPrices),
-          )
-      ).wait();
+      for (const i of [...Array(4).keys()]) {
+        await (
+          await exchange
+            .connect(dispatcher)
+            .publishFundingMutiplier(
+              ...getPublishFundingMutiplierArguments(
+                fundingRates[i],
+                indexPrices[i],
+              ),
+            )
+        ).wait();
+      }
 
       const fundingMultipliers = await loadFundingMultipliers(exchange);
 

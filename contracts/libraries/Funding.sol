@@ -73,70 +73,60 @@ library Funding {
   }
 
   // solhint-disable-next-line func-name-mixedcase
-  function publishFundingMutipliers_delegatecall(
-    int64[] memory fundingRates,
-    IndexPrice[] memory indexPrices,
+  function publishFundingMutiplier_delegatecall(
+    int64 fundingRate,
+    IndexPrice memory indexPrice,
     address[] memory indexPriceCollectionServiceWallets,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
-    require(fundingRates.length == indexPrices.length, "Rate and index price mismatch");
+    Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
 
-    for (uint8 i = 0; i < indexPrices.length; i++) {
-      IndexPrice memory indexPrice = indexPrices[i];
-      int64 fundingRate = fundingRates[i];
-      Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
+    Market memory market = marketsByBaseAssetSymbol[indexPrice.baseAssetSymbol];
+    require(market.exists && market.isActive, "No active market found");
 
-      Market memory market = marketsByBaseAssetSymbol[indexPrices[i].baseAssetSymbol];
-      require(market.exists && market.isActive, "No active market found");
+    uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol];
 
-      uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-        indexPrice.baseAssetSymbol
-      ];
+    uint64 nextPublishTimestampInMs;
+    if (lastPublishTimestampInMs == 0) {
+      // No funding rates published yet, use closest period starting before index price timestamp
+      nextPublishTimestampInMs = indexPrice.timestampInMs - (indexPrice.timestampInMs % Constants.FUNDING_PERIOD_IN_MS);
+    } else {
+      // Previous funding rate exists, next publish timestamp is exactly one period length from previous period start
+      nextPublishTimestampInMs = lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS;
 
-      uint64 nextPublishTimestampInMs;
-      if (lastPublishTimestampInMs == 0) {
-        // No funding rates published yet, use closest period starting before index price timestamp
-        nextPublishTimestampInMs =
-          indexPrice.timestampInMs -
-          (indexPrice.timestampInMs % Constants.FUNDING_PERIOD_IN_MS);
-      } else {
-        // Previous funding rate exists, next publish timestamp is exactly one period length from previous period start
-        nextPublishTimestampInMs = lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS;
-
-        if (indexPrice.timestampInMs < nextPublishTimestampInMs) {
-          // Validate index price is not stale for next period
-          require(
-            nextPublishTimestampInMs - indexPrice.timestampInMs < Constants.FUNDING_PERIOD_IN_MS / 2,
-            "Index price too far before next period"
-          );
-        } else if (nextPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS / 2 < indexPrice.timestampInMs) {
-          // Backfill missing periods with a multiplier of 0 (no funding payments made)
-          uint64 periodsToBackfill = Math.divideRoundNearest(
-            indexPrice.timestampInMs - nextPublishTimestampInMs,
-            Constants.FUNDING_PERIOD_IN_MS
-          );
-          for (uint64 j = 0; j < periodsToBackfill; j++) {
-            fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(0);
-          }
-          nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
+      if (indexPrice.timestampInMs < nextPublishTimestampInMs) {
+        // Validate index price is not stale for next period
+        require(
+          nextPublishTimestampInMs - indexPrice.timestampInMs < Constants.FUNDING_PERIOD_IN_MS / 2,
+          "Index price too far before next period"
+        );
+      } else if (nextPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS / 2 < indexPrice.timestampInMs) {
+        // Backfill missing periods with a multiplier of 0 (no funding payments made)
+        uint64 periodsToBackfill = Math.divideRoundNearest(
+          indexPrice.timestampInMs - nextPublishTimestampInMs,
+          Constants.FUNDING_PERIOD_IN_MS
+        );
+        for (uint64 j = 0; j < periodsToBackfill; j++) {
+          fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(0);
         }
+        nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
       }
-
-      int64 newFundingMultiplier = Math.multiplyPipsByFraction(
-        int64(indexPrice.price),
-        // The funding rate is positive when longs pay shorts, and negative when shorts pay longs. Flipping the sign
-        // on the stored multiplier allows it to be directly multiplied by a wallet's position size to determine its
-        // funding credit or debit
-        -1 * fundingRate,
-        int64(Constants.PIP_PRICE_MULTIPLIER)
-      ) / int64(Constants.PIP_PRICE_MULTIPLIER);
-
-      fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
-
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = nextPublishTimestampInMs;
     }
+
+    int64 newFundingMultiplier = Math.multiplyPipsByFraction(
+      int64(indexPrice.price),
+      // The funding rate is positive when longs pay shorts, and negative when shorts pay longs. Flipping the sign
+      // on the stored multiplier allows it to be directly multiplied by a wallet's position size to determine its
+      // funding credit or debit
+      -1 * fundingRate,
+      int64(Constants.PIP_PRICE_MULTIPLIER)
+    ) / int64(Constants.PIP_PRICE_MULTIPLIER);
+
+    fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
+
+    lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = nextPublishTimestampInMs;
   }
 
   // solhint-disable-next-line func-name-mixedcase
