@@ -5,8 +5,6 @@ pragma solidity 0.8.17;
 import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 
-import "hardhat/console.sol";
-
 library LiquidationValidations {
   function calculateExitQuoteQuantity(
     int64 costBasis,
