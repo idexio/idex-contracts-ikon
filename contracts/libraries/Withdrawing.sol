@@ -139,6 +139,7 @@ library Withdrawing {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
@@ -169,10 +170,34 @@ library Withdrawing {
     );
   }
 
+  function _updateBalancesForPositionExit(
+    WithdrawExitArguments memory arguments,
+    string memory baseAssetSymbol,
+    int64 totalAccountValue,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private returns (int64) {
+    return
+      balanceTracking.updateForExit(
+        arguments.exitFundWallet,
+        marketsByBaseAssetSymbol[baseAssetSymbol],
+        marketsByBaseAssetSymbol[baseAssetSymbol].loadOnChainFeedPrice(),
+        totalAccountValue,
+        arguments.wallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketOverridesByBaseAssetSymbolAndWallet
+      );
+  }
+
   function _updatePositionsForExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantity) {
@@ -190,14 +215,15 @@ library Withdrawing {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       // Sum quote quantites needed to close each wallet position
-      quoteQuantity += balanceTracking.updateForExit(
-        arguments.exitFundWallet,
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]].loadOnChainFeedPrice(),
+      quoteQuantity += _updateBalancesForPositionExit(
+        arguments,
+        baseAssetSymbols[i],
         totalAccountValue,
-        arguments.wallet,
+        balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
     }
 

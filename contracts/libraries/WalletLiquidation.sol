@@ -72,6 +72,7 @@ library WalletLiquidation {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
@@ -105,6 +106,7 @@ library WalletLiquidation {
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
@@ -141,6 +143,7 @@ library WalletLiquidation {
         totalMaintenanceMarginRequirement,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketOverridesByBaseAssetSymbolAndWallet
       );
     }
@@ -159,6 +162,7 @@ library WalletLiquidation {
     uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
     Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
@@ -207,6 +211,7 @@ library WalletLiquidation {
       market,
       arguments.externalArguments.liquidationQuoteQuantities[index],
       baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet
     );
   }

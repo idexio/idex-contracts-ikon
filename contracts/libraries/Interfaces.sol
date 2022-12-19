@@ -25,7 +25,7 @@ interface ICustodian {
    *
    * @return The address of the currently whitelisted Exchange contract
    */
-  function loadExchange() external view returns (address);
+  function exchange() external view returns (address);
 
   /**
    * @notice Sets a new Exchange contract address
@@ -39,7 +39,7 @@ interface ICustodian {
    *
    * @return The address of the currently whitelisted Governance contract
    */
-  function loadGovernance() external view returns (address);
+  function governance() external view returns (address);
 
   /**
    * @notice Sets a new Governance contract address

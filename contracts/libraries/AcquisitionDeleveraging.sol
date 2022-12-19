@@ -69,6 +69,7 @@ library AcquisitionDeleveraging {
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
@@ -78,6 +79,7 @@ library AcquisitionDeleveraging {
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
@@ -124,6 +126,7 @@ library AcquisitionDeleveraging {
       totalMaintenanceMarginRequirement,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
@@ -135,9 +138,54 @@ library AcquisitionDeleveraging {
     uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
+    Market memory market = _validateQuoteQuantity(
+      arguments,
+      totalAccountValue,
+      totalMaintenanceMarginRequirement,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    balanceTracking.updatePositionForDeleverage(
+      arguments.externalArguments.liquidationBaseQuantity,
+      arguments.externalArguments.deleveragingWallet,
+      arguments.externalArguments.liquidatingWallet,
+      market,
+      arguments.externalArguments.liquidationQuoteQuantity,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+
+    // Validate that the deleveraged wallet still meets its initial margin requirements
+    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+      NonMutatingMargin.LoadArguments(
+        arguments.externalArguments.deleveragingWallet,
+        arguments.externalArguments.deleveragingWalletIndexPrices,
+        arguments.indexPriceCollectionServiceWallets
+      ),
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  function _validateQuoteQuantity(
+    Arguments memory arguments,
+    int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private returns (Market memory) {
     (Market memory market, IndexPrice memory indexPrice) = Deleveraging.loadMarketAndIndexPrice(
       arguments.externalArguments.baseAssetSymbol,
       arguments.externalArguments.liquidatingWallet,
@@ -182,28 +230,7 @@ library AcquisitionDeleveraging {
       );
     }
 
-    balanceTracking.updatePositionForDeleverage(
-      arguments.externalArguments.liquidationBaseQuantity,
-      arguments.externalArguments.deleveragingWallet,
-      arguments.externalArguments.liquidatingWallet,
-      market,
-      arguments.externalArguments.liquidationQuoteQuantity,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet
-    );
-
-    // Validate that the deleveraged wallet still meets its initial margin requirements
-    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
-      NonMutatingMargin.LoadArguments(
-        arguments.externalArguments.deleveragingWallet,
-        arguments.externalArguments.deleveragingWalletIndexPrices,
-        arguments.indexPriceCollectionServiceWallets
-      ),
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
+    return market;
   }
 
   function _validateInsuranceFundCannotLiquidateWallet(

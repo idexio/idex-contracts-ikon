@@ -24,8 +24,8 @@ contract Custodian is ICustodian, Owned {
    */
   event GovernanceChanged(address oldGovernance, address newGovernance);
 
-  address _exchange;
-  address _governance;
+  address public exchange;
+  address public governance;
 
   /**
    * @notice Instantiate a new Custodian
@@ -34,15 +34,15 @@ contract Custodian is ICustodian, Owned {
    * contract addresses, after which they can only be changed by the currently set Governance contract
    * itself
    *
-   * @param exchange Address of deployed Exchange contract to whitelist
-   * @param governance ddress of deployed Governance contract to whitelist
+   * @param exchange_ Address of deployed Exchange contract to whitelist
+   * @param governance_ ddress of deployed Governance contract to whitelist
    */
-  constructor(address exchange, address governance) Owned() {
-    require(Address.isContract(exchange), "Invalid exchange contract address");
-    require(Address.isContract(governance), "Invalid governance contract address");
+  constructor(address exchange_, address governance_) Owned() {
+    require(Address.isContract(exchange_), "Invalid exchange contract address");
+    require(Address.isContract(governance_), "Invalid governance contract address");
 
-    _exchange = exchange;
-    _governance = governance;
+    exchange = exchange_;
+    governance = governance_;
 
     emit ExchangeChanged(address(0x0), exchange);
     emit GovernanceChanged(address(0x0), governance);
@@ -62,15 +62,6 @@ contract Custodian is ICustodian, Owned {
   }
 
   /**
-   * @notice Load address of the currently whitelisted Exchange contract
-   *
-   * @return The address of the currently whitelisted Exchange contract
-   */
-  function loadExchange() external view override returns (address) {
-    return _exchange;
-  }
-
-  /**
    * @notice Sets a new Exchange contract address
    *
    * @param newExchange The address of the new whitelisted Exchange contract
@@ -78,19 +69,10 @@ contract Custodian is ICustodian, Owned {
   function setExchange(address newExchange) external override onlyGovernance {
     require(Address.isContract(newExchange), "Invalid contract address");
 
-    address oldExchange = _exchange;
-    _exchange = newExchange;
+    address oldExchange = exchange;
+    exchange = newExchange;
 
     emit ExchangeChanged(oldExchange, newExchange);
-  }
-
-  /**
-   * @notice Load address of the currently whitelisted Governance contract
-   *
-   * @return The address of the currently whitelisted Governance contract
-   */
-  function loadGovernance() external view override returns (address) {
-    return _governance;
   }
 
   /**
@@ -101,8 +83,8 @@ contract Custodian is ICustodian, Owned {
   function setGovernance(address newGovernance) external override onlyGovernance {
     require(Address.isContract(newGovernance), "Invalid contract address");
 
-    address oldGovernance = _governance;
-    _governance = newGovernance;
+    address oldGovernance = governance;
+    governance = newGovernance;
 
     emit GovernanceChanged(oldGovernance, newGovernance);
   }
@@ -110,12 +92,12 @@ contract Custodian is ICustodian, Owned {
   // RBAC //
 
   modifier onlyExchange() {
-    require(msg.sender == _exchange, "Caller must be Exchange contract");
+    require(msg.sender == exchange, "Caller must be Exchange contract");
     _;
   }
 
   modifier onlyGovernance() {
-    require(msg.sender == _governance, "Caller must be Governance contract");
+    require(msg.sender == governance, "Caller must be Governance contract");
     _;
   }
 }

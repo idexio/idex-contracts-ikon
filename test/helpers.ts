@@ -11,6 +11,7 @@ import {
   getExecuteOrderBookTradeArguments,
   getIndexPriceHash,
   getOrderHash,
+  getPublishFundingMutiplierArguments,
   indexPriceToArgumentStruct,
   IndexPrice,
   Order,
@@ -185,6 +186,7 @@ export async function deployAndAssociateContracts(
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
   indexPriceCollectionServiceWallet: SignerWithAddress = owner,
+  includeInitialFundingPayment = true,
 ) {
   const [
     AcquisitionDeleveraging,
@@ -320,12 +322,34 @@ export async function deployAndAssociateContracts(
   ]);
   (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
 
+  if (includeInitialFundingPayment) {
+    const initialIndexPrice = {
+      baseAssetSymbol,
+      timestampInMs: getPastPeriodInMs(100),
+      price: prices[0],
+    };
+    const signature = await indexPriceCollectionServiceWallet.signMessage(
+      ethers.utils.arrayify(
+        getIndexPriceHash(initialIndexPrice, quoteAssetSymbol),
+      ),
+    );
+
+    await (
+      await exchange.connect(dispatcher).publishFundingMutiplier(
+        ...getPublishFundingMutiplierArguments(buildFundingRates(1)[0], {
+          ...initialIndexPrice,
+          signature,
+        }),
+      )
+    ).wait();
+  }
+
   return { chainlinkAggregator, usdc, custodian, exchange, governance };
 }
 
 export async function executeTrade(
   exchange: Exchange_v4,
-  dispatcher: SignerWithAddress,
+  dispatcherWallet: SignerWithAddress,
   indexPrice: IndexPrice,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
@@ -371,7 +395,7 @@ export async function executeTrade(
 
   await (
     await exchange
-      .connect(dispatcher)
+      .connect(dispatcherWallet)
       .executeOrderBookTrade(
         ...getExecuteOrderBookTradeArguments(
           buyOrder,

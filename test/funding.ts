@@ -5,9 +5,13 @@ import { ethers } from 'hardhat';
 import { getPublishFundingMutiplierArguments } from '../lib';
 
 import {
+  baseAssetSymbol,
   buildFundingRates,
+  buildIndexPrice,
   buildIndexPrices,
   deployAndAssociateContracts,
+  executeTrade,
+  fundWallets,
   loadFundingMultipliers,
 } from './helpers';
 
@@ -23,6 +27,7 @@ describe('Exchange', function () {
         fee,
         insurance,
         index,
+        false,
       );
 
       const fundingRates = buildFundingRates(5);
@@ -65,6 +70,7 @@ describe('Exchange', function () {
         fee,
         insurance,
         index,
+        false,
       );
 
       const fundingRates = buildFundingRates(5);
@@ -109,6 +115,72 @@ describe('Exchange', function () {
               .toString(),
           ),
         );
+    });
+  });
+
+  describe('updateWalletFundingForMarket', async function () {
+    it('should work for multiple consecutive periods', async function () {
+      const [
+        ownerWallet,
+        dispatcherWallet,
+        exitFundWallet,
+        feeWallet,
+        insuranceWallet,
+        indexPriceCollectionServiceWallet,
+        trader1Wallet,
+        trader2Wallet,
+      ] = await ethers.getSigners();
+      const { exchange, usdc } = await deployAndAssociateContracts(
+        ownerWallet,
+        dispatcherWallet,
+        exitFundWallet,
+        feeWallet,
+        insuranceWallet,
+        indexPriceCollectionServiceWallet,
+      );
+
+      await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
+
+      await fundWallets(
+        [trader1Wallet, trader2Wallet, insuranceWallet],
+        exchange,
+        usdc,
+      );
+
+      const indexPrice = await buildIndexPrice(
+        indexPriceCollectionServiceWallet,
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        indexPrice,
+        trader1Wallet,
+        trader2Wallet,
+      );
+
+      const fundingRates = buildFundingRates(5);
+      const indexPrices = await buildIndexPrices(
+        indexPriceCollectionServiceWallet,
+        5,
+      );
+      for (const i of [...Array(5).keys()]) {
+        await (
+          await exchange
+            .connect(dispatcherWallet)
+            .publishFundingMutiplier(
+              ...getPublishFundingMutiplierArguments(
+                fundingRates[i],
+                indexPrices[i],
+              ),
+            )
+        ).wait();
+      }
+
+      await exchange.updateWalletFundingForMarket(
+        trader1Wallet.address,
+        baseAssetSymbol,
+      );
     });
   });
 });
