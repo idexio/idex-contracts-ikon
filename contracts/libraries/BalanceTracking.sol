@@ -208,6 +208,9 @@ library BalanceTracking {
   ) internal {
     Balance storage balance;
 
+    // Opening a position in a market requires a funding multiplier already be present in order to have a starting
+    // timestamp (from which multiplier array index and offset are calculated) for the wallet from which to apply
+    // funding payments
     uint64 lastFundingRateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
     require(lastFundingRateTimestampInMs > 0, "Must publish funding multiplier before opening position");
 

@@ -1,8 +1,13 @@
 import BigNumber from 'bignumber.js';
+import chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import { ethers } from 'hardhat';
-import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
+import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
+
+chai.use(chaiAsPromised);
+export const { expect } = chai;
 
 import {
   decimalToAssetUnits,
@@ -179,17 +184,16 @@ export function buildFundingRates(count = 1): string[] {
     .map((_, i) => fundingRates[i % 5]);
 }
 
-export async function deployAndAssociateContracts(
+export async function deployContractsExceptCustodian(
   owner: SignerWithAddress,
-  dispatcher: SignerWithAddress = owner,
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
   indexPriceCollectionServiceWallet: SignerWithAddress = owner,
-  includeInitialFundingPayment = true,
 ) {
   const [
     AcquisitionDeleveraging,
+    ChainlinkAggregator,
     ClosureDeleveraging,
     Depositing,
     Funding,
@@ -203,6 +207,7 @@ export async function deployAndAssociateContracts(
     Withdrawing,
   ] = await Promise.all([
     ethers.getContractFactory('AcquisitionDeleveraging'),
+    ethers.getContractFactory('ChainlinkAggregatorMock'),
     ethers.getContractFactory('ClosureDeleveraging'),
     ethers.getContractFactory('Depositing'),
     ethers.getContractFactory('Funding'),
@@ -243,31 +248,28 @@ export async function deployAndAssociateContracts(
     (await Withdrawing.deploy()).deployed(),
   ]);
 
-  const [ChainlinkAggregator, USDC, Exchange_v4, Governance, Custodian] =
-    await Promise.all([
-      ethers.getContractFactory('ChainlinkAggregator'),
-      ethers.getContractFactory('USDC'),
-      ethers.getContractFactory('Exchange_v4', {
-        libraries: {
-          AcquisitionDeleveraging: acquisitionDeleveraging.address,
-          ClosureDeleveraging: closureDeleveraging.address,
-          Depositing: depositing.address,
-          Funding: funding.address,
-          MarketAdmin: marketAdmin.address,
-          NonceInvalidations: nonceInvalidations.address,
-          NonMutatingMargin: nonMutatingMargin.address,
-          PositionBelowMinimumLiquidation:
-            positionBelowMinimumLiquidation.address,
-          PositionInDeactivatedMarketLiquidation:
-            positionInDeactivatedMarketLiquidation.address,
-          Trading: trading.address,
-          WalletLiquidation: walletLiquidation.address,
-          Withdrawing: withdrawing.address,
-        },
-      }),
-      ethers.getContractFactory('Governance'),
-      ethers.getContractFactory('Custodian'),
-    ]);
+  const [USDC, Exchange_v4, Governance] = await Promise.all([
+    ethers.getContractFactory('USDC'),
+    ethers.getContractFactory('Exchange_v4', {
+      libraries: {
+        AcquisitionDeleveraging: acquisitionDeleveraging.address,
+        ClosureDeleveraging: closureDeleveraging.address,
+        Depositing: depositing.address,
+        Funding: funding.address,
+        MarketAdmin: marketAdmin.address,
+        NonceInvalidations: nonceInvalidations.address,
+        NonMutatingMargin: nonMutatingMargin.address,
+        PositionBelowMinimumLiquidation:
+          positionBelowMinimumLiquidation.address,
+        PositionInDeactivatedMarketLiquidation:
+          positionInDeactivatedMarketLiquidation.address,
+        Trading: trading.address,
+        WalletLiquidation: walletLiquidation.address,
+        Withdrawing: withdrawing.address,
+      },
+    }),
+    ethers.getContractFactory('Governance'),
+  ]);
 
   const chainlinkAggregator = await (
     await ChainlinkAggregator.deploy()
@@ -291,6 +293,28 @@ export async function deployAndAssociateContracts(
     (await Governance.deploy(0)).deployed(),
   ]);
 
+  return { chainlinkAggregator, exchange, Exchange_v4, governance, usdc };
+}
+
+export async function deployAndAssociateContracts(
+  owner: SignerWithAddress,
+  dispatcher: SignerWithAddress = owner,
+  exitFundWallet: SignerWithAddress = owner,
+  feeWallet: SignerWithAddress = owner,
+  insuranceFund: SignerWithAddress = owner,
+  indexPriceCollectionServiceWallet: SignerWithAddress = owner,
+  includeInitialFundingPayment = true,
+) {
+  const { chainlinkAggregator, exchange, governance, usdc } =
+    await deployContractsExceptCustodian(
+      owner,
+      exitFundWallet,
+      feeWallet,
+      insuranceFund,
+      indexPriceCollectionServiceWallet,
+    );
+
+  const Custodian = await ethers.getContractFactory('Custodian');
   const custodian = await (
     await Custodian.deploy(exchange.address, governance.address)
   ).deployed();

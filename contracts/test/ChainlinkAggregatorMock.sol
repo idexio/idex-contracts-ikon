@@ -6,7 +6,7 @@ import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contra
 
 import { Owned } from "../Owned.sol";
 
-contract ChainlinkAggregator is IChainlinkAggregator, Owned {
+contract ChainlinkAggregatorMock is IChainlinkAggregator, Owned {
   int256 public price;
 
   constructor() Owned() {}

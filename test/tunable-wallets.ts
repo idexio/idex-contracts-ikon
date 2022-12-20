@@ -3,102 +3,66 @@ import { expect } from 'chai';
 
 import { deployAndAssociateContracts } from './helpers';
 import { ethAddress } from '../lib';
+import type { Exchange_v4 } from '../typechain-types';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 describe('Exchange', function () {
+  let exchange: Exchange_v4;
+  let ownerWallet: SignerWithAddress;
+
+  beforeEach(async () => {
+    [ownerWallet] = await ethers.getSigners();
+    const results = await deployAndAssociateContracts(ownerWallet);
+    exchange = results.exchange;
+  });
+
   describe('setExitFundWallet', async function () {
     it('should work for valid wallet', async () => {
-      const [ownerWallet, exitFundWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
+      const [, exitFundWallet] = await ethers.getSigners();
 
-      await exchange
-        .connect(ownerWallet)
-        .setExitFundWallet(exitFundWallet.address);
+      await exchange.setExitFundWallet(exitFundWallet.address);
 
       expect(await exchange.exitFundWallet()).to.equal(exitFundWallet.address);
     });
 
     it('should revert for invalid wallet', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange.connect(ownerWallet).setExitFundWallet(ethAddress);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/invalid EF wallet/i);
+      await expect(
+        exchange.setExitFundWallet(ethAddress),
+      ).to.eventually.be.rejectedWith(/invalid EF wallet/i);
     });
 
     it('should revert for wallet already set', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange
-          .connect(ownerWallet)
-          .setExitFundWallet(ownerWallet.address);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/must be different/i);
+      await expect(
+        exchange.setExitFundWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/must be different/i);
     });
   });
 
   describe('setFeeWallet', async function () {
     it('should work for valid wallet', async () => {
-      const [ownerWallet, feeWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
+      const [, feeWallet] = await ethers.getSigners();
 
-      await exchange.connect(ownerWallet).setFeeWallet(feeWallet.address);
+      await exchange.setFeeWallet(feeWallet.address);
 
       expect(await exchange.feeWallet()).to.equal(feeWallet.address);
     });
 
     it('should revert for invalid wallet', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange.connect(ownerWallet).setFeeWallet(ethAddress);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/invalid fee wallet/i);
+      await expect(
+        exchange.setFeeWallet(ethAddress),
+      ).to.eventually.be.rejectedWith(/invalid fee wallet/i);
     });
 
     it('should revert for wallet already set', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange.connect(ownerWallet).setFeeWallet(ownerWallet.address);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/must be different/i);
+      await expect(
+        exchange.setFeeWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/must be different/i);
     });
   });
 
   describe('setInsuranceFundWallet', async function () {
     it('should work for valid wallet', async () => {
       const [ownerWallet, insuranceFundWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
 
       await exchange
         .connect(ownerWallet)
@@ -110,44 +74,21 @@ describe('Exchange', function () {
     });
 
     it('should revert for invalid wallet', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange.connect(ownerWallet).setInsuranceFundWallet(ethAddress);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/invalid IF wallet/i);
+      await expect(
+        exchange.setInsuranceFundWallet(ethAddress),
+      ).to.eventually.be.rejectedWith(/invalid IF wallet/i);
     });
 
     it('should revert for wallet already set', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange
-          .connect(ownerWallet)
-          .setInsuranceFundWallet(ownerWallet.address);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/must be different/i);
+      await expect(
+        exchange.setInsuranceFundWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/must be different/i);
     });
   });
 
   describe('setDispatcher', async function () {
     it('should work for valid wallet', async () => {
       const [ownerWallet, dispatcherWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
 
       await exchange
         .connect(ownerWallet)
@@ -159,35 +100,15 @@ describe('Exchange', function () {
     });
 
     it('should revert for invalid wallet', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange.connect(ownerWallet).setDispatcher(ethAddress);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/invalid wallet/i);
+      await expect(
+        exchange.setDispatcher(ethAddress),
+      ).to.eventually.be.rejectedWith(/invalid wallet/i);
     });
 
     it('should revert for wallet already set', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange.connect(ownerWallet).setDispatcher(ownerWallet.address);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/must be different/i);
+      await expect(
+        exchange.setDispatcher(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/must be different/i);
     });
   });
 });

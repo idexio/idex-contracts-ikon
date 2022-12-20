@@ -2,13 +2,21 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 
 import { deployAndAssociateContracts } from './helpers';
+import type { Exchange_v4 } from '../typechain-types';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 describe('Exchange', function () {
+  let exchange: Exchange_v4;
+  let ownerWallet: SignerWithAddress;
+
+  beforeEach(async () => {
+    [ownerWallet] = await ethers.getSigners();
+    const results = await deployAndAssociateContracts(ownerWallet);
+    exchange = results.exchange;
+  });
+
   describe('setChainPropagationPeriod', async function () {
     it('should work for valid argument', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
       await exchange.connect(ownerWallet).setChainPropagationPeriod(22);
 
       expect(
@@ -17,29 +25,14 @@ describe('Exchange', function () {
     });
 
     it('should revert for argument over max', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange
-          .connect(ownerWallet)
-          .setChainPropagationPeriod('10000000000');
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/must be less than max/i);
+      await expect(
+        exchange.setChainPropagationPeriod('10000000000'),
+      ).to.eventually.be.rejectedWith(/must be less than max/i);
     });
   });
 
   describe('setDelegateKeyExpirationPeriod', async function () {
     it('should work for valid argument', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
       await exchange.connect(ownerWallet).setDelegateKeyExpirationPeriod(22);
 
       expect(
@@ -48,21 +41,11 @@ describe('Exchange', function () {
     });
 
     it('should revert for argument over max', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(ownerWallet);
-
-      let error;
-      try {
-        await exchange
+      await expect(
+        exchange
           .connect(ownerWallet)
-          .setDelegateKeyExpirationPeriod('100000000000000');
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/must be less than max/i);
+          .setDelegateKeyExpirationPeriod('100000000000000'),
+      ).to.eventually.be.rejectedWith(/must be less than max/i);
     });
   });
 });

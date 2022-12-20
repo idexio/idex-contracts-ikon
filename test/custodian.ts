@@ -1,157 +1,143 @@
 import { ethers } from 'hardhat';
-import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { Custodian__factory } from '../typechain-types';
 import { ethAddress } from '../lib';
-
-let Custodian: Custodian__factory;
-beforeEach(async () => {
-  Custodian = await ethers.getContractFactory('Custodian');
-});
+import {
+  Custodian,
+  Custodian__factory,
+  Exchange_v4,
+  Exchange_v4__factory,
+  Governance,
+  GovernanceMock,
+  GovernanceMock__factory,
+  Governance__factory,
+  USDC,
+} from '../typechain-types';
+import { deployContractsExceptCustodian, expect } from './helpers';
 
 describe('Custodian', function () {
+  let CustodianFactory: Custodian__factory;
+  let GovernanceFactory: Governance__factory;
+  let GovernanceMockFactory: GovernanceMock__factory;
+
+  beforeEach(async () => {
+    [CustodianFactory, GovernanceFactory, GovernanceMockFactory] =
+      await Promise.all([
+        ethers.getContractFactory('Custodian'),
+        ethers.getContractFactory('Governance'),
+        ethers.getContractFactory('GovernanceMock'),
+      ]);
+  });
+
   describe('deploy', async function () {
+    let exchange: Exchange_v4;
+    let governance: Governance;
+
+    beforeEach(async () => {
+      const [owner] = await ethers.getSigners();
+      const results = await deployContractsExceptCustodian(owner);
+      exchange = results.exchange;
+      governance = results.governance;
+    });
+
     it('should work', async () => {
-      const [ownerWallet] = await ethers.getSigners();
-      const { exchange, governance } = await deployContracts(ownerWallet);
-      await Custodian.deploy(exchange.address, governance.address);
+      await CustodianFactory.deploy(exchange.address, governance.address);
     });
 
     it('should revert for invalid exchange address', async () => {
-      const [owner] = await ethers.getSigners();
-      const { governance } = await deployContracts(owner);
-
-      let error;
-      try {
-        await Custodian.deploy(ethAddress, governance.address);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/invalid exchange contract address/i);
+      await expect(
+        CustodianFactory.deploy(ethAddress, governance.address),
+      ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
 
     it('should revert for invalid governance address', async () => {
-      const [owner] = await ethers.getSigners();
-      const { exchange } = await deployContracts(owner);
+      await expect(
+        CustodianFactory.deploy(exchange.address, ethAddress),
+      ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
+    });
+  });
 
-      let error;
-      try {
-        await Custodian.deploy(exchange.address, ethAddress);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error)
-        .to.have.property('message')
-        .to.match(/invalid exchange contract address/i);
+  describe('setExchange', () => {
+    let custodian: Custodian;
+    let Exchange_v4: Exchange_v4__factory;
+    let governanceMock: GovernanceMock;
+    let owner: SignerWithAddress;
+    let usdc: USDC;
+
+    beforeEach(async () => {
+      [owner] = await ethers.getSigners();
+      const results = await deployContractsExceptCustodian(owner);
+      Exchange_v4 = results.Exchange_v4;
+      usdc = results.usdc;
+      governanceMock = await GovernanceMockFactory.deploy();
+      custodian = await CustodianFactory.deploy(
+        results.exchange.address,
+        governanceMock.address,
+      );
+      governanceMock.setCustodian(custodian.address);
+    });
+
+    it('should work when sent from governance address', async () => {
+      const newExchange = await Exchange_v4.deploy(
+        ethers.constants.AddressZero,
+        usdc.address,
+        owner.address,
+        owner.address,
+        owner.address,
+        [owner.address],
+      );
+
+      await governanceMock.setExchange(newExchange.address);
+
+      expect(custodian.queryFilter(custodian.filters.ExchangeChanged()))
+        .to.eventually.be.an('array')
+        .with.lengthOf(2);
+    });
+
+    it('should revert for invalid address', async () => {
+      await expect(
+        governanceMock.setExchange(ethAddress),
+      ).to.eventually.be.rejectedWith(/invalid contract address/i);
+    });
+
+    it('should revert for non-contract address', async () => {
+      await expect(
+        governanceMock.setExchange(owner.address),
+      ).to.eventually.be.rejectedWith(/invalid contract address/i);
+    });
+
+    it('should revert when not sent from governance address', async () => {
+      await expect(
+        custodian
+          .connect((await ethers.getSigners())[1])
+          .setExchange(ethAddress),
+      ).to.eventually.be.rejectedWith(/caller must be governance/i);
+    });
+  });
+
+  describe('setGovernance', () => {
+    let custodian: Custodian;
+    let governanceMock: GovernanceMock;
+
+    beforeEach(async () => {
+      const [owner] = await ethers.getSigners();
+      const results = await deployContractsExceptCustodian(owner);
+      governanceMock = await GovernanceMockFactory.deploy();
+      custodian = await CustodianFactory.deploy(
+        results.exchange.address,
+        governanceMock.address,
+      );
+      governanceMock.setCustodian(custodian.address);
+    });
+
+    it('should work when sent from governance address', async () => {
+      const newGovernance = await GovernanceFactory.deploy(0);
+
+      await governanceMock.setGovernance(newGovernance.address);
+
+      expect(custodian.queryFilter(custodian.filters.GovernanceChanged()))
+        .to.eventually.be.an('array')
+        .with.lengthOf(2);
     });
   });
 });
-
-export async function deployContracts(
-  owner: SignerWithAddress,
-  exitFundWallet: SignerWithAddress = owner,
-  feeWallet: SignerWithAddress = owner,
-  insuranceFund: SignerWithAddress = owner,
-  indexPriceCollectionServiceWallet: SignerWithAddress = owner,
-) {
-  const [
-    AcquisitionDeleveraging,
-    ClosureDeleveraging,
-    Depositing,
-    Funding,
-    MarketAdmin,
-    NonceInvalidations,
-    NonMutatingMargin,
-    PositionBelowMinimumLiquidation,
-    PositionInDeactivatedMarketLiquidation,
-    Trading,
-    WalletLiquidation,
-    Withdrawing,
-  ] = await Promise.all([
-    ethers.getContractFactory('AcquisitionDeleveraging'),
-    ethers.getContractFactory('ClosureDeleveraging'),
-    ethers.getContractFactory('Depositing'),
-    ethers.getContractFactory('Funding'),
-    ethers.getContractFactory('MarketAdmin'),
-    ethers.getContractFactory('NonceInvalidations'),
-    ethers.getContractFactory('NonMutatingMargin'),
-    ethers.getContractFactory('PositionBelowMinimumLiquidation'),
-    ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
-    ethers.getContractFactory('Trading'),
-    ethers.getContractFactory('WalletLiquidation'),
-    ethers.getContractFactory('Withdrawing'),
-  ]);
-  const [
-    acquisitionDeleveraging,
-    closureDeleveraging,
-    depositing,
-    funding,
-    marketAdmin,
-    nonceInvalidations,
-    nonMutatingMargin,
-    positionBelowMinimumLiquidation,
-    positionInDeactivatedMarketLiquidation,
-    trading,
-    walletLiquidation,
-    withdrawing,
-  ] = await Promise.all([
-    (await AcquisitionDeleveraging.deploy()).deployed(),
-    (await ClosureDeleveraging.deploy()).deployed(),
-    (await Depositing.deploy()).deployed(),
-    (await Funding.deploy()).deployed(),
-    (await MarketAdmin.deploy()).deployed(),
-    (await NonceInvalidations.deploy()).deployed(),
-    (await NonMutatingMargin.deploy()).deployed(),
-    (await PositionBelowMinimumLiquidation.deploy()).deployed(),
-    (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
-    (await Trading.deploy()).deployed(),
-    (await WalletLiquidation.deploy()).deployed(),
-    (await Withdrawing.deploy()).deployed(),
-  ]);
-
-  const [USDC, Exchange_v4, Governance] = await Promise.all([
-    ethers.getContractFactory('USDC'),
-    ethers.getContractFactory('Exchange_v4', {
-      libraries: {
-        AcquisitionDeleveraging: acquisitionDeleveraging.address,
-        ClosureDeleveraging: closureDeleveraging.address,
-        Depositing: depositing.address,
-        Funding: funding.address,
-        MarketAdmin: marketAdmin.address,
-        NonceInvalidations: nonceInvalidations.address,
-        NonMutatingMargin: nonMutatingMargin.address,
-        PositionBelowMinimumLiquidation:
-          positionBelowMinimumLiquidation.address,
-        PositionInDeactivatedMarketLiquidation:
-          positionInDeactivatedMarketLiquidation.address,
-        Trading: trading.address,
-        WalletLiquidation: walletLiquidation.address,
-        Withdrawing: withdrawing.address,
-      },
-    }),
-    ethers.getContractFactory('Governance'),
-  ]);
-
-  const usdc = await (await USDC.deploy()).deployed();
-
-  const [exchange, governance] = await Promise.all([
-    (
-      await Exchange_v4.deploy(
-        ethers.constants.AddressZero,
-        usdc.address,
-        exitFundWallet.address,
-        feeWallet.address,
-        insuranceFund.address,
-        [indexPriceCollectionServiceWallet.address],
-      )
-    ).deployed(),
-    (await Governance.deploy(0)).deployed(),
-  ]);
-
-  return { exchange, governance };
-}
