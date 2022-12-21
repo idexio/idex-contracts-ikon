@@ -29,6 +29,14 @@ describe('Exchange', function () {
         exchange.setChainPropagationPeriod('10000000000'),
       ).to.eventually.be.rejectedWith(/must be less than max/i);
     });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange
+          .connect((await ethers.getSigners())[1])
+          .setChainPropagationPeriod(0),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
   });
 
   describe('setDelegateKeyExpirationPeriod', async function () {
@@ -46,6 +54,14 @@ describe('Exchange', function () {
           .connect(ownerWallet)
           .setDelegateKeyExpirationPeriod('100000000000000'),
       ).to.eventually.be.rejectedWith(/must be less than max/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange
+          .connect((await ethers.getSigners())[1])
+          .setDelegateKeyExpirationPeriod(0),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 });

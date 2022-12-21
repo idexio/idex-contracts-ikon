@@ -35,6 +35,14 @@ describe('Exchange', function () {
         exchange.setExitFundWallet(ownerWallet.address),
       ).to.eventually.be.rejectedWith(/must be different/i);
     });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange
+          .connect((await ethers.getSigners())[1])
+          .setExitFundWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
   });
 
   describe('setFeeWallet', async function () {
@@ -56,6 +64,14 @@ describe('Exchange', function () {
       await expect(
         exchange.setFeeWallet(ownerWallet.address),
       ).to.eventually.be.rejectedWith(/must be different/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange
+          .connect((await ethers.getSigners())[1])
+          .setFeeWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 
@@ -83,6 +99,14 @@ describe('Exchange', function () {
         exchange.setInsuranceFundWallet(ownerWallet.address),
       ).to.eventually.be.rejectedWith(/must be different/i);
     });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange
+          .connect((await ethers.getSigners())[1])
+          .setInsuranceFundWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
   });
 
   describe('setDispatcher', async function () {
@@ -108,6 +132,14 @@ describe('Exchange', function () {
       await expect(
         exchange.setDispatcher(ownerWallet.address),
       ).to.eventually.be.rejectedWith(/must be different/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange
+          .connect((await ethers.getSigners())[1])
+          .setDispatcher(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 });

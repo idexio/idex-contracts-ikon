@@ -47,6 +47,15 @@ describe('Governance', function () {
         governance.setAdmin((await ethers.getSigners())[1].address),
       ).to.eventually.be.rejectedWith(/must be different from current admin/i);
     });
+
+    it('should revert when not called by owner', async () => {
+      const nonOwnerWallet = (await ethers.getSigners())[1];
+
+      const governance = await GovernanceFactory.deploy(0);
+      await expect(
+        governance.connect(nonOwnerWallet).setAdmin(nonOwnerWallet.address),
+      ).to.eventually.be.rejectedWith(/caller must be owner/i);
+    });
   });
 
   describe('removeAdmin', async function () {
@@ -99,6 +108,14 @@ describe('Governance', function () {
       await expect(
         governance.setCustodian(custodian.address),
       ).to.eventually.be.rejectedWith(/custodian can only be set once/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .setCustodian(governance.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 
@@ -160,6 +177,14 @@ describe('Governance', function () {
         governance.initiateExchangeUpgrade(newExchange.address),
       ).to.eventually.be.rejectedWith(/exchange upgrade already in progress/i);
     });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .initiateExchangeUpgrade(governance.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
   });
 
   describe('cancelExchangeUpgrade', () => {
@@ -193,6 +218,14 @@ describe('Governance', function () {
       await expect(
         governance.cancelExchangeUpgrade(),
       ).to.eventually.be.rejectedWith(/no exchange upgrade in progress/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .cancelExchangeUpgrade(),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 
@@ -271,6 +304,159 @@ describe('Governance', function () {
       await expect(
         governance.finalizeExchangeUpgrade(newExchange.address),
       ).to.eventually.be.rejectedWith(/block threshold not yet reached/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .finalizeExchangeUpgrade(governance.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('initiateGovernanceUpgrade', () => {
+    let governance: Governance;
+    let newGovernance: Governance;
+    let ownerWallet: SignerWithAddress;
+
+    beforeEach(async () => {
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
+      governance = results.governance;
+      newGovernance = await GovernanceFactory.deploy(0);
+    });
+
+    it('should work for valid contract address', async () => {
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+    });
+
+    it('should revert for zero address', async () => {
+      await expect(
+        governance.initiateGovernanceUpgrade(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/invalid address/i);
+    });
+
+    it('should revert for non-contract address', async () => {
+      await expect(
+        governance.initiateGovernanceUpgrade(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/invalid address/i);
+    });
+
+    it('should revert for same address as current', async () => {
+      await expect(
+        governance.initiateGovernanceUpgrade(governance.address),
+      ).to.eventually.be.rejectedWith(
+        /must be different from current governance/i,
+      );
+    });
+
+    it('should revert when upgrade is in progress', async () => {
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+
+      await expect(
+        governance.initiateGovernanceUpgrade(newGovernance.address),
+      ).to.eventually.be.rejectedWith(
+        /governance upgrade already in progress/i,
+      );
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .initiateGovernanceUpgrade(newGovernance.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('cancelGovernanceUpgrade', () => {
+    let governance: Governance;
+    let newGovernance: Governance;
+    let ownerWallet: SignerWithAddress;
+
+    beforeEach(async () => {
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
+      governance = results.governance;
+      newGovernance = await GovernanceFactory.deploy(0);
+    });
+
+    it('should work when upgrade was initiated', async () => {
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await governance.cancelGovernanceUpgrade();
+    });
+
+    it('should revert when no upgrade was initiated', async () => {
+      await expect(
+        governance.cancelGovernanceUpgrade(),
+      ).to.eventually.be.rejectedWith(/no governance upgrade in progress/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .cancelGovernanceUpgrade(),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('finalizeGovernanceUpgrade', () => {
+    let governance: Governance;
+    let newGovernance: Governance;
+    let ownerWallet: SignerWithAddress;
+
+    beforeEach(async () => {
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
+      governance = results.governance;
+      newGovernance = await GovernanceFactory.deploy(0);
+    });
+
+    it('should work when upgrade was initiated and addresses match', async () => {
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await governance.finalizeGovernanceUpgrade(newGovernance.address);
+    });
+
+    it('should revert when no upgrade was initiated', async () => {
+      await expect(
+        governance.finalizeGovernanceUpgrade(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/no governance upgrade in progress/i);
+    });
+
+    it('should revert when upgrade was initiated and addresses mismatch', async () => {
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await expect(
+        governance.finalizeGovernanceUpgrade(governance.address),
+      ).to.eventually.be.rejectedWith(/address mismatch/i);
+    });
+
+    it('should revert when block threshold not yet reached', async () => {
+      const results = await deployAndAssociateContracts(
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        true,
+        100,
+      );
+      governance = results.governance;
+
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await expect(
+        governance.finalizeGovernanceUpgrade(newGovernance.address),
+      ).to.eventually.be.rejectedWith(/block threshold not yet reached/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .finalizeGovernanceUpgrade(governance.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 });
