@@ -18,8 +18,6 @@ export {
 
 export { contracts };
 
-export const ethAddress = '0x0000000000000000000000000000000000000000';
-
 export const fundingPeriodLengthInMs = 8 * 60 * 60 * 1000;
 
 /** The fixed number of digits following the decimal in quantities expressed as pips */

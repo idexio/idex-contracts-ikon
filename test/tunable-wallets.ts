@@ -2,7 +2,6 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 
 import { deployAndAssociateContracts } from './helpers';
-import { ethAddress } from '../lib';
 import type { Exchange_v4 } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
@@ -27,7 +26,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid wallet', async () => {
       await expect(
-        exchange.setExitFundWallet(ethAddress),
+        exchange.setExitFundWallet(ethers.constants.AddressZero),
       ).to.eventually.be.rejectedWith(/invalid EF wallet/i);
     });
 
@@ -49,7 +48,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid wallet', async () => {
       await expect(
-        exchange.setFeeWallet(ethAddress),
+        exchange.setFeeWallet(ethers.constants.AddressZero),
       ).to.eventually.be.rejectedWith(/invalid fee wallet/i);
     });
 
@@ -75,7 +74,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid wallet', async () => {
       await expect(
-        exchange.setInsuranceFundWallet(ethAddress),
+        exchange.setInsuranceFundWallet(ethers.constants.AddressZero),
       ).to.eventually.be.rejectedWith(/invalid IF wallet/i);
     });
 
@@ -101,7 +100,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid wallet', async () => {
       await expect(
-        exchange.setDispatcher(ethAddress),
+        exchange.setDispatcher(ethers.constants.AddressZero),
       ).to.eventually.be.rejectedWith(/invalid wallet/i);
     });
 
