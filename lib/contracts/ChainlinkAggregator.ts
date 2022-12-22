@@ -4,14 +4,14 @@ import * as utils from './utils';
 import BaseContract from './BaseContract';
 
 import {
-  ChainlinkAggregator,
-  ChainlinkAggregator__factory,
+  ChainlinkAggregatorMock,
+  ChainlinkAggregatorMock__factory,
 } from '../../typechain-types';
 
-export default class ChainlinkAggregatorContract extends BaseContract<ChainlinkAggregator> {
+export default class ChainlinkAggregatorMockContract extends BaseContract<ChainlinkAggregatorMock> {
   public constructor(address: string, signerWalletPrivateKey?: string) {
     super(
-      ChainlinkAggregator__factory.connect(
+      ChainlinkAggregatorMock__factory.connect(
         address,
         signerWalletPrivateKey
           ? new ethers.Wallet(signerWalletPrivateKey, utils.loadProvider())
@@ -21,15 +21,15 @@ export default class ChainlinkAggregatorContract extends BaseContract<ChainlinkA
   }
 
   public static async deploy(
-    args: Parameters<ChainlinkAggregator__factory['deploy']>,
+    args: Parameters<ChainlinkAggregatorMock__factory['deploy']>,
     ownerWalletPrivateKey: string,
-  ): Promise<ChainlinkAggregatorContract> {
+  ): Promise<ChainlinkAggregatorMockContract> {
     const owner = new ethers.Wallet(
       ownerWalletPrivateKey,
       utils.loadProvider(),
     );
 
-    const contract = await new ChainlinkAggregator__factory(owner).deploy(
+    const contract = await new ChainlinkAggregatorMock__factory(owner).deploy(
       ...args,
     );
     await contract.deployTransaction.wait();
@@ -37,7 +37,7 @@ export default class ChainlinkAggregatorContract extends BaseContract<ChainlinkA
     return new this(contract.address);
   }
 
-  public getEthersContract(): ChainlinkAggregator {
+  public getEthersContract(): ChainlinkAggregatorMock {
     return this.contract;
   }
 }

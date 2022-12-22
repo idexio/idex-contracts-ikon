@@ -1,6 +1,8 @@
 import { ethers } from 'hardhat';
-import { decimalToPips, indexPriceToArgumentStruct } from '../lib';
+import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
 
+import type { Exchange_v4 } from '../typechain-types';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import {
   baseAssetSymbol,
   bootstrapLiquidatedWallet,
@@ -9,51 +11,60 @@ import {
   deployAndAssociateContracts,
   executeTrade,
   fundWallets,
-  logWalletBalances,
 } from './helpers';
 
 describe('Exchange', function () {
+  let exchange: Exchange_v4;
+  let exitFundWallet: SignerWithAddress;
+  let indexPrice: IndexPrice;
+  let indexPriceCollectionServiceWallet: SignerWithAddress;
+  let insuranceFundWallet: SignerWithAddress;
+  let ownerWallet: SignerWithAddress;
+  let dispatcherWallet: SignerWithAddress;
+  let trader1Wallet: SignerWithAddress;
+  let trader2Wallet: SignerWithAddress;
+
+  beforeEach(async () => {
+    const wallets = await ethers.getSigners();
+
+    const [feeWallet] = wallets;
+    [
+      ,
+      dispatcherWallet,
+      exitFundWallet,
+      indexPriceCollectionServiceWallet,
+      insuranceFundWallet,
+      ownerWallet,
+      trader1Wallet,
+      trader2Wallet,
+    ] = wallets;
+    const results = await deployAndAssociateContracts(
+      ownerWallet,
+      dispatcherWallet,
+      exitFundWallet,
+      feeWallet,
+      insuranceFundWallet,
+      indexPriceCollectionServiceWallet,
+    );
+    exchange = results.exchange;
+
+    await results.usdc.faucet(dispatcherWallet.address);
+
+    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+
+    indexPrice = await buildIndexPrice(indexPriceCollectionServiceWallet);
+
+    await executeTrade(
+      exchange,
+      dispatcherWallet,
+      indexPrice,
+      trader1Wallet,
+      trader2Wallet,
+    );
+  });
+
   describe('deleverageInMaintenanceAcquisition', async function () {
     it('should work for valid wallet', async function () {
-      const [
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-        trader1Wallet,
-        trader2Wallet,
-      ] = await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-      );
-
-      await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
-
-      await fundWallets(
-        [trader1Wallet, trader2Wallet, insuranceWallet],
-        exchange,
-        usdc,
-      );
-
-      const indexPrice = await buildIndexPrice(
-        indexPriceCollectionServiceWallet,
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        indexPrice,
-        trader1Wallet,
-        trader2Wallet,
-      );
-
       const newIndexPrice = await buildIndexPriceWithValue(
         indexPriceCollectionServiceWallet,
         '2150.00000000',
@@ -115,41 +126,6 @@ describe('Exchange', function () {
 
   describe('deleverageExitAcquisition', async function () {
     it('should work for valid wallet', async function () {
-      const [
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-        trader1Wallet,
-        trader2Wallet,
-      ] = await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-      );
-
-      await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
-
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
-
-      const indexPrice = await buildIndexPrice(
-        indexPriceCollectionServiceWallet,
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        indexPrice,
-        trader1Wallet,
-        trader2Wallet,
-      );
-
       await exchange.connect(trader2Wallet).exitWallet();
 
       await (
@@ -174,45 +150,6 @@ describe('Exchange', function () {
 
   describe('deleverageExitFundClosure', async function () {
     it('should work for open position', async function () {
-      const [
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-        trader1Wallet,
-        trader2Wallet,
-      ] = await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceCollectionServiceWallet,
-      );
-
-      await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
-
-      await fundWallets(
-        [trader1Wallet, trader2Wallet, insuranceWallet],
-        exchange,
-        usdc,
-      );
-
-      const indexPrice = await buildIndexPrice(
-        indexPriceCollectionServiceWallet,
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        indexPrice,
-        trader1Wallet,
-        trader2Wallet,
-      );
-
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);
 

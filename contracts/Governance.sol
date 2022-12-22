@@ -2,21 +2,17 @@
 
 pragma solidity 0.8.17;
 
-import { Address } from '@openzeppelin/contracts/utils/Address.sol';
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
-import { ICustodian } from './libraries/Interfaces.sol';
-import { Owned } from './Owned.sol';
+import { ICustodian } from "./libraries/Interfaces.sol";
+import { Owned } from "./Owned.sol";
 
 contract Governance is Owned {
   /**
    * @notice Emitted when admin initiates upgrade of `Exchange` contract address on `Custodian` via
    * `initiateExchangeUpgrade`
    */
-  event ExchangeUpgradeInitiated(
-    address oldExchange,
-    address newExchange,
-    uint256 blockThreshold
-  );
+  event ExchangeUpgradeInitiated(address oldExchange, address newExchange, uint256 blockThreshold);
   /**
    * @notice Emitted when admin cancels previously started `Exchange` upgrade with `cancelExchangeUpgrade`
    */
@@ -29,11 +25,7 @@ contract Governance is Owned {
    * @notice Emitted when admin initiates upgrade of `Governance` contract address on `Custodian` via
    * `initiateGovernanceUpgrade`
    */
-  event GovernanceUpgradeInitiated(
-    address oldGovernance,
-    address newGovernance,
-    uint256 blockThreshold
-  );
+  event GovernanceUpgradeInitiated(address oldGovernance, address newGovernance, uint256 blockThreshold);
   /**
    * @notice Emitted when admin cancels previously started `Governance` upgrade with `cancelGovernanceUpgrade`
    */
@@ -42,10 +34,7 @@ contract Governance is Owned {
    * @notice Emitted when admin finalizes `Governance` upgrade via `finalizeGovernanceUpgrade`, effectively replacing
    * this contract and rendering it non-functioning
    */
-  event GovernanceUpgradeFinalized(
-    address oldGovernance,
-    address newGovernance
-  );
+  event GovernanceUpgradeFinalized(address oldGovernance, address newGovernance);
 
   // Internally used structs //
 
@@ -86,11 +75,8 @@ contract Governance is Owned {
    * contract's address
    */
   function setCustodian(ICustodian newCustodian) external onlyAdmin {
-    require(
-      _custodian == ICustodian(payable(address(0x0))),
-      'Custodian can only be set once'
-    );
-    require(Address.isContract(address(newCustodian)), 'Invalid address');
+    require(_custodian == ICustodian(payable(address(0x0))), "Custodian can only be set once");
+    require(Address.isContract(address(newCustodian)), "Invalid address");
 
     _custodian = newCustodian;
   }
@@ -104,39 +90,25 @@ contract Governance is Owned {
    * @param newExchange The address of the new `Exchange` contract
    */
   function initiateExchangeUpgrade(address newExchange) external onlyAdmin {
-    require(Address.isContract(address(newExchange)), 'Invalid address');
-    require(
-      newExchange != _custodian.loadExchange(),
-      'Must be different from current Exchange'
-    );
-    require(
-      !_currentExchangeUpgrade.exists,
-      'Exchange upgrade already in progress'
-    );
+    require(Address.isContract(address(newExchange)), "Invalid address");
+    require(newExchange != _custodian.exchange(), "Must be different from current Exchange");
+    require(!_currentExchangeUpgrade.exists, "Exchange upgrade already in progress");
 
-    _currentExchangeUpgrade = ContractUpgrade(
-      true,
-      newExchange,
-      block.number + _blockDelay
-    );
+    _currentExchangeUpgrade = ContractUpgrade(true, newExchange, block.number + _blockDelay);
 
-    emit ExchangeUpgradeInitiated(
-      _custodian.loadExchange(),
-      newExchange,
-      _currentExchangeUpgrade.blockThreshold
-    );
+    emit ExchangeUpgradeInitiated(_custodian.exchange(), newExchange, _currentExchangeUpgrade.blockThreshold);
   }
 
   /**
    * @notice Cancels an in-flight `Exchange` contract upgrade that has not yet been finalized
    */
   function cancelExchangeUpgrade() external onlyAdmin {
-    require(_currentExchangeUpgrade.exists, 'No Exchange upgrade in progress');
+    require(_currentExchangeUpgrade.exists, "No Exchange upgrade in progress");
 
     address newExchange = _currentExchangeUpgrade.newContract;
     delete _currentExchangeUpgrade;
 
-    emit ExchangeUpgradeCanceled(_custodian.loadExchange(), newExchange);
+    emit ExchangeUpgradeCanceled(_custodian.exchange(), newExchange);
   }
 
   /**
@@ -148,17 +120,11 @@ contract Governance is Owned {
    * `initiateExchangeUpgrade`
    */
   function finalizeExchangeUpgrade(address newExchange) external onlyAdmin {
-    require(_currentExchangeUpgrade.exists, 'No Exchange upgrade in progress');
-    require(
-      _currentExchangeUpgrade.newContract == newExchange,
-      'Address mismatch'
-    );
-    require(
-      block.number >= _currentExchangeUpgrade.blockThreshold,
-      'Block threshold not yet reached'
-    );
+    require(_currentExchangeUpgrade.exists, "No Exchange upgrade in progress");
+    require(_currentExchangeUpgrade.newContract == newExchange, "Address mismatch");
+    require(block.number >= _currentExchangeUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    address oldExchange = _custodian.loadExchange();
+    address oldExchange = _custodian.exchange();
     _custodian.setExchange(newExchange);
     delete _currentExchangeUpgrade;
 
@@ -174,42 +140,25 @@ contract Governance is Owned {
    * @param newGovernance The address of the new `Governance` contract
    */
   function initiateGovernanceUpgrade(address newGovernance) external onlyAdmin {
-    require(Address.isContract(address(newGovernance)), 'Invalid address');
-    require(
-      newGovernance != _custodian.loadGovernance(),
-      'Must be different from current Governance'
-    );
-    require(
-      !_currentGovernanceUpgrade.exists,
-      'Governance upgrade already in progress'
-    );
+    require(Address.isContract(address(newGovernance)), "Invalid address");
+    require(newGovernance != _custodian.governance(), "Must be different from current Governance");
+    require(!_currentGovernanceUpgrade.exists, "Governance upgrade already in progress");
 
-    _currentGovernanceUpgrade = ContractUpgrade(
-      true,
-      newGovernance,
-      block.number + _blockDelay
-    );
+    _currentGovernanceUpgrade = ContractUpgrade(true, newGovernance, block.number + _blockDelay);
 
-    emit GovernanceUpgradeInitiated(
-      _custodian.loadGovernance(),
-      newGovernance,
-      _currentGovernanceUpgrade.blockThreshold
-    );
+    emit GovernanceUpgradeInitiated(_custodian.governance(), newGovernance, _currentGovernanceUpgrade.blockThreshold);
   }
 
   /**
    * @notice Cancels an in-flight `Governance` contract upgrade that has not yet been finalized
    */
   function cancelGovernanceUpgrade() external onlyAdmin {
-    require(
-      _currentGovernanceUpgrade.exists,
-      'No Governance upgrade in progress'
-    );
+    require(_currentGovernanceUpgrade.exists, "No Governance upgrade in progress");
 
     address newGovernance = _currentGovernanceUpgrade.newContract;
     delete _currentGovernanceUpgrade;
 
-    emit GovernanceUpgradeCanceled(_custodian.loadGovernance(), newGovernance);
+    emit GovernanceUpgradeCanceled(_custodian.governance(), newGovernance);
   }
 
   /**
@@ -224,20 +173,11 @@ contract Governance is Owned {
    * `initiateGovernanceUpgrade`
    */
   function finalizeGovernanceUpgrade(address newGovernance) external onlyAdmin {
-    require(
-      _currentGovernanceUpgrade.exists,
-      'No Governance upgrade in progress'
-    );
-    require(
-      _currentGovernanceUpgrade.newContract == newGovernance,
-      'Address mismatch'
-    );
-    require(
-      block.number >= _currentGovernanceUpgrade.blockThreshold,
-      'Block threshold not yet reached'
-    );
+    require(_currentGovernanceUpgrade.exists, "No Governance upgrade in progress");
+    require(_currentGovernanceUpgrade.newContract == newGovernance, "Address mismatch");
+    require(block.number >= _currentGovernanceUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    address oldGovernance = _custodian.loadGovernance();
+    address oldGovernance = _custodian.governance();
     _custodian.setGovernance(newGovernance);
     delete _currentGovernanceUpgrade;
 

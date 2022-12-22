@@ -1,8 +1,13 @@
 import BigNumber from 'bignumber.js';
+import chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import { ethers } from 'hardhat';
-import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
+import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
+
+chai.use(chaiAsPromised);
+export const { expect } = chai;
 
 import {
   decimalToAssetUnits,
@@ -11,6 +16,7 @@ import {
   getExecuteOrderBookTradeArguments,
   getIndexPriceHash,
   getOrderHash,
+  getPublishFundingMutiplierArguments,
   indexPriceToArgumentStruct,
   IndexPrice,
   Order,
@@ -171,11 +177,62 @@ export async function buildLimitOrder(
   return { order, signature };
 }
 
-const fundingRates = ['-16100', '26400', '-28200', '-5000', '10400'];
+const fundingRates = [
+  '-0.00016100',
+  '0.00026400',
+  '-0.00028200',
+  '-0.00005000',
+  '0.00010400',
+];
 export function buildFundingRates(count = 1): string[] {
   return Array(count)
     .fill(null)
     .map((_, i) => fundingRates[i % 5]);
+}
+
+export async function deployContractsExceptCustodian(
+  owner: SignerWithAddress,
+  exitFundWallet: SignerWithAddress = owner,
+  feeWallet: SignerWithAddress = owner,
+  insuranceFund: SignerWithAddress = owner,
+  indexPriceCollectionServiceWallet: SignerWithAddress = owner,
+  governanceBlockDelay = 0,
+) {
+  const [
+    ChainlinkAggregatorFactory,
+    USDCFactory,
+    ExchangeFactory,
+    GovernanceFactory,
+  ] = await Promise.all([
+    ethers.getContractFactory('ChainlinkAggregatorMock'),
+    ethers.getContractFactory('USDC'),
+    deployLibraryContracts(),
+    ethers.getContractFactory('Governance'),
+  ]);
+
+  const chainlinkAggregator = await (
+    await ChainlinkAggregatorFactory.deploy()
+  ).deployed();
+
+  (await chainlinkAggregator.setPrice(decimalToPips('2000.00000000'))).wait();
+
+  const usdc = await (await USDCFactory.deploy()).deployed();
+
+  const [exchange, governance] = await Promise.all([
+    (
+      await ExchangeFactory.deploy(
+        ethers.constants.AddressZero,
+        usdc.address,
+        exitFundWallet.address,
+        feeWallet.address,
+        insuranceFund.address,
+        [indexPriceCollectionServiceWallet.address],
+      )
+    ).deployed(),
+    (await GovernanceFactory.deploy(governanceBlockDelay)).deployed(),
+  ]);
+
+  return { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc };
 }
 
 export async function deployAndAssociateContracts(
@@ -185,110 +242,20 @@ export async function deployAndAssociateContracts(
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
   indexPriceCollectionServiceWallet: SignerWithAddress = owner,
+  includeInitialFundingPayment = true,
+  governanceBlockDelay = 0,
 ) {
-  const [
-    AcquisitionDeleveraging,
-    ClosureDeleveraging,
-    Depositing,
-    Funding,
-    MarketAdmin,
-    NonceInvalidations,
-    NonMutatingMargin,
-    PositionBelowMinimumLiquidation,
-    PositionInDeactivatedMarketLiquidation,
-    Trading,
-    WalletLiquidation,
-    Withdrawing,
-  ] = await Promise.all([
-    ethers.getContractFactory('AcquisitionDeleveraging'),
-    ethers.getContractFactory('ClosureDeleveraging'),
-    ethers.getContractFactory('Depositing'),
-    ethers.getContractFactory('Funding'),
-    ethers.getContractFactory('MarketAdmin'),
-    ethers.getContractFactory('NonceInvalidations'),
-    ethers.getContractFactory('NonMutatingMargin'),
-    ethers.getContractFactory('PositionBelowMinimumLiquidation'),
-    ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
-    ethers.getContractFactory('Trading'),
-    ethers.getContractFactory('WalletLiquidation'),
-    ethers.getContractFactory('Withdrawing'),
-  ]);
-  const [
-    acquisitionDeleveraging,
-    closureDeleveraging,
-    depositing,
-    funding,
-    marketAdmin,
-    nonceInvalidations,
-    nonMutatingMargin,
-    positionBelowMinimumLiquidation,
-    positionInDeactivatedMarketLiquidation,
-    trading,
-    walletLiquidation,
-    withdrawing,
-  ] = await Promise.all([
-    (await AcquisitionDeleveraging.deploy()).deployed(),
-    (await ClosureDeleveraging.deploy()).deployed(),
-    (await Depositing.deploy()).deployed(),
-    (await Funding.deploy()).deployed(),
-    (await MarketAdmin.deploy()).deployed(),
-    (await NonceInvalidations.deploy()).deployed(),
-    (await NonMutatingMargin.deploy()).deployed(),
-    (await PositionBelowMinimumLiquidation.deploy()).deployed(),
-    (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
-    (await Trading.deploy()).deployed(),
-    (await WalletLiquidation.deploy()).deployed(),
-    (await Withdrawing.deploy()).deployed(),
-  ]);
+  const { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc } =
+    await deployContractsExceptCustodian(
+      owner,
+      exitFundWallet,
+      feeWallet,
+      insuranceFund,
+      indexPriceCollectionServiceWallet,
+      governanceBlockDelay,
+    );
 
-  const [ChainlinkAggregator, USDC, Exchange_v4, Governance, Custodian] =
-    await Promise.all([
-      ethers.getContractFactory('ChainlinkAggregator'),
-      ethers.getContractFactory('USDC'),
-      ethers.getContractFactory('Exchange_v4', {
-        libraries: {
-          AcquisitionDeleveraging: acquisitionDeleveraging.address,
-          ClosureDeleveraging: closureDeleveraging.address,
-          Depositing: depositing.address,
-          Funding: funding.address,
-          MarketAdmin: marketAdmin.address,
-          NonceInvalidations: nonceInvalidations.address,
-          NonMutatingMargin: nonMutatingMargin.address,
-          PositionBelowMinimumLiquidation:
-            positionBelowMinimumLiquidation.address,
-          PositionInDeactivatedMarketLiquidation:
-            positionInDeactivatedMarketLiquidation.address,
-          Trading: trading.address,
-          WalletLiquidation: walletLiquidation.address,
-          Withdrawing: withdrawing.address,
-        },
-      }),
-      ethers.getContractFactory('Governance'),
-      ethers.getContractFactory('Custodian'),
-    ]);
-
-  const chainlinkAggregator = await (
-    await ChainlinkAggregator.deploy()
-  ).deployed();
-
-  (await chainlinkAggregator.setPrice(decimalToPips('2000.00000000'))).wait();
-
-  const usdc = await (await USDC.deploy()).deployed();
-
-  const [exchange, governance] = await Promise.all([
-    (
-      await Exchange_v4.deploy(
-        ethers.constants.AddressZero,
-        usdc.address,
-        exitFundWallet.address,
-        feeWallet.address,
-        insuranceFund.address,
-        [indexPriceCollectionServiceWallet.address],
-      )
-    ).deployed(),
-    (await Governance.deploy(0)).deployed(),
-  ]);
-
+  const Custodian = await ethers.getContractFactory('Custodian');
   const custodian = await (
     await Custodian.deploy(exchange.address, governance.address)
   ).deployed();
@@ -320,12 +287,117 @@ export async function deployAndAssociateContracts(
   ]);
   (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
 
-  return { chainlinkAggregator, usdc, custodian, exchange, governance };
+  if (includeInitialFundingPayment) {
+    const initialIndexPrice = {
+      baseAssetSymbol,
+      timestampInMs: getPastPeriodInMs(100),
+      price: prices[0],
+    };
+    const signature = await indexPriceCollectionServiceWallet.signMessage(
+      ethers.utils.arrayify(
+        getIndexPriceHash(initialIndexPrice, quoteAssetSymbol),
+      ),
+    );
+
+    await (
+      await exchange.connect(dispatcher).publishFundingMutiplier(
+        ...getPublishFundingMutiplierArguments(buildFundingRates(1)[0], {
+          ...initialIndexPrice,
+          signature,
+        }),
+      )
+    ).wait();
+  }
+
+  return {
+    chainlinkAggregator,
+    custodian,
+    exchange,
+    ExchangeFactory,
+    governance,
+    usdc,
+  };
+}
+
+export async function deployLibraryContracts() {
+  const [
+    AcquisitionDeleveraging,
+    ClosureDeleveraging,
+    Depositing,
+    Funding,
+    MarketAdmin,
+    NonceInvalidations,
+    NonMutatingMargin,
+    PositionBelowMinimumLiquidation,
+    PositionInDeactivatedMarketLiquidation,
+    Trading,
+    WalletLiquidation,
+    Withdrawing,
+  ] = await Promise.all([
+    ethers.getContractFactory('AcquisitionDeleveraging'),
+    ethers.getContractFactory('ClosureDeleveraging'),
+    ethers.getContractFactory('Depositing'),
+    ethers.getContractFactory('Funding'),
+    ethers.getContractFactory('MarketAdmin'),
+    ethers.getContractFactory('NonceInvalidations'),
+    ethers.getContractFactory('NonMutatingMargin'),
+    ethers.getContractFactory('PositionBelowMinimumLiquidation'),
+    ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
+    ethers.getContractFactory('Trading'),
+    ethers.getContractFactory('WalletLiquidation'),
+    ethers.getContractFactory('Withdrawing'),
+  ]);
+
+  const [
+    acquisitionDeleveraging,
+    closureDeleveraging,
+    depositing,
+    funding,
+    marketAdmin,
+    nonceInvalidations,
+    nonMutatingMargin,
+    positionBelowMinimumLiquidation,
+    positionInDeactivatedMarketLiquidation,
+    trading,
+    walletLiquidation,
+    withdrawing,
+  ] = await Promise.all([
+    (await AcquisitionDeleveraging.deploy()).deployed(),
+    (await ClosureDeleveraging.deploy()).deployed(),
+    (await Depositing.deploy()).deployed(),
+    (await Funding.deploy()).deployed(),
+    (await MarketAdmin.deploy()).deployed(),
+    (await NonceInvalidations.deploy()).deployed(),
+    (await NonMutatingMargin.deploy()).deployed(),
+    (await PositionBelowMinimumLiquidation.deploy()).deployed(),
+    (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
+    (await Trading.deploy()).deployed(),
+    (await WalletLiquidation.deploy()).deployed(),
+    (await Withdrawing.deploy()).deployed(),
+  ]);
+
+  return ethers.getContractFactory('Exchange_v4', {
+    libraries: {
+      AcquisitionDeleveraging: acquisitionDeleveraging.address,
+      ClosureDeleveraging: closureDeleveraging.address,
+      Depositing: depositing.address,
+      Funding: funding.address,
+      MarketAdmin: marketAdmin.address,
+      NonceInvalidations: nonceInvalidations.address,
+      NonMutatingMargin: nonMutatingMargin.address,
+      PositionBelowMinimumLiquidation: positionBelowMinimumLiquidation.address,
+      PositionInDeactivatedMarketLiquidation:
+        positionInDeactivatedMarketLiquidation.address,
+      Trading: trading.address,
+      WalletLiquidation: walletLiquidation.address,
+      Withdrawing: withdrawing.address,
+    },
+  });
 }
 
 export async function executeTrade(
   exchange: Exchange_v4,
-  dispatcher: SignerWithAddress,
+  dispatcherWallet: SignerWithAddress,
   indexPrice: IndexPrice,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
@@ -371,7 +443,7 @@ export async function executeTrade(
 
   await (
     await exchange
-      .connect(dispatcher)
+      .connect(dispatcherWallet)
       .executeOrderBookTrade(
         ...getExecuteOrderBookTradeArguments(
           buyOrder,

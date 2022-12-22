@@ -50,6 +50,7 @@ library Trading {
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       completedOrderHashes,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
       nonceInvalidationsByWallet,
@@ -62,23 +63,25 @@ library Trading {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedOrderHashes,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) private {
-    (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
+    Market memory market = _validateTradeAndUpdateOrderBalancesAndFilledQuantities(
       arguments,
+      completedOrderHashes,
       marketsByBaseAssetSymbol,
-      nonceInvalidationsByWallet
+      nonceInvalidationsByWallet,
+      partiallyFilledOrderQuantities
     );
-
-    _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);
 
     balanceTracking.updateForOrderBookTrade(
       arguments,
       market,
       baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
@@ -89,6 +92,24 @@ library Trading {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+  }
+
+  function _validateTradeAndUpdateOrderBalancesAndFilledQuantities(
+    ExecuteOrderBookTradeArguments memory arguments,
+    mapping(bytes32 => bool) storage completedOrderHashes,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
+    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
+  ) private returns (Market memory) {
+    (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
+      arguments,
+      marketsByBaseAssetSymbol,
+      nonceInvalidationsByWallet
+    );
+
+    _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);
+
+    return market;
   }
 
   function _updateOrderFilledQuantities(

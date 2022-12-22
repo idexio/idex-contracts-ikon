@@ -122,7 +122,7 @@ library Funding {
       // funding credit or debit
       -1 * fundingRate,
       int64(Constants.PIP_PRICE_MULTIPLIER)
-    ) / int64(Constants.PIP_PRICE_MULTIPLIER);
+    );
 
     fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
 

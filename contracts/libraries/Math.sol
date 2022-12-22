@@ -8,7 +8,7 @@ library Math {
   }
 
   function divideRoundUp(uint64 a, uint64 b) internal pure returns (uint64) {
-    return ((a + b - 1) / b) * b;
+    return (a + b - 1) / b;
   }
 
   function divideRoundNearest(uint64 a, uint64 b) internal pure returns (uint64) {
