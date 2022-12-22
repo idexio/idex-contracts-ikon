@@ -177,7 +177,13 @@ export async function buildLimitOrder(
   return { order, signature };
 }
 
-const fundingRates = ['-16100', '26400', '-28200', '-5000', '10400'];
+const fundingRates = [
+  '-0.00016100',
+  '0.00026400',
+  '-0.00028200',
+  '-0.00005000',
+  '0.00010400',
+];
 export function buildFundingRates(count = 1): string[] {
   return Array(count)
     .fill(null)

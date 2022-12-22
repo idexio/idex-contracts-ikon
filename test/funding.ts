@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
-import { getPublishFundingMutiplierArguments } from '../lib';
+import { decimalToPips, getPublishFundingMutiplierArguments } from '../lib';
 
 import {
   baseAssetSymbol,
@@ -32,6 +32,7 @@ describe('Exchange', function () {
 
       const fundingRates = buildFundingRates(5);
       const indexPrices = await buildIndexPrices(index, 5);
+
       for (const i of [...Array(5).keys()]) {
         await (
           await exchange
@@ -52,10 +53,12 @@ describe('Exchange', function () {
 
       [...Array(5).keys()].forEach((i) =>
         expect(fundingMultipliers[Math.floor(i / 4)][i % 4]).to.equal(
-          new BigNumber(fundingRates[i])
-            .times(new BigNumber(indexPrices[i].price))
-            .negated()
-            .toString(),
+          decimalToPips(
+            new BigNumber(fundingRates[i])
+              .times(new BigNumber(indexPrices[i].price))
+              .negated()
+              .toString(),
+          ),
         ),
       );
     });
@@ -98,10 +101,12 @@ describe('Exchange', function () {
 
       [...Array(2).keys()].forEach((i) =>
         expect(fundingMultipliers[Math.floor(i / 4)][i % 4]).to.equal(
-          new BigNumber(fundingRates[i])
-            .times(new BigNumber(indexPrices[i].price))
-            .negated()
-            .toString(),
+          decimalToPips(
+            new BigNumber(fundingRates[i])
+              .times(new BigNumber(indexPrices[i].price))
+              .negated()
+              .toString(),
+          ),
         ),
       );
       expect(fundingMultipliers[0][2]).to.equal('0');
@@ -109,10 +114,12 @@ describe('Exchange', function () {
         .map((i) => i + 3)
         .forEach((i) =>
           expect(fundingMultipliers[Math.floor(i / 4)][i % 4]).to.equal(
-            new BigNumber(fundingRates[i - 1])
-              .times(new BigNumber(indexPrices[i - 1].price))
-              .negated()
-              .toString(),
+            decimalToPips(
+              new BigNumber(fundingRates[i - 1])
+                .times(new BigNumber(indexPrices[i - 1].price))
+                .negated()
+                .toString(),
+            ),
           ),
         );
     });
