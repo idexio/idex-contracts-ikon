@@ -173,7 +173,9 @@ library Withdrawing {
   function _updateBalancesForPositionExit(
     WithdrawExitArguments memory arguments,
     string memory baseAssetSymbol,
+    uint64 maintenanceMarginFraction,
     int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -183,9 +185,11 @@ library Withdrawing {
     return
       balanceTracking.updateForExit(
         arguments.exitFundWallet,
-        marketsByBaseAssetSymbol[baseAssetSymbol],
         marketsByBaseAssetSymbol[baseAssetSymbol].loadOnChainFeedPrice(),
+        marketsByBaseAssetSymbol[baseAssetSymbol],
+        maintenanceMarginFraction,
         totalAccountValue,
+        totalMaintenanceMarginRequirement,
         arguments.wallet,
         baseAssetSymbolsWithOpenPositionsByWallet,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -201,16 +205,18 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 quoteQuantity) {
-    int64 totalAccountValue = NonMutatingMargin.loadTotalAccountValueForExit(
-      NonMutatingMargin.LoadArguments(
-        arguments.wallet,
-        new IndexPrice[](0),
-        arguments.indexPriceCollectionServiceWallets
-      ),
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
+    (uint64 totalMaintenanceMarginRequirement, int64 totalAccountValue) = NonMutatingMargin
+      .loadTotalAccountValueAndMaintenanceMarginRequirementForExit(
+        NonMutatingMargin.LoadArguments(
+          arguments.wallet,
+          new IndexPrice[](0),
+          arguments.indexPriceCollectionServiceWallets
+        ),
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
@@ -218,7 +224,12 @@ library Withdrawing {
       quoteQuantity += _updateBalancesForPositionExit(
         arguments,
         baseAssetSymbols[i],
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]]
+          .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
         totalAccountValue,
+        totalMaintenanceMarginRequirement,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,

@@ -16,6 +16,10 @@ library Math {
     return (a % b >= halfB) ? (a / b + 1) : (a / b);
   }
 
+  function max(uint64 a, uint64 b) internal pure returns (uint64) {
+    return a >= b ? a : b;
+  }
+
   function max(int64 a, int64 b) internal pure returns (int64) {
     return a >= b ? a : b;
   }

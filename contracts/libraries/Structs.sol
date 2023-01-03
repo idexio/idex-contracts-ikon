@@ -231,7 +231,7 @@ struct WalletLiquidationArguments {
   IndexPrice[] counterpartyWalletIndexPrices; // After acquiring liquidated positions
   address liquidatingWallet;
   IndexPrice[] liquidatingWalletIndexPrices;
-  int64[] liquidationQuoteQuantities;
+  uint64[] liquidationQuoteQuantities;
 }
 
 /**

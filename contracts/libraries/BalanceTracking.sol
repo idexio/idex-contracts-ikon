@@ -69,7 +69,7 @@ library BalanceTracking {
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    int64 quoteQuantity,
+    uint64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -137,9 +137,11 @@ library BalanceTracking {
   function updateForExit(
     Storage storage self,
     address exitFundWallet,
-    Market memory market,
     uint64 indexPrice,
+    Market memory market,
+    uint64 maintenanceMarginFraction,
     int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement,
     address wallet,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -149,11 +151,15 @@ library BalanceTracking {
     Balance storage balance = loadBalanceStructAndMigrateIfNeeded(self, wallet, market.baseAssetSymbol);
 
     int64 positionSize = balance.balance;
-    quoteQuantity = LiquidationValidations.calculateExitQuoteQuantity(
-      balance.costBasis,
-      indexPrice,
-      positionSize,
-      totalAccountValue
+    quoteQuantity = int64(
+      LiquidationValidations.calculateExitQuoteQuantity(
+        balance.costBasis,
+        indexPrice,
+        maintenanceMarginFraction,
+        positionSize,
+        totalAccountValue,
+        totalMaintenanceMarginRequirement
+      )
     );
 
     // Zero out wallet position for market
@@ -429,7 +435,7 @@ library BalanceTracking {
       balance.costBasis -= int64(quoteQuantity);
     } else if (newBalance < 0) {
       /*
-       * Going from negative to positive. Only the portion of the quote qty
+       * Going from positive to negative. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
       balance.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));

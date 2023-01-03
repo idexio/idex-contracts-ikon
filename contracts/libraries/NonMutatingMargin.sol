@@ -90,13 +90,14 @@ library NonMutatingMargin {
         );
   }
 
-  function loadTotalAccountValueForExit(
+  function loadTotalAccountValueAndMaintenanceMarginRequirementForExit(
     LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64) {
-    int64 totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+  ) internal view returns (uint64 maintenanceMarginRequirement, int64 totalAccountValue) {
+    totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
@@ -111,14 +112,35 @@ library NonMutatingMargin {
         market.baseAssetSymbol
       );
 
-      totalAccountValue += LiquidationValidations.calculateExitQuoteQuantity(
-        balance.costBasis,
-        indexPrice,
-        balance.balance
+      // Cost basis is negative for short positions, which subtracts from account value
+      if (balance.costBasis < 0) {
+        totalAccountValue -= int64(
+          LiquidationValidations.calculateExitQuoteQuantity(balance.costBasis, indexPrice, balance.balance)
+        );
+        // Cost basis is positive for long positions, which adds to account value
+      } else {
+        totalAccountValue += int64(
+          LiquidationValidations.calculateExitQuoteQuantity(balance.costBasis, indexPrice, balance.balance)
+        );
+      }
+
+      maintenanceMarginRequirement += Math.abs(
+        Math.multiplyPipsByFraction(
+          Math.multiplyPipsByFraction(
+            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
+            int64(indexPrice),
+            int64(Constants.PIP_PRICE_MULTIPLIER)
+          ),
+          int64(
+            market
+              .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+              .overridableFields
+              .maintenanceMarginFraction
+          ),
+          int64(Constants.PIP_PRICE_MULTIPLIER)
+        )
       );
     }
-
-    return totalAccountValue;
   }
 
   function loadTotalAccountValue(
@@ -126,8 +148,8 @@ library NonMutatingMargin {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64) {
-    int64 totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+  ) internal view returns (int64 totalAccountValue) {
+    totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
@@ -143,8 +165,6 @@ library NonMutatingMargin {
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
-
-    return totalAccountValue;
   }
 
   function loadTotalInitialMarginRequirement(
