@@ -24,7 +24,7 @@ library NonMutatingMargin {
   struct ValidateInsuranceFundCannotLiquidateWalletArguments {
     address insuranceFundWallet;
     address liquidatingWallet;
-    int64[] liquidationQuoteQuantities;
+    uint64[] liquidationQuoteQuantities;
     Market[] markets;
     uint64[] indexPrices;
     address[] indexPriceCollectionServiceWallets;
@@ -163,6 +163,43 @@ library NonMutatingMargin {
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
         int64(arguments.indexPrices[i].price),
         int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
+    }
+  }
+
+  function loadTotalAccountValueAndMaintenanceMarginRequirement(
+    LoadArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
+    totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      arguments.wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      Validations.validateIndexPrice(arguments.indexPrices[i], arguments.indexPriceCollectionServiceWallets, market);
+
+      totalAccountValue += Math.multiplyPipsByFraction(
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
+        int64(arguments.indexPrices[i].price),
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
+
+      totalMaintenanceMarginRequirement += _loadMarginRequirement(
+        arguments.indexPrices[i],
+        arguments.indexPriceCollectionServiceWallets,
+        market
+          .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        market,
+        arguments.wallet,
+        balanceTracking
       );
     }
   }
@@ -317,9 +354,12 @@ library NonMutatingMargin {
         arguments.markets[i].baseAssetSymbol
       );
 
-      // Subtract quote quantity to acquire position at liquidation price
-      if (liquidatingWalletPositionSize != 0) {
-        totalAccountValue -= arguments.liquidationQuoteQuantities[i];
+      if (liquidatingWalletPositionSize < 0) {
+        // IF receives quote to acquire short position
+        totalAccountValue += int64(arguments.liquidationQuoteQuantities[i]);
+      } else {
+        // IF gives quote to acquire long position
+        totalAccountValue -= int64(arguments.liquidationQuoteQuantities[i]);
       }
 
       // Calculate Insurance Fund position size after acquiring position

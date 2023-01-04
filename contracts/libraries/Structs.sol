@@ -13,9 +13,9 @@ struct AcquisitionDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
   address liquidatingWallet;
-  int64[] liquidationQuoteQuantities; // For all open positions
-  int64 liquidationBaseQuantity; // For the position being liquidated
-  int64 liquidationQuoteQuantity; // For the position being liquidated
+  uint64[] liquidationQuoteQuantities; // For all open positions
+  uint64 liquidationBaseQuantity; // For the position being liquidated
+  uint64 liquidationQuoteQuantity; // For the position being liquidated
   IndexPrice[] deleveragingWalletIndexPrices; // After acquiring liquidating positions
   IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating positions
   IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
@@ -39,8 +39,8 @@ struct ClosureDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
   address liquidatingWallet; // IF or EF depending on delerageType
-  int64 liquidationBaseQuantity;
-  int64 liquidationQuoteQuantity;
+  uint64 liquidationBaseQuantity;
+  uint64 liquidationQuoteQuantity;
   IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
   IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
 }

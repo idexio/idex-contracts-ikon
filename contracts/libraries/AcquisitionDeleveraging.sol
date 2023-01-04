@@ -200,16 +200,18 @@ library AcquisitionDeleveraging {
       market.baseAssetSymbol
     );
 
+    uint64 maintenanceMarginFraction = market
+      .loadMarketWithOverridesForWallet(
+        arguments.externalArguments.liquidatingWallet,
+        marketOverridesByBaseAssetSymbolAndWallet
+      )
+      .overridableFields
+      .maintenanceMarginFraction;
+
     if (arguments.deleverageType == DeleverageType.WalletInMaintenance) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.externalArguments.liquidationQuoteQuantity,
-        market
-          .loadMarketWithOverridesForWallet(
-            arguments.externalArguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
-          .overridableFields
-          .maintenanceMarginFraction,
+        maintenanceMarginFraction,
         indexPrice.price,
         balance.balance,
         totalAccountValue,
@@ -220,13 +222,15 @@ library AcquisitionDeleveraging {
       LiquidationValidations.validateExitQuoteQuantity(
         Math.multiplyPipsByFraction(
           balance.costBasis,
-          -1 * arguments.externalArguments.liquidationBaseQuantity,
+          int64(arguments.externalArguments.liquidationBaseQuantity),
           balance.balance
         ),
         arguments.externalArguments.liquidationQuoteQuantity,
         indexPrice.price,
+        maintenanceMarginFraction,
         balance.balance,
-        totalAccountValue
+        totalAccountValue,
+        totalMaintenanceMarginRequirement
       );
     }
 
@@ -296,8 +300,17 @@ library AcquisitionDeleveraging {
           balance.costBasis,
           arguments.externalArguments.liquidationQuoteQuantities[i],
           loadArguments.indexPrices[i],
+          loadArguments
+            .markets[i]
+            .loadMarketWithOverridesForWallet(
+              arguments.externalArguments.liquidatingWallet,
+              marketOverridesByBaseAssetSymbolAndWallet
+            )
+            .overridableFields
+            .maintenanceMarginFraction,
           balance.balance,
-          liquidatingWalletTotalAccountValue
+          liquidatingWalletTotalAccountValue,
+          liquidatingWalletTotalMaintenanceMarginRequirement
         );
       }
     }

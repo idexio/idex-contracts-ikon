@@ -7,6 +7,7 @@ import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationType } from "./Enums.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
+import { Math } from "./Math.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
@@ -209,10 +210,10 @@ library WalletLiquidation {
     }
 
     balanceTracking.updatePositionForLiquidation(
-      balance.balance,
       arguments.externalArguments.counterpartyWallet,
       arguments.externalArguments.liquidatingWallet,
       market,
+      Math.abs(balance.balance),
       arguments.externalArguments.liquidationQuoteQuantities[index],
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,

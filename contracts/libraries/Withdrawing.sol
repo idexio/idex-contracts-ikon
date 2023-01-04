@@ -220,7 +220,7 @@ library Withdrawing {
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      // Sum quote quantites needed to close each wallet position
+      // Sum EF quote quantity change needed to close each wallet position
       quoteQuantity += _updateBalancesForPositionExit(
         arguments,
         baseAssetSymbols[i],
@@ -243,7 +243,7 @@ library Withdrawing {
       arguments.exitFundWallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    balance.balance -= quoteQuantity;
+    balance.balance += quoteQuantity;
   }
 
   function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {

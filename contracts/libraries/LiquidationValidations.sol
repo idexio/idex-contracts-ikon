@@ -37,27 +37,16 @@ library LiquidationValidations {
     // ...but never worse than the bankruptcy price. For long positions, quote is positive so at a better price quote
     // is further from zero (receive more); for short positions, quote is negative so at a better price is closer to
     // zero (give less)
+    uint64 quoteQuantityToLiquidate = _calculateLiquidationQuoteQuantityToClosePositions(
+      indexPrice,
+      maintenanceMarginFraction,
+      positionSize,
+      totalAccountValue,
+      totalMaintenanceMarginRequirement
+    );
     quoteQuantity = positionSize < 0
-      ? Math.min(
-        quoteQuantity,
-        _calculateLiquidationQuoteQuantityToClosePositions(
-          indexPrice,
-          maintenanceMarginFraction,
-          positionSize,
-          totalAccountValue,
-          totalMaintenanceMarginRequirement
-        )
-      )
-      : Math.max(
-        quoteQuantity,
-        _calculateLiquidationQuoteQuantityToClosePositions(
-          indexPrice,
-          maintenanceMarginFraction,
-          positionSize,
-          totalAccountValue,
-          totalMaintenanceMarginRequirement
-        )
-      );
+      ? Math.min(quoteQuantity, quoteQuantityToLiquidate)
+      : Math.max(quoteQuantity, quoteQuantityToLiquidate);
   }
 
   function validateDeactivatedMarketLiquidationQuoteQuantity(
@@ -79,7 +68,7 @@ library LiquidationValidations {
   }
 
   function validateExitFundClosureQuoteQuantity(
-    int64 baseQuantity,
+    int64 positionSize,
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
     uint64 quoteQuantity,
@@ -92,14 +81,14 @@ library LiquidationValidations {
       expectedLiquidationQuoteQuantity = _calculateLiquidationQuoteQuantityToClosePositions(
         indexPrice,
         maintenanceMarginFraction,
-        baseQuantity,
+        positionSize,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
     } else {
       // Use index price for positive totalAccountValue
       expectedLiquidationQuoteQuantity = Math.abs(
-        Math.multiplyPipsByFraction(baseQuantity, int64(indexPrice), int64(Constants.PIP_PRICE_MULTIPLIER))
+        Math.multiplyPipsByFraction(positionSize, int64(indexPrice), int64(Constants.PIP_PRICE_MULTIPLIER))
       );
     }
 
@@ -133,16 +122,19 @@ library LiquidationValidations {
   }
 
   function validateInsuranceFundClosureQuoteQuantity(
-    int64 baseQuantity,
+    uint64 baseQuantity,
     int64 costBasis,
     int64 positionSize,
-    int64 quoteQuantity
+    uint64 quoteQuantity
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantities = -1 * Math.multiplyPipsByFraction(costBasis, baseQuantity, positionSize);
+    uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
+      Math.abs(costBasis),
+      baseQuantity,
+      Math.abs(positionSize)
+    );
 
     require(
-      expectedLiquidationQuoteQuantities - 1 <= quoteQuantity &&
-        expectedLiquidationQuoteQuantities + 1 >= quoteQuantity,
+      expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
     );
   }

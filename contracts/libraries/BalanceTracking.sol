@@ -40,20 +40,20 @@ library BalanceTracking {
 
   function updatePositionForDeleverage(
     Storage storage self,
-    int64 baseQuantity,
+    uint64 baseQuantity,
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
-    int64 quoteQuantity,
+    uint64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) internal {
     _updatePositionsForDeleverageOrLiquidation(
       self,
-      true,
       baseQuantity,
       counterpartyWallet,
+      true,
       liquidatingWallet,
       market,
       quoteQuantity,
@@ -65,10 +65,10 @@ library BalanceTracking {
 
   function updatePositionForLiquidation(
     Storage storage self,
-    int64 positionSize,
     address counterpartyWallet,
     address liquidatingWallet,
     Market memory market,
+    uint64 positionSize,
     uint64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -76,9 +76,9 @@ library BalanceTracking {
   ) internal {
     _updatePositionsForDeleverageOrLiquidation(
       self,
-      false,
-      -1 * positionSize,
+      positionSize,
       counterpartyWallet,
+      false,
       liquidatingWallet,
       market,
       quoteQuantity,
@@ -146,53 +146,71 @@ library BalanceTracking {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
-  ) internal returns (int64 quoteQuantity) {
+  ) internal returns (int64) {
+    Balance storage balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, wallet, market.baseAssetSymbol);
+    int64 positionSize = balanceStruct.balance;
     // Calculate amount of quote to close position
-    Balance storage balance = loadBalanceStructAndMigrateIfNeeded(self, wallet, market.baseAssetSymbol);
-
-    int64 positionSize = balance.balance;
-    quoteQuantity = int64(
-      LiquidationValidations.calculateExitQuoteQuantity(
-        balance.costBasis,
-        indexPrice,
-        maintenanceMarginFraction,
-        positionSize,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
-      )
+    uint64 quoteQuantity = LiquidationValidations.calculateExitQuoteQuantity(
+      balanceStruct.costBasis,
+      indexPrice,
+      maintenanceMarginFraction,
+      positionSize,
+      totalAccountValue,
+      totalMaintenanceMarginRequirement
     );
 
     // Zero out wallet position for market
-    balance.balance = 0;
-    balance.costBasis = 0;
+    balanceStruct.balance = 0;
+    balanceStruct.costBasis = 0;
     _updateOpenPositionsForWallet(
       wallet,
       market.baseAssetSymbol,
-      balance.balance,
+      balanceStruct.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    // Exit Fund wallet assumes wallet's position
+    // Exit Fund wallet takes on wallet's position
     Market memory marketWithExitFundOverrides = market.loadMarketWithOverridesForWallet(
       exitFundWallet,
       marketOverridesByBaseAssetSymbolAndWallet
     );
-    balance = loadBalanceStructAndMigrateIfNeeded(self, exitFundWallet, market.baseAssetSymbol);
-    _updatePosition(
-      balance,
-      positionSize,
-      quoteQuantity,
-      marketWithExitFundOverrides.overridableFields.maximumPositionSize
-    );
-    if (balance.lastUpdateTimestampInMs == 0) {
-      balance.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, exitFundWallet, market.baseAssetSymbol);
+
+    if (positionSize < 0) {
+      // Take on short position by subtracting base quantity
+      _subtractFromPosition(
+        balanceStruct,
+        uint64(positionSize),
+        quoteQuantity,
+        marketWithExitFundOverrides.overridableFields.maximumPositionSize
+      );
+    } else {
+      // Take on long position by adding base quantity
+      _addToPosition(
+        balanceStruct,
+        uint64(positionSize),
+        quoteQuantity,
+        marketWithExitFundOverrides.overridableFields.maximumPositionSize
+      );
     }
+    // If the EF is opening a position in the market for the first time, the position should be updated with the latest
+    // published funding rate for that market so that no funding is applied retroactively
+    if (balanceStruct.lastUpdateTimestampInMs == 0) {
+      balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+        market.baseAssetSymbol
+      ];
+    }
+    // Update open position tracking for EF in case the position was opened or closed
     _updateOpenPositionsForWallet(
       exitFundWallet,
       market.baseAssetSymbol,
-      balance.balance,
+      balanceStruct.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
+
+    // Return the change to the EF's quote balance needed to acquire the position. For short positions, the EF
+    // receives quote so returns a positive value. For long positions, the EF gives quote and returns a negative value
+    return positionSize < 0 ? int64(quoteQuantity) : -1 * int64(quoteQuantity);
 
     // The Exit Fund quote balance is not updated here, but instead is updated a single time in the calling function
     // after summing the quote quantities needed to close each wallet position
@@ -460,78 +478,129 @@ library BalanceTracking {
 
   function _updatePositionsForDeleverageOrLiquidation(
     Storage storage self,
-    bool isDeleverage,
-    int64 baseQuantity,
+    uint64 baseQuantity,
     address counterpartyWallet,
+    bool isDeleverage,
     address liquidatingWallet,
     Market memory market,
-    int64 quoteQuantity,
+    uint64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    Balance storage balance;
+    Balance storage balanceStruct;
 
-    uint64 lastFundingRateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
+    // Update liquidating wallet position by decreasing it towards zero
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, market.baseAssetSymbol);
+    bool liquidatingWalletPositionIsShort = balanceStruct.balance < 0;
+    if (liquidatingWalletPositionIsShort) {
+      // Decrease negative short position by adding base quantity to it
+      _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + int64(baseQuantity));
 
-    // Wallet position decreases by specified base quantity
-    balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, market.baseAssetSymbol);
-    _validatePositionUpdatedTowardsZero(balance.balance, balance.balance + baseQuantity);
-    _updatePosition(
-      balance,
-      baseQuantity,
-      quoteQuantity,
-      market
-        .loadMarketWithOverridesForWallet(liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maximumPositionSize
-    );
-    if (balance.lastUpdateTimestampInMs == 0) {
-      balance.lastUpdateTimestampInMs = lastFundingRateTimestampInMs;
+      _addToPosition(
+        balanceStruct,
+        baseQuantity,
+        quoteQuantity,
+        market
+          .loadMarketWithOverridesForWallet(liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maximumPositionSize
+      );
+
+      // Liquidating wallet gives quote if short
+      balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
+      balanceStruct.balance -= int64(quoteQuantity);
+    } else {
+      // Decrease positive long position by subtracting base quantity from it
+      _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - int64(baseQuantity));
+
+      _subtractFromPosition(
+        balanceStruct,
+        baseQuantity,
+        quoteQuantity,
+        market
+          .loadMarketWithOverridesForWallet(liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maximumPositionSize
+      );
+
+      // Liquidating wallet receives quote if long
+      balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
+      balanceStruct.balance += int64(quoteQuantity);
     }
+    // Update open position tracking in case any were closed
     _updateOpenPositionsForWallet(
       liquidatingWallet,
       market.baseAssetSymbol,
-      balance.balance,
+      balanceStruct.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
-    // Counterparty position takes on specified base quantity
-    balance = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, market.baseAssetSymbol);
-    if (isDeleverage) {
-      _validatePositionUpdatedTowardsZero(balance.balance, balance.balance - baseQuantity);
+    // Update counterparty wallet position by taking on liquidating wallet's position. During liquidation the IF or EF
+    // the position may validly increase by moving away from zero, but this is disallowed for the counterparty wallet
+    // position during deleveraging
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, market.baseAssetSymbol);
+    if (liquidatingWalletPositionIsShort) {
+      // Take on short position by subtracting base quantity
+      if (isDeleverage) {
+        _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - int64(baseQuantity));
+      }
+
+      _subtractFromPosition(
+        balanceStruct,
+        baseQuantity,
+        quoteQuantity,
+        market
+          .loadMarketWithOverridesForWallet(counterpartyWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maximumPositionSize
+      );
+
+      // Counterparty receives quote when taking on short position
+      balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
+      balanceStruct.balance += int64(quoteQuantity);
+    } else {
+      // Take on long position by adding base quantity
+      if (isDeleverage) {
+        _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + int64(baseQuantity));
+      }
+
+      _addToPosition(
+        balanceStruct,
+        baseQuantity,
+        quoteQuantity,
+        market
+          .loadMarketWithOverridesForWallet(counterpartyWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maximumPositionSize
+      );
+      // Counterparty gives quote when taking on long position
+      balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
+      balanceStruct.balance -= int64(quoteQuantity);
     }
-    _updatePosition(
-      balance,
-      -1 * baseQuantity,
-      quoteQuantity,
-      market
-        .loadMarketWithOverridesForWallet(counterpartyWallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maximumPositionSize
-    );
-    if (balance.lastUpdateTimestampInMs == 0) {
-      balance.lastUpdateTimestampInMs = lastFundingRateTimestampInMs;
+    // During liquidation, the IF or EF may open a position in a market for the first time. When this happens, the
+    // position should be updated with the latest published funding rate for that market so that no funding is applied
+    // retroactively
+    if (balanceStruct.lastUpdateTimestampInMs == 0) {
+      balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
+        market.baseAssetSymbol
+      ];
     }
+    // Update open position tracking in case any were opened (if counterparty wallet is IF or EF only) or closed
     _updateOpenPositionsForWallet(
       counterpartyWallet,
       market.baseAssetSymbol,
-      balance.balance,
+      balanceStruct.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
-
-    // Wallet receives or gives quote if long or short respectively
-    balance = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
-    balance.balance += quoteQuantity;
-    // Insurance or counterparty receives or gives quote if wallet short or long respectively
-    balance = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
-    balance.balance -= quoteQuantity;
   }
 
   function _validatePositionUpdatedTowardsZero(int64 originalPositionSize, int64 newPositionSize) private pure {
-    bool isValid = originalPositionSize < 0
+    require(originalPositionSize != 0, "Position must be non-zero");
+
+    bool isValidUpdate = originalPositionSize < 0
       ? newPositionSize > originalPositionSize && newPositionSize <= 0
       : newPositionSize < originalPositionSize && newPositionSize >= 0;
-    require(isValid, "Position must move toward zero");
+    require(isValidUpdate, "Position must move toward zero");
   }
 }

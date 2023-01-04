@@ -26,7 +26,7 @@ library PositionBelowMinimumLiquidation {
     // External arguments
     string baseAssetSymbol;
     address liquidatingWallet;
-    int64 liquidationQuoteQuantity; // For the position being liquidated
+    uint64 liquidationQuoteQuantity; // For the position being liquidated
     IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
@@ -105,17 +105,17 @@ library PositionBelowMinimumLiquidation {
   function _updateBalances(
     Arguments memory arguments,
     Market memory market,
-    int64 positionSize,
+    uint64 positionSize,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
     balanceTracking.updatePositionForLiquidation(
-      positionSize,
       arguments.insuranceFundWallet,
       arguments.liquidatingWallet,
       market,
+      positionSize,
       arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
