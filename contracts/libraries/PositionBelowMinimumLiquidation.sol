@@ -9,7 +9,6 @@ import { Math } from "./Math.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
-import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";

@@ -544,6 +544,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidatePositionInDeactivatedMarket(
     string calldata baseAssetSymbol,
+    uint64 feeQuantity,
     address liquidatingWallet,
     uint64 liquidationQuoteQuantity,
     IndexPrice[] calldata liquidatingWalletIndexPrices
@@ -551,6 +552,8 @@ contract Exchange_v4 is IExchange, Owned {
     PositionInDeactivatedMarketLiquidation.liquidate_delegatecall(
       PositionInDeactivatedMarketLiquidation.Arguments(
         baseAssetSymbol,
+        feeQuantity,
+        feeWallet,
         liquidatingWallet,
         liquidationQuoteQuantity,
         liquidatingWalletIndexPrices,

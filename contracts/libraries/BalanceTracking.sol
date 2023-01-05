@@ -10,7 +10,7 @@ import { Math } from "./Math.sol";
 import { OrderSide } from "./Enums.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { UUID } from "./UUID.sol";
-import { Balance, ExecuteOrderBookTradeArguments, Market, MarketOverrides, Order, OrderBookTrade, Withdrawal } from "./Structs.sol";
+import { Balance, ExecuteOrderBookTradeArguments, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
 library BalanceTracking {
   using MarketHelper for Market;
@@ -100,6 +100,8 @@ library BalanceTracking {
   function updatePositionForDeactivatedMarketLiquidation(
     Storage storage self,
     string memory baseAssetSymbol,
+    uint64 feeQuantity,
+    address feeWallet,
     address liquidatingWallet,
     uint64 quoteQuantity,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
@@ -120,11 +122,16 @@ library BalanceTracking {
 
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
     if (balanceStruct.balance < 0) {
-      // Wallet gives quote if short
-      balanceStruct.balance -= int64(quoteQuantity);
+      // Wallet gives quote including fee if short
+      balanceStruct.balance -= int64(quoteQuantity + feeQuantity);
     } else {
-      balanceStruct.balance += int64(quoteQuantity);
+      // Wallet receives quote minus fee if long
+      balanceStruct.balance += int64(quoteQuantity - feeQuantity);
     }
+
+    // Fee wallet receives fee
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
+    balanceStruct.balance += int64(feeQuantity);
   }
 
   function updateQuoteForLiquidation(
@@ -260,7 +267,7 @@ library BalanceTracking {
         ? (arguments.orderBookTrade.makerFeeQuantity, int64(arguments.orderBookTrade.takerFeeQuantity))
         : (int64(arguments.orderBookTrade.takerFeeQuantity), arguments.orderBookTrade.makerFeeQuantity);
 
-    // Seller gives base asset including fees
+    // Seller gives base asset
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(
       self,
       arguments.sell.wallet,
@@ -323,27 +330,15 @@ library BalanceTracking {
     );
 
     // Buyer gives quote asset including fees
-    balanceStruct = loadBalanceStructAndMigrateIfNeeded(
-      self,
-      arguments.buy.wallet,
-      arguments.orderBookTrade.quoteAssetSymbol
-    );
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.buy.wallet, Constants.QUOTE_ASSET_SYMBOL);
     balanceStruct.balance -= int64(arguments.orderBookTrade.quoteQuantity) + buyFee;
 
     // Seller receives quote asset minus fees
-    balanceStruct = loadBalanceStructAndMigrateIfNeeded(
-      self,
-      arguments.sell.wallet,
-      arguments.orderBookTrade.quoteAssetSymbol
-    );
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.sell.wallet, Constants.QUOTE_ASSET_SYMBOL);
     balanceStruct.balance += int64(arguments.orderBookTrade.quoteQuantity) - sellFee;
 
-    // Maker fee to fee wallet
-    balanceStruct = loadBalanceStructAndMigrateIfNeeded(
-      self,
-      arguments.feeWallet,
-      arguments.orderBookTrade.quoteAssetSymbol
-    );
+    // Fee wallet receives maker and taker fees
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.feeWallet, Constants.QUOTE_ASSET_SYMBOL);
     balanceStruct.balance += buyFee + sellFee;
   }
 
@@ -416,6 +411,7 @@ library BalanceTracking {
       balance.isMigrated = true;
       balance.balance = migratedBalanceStruct.balance;
       balance.lastUpdateTimestampInMs = migratedBalanceStruct.lastUpdateTimestampInMs;
+      balance.costBasis = migratedBalanceStruct.costBasis;
     }
 
     return balance;

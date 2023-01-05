@@ -7,8 +7,7 @@ import { Funding } from "./Funding.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
-import { OrderSide, OrderType } from "./Enums.sol";
-import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, IndexPrice, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
+import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation } from "./Structs.sol";
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;

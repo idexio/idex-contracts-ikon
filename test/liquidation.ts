@@ -110,6 +110,7 @@ describe('Exchange', function () {
           .connect(dispatcherWallet)
           .liquidatePositionInDeactivatedMarket(
             baseAssetSymbol,
+            decimalToPips('20.00000000'),
             trader1Wallet.address,
             decimalToPips('20000.00000000'),
             [indexPriceToArgumentStruct(indexPrice)],

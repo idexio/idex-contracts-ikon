@@ -14,15 +14,6 @@ library MutatingMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
-  struct ValidateInsuranceFundCannotLiquidateWalletArguments {
-    address insuranceFundWallet;
-    address liquidatingWallet;
-    int64[] liquidationQuoteQuantities;
-    Market[] markets;
-    uint64[] indexPrices;
-    address[] indexPriceCollectionServiceWallets;
-  }
-
   function isInitialMarginRequirementMetAndUpdateLastIndexPrice(
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,

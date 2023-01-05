@@ -13,7 +13,7 @@ import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, WalletLiquidationArguments } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletLiquidationArguments } from "./Structs.sol";
 
 library WalletLiquidation {
   using BalanceTracking for BalanceTracking.Storage;

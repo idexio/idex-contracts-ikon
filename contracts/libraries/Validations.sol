@@ -5,13 +5,15 @@ pragma solidity 0.8.17;
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Constants } from "./Constants.sol";
 import { Hashing } from "./Hashing.sol";
+import { Math } from "./Math.sol";
 import { String } from "./String.sol";
 import { Time } from "./Time.sol";
 import { Market, IndexPrice, Withdrawal } from "./Structs.sol";
 
 library Validations {
   function isFeeQuantityValid(uint64 fee, uint64 total) internal pure returns (bool) {
-    uint64 feeMultiplier = (fee * Constants.PIP_PRICE_MULTIPLIER) / total;
+    uint64 feeMultiplier = Math.multiplyPipsByFraction(fee, Constants.PIP_PRICE_MULTIPLIER, total);
+
     return feeMultiplier <= Constants.MAX_FEE_MULTIPLIER;
   }
 
