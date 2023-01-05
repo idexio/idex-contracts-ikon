@@ -6,6 +6,7 @@ import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Constants } from "./Constants.sol";
 import { Hashing } from "./Hashing.sol";
 import { String } from "./String.sol";
+import { Time } from "./Time.sol";
 import { Market, IndexPrice, Withdrawal } from "./Structs.sol";
 
 library Validations {
@@ -28,18 +29,20 @@ library Validations {
     IndexPrice memory indexPrice,
     address[] memory indexPriceCollectionServiceWallets,
     Market memory market
-  ) internal pure {
+  ) internal view {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
 
     require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
 
-    validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
+    require(indexPrice.timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
+
+    _validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
   }
 
-  function validateIndexPriceSignature(
+  function _validateIndexPriceSignature(
     IndexPrice memory indexPrice,
     address[] memory indexPriceCollectionServiceWallets
-  ) internal pure {
+  ) private pure {
     bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
 
     address signer = Hashing.getSigner(indexPriceHash, indexPrice.signature);

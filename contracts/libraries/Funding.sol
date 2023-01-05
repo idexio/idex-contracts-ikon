@@ -81,10 +81,10 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
-    Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
-
     Market memory market = marketsByBaseAssetSymbol[indexPrice.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
+
+    Validations.validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
     uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol];
 
@@ -174,8 +174,8 @@ library Funding {
     int64 marketFunding;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
-      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       Balance memory basePosition = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
         wallet,
         market.baseAssetSymbol
@@ -205,8 +205,8 @@ library Funding {
     uint64 lastFundingMultiplierTimestampInMs;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
-      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
         wallet,
         market.baseAssetSymbol

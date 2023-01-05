@@ -355,17 +355,17 @@ library BalanceTracking {
     string memory assetSymbol,
     address feeWallet
   ) internal returns (int64 newExchangeBalance) {
-    Balance storage balance;
+    Balance storage balanceStruct;
 
-    balance = loadBalanceStructAndMigrateIfNeeded(self, withdrawal.wallet, assetSymbol);
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, withdrawal.wallet, assetSymbol);
     // Reverts if balance is overdrawn
-    balance.balance -= int64(withdrawal.grossQuantity);
-    newExchangeBalance = balance.balance;
+    balanceStruct.balance -= int64(withdrawal.grossQuantity);
+    newExchangeBalance = balanceStruct.balance;
 
     if (withdrawal.gasFee > 0) {
-      balance = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, assetSymbol);
+      balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, assetSymbol);
 
-      balance.balance += int64(withdrawal.gasFee);
+      balanceStruct.balance += int64(withdrawal.gasFee);
     }
   }
 
@@ -384,13 +384,13 @@ library BalanceTracking {
     address wallet,
     string memory assetSymbol
   ) internal view returns (Balance memory) {
-    Balance memory balance = self.balancesByWalletAssetPair[wallet][assetSymbol];
+    Balance memory balanceStruct = self.balancesByWalletAssetPair[wallet][assetSymbol];
 
-    if (!balance.isMigrated && address(self.migrationSource) != address(0x0)) {
-      balance = self.migrationSource.loadBalanceStructBySymbol(wallet, assetSymbol);
+    if (!balanceStruct.isMigrated && address(self.migrationSource) != address(0x0)) {
+      balanceStruct = self.migrationSource.loadBalanceStructBySymbol(wallet, assetSymbol);
     }
 
-    return balance;
+    return balanceStruct;
   }
 
   // Lazy updates //

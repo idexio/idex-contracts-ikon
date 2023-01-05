@@ -105,6 +105,21 @@ export async function buildIndexPrice(
   return (await buildIndexPrices(index, 1))[0];
 }
 
+export async function buildOldIndexPrice(
+  index: SignerWithAddress,
+): Promise<IndexPrice> {
+  const indexPrice = {
+    baseAssetSymbol,
+    timestampInMs: getPastPeriodInMs(100),
+    price: prices[0],
+  };
+  const signature = await index.signMessage(
+    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+  );
+
+  return { ...indexPrice, signature };
+}
+
 const prices = [
   '2000.00000000',
   '2100.00000000',

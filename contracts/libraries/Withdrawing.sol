@@ -146,12 +146,12 @@ library Withdrawing {
         marketsByBaseAssetSymbol
       );
 
-    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+    Balance storage balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    walletQuoteQuantityChange += balance.balance;
-    balance.balance = 0;
+    walletQuoteQuantityChange += balanceStruct.balance;
+    balanceStruct.balance = 0;
 
     require(walletQuoteQuantityChange >= 0, "Negative quote after exit");
 
@@ -242,11 +242,11 @@ library Withdrawing {
     }
 
     // Update EF quote balance with total quote change calculated above in loop
-    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+    Balance storage balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.exitFundWallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    balance.balance += exitFundQuoteQuantityChange;
+    balanceStruct.balance += exitFundQuoteQuantityChange;
   }
 
   function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {

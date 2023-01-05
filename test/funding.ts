@@ -9,6 +9,7 @@ import {
   buildFundingRates,
   buildIndexPrice,
   buildIndexPrices,
+  buildOldIndexPrice,
   deployAndAssociateContracts,
   executeTrade,
   fundWallets,
@@ -154,7 +155,7 @@ describe('Exchange', function () {
         usdc,
       );
 
-      const indexPrice = await buildIndexPrice(
+      const indexPrice = await buildOldIndexPrice(
         indexPriceCollectionServiceWallet,
       );
 

@@ -2,7 +2,7 @@
 
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Math } from "./Math.sol";
-import { Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
+import { Market, MarketOverrides } from "./Structs.sol";
 
 pragma solidity 0.8.17;
 

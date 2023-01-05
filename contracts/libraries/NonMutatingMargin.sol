@@ -107,25 +107,25 @@ library NonMutatingMargin {
       Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       uint64 indexPrice = market.loadOnChainFeedPrice();
 
-      Balance memory balance = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
+      Balance memory balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
         arguments.wallet,
         market.baseAssetSymbol
       );
 
       // Cost basis is negative for short positions, which subtracts from account value
-      if (balance.costBasis < 0) {
+      if (balanceStruct.costBasis < 0) {
         totalAccountValue -= int64(
-          LiquidationValidations.calculateExitQuoteQuantity(balance.costBasis, indexPrice, balance.balance)
+          LiquidationValidations.calculateExitQuoteQuantity(balanceStruct.costBasis, indexPrice, balanceStruct.balance)
         );
         // Cost basis is positive for long positions, which adds to account value
       } else {
         totalAccountValue += int64(
-          LiquidationValidations.calculateExitQuoteQuantity(balance.costBasis, indexPrice, balance.balance)
+          LiquidationValidations.calculateExitQuoteQuantity(balanceStruct.costBasis, indexPrice, balanceStruct.balance)
         );
       }
 
       maintenanceMarginRequirement += Math.multiplyPipsByFraction(
-        Math.multiplyPipsByFraction(Math.abs(balance.balance), indexPrice, Constants.PIP_PRICE_MULTIPLIER),
+        Math.multiplyPipsByFraction(Math.abs(balanceStruct.balance), indexPrice, Constants.PIP_PRICE_MULTIPLIER),
         market
           .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
