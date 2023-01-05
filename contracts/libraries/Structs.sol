@@ -6,6 +6,8 @@ import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contra
 
 import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
 
+// This file contains definitions for externally-facing structs used as argument or return types for Exchange functions
+
 /**
  * @notice Argument type for `Exchange.deleverageInMaintenanceAcquisition` and `Exchange.deleverageExitAcquisition`
  */
@@ -53,7 +55,7 @@ struct DelegatedKeyAuthorization {
   uint128 nonce;
   // Public component of ECDSA signing key pair
   address delegatedPublicKey;
-  // ECDSA signature of hash by delegate private key
+  // ECDSA signature of hash by issuing custody wallet private key
   bytes signature;
 }
 

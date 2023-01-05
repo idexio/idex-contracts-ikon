@@ -29,7 +29,7 @@ library PositionBelowMinimumLiquidation {
     IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
-    uint64 dustPositionLiquidationPriceTolerance;
+    uint64 positionBelowMinimumLiquidationPriceToleranceMultiplier;
     address insuranceFundWallet;
     address[] indexPriceCollectionServiceWallets;
   }
@@ -85,7 +85,7 @@ library PositionBelowMinimumLiquidation {
     );
   }
 
-  function _loadMarketAndIndexPrice(
+  function _loadAndValidateMarketAndIndexPrice(
     Arguments memory arguments,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
@@ -99,6 +99,8 @@ library PositionBelowMinimumLiquidation {
     require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
 
     indexPrice = arguments.liquidatingWalletIndexPrices[i];
+    // The index price signature and array position were already validated by
+    // loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice
   }
 
   function _updateBalances(
@@ -130,12 +132,11 @@ library PositionBelowMinimumLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
+    (Market memory market, IndexPrice memory indexPrice) = _loadAndValidateMarketAndIndexPrice(
       arguments,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
     // Validate that position is under dust threshold
     int64 positionSize = balanceTracking.loadBalanceAndMigrateIfNeeded(
@@ -153,7 +154,7 @@ library PositionBelowMinimumLiquidation {
 
     // Validate quote quantity
     _validateQuoteQuantity(
-      arguments.dustPositionLiquidationPriceTolerance,
+      arguments.positionBelowMinimumLiquidationPriceToleranceMultiplier,
       arguments.liquidationQuoteQuantity,
       indexPrice.price,
       positionSize
@@ -176,17 +177,20 @@ library PositionBelowMinimumLiquidation {
     uint64 indexPrice,
     int64 positionSize
   ) private pure {
-    uint64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
+    uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
       Math.abs(positionSize),
       indexPrice,
       Constants.PIP_PRICE_MULTIPLIER
     );
-    uint64 tolerance = (positionBelowMinimumLiquidationPriceTolerance * expectedLiquidationQuoteQuantities) /
-      Constants.PIP_PRICE_MULTIPLIER;
+    uint64 tolerance = Math.multiplyPipsByFraction(
+      positionBelowMinimumLiquidationPriceTolerance,
+      expectedLiquidationQuoteQuantity,
+      Constants.PIP_PRICE_MULTIPLIER
+    );
 
     require(
-      expectedLiquidationQuoteQuantities - tolerance <= liquidationQuoteQuantity &&
-        expectedLiquidationQuoteQuantities + tolerance >= liquidationQuoteQuantity,
+      expectedLiquidationQuoteQuantity - tolerance <= liquidationQuoteQuantity &&
+        expectedLiquidationQuoteQuantity + tolerance >= liquidationQuoteQuantity,
       "Invalid liquidation quote quantity"
     );
   }

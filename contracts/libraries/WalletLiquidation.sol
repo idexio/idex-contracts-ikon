@@ -80,7 +80,7 @@ library WalletLiquidation {
 
     if (arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
       resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-        arguments.externalArguments.liquidatingWallet,
+        arguments.exitFundWallet,
         currentExitFundPositionOpenedAtBlockNumber,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
@@ -164,14 +164,12 @@ library WalletLiquidation {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
+    // The index price signature and array position were already validated by
+    // loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice
+
     Balance memory balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.externalArguments.liquidatingWallet,
       market.baseAssetSymbol
-    );
-    Validations.validateIndexPrice(
-      arguments.externalArguments.liquidatingWalletIndexPrices[index],
-      arguments.indexPriceCollectionServiceWallets,
-      market
     );
 
     if (

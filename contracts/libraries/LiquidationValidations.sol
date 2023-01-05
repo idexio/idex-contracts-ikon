@@ -19,8 +19,6 @@ library LiquidationValidations {
     quoteQuantity = positionSize < 0
       ? Math.max(quoteQuantity, Math.abs(costBasis))
       : Math.min(quoteQuantity, Math.abs(costBasis));
-
-    return quoteQuantity;
   }
 
   function calculateExitQuoteQuantity(
@@ -140,7 +138,7 @@ library LiquidationValidations {
 
   function validateLiquidationQuoteQuantityToClosePositions(
     uint64 liquidationQuoteQuantity,
-    uint64 marginFraction,
+    uint64 maintenanceMarginFraction,
     uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue,
@@ -148,7 +146,7 @@ library LiquidationValidations {
   ) internal pure {
     uint64 expectedLiquidationQuoteQuantity = _calculateLiquidationQuoteQuantityToClosePositions(
       indexPrice,
-      marginFraction,
+      maintenanceMarginFraction,
       positionSize,
       totalAccountValue,
       totalMaintenanceMarginRequirement

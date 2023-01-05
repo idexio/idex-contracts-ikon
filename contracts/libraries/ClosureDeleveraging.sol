@@ -84,7 +84,7 @@ library ClosureDeleveraging {
     if (arguments.deleverageType == DeleverageType.ExitFundClosure) {
       return
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-          arguments.externalArguments.liquidatingWallet,
+          arguments.exitFundWallet,
           exitFundPositionOpenedAtBlockNumber,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
@@ -102,8 +102,9 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, IndexPrice memory indexPrice) = Deleveraging.loadMarketAndIndexPrice(
+    (Market memory market, IndexPrice memory indexPrice) = Deleveraging.loadAndValidateMarketAndIndexPrice(
       arguments.externalArguments.baseAssetSymbol,
+      arguments.indexPriceCollectionServiceWallets,
       arguments.externalArguments.liquidatingWallet,
       arguments.externalArguments.liquidatingWalletIndexPrices,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -136,8 +137,6 @@ library ClosureDeleveraging {
       arguments.externalArguments.liquidatingWallet,
       market.baseAssetSymbol
     );
-
-    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
     if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
       LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(

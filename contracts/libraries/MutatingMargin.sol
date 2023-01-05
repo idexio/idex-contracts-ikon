@@ -62,8 +62,6 @@ library MutatingMargin {
     );
 
     require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
-
-    return (totalAccountValue, totalInitialMarginRequirement);
   }
 
   function loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
@@ -96,12 +94,13 @@ library MutatingMargin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (uint64 initialMarginRequirement) {
+    Market storage market;
+    IndexPrice memory indexPrice;
+
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      (Market storage market, IndexPrice memory indexPrice) = (
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        arguments.indexPrices[i]
-      );
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      indexPrice = arguments.indexPrices[i];
 
       initialMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
         arguments,
@@ -124,12 +123,13 @@ library MutatingMargin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal returns (uint64 maintenanceMarginRequirement) {
+    Market storage market;
+    IndexPrice memory indexPrice;
+
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      (Market storage market, IndexPrice memory indexPrice) = (
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        arguments.indexPrices[i]
-      );
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      indexPrice = arguments.indexPrices[i];
 
       maintenanceMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
         arguments,
@@ -151,7 +151,7 @@ library MutatingMargin {
     Market storage market,
     BalanceTracking.Storage storage balanceTracking
   ) private returns (uint64) {
-    Validations.validateAndUpdateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
+    Validations.validateAndUpdateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
     return
       Math.abs(

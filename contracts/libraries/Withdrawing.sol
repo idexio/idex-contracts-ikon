@@ -12,6 +12,7 @@ import { Funding } from "./Funding.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
+import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
@@ -57,7 +58,7 @@ library Withdrawing {
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
       require(
         arguments.exitFundPositionOpenedAtBlockNumber == 0 ||
-          arguments.exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS >= block.number,
+          block.number >= arguments.exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
         "EF position opened too recently"
       );
     }
@@ -78,12 +79,9 @@ library Withdrawing {
     );
 
     // Update wallet balances
-    newExchangeBalance = balanceTracking.updateForWithdrawal(
-      arguments.withdrawal,
-      Constants.QUOTE_ASSET_SYMBOL,
-      arguments.feeWallet
-    );
+    newExchangeBalance = balanceTracking.updateForWithdrawal(arguments.withdrawal, arguments.feeWallet);
 
+    // Wallet must still maintain initial margin requirement after withdrawal
     require(
       MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
         NonMutatingMargin.LoadArguments(
@@ -149,7 +147,9 @@ library Withdrawing {
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
+    // Add any existing quote balance to the quote change from positions to obtain total amount for withdrawal
     walletQuoteQuantityChange += balanceStruct.balance;
+    // Zero out quote balance
     balanceStruct.balance = 0;
 
     require(walletQuoteQuantityChange >= 0, "Negative quote after exit");
@@ -207,13 +207,9 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 exitFundQuoteQuantityChange) {
-    (uint64 totalMaintenanceMarginRequirement, int64 totalAccountValue) = NonMutatingMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirementForExit(
-        NonMutatingMargin.LoadArguments(
-          arguments.wallet,
-          new IndexPrice[](0),
-          arguments.indexPriceCollectionServiceWallets
-        ),
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
+      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+        arguments.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,

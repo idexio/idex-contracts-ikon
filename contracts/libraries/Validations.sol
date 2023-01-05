@@ -2,13 +2,12 @@
 
 pragma solidity 0.8.17;
 
-import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Constants } from "./Constants.sol";
 import { Hashing } from "./Hashing.sol";
 import { Math } from "./Math.sol";
 import { String } from "./String.sol";
 import { Time } from "./Time.sol";
-import { Market, IndexPrice, Withdrawal } from "./Structs.sol";
+import { Market, IndexPrice } from "./Structs.sol";
 
 library Validations {
   function isFeeQuantityValid(uint64 fee, uint64 total) internal pure returns (bool) {
@@ -19,8 +18,8 @@ library Validations {
 
   function validateAndUpdateIndexPrice(
     IndexPrice memory indexPrice,
-    Market storage market,
-    address[] memory indexPriceCollectionServiceWallets
+    address[] memory indexPriceCollectionServiceWallets,
+    Market storage market
   ) internal {
     validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
