@@ -515,7 +515,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidatePositionBelowMinimum(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
-    int64 liquidationQuoteQuantity,
+    uint64 liquidationQuoteQuantity,
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
@@ -545,7 +545,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidatePositionInDeactivatedMarket(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
-    int64 liquidationQuoteQuantity,
+    uint64 liquidationQuoteQuantity,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
     PositionInDeactivatedMarketLiquidation.liquidate_delegatecall(

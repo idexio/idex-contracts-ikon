@@ -111,8 +111,6 @@ library WalletLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    // FIXME Do not allow liquidation of insurance or exit funds
-
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
         NonMutatingMargin.LoadArguments(
@@ -166,7 +164,7 @@ library WalletLiquidation {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+    Balance memory balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.externalArguments.liquidatingWallet,
       market.baseAssetSymbol
     );
@@ -176,34 +174,38 @@ library WalletLiquidation {
       market
     );
 
-    uint64 maintenanceMarginFraction = market
-      .loadMarketWithOverridesForWallet(
-        arguments.externalArguments.liquidatingWallet,
-        marketOverridesByBaseAssetSymbolAndWallet
-      )
-      .overridableFields
-      .maintenanceMarginFraction;
-
     if (
       arguments.liquidationType == LiquidationType.WalletInMaintenance ||
       arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.externalArguments.liquidationQuoteQuantities[index],
-        maintenanceMarginFraction,
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.externalArguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .overridableFields
+          .maintenanceMarginFraction,
         arguments.externalArguments.liquidatingWalletIndexPrices[index].price,
-        balance.balance,
+        balanceStruct.balance,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
     } else {
       // LiquidationType.WalletExited
       LiquidationValidations.validateExitQuoteQuantity(
-        balance.costBasis,
+        balanceStruct.costBasis,
         arguments.externalArguments.liquidationQuoteQuantities[index],
         arguments.externalArguments.liquidatingWalletIndexPrices[index].price,
-        maintenanceMarginFraction,
-        balance.balance,
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.externalArguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .overridableFields
+          .maintenanceMarginFraction,
+        balanceStruct.balance,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
@@ -213,7 +215,7 @@ library WalletLiquidation {
       arguments.externalArguments.counterpartyWallet,
       arguments.externalArguments.liquidatingWallet,
       market,
-      Math.abs(balance.balance),
+      balanceStruct.balance,
       arguments.externalArguments.liquidationQuoteQuantities[index],
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,

@@ -52,17 +52,16 @@ library LiquidationValidations {
   function validateDeactivatedMarketLiquidationQuoteQuantity(
     uint64 indexPrice,
     int64 positionSize,
-    int64 quoteQuantity
+    uint64 quoteQuantity
   ) internal pure {
-    int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
-      positionSize,
-      int64(indexPrice),
-      int64(Constants.PIP_PRICE_MULTIPLIER)
+    uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
+      Math.abs(positionSize),
+      indexPrice,
+      Constants.PIP_PRICE_MULTIPLIER
     );
 
     require(
-      expectedLiquidationQuoteQuantities - 1 <= quoteQuantity &&
-        expectedLiquidationQuoteQuantities + 1 >= quoteQuantity,
+      expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
     );
   }
@@ -147,16 +146,16 @@ library LiquidationValidations {
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
-    uint64 expectedLiquidationQuoteQuantities = _calculateLiquidationQuoteQuantityToClosePositions(
-      marginFraction,
+    uint64 expectedLiquidationQuoteQuantity = _calculateLiquidationQuoteQuantityToClosePositions(
       indexPrice,
+      marginFraction,
       positionSize,
       totalAccountValue,
       totalMaintenanceMarginRequirement
     );
     require(
-      expectedLiquidationQuoteQuantities - 1 <= liquidationQuoteQuantity &&
-        expectedLiquidationQuoteQuantities + 1 >= liquidationQuoteQuantity,
+      expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
+        expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
       "Invalid liquidation quote quantity"
     );
   }

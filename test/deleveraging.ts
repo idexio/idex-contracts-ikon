@@ -77,9 +77,9 @@ describe('Exchange', function () {
             baseAssetSymbol,
             deleveragingWallet: trader2Wallet.address,
             liquidatingWallet: trader1Wallet.address,
-            liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+            liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
             liquidationBaseQuantity: decimalToPips('10.00000000'),
-            liquidationQuoteQuantity: decimalToPips('-21980.00000000'),
+            liquidationQuoteQuantity: decimalToPips('21980.00000000'),
             deleveragingWalletIndexPrices: [
               indexPriceToArgumentStruct(newIndexPrice),
             ],
@@ -112,7 +112,7 @@ describe('Exchange', function () {
             deleveragingWallet: counterpartyWallet.address,
             liquidatingWallet: insuranceWallet.address,
             liquidationBaseQuantity: decimalToPips('10.00000000'),
-            liquidationQuoteQuantity: decimalToPips('-21980.00000000'),
+            liquidationQuoteQuantity: decimalToPips('21980.00000000'),
             liquidatingWalletIndexPrices: [
               indexPriceToArgumentStruct(liquidationIndexPrice),
             ],
@@ -134,7 +134,7 @@ describe('Exchange', function () {
           deleveragingWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
           liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
-          liquidationBaseQuantity: decimalToPips('-10.00000000'),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
           deleveragingWalletIndexPrices: [
             indexPriceToArgumentStruct(indexPrice),
@@ -159,7 +159,7 @@ describe('Exchange', function () {
           deleveragingWallet: trader2Wallet.address,
           liquidatingWallet: exitFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('-20000.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
           liquidatingWalletIndexPrices: [
             indexPriceToArgumentStruct(indexPrice),
           ],

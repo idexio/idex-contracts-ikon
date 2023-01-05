@@ -11,6 +11,7 @@ import {
   deployAndAssociateContracts,
   executeTrade,
   fundWallets,
+  logWalletBalances,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -85,7 +86,7 @@ describe('Exchange', function () {
           .liquidatePositionBelowMinimum(
             baseAssetSymbol,
             trader1Wallet.address,
-            decimalToPips('-20000.00000000'),
+            decimalToPips('20000.00000000'),
             [indexPriceToArgumentStruct(indexPrice)],
             [indexPriceToArgumentStruct(indexPrice)],
           )
@@ -110,7 +111,7 @@ describe('Exchange', function () {
           .liquidatePositionInDeactivatedMarket(
             baseAssetSymbol,
             trader1Wallet.address,
-            decimalToPips('-20000.00000000'),
+            decimalToPips('20000.00000000'),
             [indexPriceToArgumentStruct(indexPrice)],
           )
       ).wait();
@@ -143,7 +144,7 @@ describe('Exchange', function () {
             liquidatingWalletIndexPrices: [
               indexPriceToArgumentStruct(newIndexPrice),
             ],
-            liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+            liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
           })
       ).wait();
     });
@@ -163,7 +164,7 @@ describe('Exchange', function () {
           liquidatingWalletIndexPrices: [
             indexPriceToArgumentStruct(indexPrice),
           ],
-          liquidationQuoteQuantities: ['-20000.00000000'].map(decimalToPips),
+          liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
         })
       ).wait();
     });

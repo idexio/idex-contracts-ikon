@@ -124,21 +124,13 @@ library NonMutatingMargin {
         );
       }
 
-      maintenanceMarginRequirement += Math.abs(
-        Math.multiplyPipsByFraction(
-          Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
-            int64(indexPrice),
-            int64(Constants.PIP_PRICE_MULTIPLIER)
-          ),
-          int64(
-            market
-              .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
-              .overridableFields
-              .maintenanceMarginFraction
-          ),
-          int64(Constants.PIP_PRICE_MULTIPLIER)
-        )
+      maintenanceMarginRequirement += Math.multiplyPipsByFraction(
+        Math.multiplyPipsByFraction(Math.abs(balance.balance), indexPrice, Constants.PIP_PRICE_MULTIPLIER),
+        market
+          .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        Constants.PIP_PRICE_MULTIPLIER
       );
     }
   }

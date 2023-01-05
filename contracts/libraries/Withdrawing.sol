@@ -135,28 +135,30 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    int64 quoteQuantity = _updatePositionsForExit(
-      arguments,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
+    // The wallet's change in quote quantity is inverse to the EF's change in quote quantity
+    int64 walletQuoteQuantityChange = -1 *
+      _updatePositionsForExit(
+        arguments,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
 
     Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    quoteQuantity += balance.balance;
+    walletQuoteQuantityChange += balance.balance;
     balance.balance = 0;
 
-    require(quoteQuantity >= 0, "Negative quote after exit");
+    require(walletQuoteQuantityChange >= 0, "Negative quote after exit");
 
     arguments.custodian.withdraw(
       arguments.wallet,
       arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(quoteQuantity), Constants.QUOTE_ASSET_DECIMALS)
+      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityChange), Constants.QUOTE_ASSET_DECIMALS)
     );
 
     return (
@@ -166,7 +168,7 @@ library Withdrawing {
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
-      uint64(quoteQuantity)
+      uint64(walletQuoteQuantityChange)
     );
   }
 
@@ -181,16 +183,17 @@ library Withdrawing {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (int64) {
+  ) private returns (int64 exitFundQuoteQuantityChange) {
     return
       balanceTracking.updateForExit(
-        arguments.exitFundWallet,
-        marketsByBaseAssetSymbol[baseAssetSymbol].loadOnChainFeedPrice(),
-        marketsByBaseAssetSymbol[baseAssetSymbol],
-        maintenanceMarginFraction,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
-        arguments.wallet,
+        BalanceTracking.UpdateForExitArguments(
+          arguments.exitFundWallet,
+          marketsByBaseAssetSymbol[baseAssetSymbol],
+          maintenanceMarginFraction,
+          totalAccountValue,
+          totalMaintenanceMarginRequirement,
+          arguments.wallet
+        ),
         baseAssetSymbolsWithOpenPositionsByWallet,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketOverridesByBaseAssetSymbolAndWallet
@@ -204,7 +207,7 @@ library Withdrawing {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (int64 quoteQuantity) {
+  ) private returns (int64 exitFundQuoteQuantityChange) {
     (uint64 totalMaintenanceMarginRequirement, int64 totalAccountValue) = NonMutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementForExit(
         NonMutatingMargin.LoadArguments(
@@ -221,7 +224,7 @@ library Withdrawing {
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       // Sum EF quote quantity change needed to close each wallet position
-      quoteQuantity += _updateBalancesForPositionExit(
+      exitFundQuoteQuantityChange += _updateBalancesForPositionExit(
         arguments,
         baseAssetSymbols[i],
         marketsByBaseAssetSymbol[baseAssetSymbols[i]]
@@ -238,12 +241,12 @@ library Withdrawing {
       );
     }
 
-    // Total quote out from Exit Fund wallet calculated in loop
+    // Update EF quote balance with total quote change calculated above in loop
     Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.exitFundWallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
-    balance.balance += quoteQuantity;
+    balance.balance += exitFundQuoteQuantityChange;
   }
 
   function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {

@@ -22,7 +22,7 @@ library PositionInDeactivatedMarketLiquidation {
     // External arguments
     string baseAssetSymbol;
     address liquidatingWallet;
-    int64 liquidationQuoteQuantity; // For the position being liquidated
+    uint64 liquidationQuoteQuantity; // For the position being liquidated
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
     address[] indexPriceCollectionServiceWallets;

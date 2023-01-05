@@ -85,7 +85,7 @@ export async function bootstrapLiquidatedWallet() {
       ],
       liquidatingWallet: trader1Wallet.address,
       liquidatingWalletIndexPrices: [indexPriceToArgumentStruct(newIndexPrice)],
-      liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+      liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
     })
   ).wait();
 

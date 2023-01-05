@@ -195,25 +195,23 @@ library AcquisitionDeleveraging {
     );
     Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
-    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+    Balance memory balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.externalArguments.liquidatingWallet,
       market.baseAssetSymbol
     );
 
-    uint64 maintenanceMarginFraction = market
-      .loadMarketWithOverridesForWallet(
-        arguments.externalArguments.liquidatingWallet,
-        marketOverridesByBaseAssetSymbolAndWallet
-      )
-      .overridableFields
-      .maintenanceMarginFraction;
-
     if (arguments.deleverageType == DeleverageType.WalletInMaintenance) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.externalArguments.liquidationQuoteQuantity,
-        maintenanceMarginFraction,
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.externalArguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .overridableFields
+          .maintenanceMarginFraction,
         indexPrice.price,
-        balance.balance,
+        balanceStruct.balance,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
@@ -221,14 +219,20 @@ library AcquisitionDeleveraging {
       // DeleverageType.WalletExited
       LiquidationValidations.validateExitQuoteQuantity(
         Math.multiplyPipsByFraction(
-          balance.costBasis,
+          balanceStruct.costBasis,
           int64(arguments.externalArguments.liquidationBaseQuantity),
-          balance.balance
+          balanceStruct.balance
         ),
         arguments.externalArguments.liquidationQuoteQuantity,
         indexPrice.price,
-        maintenanceMarginFraction,
-        balance.balance,
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.externalArguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .overridableFields
+          .maintenanceMarginFraction,
+        balanceStruct.balance,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
@@ -292,12 +296,12 @@ library AcquisitionDeleveraging {
         );
       } else {
         // DeleverageType.WalletExited
-        Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+        Balance storage balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
           arguments.externalArguments.liquidatingWallet,
           baseAssetSymbols[i]
         );
         LiquidationValidations.validateExitQuoteQuantity(
-          balance.costBasis,
+          balanceStruct.costBasis,
           arguments.externalArguments.liquidationQuoteQuantities[i],
           loadArguments.indexPrices[i],
           loadArguments
@@ -308,7 +312,7 @@ library AcquisitionDeleveraging {
             )
             .overridableFields
             .maintenanceMarginFraction,
-          balance.balance,
+          balanceStruct.balance,
           liquidatingWalletTotalAccountValue,
           liquidatingWalletTotalMaintenanceMarginRequirement
         );

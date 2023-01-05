@@ -105,7 +105,7 @@ library PositionBelowMinimumLiquidation {
   function _updateBalances(
     Arguments memory arguments,
     Market memory market,
-    uint64 positionSize,
+    int64 positionSize,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -173,21 +173,21 @@ library PositionBelowMinimumLiquidation {
 
   function _validateQuoteQuantity(
     uint64 positionBelowMinimumLiquidationPriceTolerance,
-    int64 liquidationQuoteQuantity,
+    uint64 liquidationQuoteQuantity,
     uint64 indexPrice,
     int64 positionSize
   ) private pure {
-    int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
-      positionSize,
-      int64(indexPrice),
-      int64(Constants.PIP_PRICE_MULTIPLIER)
+    uint64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
+      Math.abs(positionSize),
+      indexPrice,
+      Constants.PIP_PRICE_MULTIPLIER
     );
-    uint64 tolerance = (positionBelowMinimumLiquidationPriceTolerance * Math.abs(expectedLiquidationQuoteQuantities)) /
+    uint64 tolerance = (positionBelowMinimumLiquidationPriceTolerance * expectedLiquidationQuoteQuantities) /
       Constants.PIP_PRICE_MULTIPLIER;
 
     require(
-      expectedLiquidationQuoteQuantities - int64(tolerance) <= liquidationQuoteQuantity &&
-        expectedLiquidationQuoteQuantities + int64(tolerance) >= liquidationQuoteQuantity,
+      expectedLiquidationQuoteQuantities - tolerance <= liquidationQuoteQuantity &&
+        expectedLiquidationQuoteQuantities + tolerance >= liquidationQuoteQuantity,
       "Invalid liquidation quote quantity"
     );
   }
