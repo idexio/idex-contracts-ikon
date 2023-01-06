@@ -18,6 +18,8 @@ library PositionBelowMinimumLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  uint64 private constant _QUANTITY_BELOW_VALIDATION_THRESHOLD = 10;
+
   /**
    * @dev Argument for `liquidate`
    */
@@ -177,6 +179,13 @@ library PositionBelowMinimumLiquidation {
     uint64 indexPrice,
     int64 positionSize
   ) private pure {
+    if (
+      liquidationQuoteQuantity < _QUANTITY_BELOW_VALIDATION_THRESHOLD &&
+      Math.abs(positionSize) < _QUANTITY_BELOW_VALIDATION_THRESHOLD
+    ) {
+      return;
+    }
+
     uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
       Math.abs(positionSize),
       indexPrice,
