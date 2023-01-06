@@ -15,12 +15,12 @@ struct AcquisitionDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
   address liquidatingWallet;
-  uint64[] liquidationQuoteQuantities; // For all open positions
-  uint64 liquidationBaseQuantity; // For the position being liquidated
-  uint64 liquidationQuoteQuantity; // For the position being liquidated
-  IndexPrice[] deleveragingWalletIndexPrices; // After acquiring liquidating positions
-  IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating positions
-  IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+  uint64[] validateInsuranceFundCannotLiquidateWalletQuoteQuantities; // Liquidation quote quantities for union of liquidating and IF wallet positions
+  uint64 liquidationBaseQuantity; // Base quantity to decrease position being liquidated
+  uint64 liquidationQuoteQuantity; // Quote quantity for the position being liquidated
+  IndexPrice[] deleveragingWalletIndexPrices; // Index prices for deleveraging wallet after acquiring liquidating positions
+  IndexPrice[] validateInsuranceFundCannotLiquidateWalletIndexPrices; // Index prices for union of liquidating and IF wallet position
+  IndexPrice[] liquidatingWalletIndexPrices; // Index prices for liquidating wallet before liquidation
 }
 
 /**

@@ -77,13 +77,15 @@ describe('Exchange', function () {
             baseAssetSymbol,
             deleveragingWallet: trader2Wallet.address,
             liquidatingWallet: trader1Wallet.address,
-            liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+            validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+              '21980.00000000',
+            ].map(decimalToPips),
             liquidationBaseQuantity: decimalToPips('10.00000000'),
             liquidationQuoteQuantity: decimalToPips('21980.00000000'),
             deleveragingWalletIndexPrices: [
               indexPriceToArgumentStruct(newIndexPrice),
             ],
-            insuranceFundIndexPrices: [
+            validateInsuranceFundCannotLiquidateWalletIndexPrices: [
               indexPriceToArgumentStruct(newIndexPrice),
             ],
             liquidatingWalletIndexPrices: [
@@ -133,13 +135,17 @@ describe('Exchange', function () {
           baseAssetSymbol,
           deleveragingWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
-          liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '20000.00000000',
+          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
           deleveragingWalletIndexPrices: [
             indexPriceToArgumentStruct(indexPrice),
           ],
-          insuranceFundIndexPrices: [indexPriceToArgumentStruct(indexPrice)],
+          validateInsuranceFundCannotLiquidateWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
           liquidatingWalletIndexPrices: [
             indexPriceToArgumentStruct(indexPrice),
           ],

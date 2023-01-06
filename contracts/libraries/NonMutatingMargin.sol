@@ -26,7 +26,7 @@ library NonMutatingMargin {
     address liquidatingWallet;
     uint64[] liquidationQuoteQuantities;
     Market[] markets;
-    uint64[] indexPrices;
+    uint64[] indexPrices; // Prices only, calling function validates index price struct
     address[] indexPriceCollectionServiceWallets;
   }
 
@@ -214,6 +214,9 @@ library NonMutatingMargin {
     }
   }
 
+  /**
+   * @param arguments Already validated by calling function
+   */
   function validateInsuranceFundCannotLiquidateWallet(
     ValidateInsuranceFundCannotLiquidateWalletArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
@@ -230,12 +233,14 @@ library NonMutatingMargin {
         marketOverridesByBaseAssetSymbolAndWallet
       );
 
+    // IF cannot acquire if doing so would bring it below its initial margin requirement or exceed its max position size
     require(
-      _isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
-        arguments,
-        balanceTracking,
-        marketOverridesByBaseAssetSymbolAndWallet
-      ) || insuranceFundTotalAccountValue < int64(insuranceFundTotalInitialMarginRequirement),
+      insuranceFundTotalAccountValue < int64(insuranceFundTotalInitialMarginRequirement) ||
+        _isInsuranceFundMaximumPositionSizeExceededByLiquidationAcquisition(
+          arguments,
+          balanceTracking,
+          marketOverridesByBaseAssetSymbolAndWallet
+        ),
       "Insurance fund can acquire"
     );
   }
@@ -245,7 +250,7 @@ library NonMutatingMargin {
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private view returns (bool isMaximumPositionSizeExceeded) {
-    int64 insuranceFundPositionSize;
+    int64 insuranceFundPositionSizeAfterAcquisition;
     int64 liquidatingWalletPositionSize;
 
     for (uint8 i = 0; i < arguments.markets.length; i++) {
@@ -255,7 +260,7 @@ library NonMutatingMargin {
       );
 
       // Calculate Insurance Fund position size after acquiring position
-      insuranceFundPositionSize =
+      insuranceFundPositionSizeAfterAcquisition =
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
           arguments.insuranceFundWallet,
           arguments.markets[i].baseAssetSymbol
@@ -263,7 +268,7 @@ library NonMutatingMargin {
         liquidatingWalletPositionSize;
 
       if (
-        Math.abs(insuranceFundPositionSize) >
+        Math.abs(insuranceFundPositionSizeAfterAcquisition) >
         arguments
           .markets[i]
           .loadMarketWithOverridesForWallet(arguments.insuranceFundWallet, marketOverridesByBaseAssetSymbolAndWallet)

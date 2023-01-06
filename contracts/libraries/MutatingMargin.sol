@@ -29,7 +29,7 @@ library MutatingMargin {
         marketsByBaseAssetSymbol
       ) >=
       int64(
-        loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
+        _loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
           arguments,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet,
@@ -53,7 +53,7 @@ library MutatingMargin {
       marketsByBaseAssetSymbol
     );
 
-    totalInitialMarginRequirement = loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
+    totalInitialMarginRequirement = _loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -78,70 +78,13 @@ library MutatingMargin {
       marketsByBaseAssetSymbol
     );
 
-    totalMaintenanceMarginRequirement = loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
+    totalMaintenanceMarginRequirement = _loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-  }
-
-  function loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
-    NonMutatingMargin.LoadArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal returns (uint64 initialMarginRequirement) {
-    Market storage market;
-    IndexPrice memory indexPrice;
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      indexPrice = arguments.indexPrices[i];
-
-      initialMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
-        arguments,
-        indexPrice,
-        market.loadInitialMarginFractionForWallet(
-          balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
-          arguments.wallet,
-          marketOverridesByBaseAssetSymbolAndWallet
-        ),
-        market,
-        balanceTracking
-      );
-    }
-  }
-
-  function loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
-    NonMutatingMargin.LoadArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal returns (uint64 maintenanceMarginRequirement) {
-    Market storage market;
-    IndexPrice memory indexPrice;
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      indexPrice = arguments.indexPrices[i];
-
-      maintenanceMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
-        arguments,
-        indexPrice,
-        market
-          .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        market,
-        balanceTracking
-      );
-    }
   }
 
   function _loadMarginRequirementAndUpdateLastIndexPrice(
@@ -165,5 +108,62 @@ library MutatingMargin {
           int64(Constants.PIP_PRICE_MULTIPLIER)
         )
       );
+  }
+
+  function _loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
+    NonMutatingMargin.LoadArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private returns (uint64 initialMarginRequirement) {
+    Market storage market;
+    IndexPrice memory indexPrice;
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      indexPrice = arguments.indexPrices[i];
+
+      initialMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
+        arguments,
+        indexPrice,
+        market.loadInitialMarginFractionForWallet(
+          balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
+          arguments.wallet,
+          marketOverridesByBaseAssetSymbolAndWallet
+        ),
+        market,
+        balanceTracking
+      );
+    }
+  }
+
+  function _loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
+    NonMutatingMargin.LoadArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private returns (uint64 maintenanceMarginRequirement) {
+    Market storage market;
+    IndexPrice memory indexPrice;
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      indexPrice = arguments.indexPrices[i];
+
+      maintenanceMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
+        arguments,
+        indexPrice,
+        market
+          .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        market,
+        balanceTracking
+      );
+    }
   }
 }
