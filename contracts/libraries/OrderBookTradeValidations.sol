@@ -28,8 +28,8 @@ library OrderBookTradeValidations {
       arguments.buy,
       arguments.sell,
       arguments.orderBookTrade,
-      arguments.insuranceFundWallet,
-      arguments.exitFundWallet
+      arguments.exitFundWallet,
+      arguments.insuranceFundWallet
     );
     _validateNonces(
       arguments.buy,
@@ -153,6 +153,10 @@ library OrderBookTradeValidations {
       require(
         issuedTimestampInMs + delegateKeyExpirationPeriodInMs > orderTimestampInMs,
         order.side == OrderSide.Buy ? "Buy order delegated key expired" : "Sell order delegated key expired"
+      );
+      require(
+        orderTimestampInMs > issuedTimestampInMs,
+        order.side == OrderSide.Buy ? "Buy order predates delegated key" : "Sell order predates delegated key"
       );
     }
   }

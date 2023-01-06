@@ -7,6 +7,7 @@ import { Math } from "./Math.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { Time } from "./Time.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
@@ -81,10 +82,10 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
-    Validations.validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
-
     Market memory market = marketsByBaseAssetSymbol[indexPrice.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
+
+    Validations.validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
     uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol];
 
@@ -108,7 +109,7 @@ library Funding {
           indexPrice.timestampInMs - nextPublishTimestampInMs,
           Constants.FUNDING_PERIOD_IN_MS
         );
-        for (uint64 j = 0; j < periodsToBackfill; j++) {
+        for (uint64 i = 0; i < periodsToBackfill; i++) {
           fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(0);
         }
         nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
@@ -163,6 +164,22 @@ library Funding {
     quoteBalance.balance += funding;
   }
 
+  function backfillFundingMultipliersForMarket(
+    Market memory market,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+  ) internal {
+    uint64 periodsToBackfill = Math.max(1, Time.getMsSinceMidnight() / Constants.FUNDING_PERIOD_IN_MS);
+    for (uint64 i = 0; i < periodsToBackfill; i++) {
+      fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].publishFundingMultipler(0);
+    }
+
+    lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol] =
+      Time.getMidnightTodayInMs() +
+      // Midnight today is always the first period to be backfilled
+      ((periodsToBackfill - 1) * Constants.FUNDING_PERIOD_IN_MS);
+  }
+
   function loadOutstandingWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -174,8 +191,8 @@ library Funding {
     int64 marketFunding;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
-      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       Balance memory basePosition = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
         wallet,
         market.baseAssetSymbol
@@ -205,8 +222,8 @@ library Funding {
     uint64 lastFundingMultiplierTimestampInMs;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 marketIndex = 0; marketIndex < baseAssetSymbols.length; marketIndex++) {
-      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[marketIndex]];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
         wallet,
         market.baseAssetSymbol

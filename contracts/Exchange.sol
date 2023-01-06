@@ -515,7 +515,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidatePositionBelowMinimum(
     string calldata baseAssetSymbol,
     address liquidatingWallet,
-    int64 liquidationQuoteQuantity,
+    uint64 liquidationQuoteQuantity,
     IndexPrice[] calldata insuranceFundIndexPrices,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
@@ -544,13 +544,16 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidatePositionInDeactivatedMarket(
     string calldata baseAssetSymbol,
+    uint64 feeQuantity,
     address liquidatingWallet,
-    int64 liquidationQuoteQuantity,
+    uint64 liquidationQuoteQuantity,
     IndexPrice[] calldata liquidatingWalletIndexPrices
   ) external onlyDispatcher {
     PositionInDeactivatedMarketLiquidation.liquidate_delegatecall(
       PositionInDeactivatedMarketLiquidation.Arguments(
         baseAssetSymbol,
+        feeQuantity,
+        feeWallet,
         liquidatingWallet,
         liquidationQuoteQuantity,
         liquidatingWalletIndexPrices,
@@ -778,7 +781,12 @@ contract Exchange_v4 is IExchange, Owned {
   // Market management //
 
   function addMarket(Market calldata newMarket) external onlyAdmin {
-    MarketAdmin.addMarket_delegatecall(newMarket, marketsByBaseAssetSymbol);
+    MarketAdmin.addMarket_delegatecall(
+      newMarket,
+      fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
   }
 
   // TODO Update market

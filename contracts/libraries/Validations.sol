@@ -2,22 +2,24 @@
 
 pragma solidity 0.8.17;
 
-import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Constants } from "./Constants.sol";
 import { Hashing } from "./Hashing.sol";
+import { Math } from "./Math.sol";
 import { String } from "./String.sol";
-import { Market, IndexPrice, Withdrawal } from "./Structs.sol";
+import { Time } from "./Time.sol";
+import { Market, IndexPrice } from "./Structs.sol";
 
 library Validations {
   function isFeeQuantityValid(uint64 fee, uint64 total) internal pure returns (bool) {
-    uint64 feeMultiplier = (fee * Constants.PIP_PRICE_MULTIPLIER) / total;
+    uint64 feeMultiplier = Math.multiplyPipsByFraction(fee, Constants.PIP_PRICE_MULTIPLIER, total);
+
     return feeMultiplier <= Constants.MAX_FEE_MULTIPLIER;
   }
 
   function validateAndUpdateIndexPrice(
     IndexPrice memory indexPrice,
-    Market storage market,
-    address[] memory indexPriceCollectionServiceWallets
+    address[] memory indexPriceCollectionServiceWallets,
+    Market storage market
   ) internal {
     validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
@@ -28,18 +30,20 @@ library Validations {
     IndexPrice memory indexPrice,
     address[] memory indexPriceCollectionServiceWallets,
     Market memory market
-  ) internal pure {
+  ) internal view {
     require(String.isEqual(market.baseAssetSymbol, indexPrice.baseAssetSymbol), "Index price mismatch");
 
     require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
 
-    validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
+    require(indexPrice.timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
+
+    _validateIndexPriceSignature(indexPrice, indexPriceCollectionServiceWallets);
   }
 
-  function validateIndexPriceSignature(
+  function _validateIndexPriceSignature(
     IndexPrice memory indexPrice,
     address[] memory indexPriceCollectionServiceWallets
-  ) internal pure {
+  ) private pure {
     bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
 
     address signer = Hashing.getSigner(indexPriceHash, indexPrice.signature);

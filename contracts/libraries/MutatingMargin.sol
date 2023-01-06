@@ -14,15 +14,6 @@ library MutatingMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
-  struct ValidateInsuranceFundCannotLiquidateWalletArguments {
-    address insuranceFundWallet;
-    address liquidatingWallet;
-    int64[] liquidationQuoteQuantities;
-    Market[] markets;
-    uint64[] indexPrices;
-    address[] indexPriceCollectionServiceWallets;
-  }
-
   function isInitialMarginRequirementMetAndUpdateLastIndexPrice(
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
@@ -38,7 +29,7 @@ library MutatingMargin {
         marketsByBaseAssetSymbol
       ) >=
       int64(
-        loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
+        _loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
           arguments,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet,
@@ -62,7 +53,7 @@ library MutatingMargin {
       marketsByBaseAssetSymbol
     );
 
-    totalInitialMarginRequirement = loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
+    totalInitialMarginRequirement = _loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -71,8 +62,6 @@ library MutatingMargin {
     );
 
     require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
-
-    return (totalAccountValue, totalInitialMarginRequirement);
   }
 
   function loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
@@ -89,7 +78,7 @@ library MutatingMargin {
       marketsByBaseAssetSymbol
     );
 
-    totalMaintenanceMarginRequirement = loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
+    totalMaintenanceMarginRequirement = _loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -98,19 +87,43 @@ library MutatingMargin {
     );
   }
 
-  function loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
+  function _loadMarginRequirementAndUpdateLastIndexPrice(
+    NonMutatingMargin.LoadArguments memory arguments,
+    IndexPrice memory indexPrice,
+    uint64 marginFraction,
+    Market storage market,
+    BalanceTracking.Storage storage balanceTracking
+  ) private returns (uint64) {
+    Validations.validateAndUpdateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
+
+    return
+      Math.abs(
+        Math.multiplyPipsByFraction(
+          Math.multiplyPipsByFraction(
+            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
+            int64(indexPrice.price),
+            int64(Constants.PIP_PRICE_MULTIPLIER)
+          ),
+          int64(marginFraction),
+          int64(Constants.PIP_PRICE_MULTIPLIER)
+        )
+      );
+  }
+
+  function _loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal returns (uint64 initialMarginRequirement) {
+  ) private returns (uint64 initialMarginRequirement) {
+    Market storage market;
+    IndexPrice memory indexPrice;
+
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      (Market storage market, IndexPrice memory indexPrice) = (
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        arguments.indexPrices[i]
-      );
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      indexPrice = arguments.indexPrices[i];
 
       initialMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
         arguments,
@@ -126,19 +139,20 @@ library MutatingMargin {
     }
   }
 
-  function loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
+  function _loadTotalMaintenanceMarginRequirementAndUpdateLastIndexPrice(
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal returns (uint64 maintenanceMarginRequirement) {
+  ) private returns (uint64 maintenanceMarginRequirement) {
+    Market storage market;
+    IndexPrice memory indexPrice;
+
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      (Market storage market, IndexPrice memory indexPrice) = (
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        arguments.indexPrices[i]
-      );
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      indexPrice = arguments.indexPrices[i];
 
       maintenanceMarginRequirement += _loadMarginRequirementAndUpdateLastIndexPrice(
         arguments,
@@ -151,28 +165,5 @@ library MutatingMargin {
         balanceTracking
       );
     }
-  }
-
-  function _loadMarginRequirementAndUpdateLastIndexPrice(
-    NonMutatingMargin.LoadArguments memory arguments,
-    IndexPrice memory indexPrice,
-    uint64 marginFraction,
-    Market storage market,
-    BalanceTracking.Storage storage balanceTracking
-  ) private returns (uint64) {
-    Validations.validateAndUpdateIndexPrice(indexPrice, market, arguments.indexPriceCollectionServiceWallets);
-
-    return
-      Math.abs(
-        Math.multiplyPipsByFraction(
-          Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
-            int64(indexPrice.price),
-            int64(Constants.PIP_PRICE_MULTIPLIER)
-          ),
-          int64(marginFraction),
-          int64(Constants.PIP_PRICE_MULTIPLIER)
-        )
-      );
   }
 }

@@ -6,6 +6,8 @@ import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contra
 
 import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
 
+// This file contains definitions for externally-facing structs used as argument or return types for Exchange functions
+
 /**
  * @notice Argument type for `Exchange.deleverageInMaintenanceAcquisition` and `Exchange.deleverageExitAcquisition`
  */
@@ -13,12 +15,18 @@ struct AcquisitionDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
   address liquidatingWallet;
-  int64[] liquidationQuoteQuantities; // For all open positions
-  int64 liquidationBaseQuantity; // For the position being liquidated
-  int64 liquidationQuoteQuantity; // For the position being liquidated
-  IndexPrice[] deleveragingWalletIndexPrices; // After acquiring liquidating positions
-  IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating positions
-  IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+  // Liquidation quote quantities for union of liquidating and IF wallet positions
+  uint64[] validateInsuranceFundCannotLiquidateWalletQuoteQuantities;
+  // Base quantity to decrease position being liquidated
+  uint64 liquidationBaseQuantity;
+  // Quote quantity for the position being liquidated
+  uint64 liquidationQuoteQuantity;
+  // Index prices for deleveraging wallet after acquiring liquidating positions
+  IndexPrice[] deleveragingWalletIndexPrices;
+  // Index prices for union of liquidating and IF wallet position
+  IndexPrice[] validateInsuranceFundCannotLiquidateWalletIndexPrices;
+  // Index prices for liquidating wallet before liquidation
+  IndexPrice[] liquidatingWalletIndexPrices;
 }
 
 /**
@@ -38,11 +46,16 @@ struct Balance {
 struct ClosureDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
-  address liquidatingWallet; // IF or EF depending on delerageType
-  int64 liquidationBaseQuantity;
-  int64 liquidationQuoteQuantity;
-  IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
-  IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
+  // IF or EF depending on delerageType
+  address liquidatingWallet;
+  // Base quantity to decrease position being liquidated
+  uint64 liquidationBaseQuantity;
+  // Quote quantity for the position being liquidated
+  uint64 liquidationQuoteQuantity;
+  // Index prices for liquidating wallet before liquidation
+  IndexPrice[] liquidatingWalletIndexPrices;
+  // Index prices for deleveraging wallet after acquiring liquidated positions
+  IndexPrice[] deleveragingWalletIndexPrices;
 }
 
 /**
@@ -53,7 +66,7 @@ struct DelegatedKeyAuthorization {
   uint128 nonce;
   // Public component of ECDSA signing key pair
   address delegatedPublicKey;
-  // ECDSA signature of hash by delegate private key
+  // ECDSA signature of hash by issuing custody wallet private key
   bytes signature;
 }
 
@@ -231,7 +244,7 @@ struct WalletLiquidationArguments {
   IndexPrice[] counterpartyWalletIndexPrices; // After acquiring liquidated positions
   address liquidatingWallet;
   IndexPrice[] liquidatingWalletIndexPrices;
-  int64[] liquidationQuoteQuantities;
+  uint64[] liquidationQuoteQuantities;
 }
 
 /**

@@ -85,7 +85,7 @@ library FundingMultiplierQuartetHelper {
     uint256 startOffset,
     uint256 endOffset
   ) private pure returns (int64 aggregateMultiplier) {
-    if (startOffset >= 0) {
+    if (startOffset == 0) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier0;
     }
     if (startOffset <= 1 && endOffset >= 1) {

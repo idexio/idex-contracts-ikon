@@ -4,14 +4,17 @@ pragma solidity 0.8.17;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
+import { Funding } from "./Funding.sol";
 import { Validations } from "./Validations.sol";
-import { IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
+import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
 
 library MarketAdmin {
   // TODO Validations
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
     Market memory newMarket,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
@@ -24,6 +27,12 @@ library MarketAdmin {
     newMarket.indexPriceAtDeactivation = 0;
 
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
+
+    Funding.backfillFundingMultipliersForMarket(
+      newMarket,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+    );
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -48,7 +57,7 @@ library MarketAdmin {
     Market storage market = marketsByBaseAssetSymbol[baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
-    Validations.validateAndUpdateIndexPrice(indexPrice, market, indexPriceCollectionServiceWallets);
+    Validations.validateAndUpdateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
 
     market.isActive = false;
     market.indexPriceAtDeactivation = indexPrice.price;

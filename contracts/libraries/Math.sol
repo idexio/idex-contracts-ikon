@@ -7,23 +7,39 @@ library Math {
     return uint64(signed < 0 ? -1 * signed : signed);
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L45
   function divideRoundUp(uint64 a, uint64 b) internal pure returns (uint64) {
-    return (a + b - 1) / b;
+    // (a + b - 1) / b can overflow on addition, so we distribute.
+    return a == 0 ? 0 : (a - 1) / b + 1;
   }
 
   function divideRoundNearest(uint64 a, uint64 b) internal pure returns (uint64) {
     uint64 halfB = (b % 2 == 0) ? (b / 2) : (b / 2 + 1);
-    return (a % b >= halfB) ? (a / b + 1) : (a / b);
+    if (a % b >= halfB) {
+      // If remainder is greater than or equal to half of divisor, round up
+      return (a / b) + 1;
+    } else {
+      // Otherwise round down (default division behavior)
+      return a / b;
+    }
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L19
+  function max(uint64 a, uint64 b) internal pure returns (uint64) {
+    return a >= b ? a : b;
+  }
+
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L19
   function max(int64 a, int64 b) internal pure returns (int64) {
     return a >= b ? a : b;
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L26
   function min(int64 a, int64 b) internal pure returns (int64) {
     return a <= b ? a : b;
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L26
   function min(uint64 a, uint64 b) internal pure returns (uint64) {
     return a <= b ? a : b;
   }

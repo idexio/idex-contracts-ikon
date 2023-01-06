@@ -7,8 +7,8 @@ import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
-import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library PositionInDeactivatedMarketLiquidation {
@@ -21,9 +21,13 @@ library PositionInDeactivatedMarketLiquidation {
   struct Arguments {
     // External arguments
     string baseAssetSymbol;
+    uint64 feeQuantity;
+    address feeWallet;
     address liquidatingWallet;
-    int64 liquidationQuoteQuantity; // For the position being liquidated
-    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+    // Quote quantity for the position being liquidated
+    uint64 liquidationQuoteQuantity;
+    // Index prices for liquidating wallet before liquidation
+    IndexPrice[] liquidatingWalletIndexPrices;
     // Exchange state
     address[] indexPriceCollectionServiceWallets;
   }
@@ -91,8 +95,15 @@ library PositionInDeactivatedMarketLiquidation {
       arguments.liquidationQuoteQuantity
     );
 
+    require(
+      Validations.isFeeQuantityValid(arguments.feeQuantity, arguments.liquidationQuoteQuantity),
+      "Excessive maker fee"
+    );
+
     balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,
+      arguments.feeQuantity,
+      arguments.feeWallet,
       arguments.liquidatingWallet,
       arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet

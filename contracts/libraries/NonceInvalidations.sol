@@ -3,6 +3,7 @@
 pragma solidity 0.8.17;
 
 import { NonceInvalidation } from "./Structs.sol";
+import { Time } from "./Time.sol";
 import { UUID } from "./UUID.sol";
 
 library NonceInvalidations {
@@ -14,7 +15,7 @@ library NonceInvalidations {
     timestampInMs = UUID.getTimestampInMsFromUuidV1(nonce);
     // Enforce a maximum skew for invalidating nonce timestamps in the future so the user doesn't
     // lock their wallet from trades indefinitely
-    require(timestampInMs < _getOneDayFromNowInMs(), "Nonce timestamp too high");
+    require(timestampInMs < Time.getOneDayFromNowInMs(), "Nonce timestamp too high");
 
     if (self[msg.sender].length > 0) {
       NonceInvalidation storage lastInvalidation = self[msg.sender][self[msg.sender].length - 1];
@@ -49,12 +50,5 @@ library NonceInvalidations {
     }
 
     return 0;
-  }
-
-  function _getOneDayFromNowInMs() private view returns (uint64) {
-    uint64 secondsInOneDay = 24 * 60 * 60; // 24 hours/day * 60 min/hour * 60 seconds/min
-    uint64 msInOneSecond = 1000;
-
-    return (uint64(block.timestamp) + secondsInOneDay) * msInOneSecond;
   }
 }

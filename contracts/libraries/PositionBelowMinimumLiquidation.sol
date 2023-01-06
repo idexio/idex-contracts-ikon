@@ -9,7 +9,6 @@ import { Math } from "./Math.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
-import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
@@ -19,6 +18,8 @@ library PositionBelowMinimumLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  uint64 private constant _QUANTITY_BELOW_VALIDATION_THRESHOLD = 10;
+
   /**
    * @dev Argument for `liquidate`
    */
@@ -26,11 +27,11 @@ library PositionBelowMinimumLiquidation {
     // External arguments
     string baseAssetSymbol;
     address liquidatingWallet;
-    int64 liquidationQuoteQuantity; // For the position being liquidated
+    uint64 liquidationQuoteQuantity; // For the position being liquidated
     IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
     IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
     // Exchange state
-    uint64 dustPositionLiquidationPriceTolerance;
+    uint64 positionBelowMinimumLiquidationPriceToleranceMultiplier;
     address insuranceFundWallet;
     address[] indexPriceCollectionServiceWallets;
   }
@@ -86,7 +87,7 @@ library PositionBelowMinimumLiquidation {
     );
   }
 
-  function _loadMarketAndIndexPrice(
+  function _loadAndValidateMarketAndIndexPrice(
     Arguments memory arguments,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
@@ -100,6 +101,8 @@ library PositionBelowMinimumLiquidation {
     require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
 
     indexPrice = arguments.liquidatingWalletIndexPrices[i];
+    // The index price signature and array position were already validated by
+    // loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice
   }
 
   function _updateBalances(
@@ -112,10 +115,10 @@ library PositionBelowMinimumLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
     balanceTracking.updatePositionForLiquidation(
-      positionSize,
       arguments.insuranceFundWallet,
       arguments.liquidatingWallet,
       market,
+      positionSize,
       arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -131,12 +134,11 @@ library PositionBelowMinimumLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, IndexPrice memory indexPrice) = _loadMarketAndIndexPrice(
+    (Market memory market, IndexPrice memory indexPrice) = _loadAndValidateMarketAndIndexPrice(
       arguments,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    Validations.validateIndexPrice(indexPrice, arguments.indexPriceCollectionServiceWallets, market);
 
     // Validate that position is under dust threshold
     int64 positionSize = balanceTracking.loadBalanceAndMigrateIfNeeded(
@@ -154,7 +156,7 @@ library PositionBelowMinimumLiquidation {
 
     // Validate quote quantity
     _validateQuoteQuantity(
-      arguments.dustPositionLiquidationPriceTolerance,
+      arguments.positionBelowMinimumLiquidationPriceToleranceMultiplier,
       arguments.liquidationQuoteQuantity,
       indexPrice.price,
       positionSize
@@ -173,21 +175,31 @@ library PositionBelowMinimumLiquidation {
 
   function _validateQuoteQuantity(
     uint64 positionBelowMinimumLiquidationPriceTolerance,
-    int64 liquidationQuoteQuantity,
+    uint64 liquidationQuoteQuantity,
     uint64 indexPrice,
     int64 positionSize
   ) private pure {
-    int64 expectedLiquidationQuoteQuantities = Math.multiplyPipsByFraction(
-      positionSize,
-      int64(indexPrice),
-      int64(Constants.PIP_PRICE_MULTIPLIER)
+    if (
+      liquidationQuoteQuantity < _QUANTITY_BELOW_VALIDATION_THRESHOLD &&
+      Math.abs(positionSize) < _QUANTITY_BELOW_VALIDATION_THRESHOLD
+    ) {
+      return;
+    }
+
+    uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
+      Math.abs(positionSize),
+      indexPrice,
+      Constants.PIP_PRICE_MULTIPLIER
     );
-    uint64 tolerance = (positionBelowMinimumLiquidationPriceTolerance * Math.abs(expectedLiquidationQuoteQuantities)) /
-      Constants.PIP_PRICE_MULTIPLIER;
+    uint64 tolerance = Math.multiplyPipsByFraction(
+      positionBelowMinimumLiquidationPriceTolerance,
+      expectedLiquidationQuoteQuantity,
+      Constants.PIP_PRICE_MULTIPLIER
+    );
 
     require(
-      expectedLiquidationQuoteQuantities - int64(tolerance) <= liquidationQuoteQuantity &&
-        expectedLiquidationQuoteQuantities + int64(tolerance) >= liquidationQuoteQuantity,
+      expectedLiquidationQuoteQuantity - tolerance <= liquidationQuoteQuantity &&
+        expectedLiquidationQuoteQuantity + tolerance >= liquidationQuoteQuantity,
       "Invalid liquidation quote quantity"
     );
   }

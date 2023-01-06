@@ -11,8 +11,7 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, WalletLiquidationArguments } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletLiquidationArguments } from "./Structs.sol";
 
 library WalletLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -79,7 +78,7 @@ library WalletLiquidation {
 
     if (arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
       resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-        arguments.externalArguments.liquidatingWallet,
+        arguments.exitFundWallet,
         currentExitFundPositionOpenedAtBlockNumber,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
@@ -110,8 +109,6 @@ library WalletLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    // FIXME Do not allow liquidation of insurance or exit funds
-
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
         NonMutatingMargin.LoadArguments(
@@ -165,16 +162,15 @@ library WalletLiquidation {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    Balance storage balance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+    // The index price signature and array position were already validated by
+    // loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice
+
+    Balance memory balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.externalArguments.liquidatingWallet,
       market.baseAssetSymbol
     );
-    Validations.validateIndexPrice(
-      arguments.externalArguments.liquidatingWalletIndexPrices[index],
-      arguments.indexPriceCollectionServiceWallets,
-      market
-    );
 
+    // Validate quote quantity
     if (
       arguments.liquidationType == LiquidationType.WalletInMaintenance ||
       arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
@@ -189,26 +185,34 @@ library WalletLiquidation {
           .overridableFields
           .maintenanceMarginFraction,
         arguments.externalArguments.liquidatingWalletIndexPrices[index].price,
-        balance.balance,
+        balanceStruct.balance,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
     } else {
       // LiquidationType.WalletExited
       LiquidationValidations.validateExitQuoteQuantity(
-        balance.costBasis,
+        balanceStruct.costBasis,
         arguments.externalArguments.liquidationQuoteQuantities[index],
         arguments.externalArguments.liquidatingWalletIndexPrices[index].price,
-        balance.balance,
-        totalAccountValue
+        market
+          .loadMarketWithOverridesForWallet(
+            arguments.externalArguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .overridableFields
+          .maintenanceMarginFraction,
+        balanceStruct.balance,
+        totalAccountValue,
+        totalMaintenanceMarginRequirement
       );
     }
 
     balanceTracking.updatePositionForLiquidation(
-      balance.balance,
       arguments.externalArguments.counterpartyWallet,
       arguments.externalArguments.liquidatingWallet,
       market,
+      balanceStruct.balance,
       arguments.externalArguments.liquidationQuoteQuantities[index],
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,

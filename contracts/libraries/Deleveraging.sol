@@ -3,13 +3,15 @@
 pragma solidity 0.8.17;
 
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { Validations } from "./Validations.sol";
 import { IndexPrice, Market } from "./Structs.sol";
 
 library Deleveraging {
   using SortedStringSet for string[];
 
-  function loadMarketAndIndexPrice(
+  function loadAndValidateMarketAndIndexPrice(
     string memory baseAssetSymbol,
+    address[] memory indexPriceCollectionServiceWallets,
     address liquidatingWallet,
     IndexPrice[] memory indexPrices,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -22,5 +24,7 @@ library Deleveraging {
     require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
 
     indexPrice = indexPrices[i];
+
+    Validations.validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
   }
 }

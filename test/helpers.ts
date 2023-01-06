@@ -16,7 +16,6 @@ import {
   getExecuteOrderBookTradeArguments,
   getIndexPriceHash,
   getOrderHash,
-  getPublishFundingMutiplierArguments,
   indexPriceToArgumentStruct,
   IndexPrice,
   Order,
@@ -85,7 +84,7 @@ export async function bootstrapLiquidatedWallet() {
       ],
       liquidatingWallet: trader1Wallet.address,
       liquidatingWalletIndexPrices: [indexPriceToArgumentStruct(newIndexPrice)],
-      liquidationQuoteQuantities: ['-21980.00000000'].map(decimalToPips),
+      liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
     })
   ).wait();
 
@@ -122,7 +121,7 @@ export async function buildIndexPrices(
       .map(async (_, i) => {
         const indexPrice = {
           baseAssetSymbol,
-          timestampInMs: getPastPeriodInMs(count - i),
+          timestampInMs: getNextPeriodInMs(i),
           price: prices[i % prices.length],
         };
         const signature = await index.signMessage(
@@ -242,7 +241,6 @@ export async function deployAndAssociateContracts(
   feeWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
   indexPriceCollectionServiceWallet: SignerWithAddress = owner,
-  includeInitialFundingPayment = true,
   governanceBlockDelay = 0,
 ) {
   const { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc } =
@@ -286,28 +284,6 @@ export async function deployAndAssociateContracts(
     ).wait(),
   ]);
   (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
-
-  if (includeInitialFundingPayment) {
-    const initialIndexPrice = {
-      baseAssetSymbol,
-      timestampInMs: getPastPeriodInMs(100),
-      price: prices[0],
-    };
-    const signature = await indexPriceCollectionServiceWallet.signMessage(
-      ethers.utils.arrayify(
-        getIndexPriceHash(initialIndexPrice, quoteAssetSymbol),
-      ),
-    );
-
-    await (
-      await exchange.connect(dispatcher).publishFundingMutiplier(
-        ...getPublishFundingMutiplierArguments(buildFundingRates(1)[0], {
-          ...initialIndexPrice,
-          signature,
-        }),
-      )
-    ).wait();
-  }
 
   return {
     chainlinkAggregator,
@@ -501,12 +477,11 @@ export async function fundWallets(
   );
 }
 
-function getPastPeriodInMs(periodsAgo = 0) {
+function getNextPeriodInMs(periodsInFuture = 0) {
   return new Date(
     Math.round(
-      (new Date().getTime() - periodsAgo * fundingPeriodLengthInMs) /
-        fundingPeriodLengthInMs,
-    ) * fundingPeriodLengthInMs,
+      new Date().getTime() + periodsInFuture * fundingPeriodLengthInMs,
+    ),
   ).getTime();
 }
 
