@@ -412,7 +412,7 @@ library BalanceTracking {
     Balance memory migratedBalanceStruct;
     if (!balance.isMigrated && address(self.migrationSource) != address(0x0)) {
       migratedBalanceStruct = self.migrationSource.loadBalanceStructBySymbol(wallet, assetSymbol);
-      balance.isMigrated = true;
+      migratedBalanceStruct.isMigrated = true;
       balance.balance = migratedBalanceStruct.balance;
       balance.lastUpdateTimestampInMs = migratedBalanceStruct.lastUpdateTimestampInMs;
       balance.costBasis = migratedBalanceStruct.costBasis;

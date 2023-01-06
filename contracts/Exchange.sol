@@ -781,7 +781,12 @@ contract Exchange_v4 is IExchange, Owned {
   // Market management //
 
   function addMarket(Market calldata newMarket) external onlyAdmin {
-    MarketAdmin.addMarket_delegatecall(newMarket, marketsByBaseAssetSymbol);
+    MarketAdmin.addMarket_delegatecall(
+      newMarket,
+      fundingMultipliersByBaseAssetSymbol,
+      _lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
   }
 
   // TODO Update market

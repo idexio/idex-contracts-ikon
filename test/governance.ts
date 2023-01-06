@@ -287,7 +287,6 @@ describe('Governance', function () {
         ownerWallet,
         ownerWallet,
         ownerWallet,
-        true,
         100,
       );
       governance = results.governance;
@@ -440,7 +439,6 @@ describe('Governance', function () {
         ownerWallet,
         ownerWallet,
         ownerWallet,
-        true,
         100,
       );
       governance = results.governance;

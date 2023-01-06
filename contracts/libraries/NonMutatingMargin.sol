@@ -282,7 +282,7 @@ library NonMutatingMargin {
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (int64 insuranceFundTotalAccountValue) {
     insuranceFundTotalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-      arguments.liquidatingWallet,
+      arguments.insuranceFundWallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
 
@@ -313,7 +313,7 @@ library NonMutatingMargin {
 
       // If position is non-zero then include in total account value
       if (insuranceFundPositionSize != 0) {
-        // Accumulate account value by first adding position value...
+        // Accumulate account value by adding signed position value
         insuranceFundTotalAccountValue += Math.multiplyPipsByFraction(
           insuranceFundPositionSize,
           int64(arguments.indexPrices[i]),

@@ -7,6 +7,7 @@ import { Math } from "./Math.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { Time } from "./Time.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
 
@@ -127,6 +128,22 @@ library Funding {
     fundingMultipliersByBaseAssetSymbol[indexPrice.baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
 
     lastFundingRatePublishTimestampInMsByBaseAssetSymbol[indexPrice.baseAssetSymbol] = nextPublishTimestampInMs;
+  }
+
+  function backfillFundingMultipliersForMarket(
+    Market memory market,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+  ) internal {
+    uint64 periodsToBackfill = Math.max(1, Time.getMsSinceMidnight() / Constants.FUNDING_PERIOD_IN_MS);
+    for (uint64 j = 0; j < periodsToBackfill; j++) {
+      fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].publishFundingMultipler(0);
+    }
+
+    lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol] =
+      Time.getMidnightTodayInMs() +
+      // Midnight today is always the first period to be backfilled
+      ((periodsToBackfill - 1) * Constants.FUNDING_PERIOD_IN_MS);
   }
 
   // solhint-disable-next-line func-name-mixedcase
