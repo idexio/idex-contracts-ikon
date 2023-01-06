@@ -154,12 +154,26 @@ library BalanceTracking {
 
   // Wallet exits //
 
+  function updateExitFundWalletForExit(
+    Storage storage self,
+    address exitFundWallet
+  ) internal returns (int64 walletQuoteQuantityToWithdraw) {
+    Balance storage balanceStruct = loadBalanceStructAndMigrateIfNeeded(
+      self,
+      exitFundWallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+
+    walletQuoteQuantityToWithdraw = balanceStruct.balance;
+    balanceStruct.balance = 0;
+  }
+
   /**
    * @return The signed change to the EF's quote balance as a result of closing the position. This will be negative for
    * a short position and positive for a long position. This function does not update the EF's quote balance itself;
    * that is left to the calling function so that it can perform a single update with the sum of each position's result
    */
-  function updateForExit(
+  function updatePositionForExit(
     Storage storage self,
     UpdateForExitArguments memory arguments,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,

@@ -54,13 +54,9 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (int64 newExchangeBalance) {
-    // Validations
+    // Validate preconditions
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
-      require(
-        arguments.exitFundPositionOpenedAtBlockNumber == 0 ||
-          block.number >= arguments.exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
-        "EF position opened too recently"
-      );
+      _validateExitFundWithdrawDelayElapsed(arguments.exitFundPositionOpenedAtBlockNumber);
     }
     require(
       Validations.isFeeQuantityValid(arguments.withdrawal.gasFee, arguments.withdrawal.grossQuantity),
@@ -81,21 +77,26 @@ library Withdrawing {
     // Update wallet balances
     newExchangeBalance = balanceTracking.updateForWithdrawal(arguments.withdrawal, arguments.feeWallet);
 
-    // Wallet must still maintain initial margin requirement after withdrawal
-    require(
-      MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        NonMutatingMargin.LoadArguments(
-          arguments.withdrawal.wallet,
-          arguments.indexPrices,
-          arguments.indexPriceCollectionServiceWallets
+    // EF has no margin requirements but may only withdraw to zero
+    if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
+      require(newExchangeBalance >= 0, "EF may only withdraw to zero");
+    } else {
+      // Wallet must still maintain initial margin requirement after withdrawal
+      require(
+        MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
+          NonMutatingMargin.LoadArguments(
+            arguments.withdrawal.wallet,
+            arguments.indexPrices,
+            arguments.indexPriceCollectionServiceWallets
+          ),
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
         ),
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      ),
-      "Initial margin requirement not met for buy wallet"
-    );
+        "Initial margin requirement not met"
+      );
+    }
 
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
@@ -132,9 +133,14 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    // The wallet's change in quote quantity is inverse to the EF's change in quote quantity
-    int64 walletQuoteQuantityChange = -1 *
-      _updatePositionsForExit(
+    int64 walletQuoteQuantityToWithdraw;
+
+    if (arguments.wallet == arguments.exitFundWallet) {
+      _validateExitFundWithdrawDelayElapsed(exitFundPositionOpenedAtBlockNumber);
+
+      walletQuoteQuantityToWithdraw = balanceTracking.updateExitFundWalletForExit(arguments.exitFundWallet);
+    } else {
+      walletQuoteQuantityToWithdraw = _updatePositionsForWalletExit(
         arguments,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -142,22 +148,14 @@ library Withdrawing {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
+    }
 
-    Balance storage balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
-      arguments.wallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
-    // Add any existing quote balance to the quote change from positions to obtain total amount for withdrawal
-    walletQuoteQuantityChange += balanceStruct.balance;
-    // Zero out quote balance
-    balanceStruct.balance = 0;
-
-    require(walletQuoteQuantityChange >= 0, "Negative quote after exit");
+    require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
 
     arguments.custodian.withdraw(
       arguments.wallet,
       arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityChange), Constants.QUOTE_ASSET_DECIMALS)
+      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_ASSET_DECIMALS)
     );
 
     return (
@@ -167,46 +165,18 @@ library Withdrawing {
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
-      uint64(walletQuoteQuantityChange)
+      uint64(walletQuoteQuantityToWithdraw)
     );
   }
 
-  function _updateBalancesForPositionExit(
-    WithdrawExitArguments memory arguments,
-    string memory baseAssetSymbol,
-    uint64 maintenanceMarginFraction,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (int64 exitFundQuoteQuantityChange) {
-    return
-      balanceTracking.updateForExit(
-        BalanceTracking.UpdateForExitArguments(
-          arguments.exitFundWallet,
-          marketsByBaseAssetSymbol[baseAssetSymbol],
-          maintenanceMarginFraction,
-          totalAccountValue,
-          totalMaintenanceMarginRequirement,
-          arguments.wallet
-        ),
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
-      );
-  }
-
-  function _updatePositionsForExit(
+  function _updatePositionsForWalletExit(
     WithdrawExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (int64 exitFundQuoteQuantityChange) {
+  ) private returns (int64 walletQuoteQuantityToWithdraw) {
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         arguments.wallet,
@@ -216,23 +186,26 @@ library Withdrawing {
         marketsByBaseAssetSymbol
       );
 
+    int64 exitFundQuoteQuantityChange;
+
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       // Sum EF quote quantity change needed to close each wallet position
-      exitFundQuoteQuantityChange += _updateBalancesForPositionExit(
-        arguments,
-        baseAssetSymbols[i],
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]]
-          .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
-        balanceTracking,
+      exitFundQuoteQuantityChange += balanceTracking.updatePositionForExit(
+        BalanceTracking.UpdateForExitArguments(
+          arguments.exitFundWallet,
+          marketsByBaseAssetSymbol[baseAssetSymbols[i]],
+          marketsByBaseAssetSymbol[baseAssetSymbols[i]]
+            .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+            .overridableFields
+            .maintenanceMarginFraction,
+          totalAccountValue,
+          totalMaintenanceMarginRequirement,
+          arguments.wallet
+        ),
         baseAssetSymbolsWithOpenPositionsByWallet,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+        marketOverridesByBaseAssetSymbolAndWallet
       );
     }
 
@@ -242,6 +215,22 @@ library Withdrawing {
       Constants.QUOTE_ASSET_SYMBOL
     );
     balanceStruct.balance += exitFundQuoteQuantityChange;
+
+    // Update exiting wallet's quote balance
+    balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(arguments.wallet, Constants.QUOTE_ASSET_SYMBOL);
+    // The wallet's change in quote quantity from position closure is inverse to that of the EF to acquire them.
+    // Subtract the EF quote change from wallet's existing quote balance to obtain total quote available for withdrawal
+    walletQuoteQuantityToWithdraw = balanceStruct.balance - exitFundQuoteQuantityChange;
+    // Zero out quote balance
+    balanceStruct.balance = 0;
+  }
+
+  function _validateExitFundWithdrawDelayElapsed(uint256 exitFundPositionOpenedAtBlockNumber) private view {
+    require(
+      exitFundPositionOpenedAtBlockNumber == 0 ||
+        block.number >= exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
+      "EF position opened too recently"
+    );
   }
 
   function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {

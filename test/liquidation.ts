@@ -11,7 +11,6 @@ import {
   deployAndAssociateContracts,
   executeTrade,
   fundWallets,
-  logWalletBalances,
 } from './helpers';
 
 describe('Exchange', function () {

@@ -42,6 +42,7 @@ library LiquidationValidations {
       totalAccountValue,
       totalMaintenanceMarginRequirement
     );
+
     quoteQuantity = positionSize < 0
       ? Math.min(quoteQuantity, quoteQuantityToLiquidate)
       : Math.max(quoteQuantity, quoteQuantityToLiquidate);
