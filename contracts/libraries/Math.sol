@@ -24,18 +24,22 @@ library Math {
     }
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L19
   function max(uint64 a, uint64 b) internal pure returns (uint64) {
     return a >= b ? a : b;
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L19
   function max(int64 a, int64 b) internal pure returns (int64) {
     return a >= b ? a : b;
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L26
   function min(int64 a, int64 b) internal pure returns (int64) {
     return a <= b ? a : b;
   }
 
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L26
   function min(uint64 a, uint64 b) internal pure returns (uint64) {
     return a <= b ? a : b;
   }

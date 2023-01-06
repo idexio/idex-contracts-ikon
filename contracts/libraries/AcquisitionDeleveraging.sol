@@ -7,11 +7,10 @@ import { DeleverageType } from "./Enums.sol";
 import { Deleveraging } from "./Deleveraging.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Math } from "./Math.sol";
 import { MarketHelper } from "./MarketHelper.sol";
+import { Math } from "./Math.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
-import { String } from "./String.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { AcquisitionDeleverageArguments, Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
@@ -143,13 +142,13 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    // Build array with union of open position base asset symbols for both liquidating and IF wallets. Result of merge
+    // Build array of union of open position base asset symbols for both liquidating and IF wallets. Result of merge
     // will already be de-duped and sorted
     string[] memory baseAssetSymbolsForInsuranceFundAndLiquidatingWallet = baseAssetSymbolsWithOpenPositionsByWallet[
       arguments.insuranceFundWallet
     ].merge(baseAssetSymbolsWithOpenPositionsByWallet[arguments.externalArguments.liquidatingWallet]);
 
-    // Build struct to hold arguments needed to perform validation against IF liquidation of wallet
+    // Allocate struct to hold arguments needed to perform validation against IF liquidation of wallet
     NonMutatingMargin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments = NonMutatingMargin
       .ValidateInsuranceFundCannotLiquidateWalletArguments(
         arguments.insuranceFundWallet,
@@ -160,8 +159,9 @@ library AcquisitionDeleveraging {
         arguments.indexPriceCollectionServiceWallets
       );
 
+    // Loop through open position union and populate argument struct fields
     for (uint8 i = 0; i < baseAssetSymbolsForInsuranceFundAndLiquidatingWallet.length; i++) {
-      // Load market and index price for symbol
+      // Load market
       loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]];
       // Validate index price signature and array position and update market with its timestamp
       Validations.validateAndUpdateIndexPrice(
@@ -220,6 +220,7 @@ library AcquisitionDeleveraging {
       }
     }
 
+    // Argument struct is populated with validated field values, pass through to margin validation
     NonMutatingMargin.validateInsuranceFundCannotLiquidateWallet(
       loadArguments,
       balanceTracking,

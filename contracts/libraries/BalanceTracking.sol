@@ -9,7 +9,6 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { OrderSide } from "./Enums.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { UUID } from "./UUID.sol";
 import { Balance, ExecuteOrderBookTradeArguments, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
 library BalanceTracking {

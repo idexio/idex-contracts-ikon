@@ -161,6 +161,9 @@ library LiquidationValidations {
 
   // Private //
 
+  /**
+   * @dev Calculates quote quantity needed to close position at bankruptcy price
+   */
   function _calculateLiquidationQuoteQuantityToClosePositions(
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,

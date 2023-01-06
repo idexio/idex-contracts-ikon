@@ -7,12 +7,10 @@ import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationType } from "./Enums.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Math } from "./Math.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletLiquidationArguments } from "./Structs.sol";
 
 library WalletLiquidation {
@@ -172,6 +170,7 @@ library WalletLiquidation {
       market.baseAssetSymbol
     );
 
+    // Validate quote quantity
     if (
       arguments.liquidationType == LiquidationType.WalletInMaintenance ||
       arguments.liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery

@@ -15,12 +15,18 @@ struct AcquisitionDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
   address liquidatingWallet;
-  uint64[] validateInsuranceFundCannotLiquidateWalletQuoteQuantities; // Liquidation quote quantities for union of liquidating and IF wallet positions
-  uint64 liquidationBaseQuantity; // Base quantity to decrease position being liquidated
-  uint64 liquidationQuoteQuantity; // Quote quantity for the position being liquidated
-  IndexPrice[] deleveragingWalletIndexPrices; // Index prices for deleveraging wallet after acquiring liquidating positions
-  IndexPrice[] validateInsuranceFundCannotLiquidateWalletIndexPrices; // Index prices for union of liquidating and IF wallet position
-  IndexPrice[] liquidatingWalletIndexPrices; // Index prices for liquidating wallet before liquidation
+  // Liquidation quote quantities for union of liquidating and IF wallet positions
+  uint64[] validateInsuranceFundCannotLiquidateWalletQuoteQuantities;
+  // Base quantity to decrease position being liquidated
+  uint64 liquidationBaseQuantity;
+  // Quote quantity for the position being liquidated
+  uint64 liquidationQuoteQuantity;
+  // Index prices for deleveraging wallet after acquiring liquidating positions
+  IndexPrice[] deleveragingWalletIndexPrices;
+  // Index prices for union of liquidating and IF wallet position
+  IndexPrice[] validateInsuranceFundCannotLiquidateWalletIndexPrices;
+  // Index prices for liquidating wallet before liquidation
+  IndexPrice[] liquidatingWalletIndexPrices;
 }
 
 /**
@@ -40,11 +46,16 @@ struct Balance {
 struct ClosureDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
-  address liquidatingWallet; // IF or EF depending on delerageType
+  // IF or EF depending on delerageType
+  address liquidatingWallet;
+  // Base quantity to decrease position being liquidated
   uint64 liquidationBaseQuantity;
+  // Quote quantity for the position being liquidated
   uint64 liquidationQuoteQuantity;
-  IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
-  IndexPrice[] deleveragingWalletIndexPrices; // After acquiring IF positions
+  // Index prices for liquidating wallet before liquidation
+  IndexPrice[] liquidatingWalletIndexPrices;
+  // Index prices for deleveraging wallet after acquiring liquidated positions
+  IndexPrice[] deleveragingWalletIndexPrices;
 }
 
 /**

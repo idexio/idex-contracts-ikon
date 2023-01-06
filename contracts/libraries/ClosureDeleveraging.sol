@@ -12,7 +12,6 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { Validations } from "./Validations.sol";
 import { Balance, ClosureDeleverageArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library ClosureDeleveraging {
@@ -113,8 +112,8 @@ library ClosureDeleveraging {
 
     _validateQuoteQuantityAndDeleveragePosition(
       arguments,
-      market,
       indexPrice,
+      market,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -125,8 +124,8 @@ library ClosureDeleveraging {
 
   function _validateQuoteQuantityAndDeleveragePosition(
     Arguments memory arguments,
-    Market memory market,
     IndexPrice memory indexPrice,
+    Market memory market,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -138,6 +137,7 @@ library ClosureDeleveraging {
       market.baseAssetSymbol
     );
 
+    // Validate quote quantity
     if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
       LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(
         arguments.externalArguments.liquidationBaseQuantity,
@@ -160,6 +160,8 @@ library ClosureDeleveraging {
           marketsByBaseAssetSymbol
         );
 
+      // The provided liquidationBaseQuantity specifies how much of the position to liquidate, so we provide this
+      // quantity as the position size to validateExitFundClosureQuoteQuantity while observing the same signedness
       LiquidationValidations.validateExitFundClosureQuoteQuantity(
         balanceStruct.balance < 0
           ? (-1 * int64(arguments.externalArguments.liquidationBaseQuantity))

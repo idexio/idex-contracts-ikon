@@ -24,8 +24,10 @@ library PositionInDeactivatedMarketLiquidation {
     uint64 feeQuantity;
     address feeWallet;
     address liquidatingWallet;
-    uint64 liquidationQuoteQuantity; // For the position being liquidated
-    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+    // Quote quantity for the position being liquidated
+    uint64 liquidationQuoteQuantity;
+    // Index prices for liquidating wallet before liquidation
+    IndexPrice[] liquidatingWalletIndexPrices;
     // Exchange state
     address[] indexPriceCollectionServiceWallets;
   }

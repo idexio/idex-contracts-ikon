@@ -4,7 +4,6 @@ pragma solidity 0.8.17;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
-import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
@@ -26,7 +25,8 @@ library NonMutatingMargin {
     address liquidatingWallet;
     uint64[] liquidationQuoteQuantities;
     Market[] markets;
-    uint64[] indexPrices; // Prices only, calling function validates index price struct
+    // Price values only, calling function should validate index price struct
+    uint64[] indexPrices;
     address[] indexPriceCollectionServiceWallets;
   }
 
