@@ -21,7 +21,8 @@ export {
 };
 
 export type LibraryName =
-  | 'Deleveraging'
+  | 'AcquisitionDeleveraging'
+  | 'ClosureDeleveraging'
   | 'Depositing'
   | 'Funding'
   | 'MarketAdmin'

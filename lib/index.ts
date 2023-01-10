@@ -1,18 +1,24 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import {
+  AcquisitionDeleverageArgumentsStruct,
+  ClosureDeleverageArgumentsStruct,
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
+  WalletLiquidationArgumentsStruct,
   WithdrawalStruct,
 } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
 
 import * as contracts from './contracts';
 
 export {
+  AcquisitionDeleverageArgumentsStruct,
+  ClosureDeleverageArgumentsStruct,
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
+  WalletLiquidationArgumentsStruct,
   WithdrawalStruct,
 };
 
