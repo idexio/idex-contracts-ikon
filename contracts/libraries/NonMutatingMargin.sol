@@ -6,6 +6,7 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
+import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
@@ -28,6 +29,57 @@ library NonMutatingMargin {
     // Price values only, calling function should validate index price struct
     uint64[] indexPrices;
     address[] indexPriceCollectionServiceWallets;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (int64 quoteQuantityAvailableForExitWithdrawal) {
+    quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
+      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+
+    Balance memory balanceStruct;
+    uint64 quoteQuantityForPosition;
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
+
+      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
+        balanceStruct.costBasis,
+        // Market indexed redundantly to avoid stack too deep error
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]].loadOnChainFeedPrice(),
+        marketsByBaseAssetSymbol[baseAssetSymbols[i]]
+          .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        balanceStruct.balance,
+        totalAccountValue,
+        totalMaintenanceMarginRequirement
+      );
+
+      // For short positions, the wallet gives quote to close the position so subtract. For long positions, the wallet
+      // receives quote to close so add
+      if (balanceStruct.balance < 0) {
+        quoteQuantityAvailableForExitWithdrawal -= int64(quoteQuantityForPosition);
+      } else {
+        quoteQuantityAvailableForExitWithdrawal += int64(quoteQuantityForPosition);
+      }
+    }
   }
 
   // solhint-disable-next-line func-name-mixedcase

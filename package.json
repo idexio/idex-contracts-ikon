@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",

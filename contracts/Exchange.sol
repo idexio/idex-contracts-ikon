@@ -449,6 +449,25 @@ contract Exchange_v4 is IExchange, Owned {
     }
   }
 
+  /**
+   * @notice Load the balance of quote asset the wallet can withdraw after exiting, in pips
+   *
+   * @param wallet The wallet address to load the exit quote balance for. Can be different from `msg.sender`
+   *
+   * @return balance The quantity denominated in pips of quote asset that can be withdrawn after exiting the wallet.
+   * Result may be negative, indicating a withdrawal would fail after exit
+   */
+  function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) external view returns (int64) {
+    return
+      NonMutatingMargin.loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
+        wallet,
+        _balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
   // Dispatcher whitelisting //
 
   /**
