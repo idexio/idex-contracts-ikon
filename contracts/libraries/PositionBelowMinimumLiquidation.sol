@@ -18,7 +18,7 @@ library PositionBelowMinimumLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
-  uint64 private constant _QUANTITY_BELOW_VALIDATION_THRESHOLD = 10;
+  uint64 private constant _MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD = 10000;
 
   /**
    * @dev Argument for `liquidate`
@@ -160,6 +160,7 @@ library PositionBelowMinimumLiquidation {
       positionSize
     );
 
+    // Need to wrap `balanceTracking.updatePositionForLiquidation` with helper to avoid stack too deep error
     _updateBalances(
       arguments,
       market,
@@ -177,18 +178,17 @@ library PositionBelowMinimumLiquidation {
     uint64 indexPrice,
     int64 positionSize
   ) private pure {
-    if (
-      liquidationQuoteQuantity < _QUANTITY_BELOW_VALIDATION_THRESHOLD &&
-      Math.abs(positionSize) < _QUANTITY_BELOW_VALIDATION_THRESHOLD
-    ) {
-      return;
-    }
-
     uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
       Math.abs(positionSize),
       indexPrice,
       Constants.PIP_PRICE_MULTIPLIER
     );
+
+    // Skip validation for positions with very low quote values to avoid false positives due to rounding error
+    if (expectedLiquidationQuoteQuantity < _MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD) {
+      return;
+    }
+
     uint64 tolerance = Math.multiplyPipsByFraction(
       positionBelowMinimumLiquidationPriceTolerance,
       expectedLiquidationQuoteQuantity,

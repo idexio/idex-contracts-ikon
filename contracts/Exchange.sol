@@ -790,7 +790,9 @@ contract Exchange_v4 is IExchange, Owned {
   // Market management //
 
   /**
-   * @notice Create a new market that will initially be deactivated
+   * @notice Create a new market that will initially be deactivated. Funding multipliers will be backfilled with zero
+   * values for the current day UTC. Note this may block publishing new funding multipliers for up to half the funding
+   * period interval following market creation
    */
   function addMarket(Market memory newMarket) external onlyAdmin {
     MarketAdmin.addMarket_delegatecall(
@@ -859,6 +861,14 @@ contract Exchange_v4 is IExchange, Owned {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+  }
+
+  /**
+   * @notice Sends tokens mistakenly sent directly to the `Exchange` to the fee wallet (the abscence of a `receive`
+   * function rejects incoming native asset transfers)
+   */
+  function skim(address tokenAddress) external onlyAdmin {
+    MarketAdmin.skim(tokenAddress, feeWallet);
   }
 
   // Perps //

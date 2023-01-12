@@ -186,33 +186,27 @@ library Trading {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    require(
-      MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        NonMutatingMargin.LoadArguments(
-          arguments.externalArguments.buy.wallet,
-          arguments.externalArguments.buyWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallets
-        ),
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+      NonMutatingMargin.LoadArguments(
+        arguments.externalArguments.buy.wallet,
+        arguments.externalArguments.buyWalletIndexPrices,
+        arguments.indexPriceCollectionServiceWallets
       ),
-      "Initial margin requirement not met for buy wallet"
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
-    require(
-      MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-        NonMutatingMargin.LoadArguments(
-          arguments.externalArguments.sell.wallet,
-          arguments.externalArguments.sellWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallets
-        ),
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+      NonMutatingMargin.LoadArguments(
+        arguments.externalArguments.sell.wallet,
+        arguments.externalArguments.sellWalletIndexPrices,
+        arguments.indexPriceCollectionServiceWallets
       ),
-      "Initial margin requirement not met for sell wallet"
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 }

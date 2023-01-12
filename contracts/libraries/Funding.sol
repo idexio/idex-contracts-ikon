@@ -169,7 +169,8 @@ library Funding {
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) internal {
-    uint64 periodsToBackfill = Math.max(1, Time.getMsSinceMidnight() / Constants.FUNDING_PERIOD_IN_MS);
+    // Always backfill 1 period for midnight, and an additional period for every period boundary crossed since then
+    uint64 periodsToBackfill = 1 + (Time.getMsSinceMidnight() / Constants.FUNDING_PERIOD_IN_MS);
     for (uint64 i = 0; i < periodsToBackfill; i++) {
       fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].publishFundingMultipler(0);
     }

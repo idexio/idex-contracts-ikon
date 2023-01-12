@@ -103,19 +103,16 @@ library Withdrawing {
       require(newExchangeBalance >= 0, "EF may only withdraw to zero");
     } else {
       // Wallet must still maintain initial margin requirement after withdrawal
-      require(
-        MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-          NonMutatingMargin.LoadArguments(
-            arguments.withdrawal.wallet,
-            arguments.indexPrices,
-            arguments.indexPriceCollectionServiceWallets
-          ),
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
+      MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+        NonMutatingMargin.LoadArguments(
+          arguments.withdrawal.wallet,
+          arguments.indexPrices,
+          arguments.indexPriceCollectionServiceWallets
         ),
-        "Initial margin requirement not met"
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
     }
 

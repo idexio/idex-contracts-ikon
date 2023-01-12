@@ -14,31 +14,6 @@ library MutatingMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
-  function isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-    NonMutatingMargin.LoadArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal returns (bool) {
-    return
-      NonMutatingMargin.loadTotalAccountValue(
-        arguments,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      ) >=
-      int64(
-        _loadTotalInitialMarginRequirementAndUpdateLastIndexPrice(
-          arguments,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
-        )
-      );
-  }
-
   function loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
     NonMutatingMargin.LoadArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
