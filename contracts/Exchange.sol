@@ -379,11 +379,11 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Finalizes the IF wallet upgrade. The number of blocks specified by `_blockDelay` must have passed since
-   * calling `initiateInsuranceFundWalletUpgrade`.
+   * @notice Finalizes the IF wallet upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateInsuranceFundWalletUpgrade`
    *
-   * @param newInsuranceFundWallet The address of the new `Governance` contract. Must equal the address provided to
-   * `initiateGovernanceUpgrade`
+   * @param newInsuranceFundWallet The address of the new IF wallet. Must equal the address provided to
+   * `initiateInsuranceFundWalletUpgrade`
    */
   function finalizeInsuranceFundWalletUpgrade(address newInsuranceFundWallet) external onlyAdmin {
     _fieldUpgradeGovernance.finalizeInsuranceFundWalletUpgrade_delegatecall(newInsuranceFundWallet);
@@ -789,6 +789,9 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Market management //
 
+  /**
+   * @notice Create a new market that will initially be deactivated
+   */
   function addMarket(Market memory newMarket) external onlyAdmin {
     MarketAdmin.addMarket_delegatecall(
       newMarket,
@@ -798,12 +801,16 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  // TODO Update market
-
+  /**
+   * @notice Activate a market, which allows positions to be opened and funding payments made
+   */
   function activateMarket(string memory baseAssetSymbol) external onlyDispatcher {
     MarketAdmin.activateMarket_delegatecall(baseAssetSymbol, marketsByBaseAssetSymbol);
   }
 
+  /**
+   * @notice Deactivate a market
+   */
   function deactivateMarket(string memory baseAssetSymbol, IndexPrice memory indexPrice) external onlyDispatcher {
     MarketAdmin.deactivateMarket_delegatecall(
       baseAssetSymbol,
@@ -813,6 +820,11 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Initiates market override upgrade proccess for `wallet`. If `wallet` is zero address, then the overrides
+   * will become the new default values for the market. Once `blockDelay` has passed the process can be finalized with
+   * `finalizeMarketOverridesUpgrade`
+   */
   function initiateMarketOverridesUpgrade(
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
@@ -827,10 +839,18 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
+  /**
+   * @notice Cancels an in-flight market override upgrade process that has not yet been finalized
+   */
   function cancelMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) external onlyAdmin {
     MarketAdmin.cancelMarketOverridesUpgrade_delegatecall(baseAssetSymbol, wallet, _fieldUpgradeGovernance);
   }
 
+  /**
+   * @notice Finalizes a market override upgrade process by changing the market's default overridable field values if
+   * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
+   * `ConstantsFIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
+   */
   function finalizeMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) external onlyAdmin {
     MarketAdmin.finalizeMarketOverridesUpgrade_delegatecall(
       baseAssetSymbol,

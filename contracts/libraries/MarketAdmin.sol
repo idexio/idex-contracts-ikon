@@ -34,11 +34,11 @@ library MarketAdmin {
     require(Address.isContract(address(newMarket.chainlinkPriceFeedAddress)), "Invalid Chainlink price feed");
     _validateOverridableMarketFields(newMarket.overridableFields);
 
+    // Populate non-overridable fields and commit new market to storage
     newMarket.exists = true;
     newMarket.isActive = false;
     newMarket.lastIndexPriceTimestampInMs = 0;
     newMarket.indexPriceAtDeactivation = 0;
-
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
 
     Funding.backfillFundingMultipliersForMarket(
@@ -122,6 +122,7 @@ library MarketAdmin {
     }
   }
 
+  // Validate reasonable limits on overridable market fields
   function _validateOverridableMarketFields(OverridableMarketFields memory overridableFields) private pure {
     require(
       overridableFields.initialMarginFraction >= _MIN_INITIAL_MARGIN_FRACTION,
