@@ -1,9 +1,10 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "license": "UNLICENSED",
   "version": "0.2.3",
-  "description": "Collects source code, tests, and documentation for the IDEX Ikon release Ethereum contracts",
+  "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
+  "repository": "https://github.com/idexio/idex-contracts-ikon",
+  "license": "LGPL-3.0-only",
   "main": "build/lib/index.js",
   "types": "build/lib/index.d.ts",
   "directories": {
@@ -14,6 +15,7 @@
     "artifacts/contracts/libraries/ClosureDeleveraging.sol/ClosureDeleveraging.json",
     "artifacts/contracts/libraries/Depositing.sol/Depositing.json",
     "artifacts/contracts/libraries/Funding.sol/Funding.json",
+    "artifacts/contracts/libraries/InsuranceFundWalletUpgrade.sol/InsuranceFundWalletUpgrade.json",
     "artifacts/contracts/libraries/MarketAdmin.sol/MarketAdmin.json",
     "artifacts/contracts/libraries/NonceInvalidations.sol/NonceInvalidations.json",
     "artifacts/contracts/libraries/NonMutatingMargin.sol/NonMutatingMargin.json",
@@ -35,7 +37,6 @@
     "setup:git:hooks": "git config --local core.hooksPath .githooks || echo 'Not a git repository, did not set up git hooks'",
     "test": "hardhat test"
   },
-  "repository": "https://github.com/idexio/idex-contracts-ikon",
   "dependencies": {
     "ethers": "5.7.2",
     "uuid": "8.3.2"

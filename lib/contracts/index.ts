@@ -25,6 +25,7 @@ export type LibraryName =
   | 'ClosureDeleveraging'
   | 'Depositing'
   | 'Funding'
+  | 'InsuranceFundWalletUpgrade'
   | 'MarketAdmin'
   | 'NonceInvalidations'
   | 'NonMutatingMargin'

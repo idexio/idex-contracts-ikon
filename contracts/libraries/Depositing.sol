@@ -35,6 +35,6 @@ library Depositing {
     IERC20(quoteAssetAddress).transferFrom(wallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
 
     // Update balance with actual transferred quantity
-    newExchangeBalance = balanceTracking.updateForDeposit(wallet, Constants.QUOTE_ASSET_SYMBOL, quantity);
+    newExchangeBalance = balanceTracking.updateForDeposit(wallet, quantity);
   }
 }

@@ -122,7 +122,7 @@ describe('Exchange', function () {
       );
     });
 
-    it('should work for exit wallet', async function () {
+    it('should work for exited wallet', async function () {
       const depositQuantity = ethers.utils.parseUnits(
         '100000.0',
         quoteAssetDecimals,
@@ -135,7 +135,6 @@ describe('Exchange', function () {
 
       await mine(300000);
 
-      await exchange.connect(exitFundWallet).exitWallet();
       await exchange.withdrawExit(exitFundWallet.address);
     });
   });

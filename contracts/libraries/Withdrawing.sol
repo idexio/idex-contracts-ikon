@@ -20,6 +20,11 @@ library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
+  struct WalletExit {
+    bool exists;
+    uint256 effectiveBlockNumber;
+  }
+
   struct WithdrawArguments {
     // External arguments
     Withdrawal withdrawal;
@@ -41,6 +46,22 @@ library Withdrawing {
     address exitFundWallet;
     address[] indexPriceCollectionServiceWallets;
     address quoteAssetAddress;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function exitWallet_delegatecall(
+    uint256 chainPropagationPeriodInBlocks,
+    address exitFundWallet,
+    address insuranceFundWallet,
+    address wallet,
+    mapping(address => Withdrawing.WalletExit) storage walletExits
+  ) external returns (uint256 blockThreshold) {
+    require(!walletExits[wallet].exists, "Wallet already exited");
+    require(wallet != insuranceFundWallet, "Cannot exit IF");
+    require(wallet != exitFundWallet, "Cannot exit EF");
+
+    blockThreshold = block.number + chainPropagationPeriodInBlocks;
+    walletExits[wallet] = Withdrawing.WalletExit(true, blockThreshold);
   }
 
   // solhint-disable-next-line func-name-mixedcase

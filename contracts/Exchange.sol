@@ -12,6 +12,7 @@ import { Depositing } from "./libraries/Depositing.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
+import { InsuranceFundWalletUpgrade } from "./libraries/InsuranceFundWalletUpgrade.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
 import { NonMutatingMargin } from "./libraries/NonMutatingMargin.sol";
@@ -29,14 +30,8 @@ import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 // solhint-disable-next-line contract-name-camelcase
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
+  using InsuranceFundWalletUpgrade for InsuranceFundWalletUpgrade.Storage;
   using NonceInvalidations for mapping(address => NonceInvalidation[]);
-
-  // Internally used structs //
-
-  struct WalletExit {
-    bool exists;
-    uint256 effectiveBlockNumber;
-  }
 
   // State variables //
 
@@ -48,6 +43,8 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(bytes32 => bool) private _completedOrderHashes;
   // Withdrawals - mapping of withdrawal wallet hash => isComplete
   mapping(bytes32 => bool) private _completedWithdrawalHashes;
+  // In-progress IF wallet upgrade
+  InsuranceFundWalletUpgrade.Storage _currentInsuranceFundWalletUpgrade;
   // Fund custody contract
   ICustodian public custodian;
   // Deposit index
@@ -69,7 +66,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteAssetAddress;
   // Exits
-  mapping(address => WalletExit) public walletExits;
+  mapping(address => Withdrawing.WalletExit) public walletExits;
 
   // State variables - tunable parameters //
 
@@ -108,9 +105,22 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event FeeWalletChanged(address previousValue, address newValue);
   /**
-   * @notice Emitted when an admin changes the Insurance Fund Wallet tunable parameter with `setInsuranceFundWallet`
+   * @notice Emitted when admin initiates upgrade of IF wallet address `initiateInsuranceFundWalletUpgrade`
    */
-  event InsuranceFundWalletChanged(address previousValue, address newValue);
+  event InsuranceFundWalletUpgradeInitiated(
+    address oldInsuranceFundWallet,
+    address newInsuranceFundWallet,
+    uint256 blockThreshold
+  );
+  /**
+   * @notice Emitted when admin cancels previously started IF wallet upgrade with `cancelInsuranceFundWalletUpgrade`
+   */
+  event InsuranceFundWalletUpgradeCanceled(address oldInsuranceFundWallet, address newInsuranceFundWallet);
+  /**
+   * @notice Emitted when admin finalizes IF wallet upgrade via `finalizeInsuranceFundWalletUpgrade`
+   */
+  event InsuranceFundWalletUpgradeFinalized(address oldInsuranceFundWallet, address newInsuranceFundWallet);
+
   /**
    * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
    * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
@@ -191,7 +201,8 @@ contract Exchange_v4 is IExchange, Owned {
 
     setFeeWallet(feeWallet_);
 
-    setInsuranceFundWallet(insuranceFundWallet_);
+    require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet address");
+    insuranceFundWallet = insuranceFundWallet_;
 
     for (uint8 i = 0; i < indexPriceCollectionServiceWallets_.length; i++) {
       require(address(indexPriceCollectionServiceWallets_[i]) != address(0x0), "Invalid IPCS wallet");
@@ -341,20 +352,47 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Sets the address of the Insurance Fund wallet
+   * @notice Initiates Insurance Fund wallet upgrade proccess. Once block delay has passed
+   * the process can be finalized with `finalizeInsuranceFundWalletUpgrade`
    *
-   * @dev Visibility public instead of external to allow invocation from `constructor`
-   *
-   * @param newInsuranceFundWallet The new Insurance Fund wallet. Must be different from the current one
+   * @param newInsuranceFundWallet The IF wallet address
    */
-  function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyAdmin {
-    require(newInsuranceFundWallet != address(0x0), "Invalid IF wallet address");
-    require(newInsuranceFundWallet != insuranceFundWallet, "Must be different from current");
+  function initiateInsuranceFundWalletUpgrade(address newInsuranceFundWallet) external onlyAdmin {
+    _currentInsuranceFundWalletUpgrade.initiateInsuranceFundWalletUpgrade_delegatecall(
+      insuranceFundWallet,
+      newInsuranceFundWallet
+    );
+
+    emit InsuranceFundWalletUpgradeInitiated(
+      insuranceFundWallet,
+      newInsuranceFundWallet,
+      _currentInsuranceFundWalletUpgrade.blockThreshold
+    );
+  }
+
+  /**
+   * @notice Cancels an in-flight IF wallet upgrade that has not yet been finalized
+   */
+  function cancelInsuranceFundWalletUpgrade() external onlyAdmin {
+    address newInsuranceFundWallet = _currentInsuranceFundWalletUpgrade.cancelInsuranceFundWalletUpgrade_delegatecall();
+
+    emit InsuranceFundWalletUpgradeCanceled(insuranceFundWallet, newInsuranceFundWallet);
+  }
+
+  /**
+   * @notice Finalizes the IF wallet upgrade. The number of blocks specified by `_blockDelay` must have passed since
+   * calling `initiateInsuranceFundUpgrade`.
+   *
+   * @param newInsuranceFundWallet The address of the new `Governance` contract. Must equal the address provided to
+   * `initiateGovernanceUpgrade`
+   */
+  function finalizeInsuranceFundWalletUpgrade(address newInsuranceFundWallet) external onlyAdmin {
+    _currentInsuranceFundWalletUpgrade.finalizeInsuranceFundWalletUpgrade_delegatecall(newInsuranceFundWallet);
 
     address oldInsuranceFundWallet = insuranceFundWallet;
     insuranceFundWallet = newInsuranceFundWallet;
 
-    emit InsuranceFundWalletChanged(oldInsuranceFundWallet, newInsuranceFundWallet);
+    emit InsuranceFundWalletUpgradeFinalized(oldInsuranceFundWallet, newInsuranceFundWallet);
   }
 
   /**
@@ -942,11 +980,15 @@ contract Exchange_v4 is IExchange, Owned {
    * `withdrawExit`
    */
   function exitWallet() external {
-    require(!walletExits[msg.sender].exists, "Wallet already exited");
+    uint256 blockThreshold = Withdrawing.exitWallet_delegatecall(
+      chainPropagationPeriodInBlocks,
+      exitFundWallet,
+      insuranceFundWallet,
+      msg.sender,
+      walletExits
+    );
 
-    walletExits[msg.sender] = WalletExit(true, block.number + chainPropagationPeriodInBlocks);
-
-    emit WalletExited(msg.sender, block.number + chainPropagationPeriodInBlocks);
+    emit WalletExited(msg.sender, blockThreshold);
   }
 
   /**
@@ -954,7 +996,8 @@ contract Exchange_v4 is IExchange, Owned {
    * Period must have already passed since calling `exitWallet`
    */
   function withdrawExit(address wallet) external {
-    require(_isWalletExitFinalized(wallet), "Wallet exit not finalized");
+    // Do not require prior exit for EF as it is already subject to a specific withdrawal delay
+    require(wallet == exitFundWallet || _isWalletExitFinalized(wallet), "Wallet exit not finalized");
 
     (uint256 exitFundPositionOpenedAtBlockNumber, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
       Withdrawing.WithdrawExitArguments(
@@ -990,7 +1033,7 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   function _isWalletExitFinalized(address wallet) internal view returns (bool) {
-    WalletExit storage exit = walletExits[wallet];
+    Withdrawing.WalletExit memory exit = walletExits[wallet];
     return exit.exists && exit.effectiveBlockNumber <= block.number;
   }
 

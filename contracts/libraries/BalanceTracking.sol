@@ -32,13 +32,8 @@ library BalanceTracking {
 
   // Depositing //
 
-  function updateForDeposit(
-    Storage storage self,
-    address wallet,
-    string memory assetSymbol,
-    uint64 quantity
-  ) internal returns (int64 newBalance) {
-    Balance storage balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, wallet, assetSymbol);
+  function updateForDeposit(Storage storage self, address wallet, uint64 quantity) internal returns (int64 newBalance) {
+    Balance storage balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, wallet, Constants.QUOTE_ASSET_SYMBOL);
     balanceStruct.balance += int64(quantity);
 
     return balanceStruct.balance;
@@ -109,6 +104,7 @@ library BalanceTracking {
 
     // Zero out wallet position for market
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, baseAssetSymbol);
+    bool isLiquidatingWalletPositionShort = balanceStruct.balance < 0;
     balanceStruct.balance = 0;
     balanceStruct.costBasis = 0;
 
@@ -120,7 +116,7 @@ library BalanceTracking {
     );
 
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
-    if (balanceStruct.balance < 0) {
+    if (isLiquidatingWalletPositionShort) {
       // Wallet gives quote including fee if short
       balanceStruct.balance -= int64(quoteQuantity + feeQuantity);
     } else {
@@ -168,8 +164,8 @@ library BalanceTracking {
   }
 
   /**
-   * @return The signed change to the EF's quote balance as a result of closing the position. This will be negative for
-   * a short position and positive for a long position. This function does not update the EF's quote balance itself;
+   * @return The signed change to the EF's quote balance as a result of closing the position. This will be positive for
+   * a short position and negative for a long position. This function does not update the EF's quote balance itself;
    * that is left to the calling function so that it can perform a single update with the sum of each position's result
    */
   function updatePositionForExit(
@@ -276,14 +272,10 @@ library BalanceTracking {
     // timestamp (from which multiplier array index and offset are calculated) for the wallet from which to apply
     // funding payments
     uint64 lastFundingRateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
-    require(lastFundingRateTimestampInMs > 0, "Must publish funding multiplier before opening position");
 
-    (
-      int64 buyFee,
-      int64 sellFee // Use the taker order nonce timestamp as the time of execution
-    ) = arguments.orderBookTrade.makerSide == OrderSide.Buy
-        ? (arguments.orderBookTrade.makerFeeQuantity, int64(arguments.orderBookTrade.takerFeeQuantity))
-        : (int64(arguments.orderBookTrade.takerFeeQuantity), arguments.orderBookTrade.makerFeeQuantity);
+    (int64 buyFee, int64 sellFee) = arguments.orderBookTrade.makerSide == OrderSide.Buy
+      ? (arguments.orderBookTrade.makerFeeQuantity, int64(arguments.orderBookTrade.takerFeeQuantity))
+      : (int64(arguments.orderBookTrade.takerFeeQuantity), arguments.orderBookTrade.makerFeeQuantity);
 
     // Seller gives base asset
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(
@@ -425,7 +417,8 @@ library BalanceTracking {
     Balance memory migratedBalanceStruct;
     if (!balance.isMigrated && address(self.migrationSource) != address(0x0)) {
       migratedBalanceStruct = self.migrationSource.loadBalanceStructBySymbol(wallet, assetSymbol);
-      migratedBalanceStruct.isMigrated = true;
+
+      balance.isMigrated = true;
       balance.balance = migratedBalanceStruct.balance;
       balance.lastUpdateTimestampInMs = migratedBalanceStruct.lastUpdateTimestampInMs;
       balance.costBasis = migratedBalanceStruct.costBasis;
@@ -435,19 +428,6 @@ library BalanceTracking {
   }
 
   // Position updates //
-
-  function _updatePosition(
-    Balance storage balance,
-    int64 baseQuantity,
-    int64 quoteQuantity,
-    uint64 maximumPositionSize
-  ) private {
-    if (baseQuantity > 0) {
-      _addToPosition(balance, Math.abs(baseQuantity), Math.abs(quoteQuantity), maximumPositionSize);
-    } else {
-      _subtractFromPosition(balance, Math.abs(baseQuantity), Math.abs(quoteQuantity), maximumPositionSize);
-    }
-  }
 
   function _addToPosition(
     Balance storage balance,
@@ -528,8 +508,8 @@ library BalanceTracking {
 
     // Update liquidating wallet position by decreasing it towards zero
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, market.baseAssetSymbol);
-    bool liquidatingWalletPositionIsShort = balanceStruct.balance < 0;
-    if (liquidatingWalletPositionIsShort) {
+    bool isLiquidatingWalletPositionShort = balanceStruct.balance < 0;
+    if (isLiquidatingWalletPositionShort) {
       // Decrease negative short position by adding base quantity to it
       _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + int64(baseQuantity));
 
@@ -564,7 +544,7 @@ library BalanceTracking {
       baseAssetSymbolsWithOpenPositionsByWallet
     );
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
-    if (liquidatingWalletPositionIsShort) {
+    if (isLiquidatingWalletPositionShort) {
       // Liquidating wallet gives quote if short
       balanceStruct.balance -= int64(quoteQuantity);
     } else {
@@ -577,7 +557,7 @@ library BalanceTracking {
     // position during deleveraging
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, market.baseAssetSymbol);
 
-    if (liquidatingWalletPositionIsShort) {
+    if (isLiquidatingWalletPositionShort) {
       // Take on short position by subtracting base quantity
       if (isDeleverage) {
         _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - int64(baseQuantity));
@@ -624,7 +604,7 @@ library BalanceTracking {
       ];
     }
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
-    if (liquidatingWalletPositionIsShort) {
+    if (isLiquidatingWalletPositionShort) {
       // Counterparty receives quote when taking on short position
       balanceStruct.balance += int64(quoteQuantity);
     } else {

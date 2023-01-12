@@ -85,8 +85,10 @@ library LiquidationValidations {
       );
     } else {
       // Use index price for positive totalAccountValue
-      expectedLiquidationQuoteQuantity = Math.abs(
-        Math.multiplyPipsByFraction(positionSize, int64(indexPrice), int64(Constants.PIP_PRICE_MULTIPLIER))
+      expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
+        Math.abs(positionSize),
+        indexPrice,
+        Constants.PIP_PRICE_MULTIPLIER
       );
     }
 

@@ -94,7 +94,7 @@ library FundingMultiplierQuartetHelper {
     if (startOffset <= 2 && endOffset >= 2) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier2;
     }
-    if (startOffset <= 3 && endOffset >= 3) {
+    if (startOffset <= 3 && endOffset == 3) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier3;
     }
   }

@@ -120,7 +120,7 @@ library AcquisitionDeleveraging {
       marketsByBaseAssetSymbol
     );
 
-    // Liquidate specified position by deleveraging a counterparty position at the liquidating wallet's bankruptcy price
+    // Liquidate specified position by deleveraging a counterparty position
     _validateQuoteQuantityAndDeleveragePosition(
       arguments,
       liquidatingWalletTotalAccountValue,
@@ -269,10 +269,11 @@ library AcquisitionDeleveraging {
     } else {
       // DeleverageType.WalletExited
       LiquidationValidations.validateExitQuoteQuantity(
+        // Calculate the cost basis of the base quantity being liquidated while observing signedness
         Math.multiplyPipsByFraction(
           balanceStruct.costBasis,
           int64(arguments.externalArguments.liquidationBaseQuantity),
-          balanceStruct.balance
+          int64(Math.abs(balanceStruct.balance))
         ),
         arguments.externalArguments.liquidationQuoteQuantity,
         indexPrice.price,
