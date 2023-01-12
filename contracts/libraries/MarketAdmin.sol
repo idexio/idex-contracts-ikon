@@ -84,11 +84,11 @@ library MarketAdmin {
     address wallet,
     FieldUpgradeGovernance.Storage storage fieldUpgradeGovernance,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public {
+  ) public returns (uint256 blockThreshold) {
     require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Market does not exist");
     _validateOverridableMarketFields(overridableFields);
 
-    fieldUpgradeGovernance.initiateMarketOverridesUpgrade(baseAssetSymbol, overridableFields, wallet);
+    blockThreshold = fieldUpgradeGovernance.initiateMarketOverridesUpgrade(baseAssetSymbol, overridableFields, wallet);
   }
 
   // solhint-disable-next-line func-name-mixedcase

@@ -97,6 +97,10 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event DelegateKeyExpirationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
+   * @notice Emitted when a user deposits quote tokens with `deposit`
+   */
+  event Deposited(uint64 index, address wallet, uint64 quantity, int64 newExchangeBalance);
+  /**
    * @notice Emitted when an admin changes the Exit Fund Wallet tunable parameter with `setExitFundWallet`
    */
   event ExitFundWalletChanged(address previousValue, address newValue);
@@ -121,28 +125,17 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event InsuranceFundWalletUpgradeFinalized(address oldInsuranceFundWallet, address newInsuranceFundWallet);
   /**
-   * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
-   * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
+   * @notice Emitted when admin initiates upgrade of IF wallet address `initiateMarketOverridesUpgrade`
    */
-  event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
+  event MarketOverridesUpgradeInitiated(string baseAssetSymbol, address wallet, uint256 blockThreshold);
   /**
-   * @notice Emitted when a user deposits quote tokens with `deposit`
+   * @notice Emitted when admin cancels previously started IF wallet upgrade with `cancelMarketOverridesUpgrade`
    */
-  event Deposited(uint64 index, address wallet, uint64 quantity, int64 newExchangeBalance);
+  event MarketOverridesUpgradeCanceled(string baseAssetSymbol, address wallet);
   /**
-   * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
+   * @notice Emitted when admin finalizes IF wallet upgrade via `finalizeMarketOverridesUpgrade`
    */
-  event WalletExited(address wallet, uint256 effectiveBlockNumber);
-  /**
-   * @notice Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with
-   * `withdrawExit`
-   */
-  event WalletExitWithdrawn(address wallet, uint64 quantity);
-  /**
-   * @notice Emitted when a user clears the exited status of a wallet previously exited with
-   * `clearWalletExit`
-   */
-  event WalletExitCleared(address wallet);
+  event MarketOverridesUpgradeUpgradeFinalized(string baseAssetSymbol, address wallet);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
    * `executeOrderBookTrade`
@@ -160,6 +153,25 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Emitted when a user invalidates an order nonce with `invalidateOrderNonce`
    */
   event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockNumber);
+  /**
+   * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
+   * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
+   */
+  event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
+  /**
+   * @notice Emitted when a user clears the exited status of a wallet previously exited with
+   * `clearWalletExit`
+   */
+  event WalletExitCleared(address wallet);
+  /**
+   * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
+   */
+  event WalletExited(address wallet, uint256 effectiveBlockNumber);
+  /**
+   * @notice Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with
+   * `withdrawExit`
+   */
+  event WalletExitWithdrawn(address wallet, uint64 quantity);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
@@ -832,13 +844,15 @@ contract Exchange_v4 is IExchange, Owned {
     OverridableMarketFields memory overridableFields,
     address wallet
   ) external onlyAdmin {
-    MarketAdmin.initiateMarketOverridesUpgrade_delegatecall(
+    uint256 blockThreshold = MarketAdmin.initiateMarketOverridesUpgrade_delegatecall(
       baseAssetSymbol,
       overridableFields,
       wallet,
       _fieldUpgradeGovernance,
       marketsByBaseAssetSymbol
     );
+
+    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, blockThreshold);
   }
 
   /**
@@ -846,6 +860,8 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function cancelMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) external onlyAdmin {
     MarketAdmin.cancelMarketOverridesUpgrade_delegatecall(baseAssetSymbol, wallet, _fieldUpgradeGovernance);
+
+    emit MarketOverridesUpgradeCanceled(baseAssetSymbol, wallet);
   }
 
   /**
@@ -861,6 +877,8 @@ contract Exchange_v4 is IExchange, Owned {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+
+    emit MarketOverridesUpgradeUpgradeFinalized(baseAssetSymbol, wallet);
   }
 
   /**

@@ -72,16 +72,17 @@ library FieldUpgradeGovernance {
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
     address wallet
-  ) internal {
+  ) internal returns (uint256 blockThreshold) {
     require(
       !self.currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
       "Market override upgrade already in progress for wallet"
     );
 
+    blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
     self.currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverridesUpgrade(
       true,
       overridableFields,
-      block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS
+      blockThreshold
     );
   }
 
