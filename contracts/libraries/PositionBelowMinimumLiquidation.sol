@@ -11,25 +11,20 @@ import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
+import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, PositionBelowMinimumLiquidationArguments } from "./Structs.sol";
 
 library PositionBelowMinimumLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
-  uint64 private constant _QUANTITY_BELOW_VALIDATION_THRESHOLD = 10;
+  uint64 private constant _MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD = 10000;
 
   /**
    * @dev Argument for `liquidate`
    */
   struct Arguments {
-    // External arguments
-    string baseAssetSymbol;
-    address liquidatingWallet;
-    uint64 liquidationQuoteQuantity; // For the position being liquidated
-    IndexPrice[] insuranceFundIndexPrices; // After acquiring liquidating position
-    IndexPrice[] liquidatingWalletIndexPrices; // Before liquidation
+    PositionBelowMinimumLiquidationArguments externalArguments;
     // Exchange state
     uint64 positionBelowMinimumLiquidationPriceToleranceMultiplier;
     address insuranceFundWallet;
@@ -47,7 +42,7 @@ library PositionBelowMinimumLiquidation {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
-      arguments.liquidatingWallet,
+      arguments.externalArguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -66,8 +61,8 @@ library PositionBelowMinimumLiquidation {
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
         NonMutatingMargin.LoadArguments(
-          arguments.liquidatingWallet,
-          arguments.liquidatingWalletIndexPrices,
+          arguments.externalArguments.liquidatingWallet,
+          arguments.externalArguments.liquidatingWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
@@ -92,15 +87,15 @@ library PositionBelowMinimumLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market, IndexPrice memory indexPrice) {
-    market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+    market = marketsByBaseAssetSymbol[arguments.externalArguments.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
-    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(
-      arguments.baseAssetSymbol
+    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.externalArguments.liquidatingWallet].indexOf(
+      arguments.externalArguments.baseAssetSymbol
     );
     require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
 
-    indexPrice = arguments.liquidatingWalletIndexPrices[i];
+    indexPrice = arguments.externalArguments.liquidatingWalletIndexPrices[i];
     // The index price signature and array position were already validated by
     // loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice
   }
@@ -116,10 +111,10 @@ library PositionBelowMinimumLiquidation {
   ) private {
     balanceTracking.updatePositionForLiquidation(
       arguments.insuranceFundWallet,
-      arguments.liquidatingWallet,
+      arguments.externalArguments.liquidatingWallet,
       market,
       positionSize,
-      arguments.liquidationQuoteQuantity,
+      arguments.externalArguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet
@@ -142,13 +137,16 @@ library PositionBelowMinimumLiquidation {
 
     // Validate that position is under dust threshold
     int64 positionSize = balanceTracking.loadBalanceAndMigrateIfNeeded(
-      arguments.liquidatingWallet,
-      arguments.baseAssetSymbol
+      arguments.externalArguments.liquidatingWallet,
+      arguments.externalArguments.baseAssetSymbol
     );
     require(
       Math.abs(positionSize) <
         market
-          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .loadMarketWithOverridesForWallet(
+            arguments.externalArguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
           .overridableFields
           .minimumPositionSize,
       "Position size above minimum"
@@ -157,11 +155,12 @@ library PositionBelowMinimumLiquidation {
     // Validate quote quantity
     _validateQuoteQuantity(
       arguments.positionBelowMinimumLiquidationPriceToleranceMultiplier,
-      arguments.liquidationQuoteQuantity,
+      arguments.externalArguments.liquidationQuoteQuantity,
       indexPrice.price,
       positionSize
     );
 
+    // Need to wrap `balanceTracking.updatePositionForLiquidation` with helper to avoid stack too deep error
     _updateBalances(
       arguments,
       market,
@@ -179,18 +178,17 @@ library PositionBelowMinimumLiquidation {
     uint64 indexPrice,
     int64 positionSize
   ) private pure {
-    if (
-      liquidationQuoteQuantity < _QUANTITY_BELOW_VALIDATION_THRESHOLD &&
-      Math.abs(positionSize) < _QUANTITY_BELOW_VALIDATION_THRESHOLD
-    ) {
-      return;
-    }
-
     uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
       Math.abs(positionSize),
       indexPrice,
       Constants.PIP_PRICE_MULTIPLIER
     );
+
+    // Skip validation for positions with very low quote values to avoid false positives due to rounding error
+    if (expectedLiquidationQuoteQuantity < _MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD) {
+      return;
+    }
+
     uint64 tolerance = Math.multiplyPipsByFraction(
       positionBelowMinimumLiquidationPriceTolerance,
       expectedLiquidationQuoteQuantity,

@@ -148,7 +148,8 @@ library ClosureDeleveraging {
     } else {
       // DeleverageType.ExitFundClosure
       (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = NonMutatingMargin
-        .loadTotalAccountValueAndMaintenanceMarginRequirement(
+      // Use margin calculation specific to EF that accounts for its unlimited leverage
+        .loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
           NonMutatingMargin.LoadArguments(
             arguments.externalArguments.liquidatingWallet,
             arguments.externalArguments.liquidatingWalletIndexPrices,
@@ -156,7 +157,6 @@ library ClosureDeleveraging {
           ),
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
           marketsByBaseAssetSymbol
         );
 
@@ -167,13 +167,8 @@ library ClosureDeleveraging {
           ? (-1 * int64(arguments.externalArguments.liquidationBaseQuantity))
           : int64(arguments.externalArguments.liquidationBaseQuantity),
         indexPrice.price,
-        market
-          .loadMarketWithOverridesForWallet(
-            arguments.externalArguments.liquidatingWallet,
-            marketOverridesByBaseAssetSymbolAndWallet
-          )
-          .overridableFields
-          .maintenanceMarginFraction,
+        // Use market default values instead of wallet-specific overrides for the EF, since its margin fraction is zero
+        market.overridableFields.maintenanceMarginFraction,
         arguments.externalArguments.liquidationQuoteQuantity,
         totalAccountValue,
         totalMaintenanceMarginRequirement

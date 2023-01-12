@@ -1,7 +1,8 @@
 import { ethers } from 'hardhat';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import type { Exchange_v4 } from '../typechain-types';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
 import {
   baseAssetSymbol,
@@ -65,7 +66,7 @@ describe('Exchange', function () {
 
   describe('liquidatePositionBelowMinimum', async function () {
     it('should work for valid wallet position', async function () {
-      await exchange.setMarketOverrides(
+      await exchange.initiateMarketOverridesUpgrade(
         baseAssetSymbol,
         {
           initialMarginFraction: '5000000',
@@ -78,17 +79,22 @@ describe('Exchange', function () {
         },
         trader1Wallet.address,
       );
+      await mine((2 * 24 * 60 * 60) / 3);
+      await exchange.finalizeMarketOverridesUpgrade(
+        baseAssetSymbol,
+        trader1Wallet.address,
+      );
 
       await (
-        await exchange
-          .connect(dispatcherWallet)
-          .liquidatePositionBelowMinimum(
-            baseAssetSymbol,
-            trader1Wallet.address,
-            decimalToPips('20000.00000000'),
-            [indexPriceToArgumentStruct(indexPrice)],
-            [indexPriceToArgumentStruct(indexPrice)],
-          )
+        await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
+          baseAssetSymbol,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+          insuranceFundIndexPrices: [indexPriceToArgumentStruct(indexPrice)],
+          liquidatingWalletIndexPrices: [
+            indexPriceToArgumentStruct(indexPrice),
+          ],
+        })
       ).wait();
     });
   });
@@ -107,13 +113,15 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(dispatcherWallet)
-          .liquidatePositionInDeactivatedMarket(
+          .liquidatePositionInDeactivatedMarket({
             baseAssetSymbol,
-            decimalToPips('20.00000000'),
-            trader1Wallet.address,
-            decimalToPips('20000.00000000'),
-            [indexPriceToArgumentStruct(indexPrice)],
-          )
+            feeQuantity: decimalToPips('20.00000000'),
+            liquidatingWallet: trader1Wallet.address,
+            liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+            liquidatingWalletIndexPrices: [
+              indexPriceToArgumentStruct(indexPrice),
+            ],
+          })
       ).wait();
     });
   });

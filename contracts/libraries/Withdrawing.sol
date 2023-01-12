@@ -20,6 +20,11 @@ library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
+  struct WalletExit {
+    bool exists;
+    uint256 effectiveBlockNumber;
+  }
+
   struct WithdrawArguments {
     // External arguments
     Withdrawal withdrawal;
@@ -41,6 +46,22 @@ library Withdrawing {
     address exitFundWallet;
     address[] indexPriceCollectionServiceWallets;
     address quoteAssetAddress;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function exitWallet_delegatecall(
+    uint256 chainPropagationPeriodInBlocks,
+    address exitFundWallet,
+    address insuranceFundWallet,
+    address wallet,
+    mapping(address => Withdrawing.WalletExit) storage walletExits
+  ) external returns (uint256 blockThreshold) {
+    require(!walletExits[wallet].exists, "Wallet already exited");
+    require(wallet != insuranceFundWallet, "Cannot exit IF");
+    require(wallet != exitFundWallet, "Cannot exit EF");
+
+    blockThreshold = block.number + chainPropagationPeriodInBlocks;
+    walletExits[wallet] = Withdrawing.WalletExit(true, blockThreshold);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -82,19 +103,16 @@ library Withdrawing {
       require(newExchangeBalance >= 0, "EF may only withdraw to zero");
     } else {
       // Wallet must still maintain initial margin requirement after withdrawal
-      require(
-        MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
-          NonMutatingMargin.LoadArguments(
-            arguments.withdrawal.wallet,
-            arguments.indexPrices,
-            arguments.indexPriceCollectionServiceWallets
-          ),
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
+      MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+        NonMutatingMargin.LoadArguments(
+          arguments.withdrawal.wallet,
+          arguments.indexPrices,
+          arguments.indexPriceCollectionServiceWallets
         ),
-        "Initial margin requirement not met"
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
     }
 
@@ -227,8 +245,7 @@ library Withdrawing {
 
   function _validateExitFundWithdrawDelayElapsed(uint256 exitFundPositionOpenedAtBlockNumber) private view {
     require(
-      exitFundPositionOpenedAtBlockNumber == 0 ||
-        block.number >= exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
+      block.number >= exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
       "EF position opened too recently"
     );
   }

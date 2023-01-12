@@ -30,7 +30,7 @@ struct AcquisitionDeleverageArguments {
 }
 
 /**
- * @notice Internally used struct for tracking wallet balances and funding updates
+ * @notice Struct for tracking wallet balances and funding updates
  */
 struct Balance {
   bool isMigrated;
@@ -71,7 +71,7 @@ struct DelegatedKeyAuthorization {
 }
 
 /**
- * @notice Internally used struct for passing arguments to executeOrderBookTrade without hitting stack limit
+ * @notice Argument type for `executeOrderBookTrade`
  */
 struct ExecuteOrderBookTradeArguments {
   // External arguments
@@ -80,22 +80,29 @@ struct ExecuteOrderBookTradeArguments {
   OrderBookTrade orderBookTrade;
   IndexPrice[] buyWalletIndexPrices;
   IndexPrice[] sellWalletIndexPrices;
-  // Exchange state
-  uint64 delegateKeyExpirationPeriodInMs;
-  address exitFundWallet;
-  address feeWallet;
-  address insuranceFundWallet;
-  address[] indexPriceCollectionServiceWallets;
 }
 
 /**
- * @notice Internally used struct for storing funding multipliers
+ * @notice Struct for storing funding multipliers
  */
 struct FundingMultiplierQuartet {
   int64 fundingMultiplier0;
   int64 fundingMultiplier1;
   int64 fundingMultiplier2;
   int64 fundingMultiplier3;
+}
+
+/**
+ * @notice Index price data signed by index wallet
+ */
+struct IndexPrice {
+  string baseAssetSymbol;
+  // Milliseconds since epoch
+  uint64 timestampInMs;
+  // Price of base asset in decimal pips * 10^8 in quote terms
+  uint64 price;
+  // Signature from index price collection service wallet
+  bytes signature;
 }
 
 /**
@@ -141,7 +148,7 @@ struct OverridableMarketFields {
 }
 
 /**
- * @notice Internally used struct to track market overrides per wallet
+ * @notice Struct to track market overrides per wallet
  */
 struct MarketOverrides {
   // Flag to distinguish from empty struct
@@ -151,7 +158,7 @@ struct MarketOverrides {
 }
 
 /**
- * @notice Internally used struct capturing wallet order nonce invalidations created via `invalidateOrderNonce`
+ * @notice Struct capturing wallet order nonce invalidations created via `invalidateOrderNonce`
  */
 struct NonceInvalidation {
   uint64 timestampInMs;
@@ -159,16 +166,30 @@ struct NonceInvalidation {
 }
 
 /**
- * @notice Index price data signed by index wallet
+ * @notice Argument type for `Exchange.liquidatePositionBelowMinimum`
  */
-struct IndexPrice {
+struct PositionBelowMinimumLiquidationArguments {
   string baseAssetSymbol;
-  // Milliseconds since epoch
-  uint64 timestampInMs;
-  // Price of base asset in decimal pips * 10^8 in quote terms
-  uint64 price;
-  // Signature from index price collection service wallet
-  bytes signature;
+  address liquidatingWallet;
+  // Quote quantity for the position being liquidated
+  uint64 liquidationQuoteQuantity;
+  // Index prices for IF wallet after liquidation
+  IndexPrice[] insuranceFundIndexPrices;
+  // Index prices for liquidating wallet before liquidation
+  IndexPrice[] liquidatingWalletIndexPrices;
+}
+
+/**
+ * @notice Argument type for `Exchange.liquidatePositionInDeactivatedMarket`
+ */
+struct PositionInDeactivatedMarketLiquidationArguments {
+  string baseAssetSymbol;
+  uint64 feeQuantity;
+  address liquidatingWallet;
+  // Quote quantity for the position being liquidated
+  uint64 liquidationQuoteQuantity;
+  // Index prices for liquidating wallet before liquidation
+  IndexPrice[] liquidatingWalletIndexPrices;
 }
 
 /**
@@ -240,10 +261,14 @@ struct OrderBookTrade {
  * `Exchange.liquidateWalletInMaintenanceDuringSystemRecovery`, and `Exchange.liquidateWalletExited`
  */
 struct WalletLiquidationArguments {
-  address counterpartyWallet; // Insurance Fund or Exit Fund
-  IndexPrice[] counterpartyWalletIndexPrices; // After acquiring liquidated positions
+  // Insurance Fund or Exit Fund
+  address counterpartyWallet;
+  // Index prices for acquiring wallet after liquidation
+  IndexPrice[] counterpartyWalletIndexPrices;
   address liquidatingWallet;
+  // Index prices for liquidating wallet before liquidation
   IndexPrice[] liquidatingWalletIndexPrices;
+  // Quote quantity for each liquidated positions
   uint64[] liquidationQuoteQuantities;
 }
 

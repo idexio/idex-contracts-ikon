@@ -94,7 +94,7 @@ library FundingMultiplierQuartetHelper {
     if (startOffset <= 2 && endOffset >= 2) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier2;
     }
-    if (startOffset <= 3 && endOffset >= 3) {
+    if (startOffset <= 3 && endOffset == 3) {
       aggregateMultiplier += fundingMultipliers.fundingMultiplier3;
     }
   }
@@ -102,20 +102,20 @@ library FundingMultiplierQuartetHelper {
   /**
    * @dev Calculates the aggreagate funding rate multiplier for one quartet
    */
-  function _countMultipliersInQuartet(
+  function _calculateHighestOffsetInQuartet(
     FundingMultiplierQuartet memory fundingMultipliers
   ) private pure returns (uint64 multiplierCount) {
     if (fundingMultipliers.fundingMultiplier3 != _EMPTY) {
-      return 4;
-    }
-    if (fundingMultipliers.fundingMultiplier2 != _EMPTY) {
       return 3;
     }
-    if (fundingMultipliers.fundingMultiplier1 != _EMPTY) {
+    if (fundingMultipliers.fundingMultiplier2 != _EMPTY) {
       return 2;
     }
+    if (fundingMultipliers.fundingMultiplier1 != _EMPTY) {
+      return 1;
+    }
 
-    return 1;
+    return 0;
   }
 
   function _calculateIndexAndOffsetForTimestampInMs(
@@ -124,14 +124,14 @@ library FundingMultiplierQuartetHelper {
     uint64 lastTimestampInMs
   ) private view returns (uint256 index, uint64 offset) {
     uint64 numberOfTrailingMultipliers = (lastTimestampInMs - timestampInMs) / Constants.FUNDING_PERIOD_IN_MS;
-    uint64 multipliersInLastQuartet = _countMultipliersInQuartet(self[self.length - 1]);
+    uint64 highestOffsetInQuartet = _calculateHighestOffsetInQuartet(self[self.length - 1]);
 
-    if (numberOfTrailingMultipliers <= multipliersInLastQuartet) {
+    if (numberOfTrailingMultipliers <= highestOffsetInQuartet) {
       index = self.length - 1;
-      offset = multipliersInLastQuartet - numberOfTrailingMultipliers;
+      offset = highestOffsetInQuartet - numberOfTrailingMultipliers;
     } else {
       index = self.length - Math.divideRoundUp(numberOfTrailingMultipliers, _QUARTET_SIZE);
-      offset = multipliersInLastQuartet - (numberOfTrailingMultipliers % _QUARTET_SIZE);
+      offset = highestOffsetInQuartet - (numberOfTrailingMultipliers % _QUARTET_SIZE);
     }
   }
 }

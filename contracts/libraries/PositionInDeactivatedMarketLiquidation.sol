@@ -9,7 +9,7 @@ import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
+import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, PositionInDeactivatedMarketLiquidationArguments } from "./Structs.sol";
 
 library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -19,16 +19,9 @@ library PositionInDeactivatedMarketLiquidation {
    * @dev Argument for `liquidatePositionInDeactivatedMarket`
    */
   struct Arguments {
-    // External arguments
-    string baseAssetSymbol;
-    uint64 feeQuantity;
-    address feeWallet;
-    address liquidatingWallet;
-    // Quote quantity for the position being liquidated
-    uint64 liquidationQuoteQuantity;
-    // Index prices for liquidating wallet before liquidation
-    IndexPrice[] liquidatingWalletIndexPrices;
+    PositionInDeactivatedMarketLiquidationArguments externalArguments;
     // Exchange state
+    address feeWallet;
     address[] indexPriceCollectionServiceWallets;
   }
 
@@ -43,7 +36,7 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
-      arguments.liquidatingWallet,
+      arguments.externalArguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -54,8 +47,8 @@ library PositionInDeactivatedMarketLiquidation {
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
         NonMutatingMargin.LoadArguments(
-          arguments.liquidatingWallet,
-          arguments.liquidatingWalletIndexPrices,
+          arguments.externalArguments.liquidatingWallet,
+          arguments.externalArguments.liquidatingWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
@@ -79,33 +72,40 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Market memory market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+    Market memory market = marketsByBaseAssetSymbol[arguments.externalArguments.baseAssetSymbol];
     require(market.exists && !market.isActive, "No inactive market found");
 
     require(
-      baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(arguments.baseAssetSymbol) !=
-        SortedStringSet.NOT_FOUND,
+      baseAssetSymbolsWithOpenPositionsByWallet[arguments.externalArguments.liquidatingWallet].indexOf(
+        arguments.externalArguments.baseAssetSymbol
+      ) != SortedStringSet.NOT_FOUND,
       "No open position in market"
     );
 
     // Validate quote quantity
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
       market.indexPriceAtDeactivation,
-      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
-      arguments.liquidationQuoteQuantity
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+        arguments.externalArguments.liquidatingWallet,
+        market.baseAssetSymbol
+      ),
+      arguments.externalArguments.liquidationQuoteQuantity
     );
 
     require(
-      Validations.isFeeQuantityValid(arguments.feeQuantity, arguments.liquidationQuoteQuantity),
+      Validations.isFeeQuantityValid(
+        arguments.externalArguments.feeQuantity,
+        arguments.externalArguments.liquidationQuoteQuantity
+      ),
       "Excessive maker fee"
     );
 
     balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,
-      arguments.feeQuantity,
+      arguments.externalArguments.feeQuantity,
       arguments.feeWallet,
-      arguments.liquidatingWallet,
-      arguments.liquidationQuoteQuantity,
+      arguments.externalArguments.liquidatingWallet,
+      arguments.externalArguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
   }

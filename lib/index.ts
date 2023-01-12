@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
+  ExecuteOrderBookTradeArgumentsStruct,
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
@@ -15,6 +16,7 @@ import * as contracts from './contracts';
 export {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
+  ExecuteOrderBookTradeArgumentsStruct,
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
@@ -226,27 +228,27 @@ export const getExecuteOrderBookTradeArguments = (
   sellWalletIndexPrices: IndexPrice[],
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
-): [
-  OrderStruct,
-  OrderStruct,
-  OrderBookTradeStruct,
-  IndexPriceStruct[],
-  IndexPriceStruct[],
-] => {
+): [ExecuteOrderBookTradeArgumentsStruct] => {
   return [
-    orderToArgumentStruct(
-      buyOrder,
-      buyWalletSignature,
-      buyDelegatedKeyAuthorization,
-    ),
-    orderToArgumentStruct(
-      sellOrder,
-      sellWalletSignature,
-      sellDelegatedKeyAuthorization,
-    ),
-    tradeToArgumentStruct(trade, buyOrder),
-    buyWalletIndexPrices.map(indexPriceToArgumentStruct),
-    sellWalletIndexPrices.map(indexPriceToArgumentStruct),
+    {
+      buy: orderToArgumentStruct(
+        buyOrder,
+        buyWalletSignature,
+        buyDelegatedKeyAuthorization,
+      ),
+      sell: orderToArgumentStruct(
+        sellOrder,
+        sellWalletSignature,
+        sellDelegatedKeyAuthorization,
+      ),
+      orderBookTrade: tradeToArgumentStruct(trade, buyOrder),
+      buyWalletIndexPrices: buyWalletIndexPrices.map(
+        indexPriceToArgumentStruct,
+      ),
+      sellWalletIndexPrices: sellWalletIndexPrices.map(
+        indexPriceToArgumentStruct,
+      ),
+    },
   ];
 };
 
