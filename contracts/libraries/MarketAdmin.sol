@@ -4,12 +4,25 @@ pragma solidity 0.8.17;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
+import { FieldUpgradeGovernance } from "./FieldUpgradeGovernance.sol";
 import { Funding } from "./Funding.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
 
 library MarketAdmin {
-  // TODO Validations
+  using FieldUpgradeGovernance for FieldUpgradeGovernance.Storage;
+
+  // 0.005
+  uint64 private constant _MIN_INITIAL_MARGIN_FRACTION = 500000;
+  // 0.003
+  uint64 private constant _MIN_MAINTENANCE_MARGIN_FRACTION = 300000;
+  // 0.001
+  uint64 private constant _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION = 100000;
+  // Max int64
+  uint64 private constant _MAX_MAXIMUM_POSITION_SIZE = 2 ** 63 - 1;
+  // Max int64 - 1
+  uint64 private constant _MAX_MINIMUM_POSITION_SIZE = 2 ** 63 - 2;
+
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
     Market memory newMarket,
@@ -18,8 +31,8 @@ library MarketAdmin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
-
     require(Address.isContract(address(newMarket.chainlinkPriceFeedAddress)), "Invalid Chainlink price feed");
+    _validateOverridableMarketFields(newMarket.overridableFields);
 
     newMarket.exists = true;
     newMarket.isActive = false;
@@ -63,20 +76,70 @@ library MarketAdmin {
     market.indexPriceAtDeactivation = indexPrice.price;
   }
 
-  // TODO Validations
   // solhint-disable-next-line func-name-mixedcase
-  function setMarketOverrides_delegatecall(
+  function initiateMarketOverridesUpgrade_delegatecall(
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
     address wallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    FieldUpgradeGovernance.Storage storage fieldUpgradeGovernance,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Market does not exist");
+    _validateOverridableMarketFields(overridableFields);
 
-    marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
-      exists: true,
-      overridableFields: overridableFields
-    });
+    fieldUpgradeGovernance.initiateMarketOverridesUpgrade(baseAssetSymbol, overridableFields, wallet);
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function cancelMarketOverridesUpgrade_delegatecall(
+    string memory baseAssetSymbol,
+    address wallet,
+    FieldUpgradeGovernance.Storage storage fieldUpgradeGovernance
+  ) public {
+    fieldUpgradeGovernance.cancelMarketOverridesUpgrade(baseAssetSymbol, wallet);
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function finalizeMarketOverridesUpgrade_delegatecall(
+    string memory baseAssetSymbol,
+    address wallet,
+    FieldUpgradeGovernance.Storage storage fieldUpgradeGovernance,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
+    OverridableMarketFields memory marketOverrides = fieldUpgradeGovernance.finalizeMarketOverridesUpgrade(
+      baseAssetSymbol,
+      wallet
+    );
+
+    if (wallet == address(0x0)) {
+      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
+    } else {
+      marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
+        exists: true,
+        overridableFields: marketOverrides
+      });
+    }
+  }
+
+  function _validateOverridableMarketFields(OverridableMarketFields memory overridableFields) private pure {
+    require(
+      overridableFields.initialMarginFraction >= _MIN_INITIAL_MARGIN_FRACTION,
+      "Initial margin fraction below min"
+    );
+    require(
+      overridableFields.maintenanceMarginFraction >= _MIN_MAINTENANCE_MARGIN_FRACTION,
+      "Maintenance margin fraction below min"
+    );
+    require(
+      overridableFields.incrementalInitialMarginFraction >= _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION,
+      "Incremental initial margin fraction below min"
+    );
+    require(
+      overridableFields.baselinePositionSize <= overridableFields.maximumPositionSize,
+      "Baseline position size exceeds maximum"
+    );
+    require(overridableFields.maximumPositionSize <= _MAX_MAXIMUM_POSITION_SIZE, "Maximum position size exceeds max");
+    require(overridableFields.minimumPositionSize <= _MAX_MINIMUM_POSITION_SIZE, "Minimum position size exceeds max");
   }
 }

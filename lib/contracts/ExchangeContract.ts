@@ -23,8 +23,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       acquisitionDeleveraging: string;
       closureDeleveraging: string;
       depositing: string;
+      fieldUpgradeGovernance: string;
       funding: string;
-      insuranceFundWalletUpgrade: string;
       marketAdmin: string;
       nonceInvalidations: string;
       nonMutatingMargin: string;
@@ -45,9 +45,9 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
         libraryAddresses.closureDeleveraging,
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
+      ['contracts/libraries/FieldUpgradeGovernance.sol:FieldUpgradeGovernance']:
+        libraryAddresses.fieldUpgradeGovernance,
       ['contracts/libraries/Funding.sol:Funding']: libraryAddresses.funding,
-      ['contracts/libraries/InsuranceFundWalletUpgrade.sol:InsuranceFundWalletUpgrade']:
-        libraryAddresses.insuranceFundWalletUpgrade,
       ['contracts/libraries/MarketAdmin.sol:MarketAdmin']:
         libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:

@@ -261,6 +261,7 @@ library BalanceTracking {
   function updateForOrderBookTrade(
     Storage storage self,
     ExecuteOrderBookTradeArguments memory arguments,
+    address feeWallet,
     Market memory market,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -348,7 +349,7 @@ library BalanceTracking {
     balanceStruct.balance += int64(arguments.orderBookTrade.quoteQuantity) - sellFee;
 
     // Fee wallet receives maker and taker fees
-    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.feeWallet, Constants.QUOTE_ASSET_SYMBOL);
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
     balanceStruct.balance += buyFee + sellFee;
   }
 

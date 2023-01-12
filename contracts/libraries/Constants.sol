@@ -20,7 +20,7 @@ library Constants {
   uint256 public constant EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
 
   // 1 day at 3s/block
-  uint256 public constant INSURANCE_FUND_WALLET_UPGRADE_DELAY_IN_BLOCKS = (1 * 24 * 60 * 60) / 3;
+  uint256 public constant FIELD_UPGRADE_DELAY_IN_BLOCKS = (1 * 24 * 60 * 60) / 3;
 
   // 1 week at 3s/block
   uint256 public constant MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;

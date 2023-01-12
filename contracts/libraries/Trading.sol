@@ -12,9 +12,19 @@ import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, Marke
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
 
+  struct Arguments {
+    ExecuteOrderBookTradeArguments externalArguments;
+    // Exchange state
+    uint64 delegateKeyExpirationPeriodInMs;
+    address exitFundWallet;
+    address feeWallet;
+    address insuranceFundWallet;
+    address[] indexPriceCollectionServiceWallets;
+  }
+
   // solhint-disable-next-line func-name-mixedcase
   function executeOrderBookTrade_delegatecall(
-    ExecuteOrderBookTradeArguments memory arguments,
+    Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedOrderHashes,
@@ -28,7 +38,7 @@ library Trading {
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
     Funding.updateWalletFunding(
-      arguments.buy.wallet,
+      arguments.externalArguments.buy.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -36,7 +46,7 @@ library Trading {
       marketsByBaseAssetSymbol
     );
     Funding.updateWalletFunding(
-      arguments.sell.wallet,
+      arguments.externalArguments.sell.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -58,7 +68,7 @@ library Trading {
   }
 
   function _executeOrderBookTradeAfterFunding(
-    ExecuteOrderBookTradeArguments memory arguments,
+    Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedOrderHashes,
@@ -77,7 +87,8 @@ library Trading {
     );
 
     balanceTracking.updateForOrderBookTrade(
-      arguments,
+      arguments.externalArguments,
+      arguments.feeWallet,
       market,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -94,14 +105,17 @@ library Trading {
   }
 
   function _validateTradeAndUpdateOrderBalancesAndFilledQuantities(
-    ExecuteOrderBookTradeArguments memory arguments,
+    Arguments memory arguments,
     mapping(bytes32 => bool) storage completedOrderHashes,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) private returns (Market memory) {
     (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
-      arguments,
+      arguments.externalArguments,
+      arguments.delegateKeyExpirationPeriodInMs,
+      arguments.exitFundWallet,
+      arguments.insuranceFundWallet,
       marketsByBaseAssetSymbol,
       nonceInvalidationsByWallet
     );
@@ -112,7 +126,7 @@ library Trading {
   }
 
   function _updateOrderFilledQuantities(
-    ExecuteOrderBookTradeArguments memory arguments,
+    Arguments memory arguments,
     bytes32 buyHash,
     bytes32 sellHash,
     mapping(bytes32 => bool) storage completedOrderHashes,
@@ -120,17 +134,17 @@ library Trading {
   ) private {
     // Buy side
     _updateOrderFilledQuantity(
-      arguments.buy,
+      arguments.externalArguments.buy,
       buyHash,
-      arguments.orderBookTrade.baseQuantity,
+      arguments.externalArguments.orderBookTrade.baseQuantity,
       completedOrderHashes,
       partiallyFilledOrderQuantities
     );
     // Sell side
     _updateOrderFilledQuantity(
-      arguments.sell,
+      arguments.externalArguments.sell,
       sellHash,
-      arguments.orderBookTrade.baseQuantity,
+      arguments.externalArguments.orderBookTrade.baseQuantity,
       completedOrderHashes,
       partiallyFilledOrderQuantities
     );
@@ -166,7 +180,7 @@ library Trading {
   }
 
   function _validateInitialMarginRequirementsAndUpdateLastIndexPrice(
-    ExecuteOrderBookTradeArguments memory arguments,
+    Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -175,8 +189,8 @@ library Trading {
     require(
       MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
         NonMutatingMargin.LoadArguments(
-          arguments.buy.wallet,
-          arguments.buyWalletIndexPrices,
+          arguments.externalArguments.buy.wallet,
+          arguments.externalArguments.buyWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,
@@ -189,8 +203,8 @@ library Trading {
     require(
       MutatingMargin.isInitialMarginRequirementMetAndUpdateLastIndexPrice(
         NonMutatingMargin.LoadArguments(
-          arguments.sell.wallet,
-          arguments.sellWalletIndexPrices,
+          arguments.externalArguments.sell.wallet,
+          arguments.externalArguments.sellWalletIndexPrices,
           arguments.indexPriceCollectionServiceWallets
         ),
         balanceTracking,

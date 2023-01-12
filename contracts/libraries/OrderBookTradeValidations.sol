@@ -17,6 +17,9 @@ library OrderBookTradeValidations {
 
   function validateOrderBookTrade(
     ExecuteOrderBookTradeArguments memory arguments,
+    uint64 delegateKeyExpirationPeriodInMs,
+    address exitFundWallet,
+    address insuranceFundWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet
   ) internal view returns (bytes32 buyHash, bytes32 sellHash, Market memory market) {
@@ -28,15 +31,10 @@ library OrderBookTradeValidations {
       arguments.buy,
       arguments.sell,
       arguments.orderBookTrade,
-      arguments.exitFundWallet,
-      arguments.insuranceFundWallet
+      exitFundWallet,
+      insuranceFundWallet
     );
-    _validateNonces(
-      arguments.buy,
-      arguments.sell,
-      arguments.delegateKeyExpirationPeriodInMs,
-      nonceInvalidationsByWallet
-    );
+    _validateNonces(arguments.buy, arguments.sell, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
     (buyHash, sellHash) = _validateSignatures(arguments.buy, arguments.sell, arguments.orderBookTrade);
     _validateFees(arguments.orderBookTrade);
   }
