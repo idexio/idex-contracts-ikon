@@ -25,7 +25,8 @@ library ExitFund {
       return block.number;
     }
 
-    // Position or quote was open before but both are now closed, reset block number
+    // Position or quote was open before but both are now closed, reset block number. Note that quote must be
+    // drawn down to zero before resetting since EF quote withdrawals are not possible after reset
     if (currentExitFundBalanceOpenedAtBlockNumber > 0 && !(isPositionOpen || isQuoteOpen)) {
       return 0;
     }

@@ -245,8 +245,7 @@ library Withdrawing {
 
   function _validateExitFundWithdrawDelayElapsed(uint256 exitFundPositionOpenedAtBlockNumber) private view {
     require(
-      exitFundPositionOpenedAtBlockNumber == 0 ||
-        block.number >= exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
+      block.number >= exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
       "EF position opened too recently"
     );
   }
