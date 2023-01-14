@@ -16,7 +16,7 @@ import {
 } from './helpers';
 
 describe('Exchange', function () {
-  describe.only('transfer', function () {
+  describe('transfer', function () {
     it('should work', async function () {
       const [
         owner,
