@@ -32,6 +32,7 @@ export type LibraryName =
   | 'PositionBelowMinimumLiquidation'
   | 'PositionInDeactivatedMarketLiquidation'
   | 'Trading'
+  | 'Transferring'
   | 'WalletLiquidation'
   | 'Withdrawing';
 

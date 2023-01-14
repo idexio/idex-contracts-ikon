@@ -3,6 +3,7 @@
 pragma solidity 0.8.17;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
+import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
@@ -33,8 +34,18 @@ library Trading {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
-    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
+    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities,
+    mapping(address => Exiting.WalletExit) storage walletExits
   ) public {
+    require(
+      !Exiting.isWalletExitFinalized(arguments.externalArguments.buy.wallet, walletExits),
+      "Buy wallet exit finalized"
+    );
+    require(
+      !Exiting.isWalletExitFinalized(arguments.externalArguments.sell.wallet, walletExits),
+      "Sell wallet exit finalized"
+    );
+
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
     // against the position size at the time of each historic multipler
     Funding.updateWalletFunding(

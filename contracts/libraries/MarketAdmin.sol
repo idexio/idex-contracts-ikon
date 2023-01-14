@@ -124,7 +124,7 @@ library MarketAdmin {
   }
 
   // solhint-disable-next-line func-name-mixedcase
-  function skim(address tokenAddress, address feeWallet) external {
+  function skim_delegatecall(address tokenAddress, address feeWallet) public {
     require(Address.isContract(tokenAddress), "Invalid token address");
 
     uint256 balance = IERC20(tokenAddress).balanceOf(address(this));

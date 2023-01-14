@@ -9,7 +9,7 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { OrderSide } from "./Enums.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { Balance, ExecuteOrderBookTradeArguments, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
+import { Balance, ExecuteOrderBookTradeArguments, Market, MarketOverrides, Transfer, Withdrawal } from "./Structs.sol";
 
 library BalanceTracking {
   using MarketHelper for Market;
@@ -351,6 +351,32 @@ library BalanceTracking {
     // Fee wallet receives maker and taker fees
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
     balanceStruct.balance += buyFee + sellFee;
+  }
+
+  // Transferring //
+
+  function updateForTransfer(
+    Storage storage self,
+    Transfer memory transfer,
+    address feeWallet
+  ) internal returns (int64 newSourceWalletExchangeBalance) {
+    Balance storage balanceStruct;
+
+    // Remove quote amount from source wallet balance
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, transfer.sourceWallet, Constants.QUOTE_ASSET_SYMBOL);
+    // The calling function will subsequently validate this balance change by checking initial margin requirement
+    balanceStruct.balance -= int64(transfer.grossQuantity);
+    newSourceWalletExchangeBalance = balanceStruct.balance;
+
+    // Send quote amount minus gas fee (if any) to destination wallet balance
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, transfer.destinationWallet, Constants.QUOTE_ASSET_SYMBOL);
+    balanceStruct.balance += int64(transfer.grossQuantity - transfer.gasFee);
+
+    if (transfer.gasFee > 0) {
+      balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
+
+      balanceStruct.balance += int64(transfer.gasFee);
+    }
   }
 
   // Withdrawing //
