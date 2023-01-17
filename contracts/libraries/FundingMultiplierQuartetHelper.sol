@@ -99,39 +99,51 @@ library FundingMultiplierQuartetHelper {
     }
   }
 
+  function _calculateIndexAndOffsetForTimestampInMs(
+    FundingMultiplierQuartet[] storage self,
+    uint64 targetTimestampInMs,
+    uint64 lastTimestampInMs
+  ) private view returns (uint256 index, uint64 offset) {
+    // The last element may not be fully populated, but previous elements alway are
+    uint64 totalNumberOfMultipliers = _calculateNumberOfMultipliersInQuartet(self[self.length - 1]) +
+      // We can safely downcast since 2^63 multipliers would take several quadrillion years to exceed
+      (uint64(self.length - 1) * _QUARTET_SIZE);
+    // Calculate the timestamp of the very first multiplier
+    uint64 firstTimestampInMs = lastTimestampInMs - ((totalNumberOfMultipliers - 1) * Constants.FUNDING_PERIOD_IN_MS);
+
+    // Calculate the number of multipliers from the timestamp to the last published timestamp, both inclusive
+    uint64 numberOfMultipliersFromFirstToTargetTimestamp = 1 +
+      ((targetTimestampInMs - firstTimestampInMs) / Constants.FUNDING_PERIOD_IN_MS);
+
+    // Calculate index and offset of target timestamp
+    index = Math.divideRoundUp(numberOfMultipliersFromFirstToTargetTimestamp, _QUARTET_SIZE) - 1;
+    offset = numberOfMultipliersFromFirstToTargetTimestamp % _QUARTET_SIZE == 0
+      ? 3
+      : (numberOfMultipliersFromFirstToTargetTimestamp % _QUARTET_SIZE) - 1;
+
+    /*
+    console.log("index %s", index);
+    console.log("offset %s", offset);
+       */
+  }
+
   /**
-   * @dev Calculates the aggreagate funding rate multiplier for one quartet
+   * @dev Calculates the number of multipliers packed in one quartet
    */
-  function _calculateHighestOffsetInQuartet(
+  function _calculateNumberOfMultipliersInQuartet(
     FundingMultiplierQuartet memory fundingMultipliers
   ) private pure returns (uint64 multiplierCount) {
     if (fundingMultipliers.fundingMultiplier3 != _EMPTY) {
-      return 3;
+      return 4;
     }
     if (fundingMultipliers.fundingMultiplier2 != _EMPTY) {
-      return 2;
+      return 3;
     }
     if (fundingMultipliers.fundingMultiplier1 != _EMPTY) {
-      return 1;
+      return 2;
     }
 
-    return 0;
-  }
-
-  function _calculateIndexAndOffsetForTimestampInMs(
-    FundingMultiplierQuartet[] storage self,
-    uint64 timestampInMs,
-    uint64 lastTimestampInMs
-  ) private view returns (uint256 index, uint64 offset) {
-    uint64 numberOfTrailingMultipliers = (lastTimestampInMs - timestampInMs) / Constants.FUNDING_PERIOD_IN_MS;
-    uint64 highestOffsetInQuartet = _calculateHighestOffsetInQuartet(self[self.length - 1]);
-
-    if (numberOfTrailingMultipliers <= highestOffsetInQuartet) {
-      index = self.length - 1;
-      offset = highestOffsetInQuartet - numberOfTrailingMultipliers;
-    } else {
-      index = self.length - Math.divideRoundUp(numberOfTrailingMultipliers, _QUARTET_SIZE);
-      offset = highestOffsetInQuartet - (numberOfTrailingMultipliers % _QUARTET_SIZE);
-    }
+    // A quartet always includes at least one multiplier
+    return 1;
   }
 }

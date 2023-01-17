@@ -266,10 +266,8 @@ library Funding {
     // Apply funding payments if new multipliers were published since the position was last updated
     if (basePosition.balance != 0 && basePosition.lastUpdateTimestampInMs < lastFundingRatePublishTimestampInMs) {
       // To calculate the number of multipliers to apply, start from the first funding multiplier following the last
-      // position update and go up to the last published multiplier
-      uint64 fromTimestampInMs = basePosition.lastUpdateTimestampInMs +
-        Constants.FUNDING_PERIOD_IN_MS -
-        (basePosition.lastUpdateTimestampInMs % Constants.FUNDING_PERIOD_IN_MS);
+      // position update and go up to the last published multiplier. Update timestamps are always period-aligned
+      uint64 fromTimestampInMs = basePosition.lastUpdateTimestampInMs + Constants.FUNDING_PERIOD_IN_MS;
 
       uint64 toTimestampInMs;
       if (limitMaxTimePeriod) {
@@ -281,11 +279,13 @@ library Funding {
         toTimestampInMs = lastFundingRatePublishTimestampInMs;
       }
 
-      int64 aggregateFundingMultiplier = fundingMultipliersForMarket.loadAggregateMultiplier(
-        fromTimestampInMs,
-        toTimestampInMs,
-        lastFundingRatePublishTimestampInMs
-      );
+      int64 aggregateFundingMultiplier = fromTimestampInMs <= toTimestampInMs
+        ? fundingMultipliersForMarket.loadAggregateMultiplier(
+          fromTimestampInMs,
+          toTimestampInMs,
+          lastFundingRatePublishTimestampInMs
+        )
+        : int64(0);
 
       int64 funding = Math.multiplyPipsByFraction(
         basePosition.balance,

@@ -61,7 +61,7 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(string => uint64) public lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // Wallet-specific market parameter overrides
   mapping(string => mapping(address => MarketOverrides)) private _marketOverridesByBaseAssetSymbolAndWallet;
-  //
+  // Mapping of base asset symbol => Market struct
   mapping(string => Market) private _marketsByBaseAssetSymbol;
   // Mapping of wallet => last invalidated timestampInMs
   mapping(address => NonceInvalidation[]) public nonceInvalidationsByWallet;
@@ -895,8 +895,8 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Initiates market override upgrade proccess for `wallet`. If `wallet` is zero address, then the overrides
-   * will become the new default values for the market. Once `blockDelay` has passed the process can be finalized with
-   * `finalizeMarketOverridesUpgrade`
+   * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
+   * process can be finalized with `finalizeMarketOverridesUpgrade`
    */
   function initiateMarketOverridesUpgrade(
     string memory baseAssetSymbol,
@@ -926,7 +926,7 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Finalizes a market override upgrade process by changing the market's default overridable field values if
    * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
-   * `ConstantsFIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
    */
   function finalizeMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) external onlyAdmin {
     MarketAdmin.finalizeMarketOverridesUpgrade_delegatecall(
