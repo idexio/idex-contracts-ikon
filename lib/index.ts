@@ -7,6 +7,7 @@ import {
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
+  TransferStruct,
   WalletLiquidationArgumentsStruct,
   WithdrawalStruct,
 } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
@@ -20,6 +21,7 @@ export {
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
+  TransferStruct,
   WalletLiquidationArgumentsStruct,
   WithdrawalStruct,
 };
@@ -76,7 +78,7 @@ export enum OrderTriggerType {
 export interface IndexPrice {
   baseAssetSymbol: string;
   timestampInMs: number;
-  price: string;
+  price: string; // Decimal string
   signature: string;
 }
 
@@ -113,11 +115,20 @@ export interface Trade {
   quoteQuantity: string;
   makerFeeQuantity: string;
   takerFeeQuantity: string;
-  price: string;
+  price: string; // Decimal string
   makerSide: OrderSide;
 }
 
+export interface Transfer {
+  signatureHashVersion: number;
+  nonce: string;
+  sourceWallet: string;
+  destinationWallet: string;
+  quantity: string; // Decimal string
+}
+
 export interface Withdrawal {
+  signatureHashVersion: number;
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
@@ -160,7 +171,7 @@ export const getOrderHash = (order: Order): string => {
   const emptyPipString = '0.00000000';
 
   let params: TypeValuePair[] = [
-    ['uint8', order.signatureHashVersion], // Signature hash version - only version 2 supported
+    ['uint8', order.signatureHashVersion],
     ['uint128', uuidToUint8Array(order.nonce)],
     ['address', order.wallet],
     ['string', order.market],
@@ -203,8 +214,19 @@ ${delegateKeyFragment}${uuidToUintString(delegatedKeyAuthorization.nonce)}`;
   return message;
 };
 
+export const getTransferHash = (transfer: Transfer): string => {
+  return solidityHashOfParams([
+    ['uint8', transfer.signatureHashVersion],
+    ['uint128', uuidToUint8Array(transfer.nonce)],
+    ['address', transfer.sourceWallet],
+    ['address', transfer.destinationWallet],
+    ['string', transfer.quantity],
+  ]);
+};
+
 export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
   return solidityHashOfParams([
+    ['uint8', withdrawal.signatureHashVersion],
     ['uint128', uuidToUint8Array(withdrawal.nonce)],
     ['address', withdrawal.wallet],
     ['string', withdrawal.quantity],
@@ -252,6 +274,26 @@ export const getExecuteOrderBookTradeArguments = (
   ];
 };
 
+export const getTransferArguments = (
+  transfer: Transfer,
+  gasFee: string,
+  walletSignature: string,
+  indexPrices: IndexPrice[],
+): [TransferStruct, IndexPriceStruct[]] => {
+  return [
+    {
+      signatureHashVersion: transfer.signatureHashVersion,
+      nonce: uuidToHexString(transfer.nonce),
+      sourceWallet: transfer.sourceWallet,
+      destinationWallet: transfer.destinationWallet,
+      grossQuantity: decimalToPips(transfer.quantity),
+      gasFee: decimalToPips(gasFee),
+      walletSignature,
+    },
+    indexPrices.map(indexPriceToArgumentStruct),
+  ];
+};
+
 export const getWithdrawArguments = (
   withdrawal: Withdrawal,
   gasFee: string,
@@ -260,13 +302,14 @@ export const getWithdrawArguments = (
 ): [WithdrawalStruct, IndexPriceStruct[]] => {
   return [
     {
+      signatureHashVersion: withdrawal.signatureHashVersion,
       nonce: uuidToHexString(withdrawal.nonce),
       wallet: withdrawal.wallet,
       grossQuantity: decimalToPips(withdrawal.quantity),
       gasFee: decimalToPips(gasFee),
       walletSignature,
     },
-    indexPrices,
+    indexPrices.map(indexPriceToArgumentStruct),
   ];
 };
 

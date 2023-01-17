@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
+import { Exiting } from "./Exiting.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Hashing } from "./Hashing.sol";
 import { ICustodian } from "./Interfaces.sol";
@@ -19,11 +20,6 @@ import { Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides,
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
-
-  struct WalletExit {
-    bool exists;
-    uint256 effectiveBlockNumber;
-  }
 
   struct WithdrawArguments {
     // External arguments
@@ -54,14 +50,14 @@ library Withdrawing {
     address exitFundWallet,
     address insuranceFundWallet,
     address wallet,
-    mapping(address => Withdrawing.WalletExit) storage walletExits
+    mapping(address => Exiting.WalletExit) storage walletExits
   ) external returns (uint256 blockThreshold) {
     require(!walletExits[wallet].exists, "Wallet already exited");
     require(wallet != insuranceFundWallet, "Cannot exit IF");
     require(wallet != exitFundWallet, "Cannot exit EF");
 
     blockThreshold = block.number + chainPropagationPeriodInBlocks;
-    walletExits[wallet] = Withdrawing.WalletExit(true, blockThreshold);
+    walletExits[wallet] = Exiting.WalletExit(true, blockThreshold);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -140,8 +136,15 @@ library Withdrawing {
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => Exiting.WalletExit) storage walletExits
   ) public returns (uint256, uint64) {
+    // Do not require prior exit for EF as it is already subject to a specific withdrawal delay
+    require(
+      arguments.wallet == arguments.exitFundWallet || Exiting.isWalletExitFinalized(arguments.wallet, walletExits),
+      "Wallet exit not finalized"
+    );
+
     Funding.updateWalletFunding(
       arguments.wallet,
       balanceTracking,

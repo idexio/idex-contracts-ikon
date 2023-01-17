@@ -7,6 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
+import { Exiting } from "./Exiting.sol";
 import { ICustodian } from "./Interfaces.sol";
 
 library Depositing {
@@ -14,12 +15,21 @@ library Depositing {
 
   // solhint-disable-next-line func-name-mixedcase
   function deposit_delegatecall(
-    address wallet,
+    ICustodian custodian,
+    uint64 depositIndex,
     uint256 quantityInAssetUnits,
     address quoteAssetAddress,
-    ICustodian custodian,
-    BalanceTracking.Storage storage balanceTracking
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => Exiting.WalletExit) storage walletExits
   ) public returns (uint64 quantity, int64 newExchangeBalance) {
+    // Deposits are disabled until `setDepositIndex` is called successfully
+    require(depositIndex != Constants.DEPOSIT_INDEX_NOT_SET, "Deposits disabled");
+
+    // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and trades which respect
+    // the Chain Propagation Period given by `effectiveBlockNumber` via `_isWalletExitFinalized`
+    require(!walletExits[msg.sender].exists, "Wallet exited");
+
     quantity = AssetUnitConversions.assetUnitsToPips(quantityInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
     require(quantity > 0, "Quantity is too low");
 

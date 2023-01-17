@@ -308,6 +308,7 @@ export async function deployLibraryContracts() {
     PositionBelowMinimumLiquidation,
     PositionInDeactivatedMarketLiquidation,
     Trading,
+    Transferring,
     WalletLiquidation,
     Withdrawing,
   ] = await Promise.all([
@@ -322,6 +323,7 @@ export async function deployLibraryContracts() {
     ethers.getContractFactory('PositionBelowMinimumLiquidation'),
     ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
     ethers.getContractFactory('Trading'),
+    ethers.getContractFactory('Transferring'),
     ethers.getContractFactory('WalletLiquidation'),
     ethers.getContractFactory('Withdrawing'),
   ]);
@@ -338,6 +340,7 @@ export async function deployLibraryContracts() {
     positionBelowMinimumLiquidation,
     positionInDeactivatedMarketLiquidation,
     trading,
+    transferring,
     walletLiquidation,
     withdrawing,
   ] = await Promise.all([
@@ -352,6 +355,7 @@ export async function deployLibraryContracts() {
     (await PositionBelowMinimumLiquidation.deploy()).deployed(),
     (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
+    (await Transferring.deploy()).deployed(),
     (await WalletLiquidation.deploy()).deployed(),
     (await Withdrawing.deploy()).deployed(),
   ]);
@@ -370,6 +374,7 @@ export async function deployLibraryContracts() {
       PositionInDeactivatedMarketLiquidation:
         positionInDeactivatedMarketLiquidation.address,
       Trading: trading.address,
+      Transferring: transferring.address,
       WalletLiquidation: walletLiquidation.address,
       Withdrawing: withdrawing.address,
     },

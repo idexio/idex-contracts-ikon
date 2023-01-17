@@ -7,7 +7,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 import { Constants } from "./Constants.sol";
 import { OrderType } from "./Enums.sol";
-import { DelegatedKeyAuthorization, IndexPrice, Order, Withdrawal } from "./Structs.sol";
+import { DelegatedKeyAuthorization, IndexPrice, Order, Transfer, Withdrawal } from "./Structs.sol";
 
 /**
  * @notice Library helpers for building hashes and verifying wallet signatures
@@ -92,8 +92,33 @@ library Hashing {
       );
   }
 
+  function getTransferHash(Transfer memory transfer) internal pure returns (bytes32) {
+    require(transfer.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
+
+    return
+      keccak256(
+        abi.encodePacked(
+          transfer.signatureHashVersion,
+          transfer.nonce,
+          transfer.sourceWallet,
+          transfer.destinationWallet,
+          _pipToDecimal(transfer.grossQuantity)
+        )
+      );
+  }
+
   function getWithdrawalHash(Withdrawal memory withdrawal) internal pure returns (bytes32) {
-    return keccak256(abi.encodePacked(withdrawal.nonce, withdrawal.wallet, _pipToDecimal(withdrawal.grossQuantity)));
+    require(withdrawal.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
+
+    return
+      keccak256(
+        abi.encodePacked(
+          withdrawal.signatureHashVersion,
+          withdrawal.nonce,
+          withdrawal.wallet,
+          _pipToDecimal(withdrawal.grossQuantity)
+        )
+      );
   }
 
   /**

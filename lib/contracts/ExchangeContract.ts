@@ -31,6 +31,7 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       positionBelowMinimumLiquidation: string;
       positionInDeactivatedMarketLiquidation: string;
       trading: string;
+      transferring: string;
       walletLiquidation: string;
       withdrawing: string;
     },
@@ -59,6 +60,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       ['contracts/libraries/PositionInDeactivatedMarketLiquidation.sol:PositionInDeactivatedMarketLiquidation']:
         libraryAddresses.positionInDeactivatedMarketLiquidation,
       ['contracts/libraries/Trading.sol:Trading']: libraryAddresses.trading,
+      ['contracts/libraries/Transferring.sol:Transferring']:
+        libraryAddresses.transferring,
       ['contracts/libraries/WalletLiquidation.sol:WalletLiquidation']:
         libraryAddresses.walletLiquidation,
       ['contracts/libraries/Withdrawing.sol:Withdrawing']:

@@ -9,7 +9,7 @@ import {
   getWithdrawArguments,
   getWithdrawalHash,
   IndexPrice,
-  indexPriceToArgumentStruct,
+  signatureHashVersion,
 } from '../lib';
 import {
   buildIndexPrice,
@@ -43,6 +43,7 @@ describe('Exchange', function () {
       await (await exchange.connect(trader).deposit(depositQuantity)).wait();
 
       const withdrawal = {
+        signatureHashVersion,
         nonce: uuidv1(),
         wallet: trader.address,
         quantity: '1.00000000',
@@ -55,7 +56,7 @@ describe('Exchange', function () {
           .connect(dispatcher)
           .withdraw(
             ...getWithdrawArguments(withdrawal, '0.00000000', signature, [
-              indexPriceToArgumentStruct(await buildIndexPrice(index)),
+              await buildIndexPrice(index),
             ]),
           )
       ).wait();

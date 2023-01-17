@@ -256,6 +256,23 @@ struct OrderBookTrade {
   OrderSide makerSide;
 }
 
+struct Transfer {
+  // Must equal `Constants.SIGNATURE_HASH_VERSION`
+  uint8 signatureHashVersion;
+  // UUIDv1 unique to wallet
+  uint128 nonce;
+  // Address of wallet giving funds
+  address sourceWallet;
+  // Address of wallet receiving funds
+  address destinationWallet;
+  // Transfer quantity
+  uint64 grossQuantity;
+  // Gas fee deducted from transfer quantity to cover dispatcher tx costs
+  uint64 gasFee;
+  // The ECDSA signature of the transfer hash as produced by Hashing.getTransferWalletHash
+  bytes walletSignature;
+}
+
 /**
  * @notice Argument type for `Exchange.liquidateWalletInMaintenance`,
  * `Exchange.liquidateWalletInMaintenanceDuringSystemRecovery`, and `Exchange.liquidateWalletExited`
@@ -276,10 +293,12 @@ struct WalletLiquidationArguments {
  * @notice Argument type for `Exchange.withdraw` and `Hashing.getWithdrawalWalletHash`
  */
 struct Withdrawal {
+  // Must equal `Constants.SIGNATURE_HASH_VERSION`
+  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Address of wallet to which funds will be returned
-  address payable wallet;
+  address wallet;
   // Withdrawal quantity
   uint64 grossQuantity;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs

@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
@@ -22,6 +22,7 @@
     "artifacts/contracts/libraries/PositionBelowMinimumLiquidation.sol/PositionBelowMinimumLiquidation.json",
     "artifacts/contracts/libraries/PositionInDeactivatedMarketLiquidation.sol/PositionInDeactivatedMarketLiquidation.json",
     "artifacts/contracts/libraries/Trading.sol/Trading.json",
+    "artifacts/contracts/libraries/Transferring.sol/Transferring.json",
     "artifacts/contracts/libraries/WalletLiquidation.sol/WalletLiquidation.json",
     "artifacts/contracts/libraries/Withdrawing.sol/Withdrawing.json",
     "build/lib",
