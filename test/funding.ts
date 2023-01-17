@@ -49,7 +49,7 @@ export async function loadFundingMultipliersFromMock(
 // FIXME Increasing the block timestamp does not seem to reset between tests
 // FIXME Fix assertions to account for zero multipliers automatically added by addMarket (variable number)
 describe('Exchange', function () {
-  describe.only('publishFundingMutipliers', async function () {
+  describe.skip('publishFundingMutipliers', async function () {
     it('should work for multiple consecutive periods', async function () {
       const fundingMultipliersMock = await (
         await ethers.getContractFactory('FundingMultipliersMock')

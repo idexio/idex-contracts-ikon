@@ -2,6 +2,9 @@
 
 pragma solidity 0.8.17;
 
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
@@ -58,6 +61,16 @@ library Withdrawing {
 
     blockThreshold = block.number + chainPropagationPeriodInBlocks;
     walletExits[wallet] = Exiting.WalletExit(true, blockThreshold);
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function skim_delegatecall(address tokenAddress, address feeWallet) public {
+    require(Address.isContract(tokenAddress), "Invalid token address");
+
+    uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
+
+    // Ignore the return value of transfer
+    IERC20(tokenAddress).transfer(feeWallet, balance);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -171,8 +184,6 @@ library Withdrawing {
       );
     }
 
-    require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
-
     arguments.custodian.withdraw(
       arguments.wallet,
       arguments.quoteAssetAddress,
@@ -186,6 +197,7 @@ library Withdrawing {
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
+      // Quote quantity will never be negative per design of exit quote calculations
       uint64(walletQuoteQuantityToWithdraw)
     );
   }

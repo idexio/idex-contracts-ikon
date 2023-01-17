@@ -120,6 +120,7 @@ export async function buildIndexPrices(
       .fill(null)
       .map(async (_, i) => {
         const indexPrice = {
+          signatureHashVersion,
           baseAssetSymbol,
           timestampInMs: getNextPeriodInMs(i),
           price: prices[i % prices.length],
@@ -141,6 +142,7 @@ export async function buildIndexPriceWithValue(
   baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
   const indexPrice = {
+    signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
     timestampInMs: new Date().getTime(),
     price,

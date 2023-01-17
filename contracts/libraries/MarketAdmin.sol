@@ -3,7 +3,6 @@
 pragma solidity 0.8.17;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { FieldUpgradeGovernance } from "./FieldUpgradeGovernance.sol";
 import { Funding } from "./Funding.sol";
@@ -121,24 +120,6 @@ library MarketAdmin {
         overridableFields: marketOverrides
       });
     }
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function skim_delegatecall(address tokenAddress, address feeWallet) public {
-    require(Address.isContract(tokenAddress), "Invalid token address");
-
-    uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
-
-    uint256 balanceBefore = IERC20(tokenAddress).balanceOf(feeWallet);
-
-    // Because we check for the expected balance change we can safely ignore the return value of transfer
-    IERC20(tokenAddress).transfer(feeWallet, balance);
-
-    uint256 balanceAfter = IERC20(tokenAddress).balanceOf(feeWallet);
-    require(
-      balanceAfter - balanceBefore == balance,
-      "Token contract returned transfer success without expected balance change"
-    );
   }
 
   // Validate reasonable limits on overridable market fields

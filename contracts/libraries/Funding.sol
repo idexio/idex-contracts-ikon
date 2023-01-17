@@ -271,6 +271,7 @@ library Funding {
 
       uint64 toTimestampInMs;
       if (limitMaxTimePeriod) {
+        // Limit number of multipliers applied if needed
         toTimestampInMs = Math.min(
           fromTimestampInMs + Constants.MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS,
           lastFundingRatePublishTimestampInMs

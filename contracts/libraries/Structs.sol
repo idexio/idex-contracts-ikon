@@ -35,9 +35,9 @@ struct AcquisitionDeleverageArguments {
 struct Balance {
   bool isMigrated;
   int64 balance;
-  // The last funding update timestamp and cost basis are only relevant for base asset positions
-  uint64 lastUpdateTimestampInMs;
+  // The cost basis and last funding update timestamp are only relevant for base asset positions
   int64 costBasis;
+  uint64 lastUpdateTimestampInMs;
 }
 
 /**
@@ -62,6 +62,8 @@ struct ClosureDeleverageArguments {
  * @notice Field in `Order` struct for optionally authorizing a delegate key signing wallet
  */
 struct DelegatedKeyAuthorization {
+  // Must equal `Constants.SIGNATURE_HASH_VERSION`
+  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Public component of ECDSA signing key pair
@@ -96,6 +98,8 @@ struct FundingMultiplierQuartet {
  * @notice Index price data signed by index wallet
  */
 struct IndexPrice {
+  // Must equal `Constants.SIGNATURE_HASH_VERSION`
+  uint8 signatureHashVersion;
   string baseAssetSymbol;
   // Milliseconds since epoch
   uint64 timestampInMs;

@@ -28,8 +28,14 @@ library Hashing {
   function getDelegatedKeyMessage(
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
   ) internal pure returns (bytes memory) {
+    require(
+      delegatedKeyAuthorization.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION,
+      "Signature hash version invalid"
+    );
+
     return
       abi.encodePacked(
+        delegatedKeyAuthorization.signatureHashVersion,
         Constants.ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE,
         Strings.toString(uint160(delegatedKeyAuthorization.delegatedPublicKey)),
         Strings.toString(delegatedKeyAuthorization.nonce)
@@ -37,9 +43,12 @@ library Hashing {
   }
 
   function getIndexPriceHash(IndexPrice memory indexPrice) internal pure returns (bytes32) {
+    require(indexPrice.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
+
     return
       keccak256(
         abi.encodePacked(
+          indexPrice.signatureHashVersion,
           indexPrice.baseAssetSymbol,
           Constants.QUOTE_ASSET_SYMBOL,
           indexPrice.timestampInMs,

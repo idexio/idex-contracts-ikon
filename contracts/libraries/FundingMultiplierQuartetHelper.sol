@@ -120,11 +120,6 @@ library FundingMultiplierQuartetHelper {
     offset = numberOfMultipliersFromFirstToTargetTimestamp % _QUARTET_SIZE == 0
       ? 3
       : (numberOfMultipliersFromFirstToTargetTimestamp % _QUARTET_SIZE) - 1;
-
-    /*
-    console.log("index %s", index);
-    console.log("offset %s", offset);
-       */
   }
 
   /**
