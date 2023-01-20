@@ -105,8 +105,7 @@ library BalanceTracking {
     // Zero out wallet position for market
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, baseAssetSymbol);
     bool isLiquidatingWalletPositionShort = balanceStruct.balance < 0;
-    balanceStruct.balance = 0;
-    balanceStruct.costBasis = 0;
+    _resetPositionToZero(balanceStruct);
 
     _updateOpenPositionsForWallet(
       liquidatingWallet,
@@ -192,8 +191,7 @@ library BalanceTracking {
     );
 
     // Zero out wallet position for market
-    balanceStruct.balance = 0;
-    balanceStruct.costBasis = 0;
+    _resetPositionToZero(balanceStruct);
     _updateOpenPositionsForWallet(
       arguments.wallet,
       arguments.market.baseAssetSymbol,
@@ -463,6 +461,12 @@ library BalanceTracking {
     uint64 maximumPositionSize
   ) private {
     int64 newBalance = balance.balance + int64(baseQuantity);
+
+    if (newBalance == 0) {
+      _resetPositionToZero(balance);
+      return;
+    }
+
     require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
 
     if (balance.balance >= 0) {
@@ -489,6 +493,12 @@ library BalanceTracking {
     uint64 maximumPositionSize
   ) private {
     int64 newBalance = balance.balance - int64(baseQuantity);
+
+    if (newBalance == 0) {
+      _resetPositionToZero(balance);
+      return;
+    }
+
     require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
 
     if (balance.balance <= 0) {
@@ -647,5 +657,11 @@ library BalanceTracking {
       ? newPositionSize > originalPositionSize && newPositionSize <= 0
       : newPositionSize < originalPositionSize && newPositionSize >= 0;
     require(isValidUpdate, "Position must move toward zero");
+  }
+
+  function _resetPositionToZero(Balance storage balanceStruct) private {
+    balanceStruct.balance = 0;
+    balanceStruct.costBasis = 0;
+    balanceStruct.lastUpdateTimestampInMs = 0;
   }
 }

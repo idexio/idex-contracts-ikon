@@ -6,7 +6,6 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
-import { ICustodian } from "./Interfaces.sol";
 import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { Validations } from "./Validations.sol";
@@ -42,6 +41,9 @@ library Transferring {
 
     require(arguments.transfer.sourceWallet != arguments.exitFundWallet, "Cannot transfer from EF");
     require(arguments.transfer.sourceWallet != arguments.insuranceFundWallet, "Cannot transfer from IF");
+
+    require(arguments.transfer.destinationWallet != address(0x0), "Invalid destination wallet");
+    require(arguments.transfer.destinationWallet != arguments.exitFundWallet, "Cannot transfer to EF");
 
     require(
       Validations.isFeeQuantityValid(arguments.transfer.gasFee, arguments.transfer.grossQuantity),

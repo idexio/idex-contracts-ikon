@@ -1,5 +1,4 @@
 import BigNumber from 'bignumber.js';
-import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 
@@ -16,14 +15,65 @@ import {
   buildIndexPrice,
   deployAndAssociateContracts,
   executeTrade,
+  expect,
   fundWallets,
   loadFundingMultipliers,
 } from './helpers';
 
+import { FundingMultipliersMock } from '../typechain-types';
+
+export async function loadFundingMultipliersFromMock(
+  fundingMultipliersMock: FundingMultipliersMock,
+) {
+  const multipliers: string[][] = [];
+  try {
+    let i = 0;
+    while (true) {
+      multipliers.push(
+        (await fundingMultipliersMock.fundingMultipliers(i)).map((m) =>
+          m.toString(),
+        ),
+      );
+
+      i += 1;
+    }
+  } catch (e) {
+    if (e instanceof Error && !e.message.match(/^call revert exception/)) {
+      console.error(e.message);
+    }
+  }
+
+  return multipliers;
+}
+
 // FIXME Increasing the block timestamp does not seem to reset between tests
 // FIXME Fix assertions to account for zero multipliers automatically added by addMarket (variable number)
-describe.skip('Exchange', function () {
-  describe('publishFundingMutipliers', async function () {
+describe('Exchange', function () {
+  describe.skip('publishFundingMutipliers', async function () {
+    it('should work for multiple consecutive periods', async function () {
+      const fundingMultipliersMock = await (
+        await ethers.getContractFactory('FundingMultipliersMock')
+      ).deploy();
+
+      for (const i of [...Array(6).keys()]) {
+        await fundingMultipliersMock.publishFundingMultipler(1);
+      }
+
+      console.log(await loadFundingMultipliersFromMock(fundingMultipliersMock));
+
+      const midnight = 1673913600000;
+
+      await expect(
+        fundingMultipliersMock.loadAggregateMultiplier(
+          midnight - fundingPeriodLengthInMs * 3,
+          midnight,
+          midnight,
+        ),
+      ).to.eventually.equal('4');
+    });
+  });
+
+  describe.skip('publishFundingMutipliers', async function () {
     it('should work for multiple consecutive periods', async function () {
       const [owner, dispatcher, exitFund, fee, insurance, index] =
         await ethers.getSigners();
@@ -61,6 +111,9 @@ describe.skip('Exchange', function () {
 
       const fundingMultipliers = await loadFundingMultipliers(exchange);
 
+      console.log(fundingMultipliers);
+
+      /*
       // 2 quartets
       expect(fundingMultipliers.length).to.equal(2);
 
@@ -74,6 +127,7 @@ describe.skip('Exchange', function () {
           ),
         ),
       );
+      */
     });
 
     it('should work for multiple periods with gap', async function () {
@@ -140,7 +194,7 @@ describe.skip('Exchange', function () {
     });
   });
 
-  describe('updateWalletFundingForMarket', async function () {
+  describe.skip('updateWalletFundingForMarket', async function () {
     it('should work for multiple consecutive periods', async function () {
       const [
         ownerWallet,

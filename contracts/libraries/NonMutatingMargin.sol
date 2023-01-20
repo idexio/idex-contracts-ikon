@@ -38,8 +38,8 @@ library NonMutatingMargin {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64 quoteQuantityAvailableForExitWithdrawal) {
-    quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+  ) public view returns (uint64) {
+    int64 quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
@@ -53,33 +53,21 @@ library NonMutatingMargin {
         marketsByBaseAssetSymbol
       );
 
-    Balance memory balanceStruct;
-    uint64 quoteQuantityForPosition;
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
-
-      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
-        balanceStruct.costBasis,
-        // Market indexed redundantly to avoid stack too deep error
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]].loadOnChainFeedPrice(),
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]]
-          .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        balanceStruct.balance,
+      quoteQuantityAvailableForExitWithdrawal += _loadQuoteQuantityForPositionExit(
+        baseAssetSymbols[i],
         totalAccountValue,
-        totalMaintenanceMarginRequirement
+        totalMaintenanceMarginRequirement,
+        wallet,
+        balanceTracking,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
       );
-
-      // For short positions, the wallet gives quote to close the position so subtract. For long positions, the wallet
-      // receives quote to close so add
-      if (balanceStruct.balance < 0) {
-        quoteQuantityAvailableForExitWithdrawal -= int64(quoteQuantityForPosition);
-      } else {
-        quoteQuantityAvailableForExitWithdrawal += int64(quoteQuantityForPosition);
-      }
     }
+
+    // Quote quantity will never be negative per design of exit quote calculations
+    return Math.abs(quoteQuantityAvailableForExitWithdrawal);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -326,7 +314,7 @@ library NonMutatingMargin {
       Constants.QUOTE_ASSET_SYMBOL
     );
 
-    int64 insuranceFundPositionSizeAfterAcquisition;
+    int256 insuranceFundPositionSizeAfterAcquisition;
     int64 liquidatingWalletPositionSize;
 
     for (uint8 i = 0; i < arguments.markets.length; i++) {
@@ -354,7 +342,9 @@ library NonMutatingMargin {
       // If acquiring this position exceeds the IF's maximum position size for the market, then it cannot acquire
       // and we can stop here
       isMaximumPositionSizeExceeded =
-        Math.abs(insuranceFundPositionSizeAfterAcquisition) >
+        insuranceFundPositionSizeAfterAcquisition >= 2 ** 63 ||
+        insuranceFundPositionSizeAfterAcquisition <= -2 ** 63 ||
+        Math.abs(int64(insuranceFundPositionSizeAfterAcquisition)) >
         arguments
           .markets[i]
           .loadMarketWithOverridesForWallet(arguments.insuranceFundWallet, marketOverridesByBaseAssetSymbolAndWallet)
@@ -368,7 +358,7 @@ library NonMutatingMargin {
       if (insuranceFundPositionSizeAfterAcquisition != 0) {
         // Accumulate account value by adding signed position value
         insuranceFundTotalAccountValue += Math.multiplyPipsByFraction(
-          insuranceFundPositionSizeAfterAcquisition,
+          int64(insuranceFundPositionSizeAfterAcquisition),
           int64(arguments.indexPrices[i]),
           int64(Constants.PIP_PRICE_MULTIPLIER)
         );
@@ -376,13 +366,13 @@ library NonMutatingMargin {
         totalInitialMarginRequirement += Math.abs(
           Math.multiplyPipsByFraction(
             Math.multiplyPipsByFraction(
-              insuranceFundPositionSizeAfterAcquisition,
+              int64(insuranceFundPositionSizeAfterAcquisition),
               int64(arguments.indexPrices[i]),
               int64(Constants.PIP_PRICE_MULTIPLIER)
             ),
             int64(
               arguments.markets[i].loadInitialMarginFractionForWallet(
-                insuranceFundPositionSizeAfterAcquisition,
+                int64(insuranceFundPositionSizeAfterAcquisition),
                 arguments.insuranceFundWallet,
                 marketOverridesByBaseAssetSymbolAndWallet
               )
@@ -416,5 +406,42 @@ library NonMutatingMargin {
           int64(Constants.PIP_PRICE_MULTIPLIER)
         )
       );
+  }
+
+  function _loadQuoteQuantityForPositionExit(
+    string memory baseAssetSymbol,
+    int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (int64) {
+    Balance memory balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
+      wallet,
+      baseAssetSymbol
+    );
+    Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
+
+    uint64 quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
+      balanceStruct.costBasis,
+      // Market indexed redundantly to avoid stack too deep error
+      market.loadOnChainFeedPrice(),
+      market
+        .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
+        .maintenanceMarginFraction,
+      balanceStruct.balance,
+      totalAccountValue,
+      totalMaintenanceMarginRequirement
+    );
+
+    // For short positions, the wallet gives quote to close the position so subtract. For long positions, the wallet
+    // receives quote to close so add
+    if (balanceStruct.balance < 0) {
+      return -1 * int64(quoteQuantityForPosition);
+    }
+
+    return int64(quoteQuantityForPosition);
   }
 }

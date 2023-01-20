@@ -7,6 +7,8 @@ import {
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
+  PositionBelowMinimumLiquidationArgumentsStruct,
+  PositionInDeactivatedMarketLiquidationArgumentsStruct,
   TransferStruct,
   WalletLiquidationArgumentsStruct,
   WithdrawalStruct,
@@ -21,6 +23,8 @@ export {
   IndexPriceStruct,
   OrderBookTradeStruct,
   OrderStruct,
+  PositionBelowMinimumLiquidationArgumentsStruct,
+  PositionInDeactivatedMarketLiquidationArgumentsStruct,
   TransferStruct,
   WalletLiquidationArgumentsStruct,
   WithdrawalStruct,
@@ -76,6 +80,7 @@ export enum OrderTriggerType {
 }
 
 export interface IndexPrice {
+  signatureHashVersion: number;
   baseAssetSymbol: string;
   timestampInMs: number;
   price: string; // Decimal string
@@ -103,6 +108,7 @@ export interface Order {
 }
 
 export interface DelegatedKeyAuthorization {
+  signatureHashVersion: number;
   nonce: string;
   delegatedPublicKey: string;
   signature: string;
@@ -160,6 +166,7 @@ export const getIndexPriceHash = (
   quoteAssetSymbol: string,
 ): string => {
   return solidityHashOfParams([
+    ['uint8', indexPrice.signatureHashVersion],
     ['string', indexPrice.baseAssetSymbol],
     ['string', quoteAssetSymbol],
     ['uint64', indexPrice.timestampInMs],
@@ -315,6 +322,7 @@ export const getWithdrawArguments = (
 
 export const indexPriceToArgumentStruct = (o: IndexPrice) => {
   return {
+    signatureHashVersion: o.signatureHashVersion,
     baseAssetSymbol: o.baseAssetSymbol,
     timestampInMs: o.timestampInMs,
     price: decimalToPips(o.price),
@@ -364,11 +372,13 @@ const orderToArgumentStruct = (
     isSignedByDelegatedKey: !!delegatedKeyAuthorization,
     delegatedKeyAuthorization: delegatedKeyAuthorization
       ? {
+          signatureHashVersion: delegatedKeyAuthorization.signatureHashVersion,
           nonce: uuidToHexString(delegatedKeyAuthorization.nonce),
           delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
           signature: delegatedKeyAuthorization.signature,
         }
       : {
+          signatureHashVersion: 0,
           nonce: 0,
           delegatedPublicKey: ethers.constants.AddressZero,
           signature: '0x',

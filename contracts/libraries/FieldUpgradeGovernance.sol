@@ -20,7 +20,6 @@ library FieldUpgradeGovernance {
 
   struct Storage {
     InsuranceFundWalletUpgrade currentInsuranceFundWalletUpgrade;
-    mapping(string => MarketOverridesUpgrade) currentMarketOverridesUpgradesByBaseAssetSymbol;
     mapping(string => mapping(address => MarketOverridesUpgrade)) currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet;
   }
 
@@ -100,14 +99,13 @@ library FieldUpgradeGovernance {
     string memory baseAssetSymbol,
     address wallet
   ) internal returns (OverridableMarketFields memory marketOverrides) {
-    require(
-      self.currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
-      "No market override upgrade in progress for wallet"
-    );
-    require(block.number >= self.currentInsuranceFundWalletUpgrade.blockThreshold, "Block threshold not yet reached");
+    MarketOverridesUpgrade storage upgrade = self.currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[
+      baseAssetSymbol
+    ][wallet];
+    require(upgrade.exists, "No market override upgrade in progress for wallet");
+    require(block.number >= upgrade.blockThreshold, "Block threshold not yet reached");
 
-    marketOverrides = self
-    .currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].newMarketOverrides;
+    marketOverrides = upgrade.newMarketOverrides;
 
     delete (self.currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet]);
   }
