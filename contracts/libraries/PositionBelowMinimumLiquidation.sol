@@ -7,8 +7,7 @@ import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
 import { Math } from "./Math.sol";
 import { MarketHelper } from "./MarketHelper.sol";
-import { MutatingMargin } from "./MutatingMargin.sol";
-import { NonMutatingMargin } from "./NonMutatingMargin.sol";
+import { Margin } from "./Margin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, PositionBelowMinimumLiquidationArguments } from "./Structs.sol";
@@ -57,8 +56,8 @@ library PositionBelowMinimumLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
+      .loadTotalAccountValueAndMaintenanceMarginRequirement(
         arguments.externalArguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,

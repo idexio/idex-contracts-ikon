@@ -4,14 +4,14 @@ pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
+import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
-library NonMutatingMargin {
+library Margin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
@@ -20,6 +20,31 @@ library NonMutatingMargin {
     address liquidatingWallet;
     uint64[] liquidationQuoteQuantities;
     Market[] markets;
+  }
+
+  function loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
+    totalAccountValue = Margin.loadTotalAccountValue(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
   // solhint-disable-next-line func-name-mixedcase

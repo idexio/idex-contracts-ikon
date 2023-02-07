@@ -5,8 +5,7 @@ pragma solidity 0.8.18;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
-import { MutatingMargin } from "./MutatingMargin.sol";
-import { NonMutatingMargin } from "./NonMutatingMargin.sol";
+import { Margin } from "./Margin.sol";
 import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
 import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation } from "./Structs.sol";
 
@@ -200,14 +199,14 @@ library Trading {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view {
-    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
       arguments.externalArguments.buy.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
       arguments.externalArguments.sell.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

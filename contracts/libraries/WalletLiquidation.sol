@@ -7,9 +7,8 @@ import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationType } from "./Enums.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
+import { Margin } from "./Margin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
-import { MutatingMargin } from "./MutatingMargin.sol";
-import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletLiquidationArguments } from "./Structs.sol";
 
@@ -86,7 +85,7 @@ library WalletLiquidation {
       resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockNumber;
 
       // Validate that the Insurance Fund still meets its initial margin requirements
-      MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+      Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
         arguments.externalArguments.counterpartyWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -104,8 +103,8 @@ library WalletLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
+      .loadTotalAccountValueAndMaintenanceMarginRequirement(
         arguments.externalArguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,

@@ -14,9 +14,9 @@ import { ExitFund } from "./libraries/ExitFund.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
 import { FieldUpgradeGovernance } from "./libraries/FieldUpgradeGovernance.sol";
+import { Margin } from "./libraries/Margin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
-import { NonMutatingMargin } from "./libraries/NonMutatingMargin.sol";
 import { Owned } from "./Owned.sol";
 import { PositionBelowMinimumLiquidation } from "./libraries/PositionBelowMinimumLiquidation.sol";
 import { PositionInDeactivatedMarketLiquidation } from "./libraries/PositionInDeactivatedMarketLiquidation.sol";
@@ -476,7 +476,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) external view returns (uint64) {
     return
-      NonMutatingMargin.loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
+      Margin.loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1011,7 +1011,7 @@ contract Exchange_v4 is IExchange, Owned {
   // TODO Load from on-chain price feeds
   function loadTotalInitialMarginRequirement(address wallet) external view returns (uint64) {
     return
-      NonMutatingMargin.loadTotalInitialMarginRequirement_delegatecall(
+      Margin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1029,7 +1029,7 @@ contract Exchange_v4 is IExchange, Owned {
   // TODO Load from on-chain price feeds
   function loadTotalMaintenanceMarginRequirement(address wallet) external view returns (uint64) {
     return
-      NonMutatingMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
+      Margin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,

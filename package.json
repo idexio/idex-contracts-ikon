@@ -18,7 +18,7 @@
     "artifacts/contracts/libraries/Funding.sol/Funding.json",
     "artifacts/contracts/libraries/MarketAdmin.sol/MarketAdmin.json",
     "artifacts/contracts/libraries/NonceInvalidations.sol/NonceInvalidations.json",
-    "artifacts/contracts/libraries/NonMutatingMargin.sol/NonMutatingMargin.json",
+    "artifacts/contracts/libraries/Margin.sol/Margin.json",
     "artifacts/contracts/libraries/PositionBelowMinimumLiquidation.sol/PositionBelowMinimumLiquidation.json",
     "artifacts/contracts/libraries/PositionInDeactivatedMarketLiquidation.sol/PositionInDeactivatedMarketLiquidation.json",
     "artifacts/contracts/libraries/Trading.sol/Trading.json",

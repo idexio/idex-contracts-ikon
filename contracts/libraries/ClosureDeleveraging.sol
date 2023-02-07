@@ -8,9 +8,8 @@ import { Deleveraging } from "./Deleveraging.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
+import { Margin } from "./Margin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
-import { MutatingMargin } from "./MutatingMargin.sol";
-import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Balance, ClosureDeleverageArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
@@ -142,7 +141,7 @@ library ClosureDeleveraging {
       );
     } else {
       // DeleverageType.ExitFundClosure
-      (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = NonMutatingMargin
+      (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
       // Use margin calculation specific to EF that accounts for its unlimited leverage
         .loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
           arguments.externalArguments.liquidatingWallet,
@@ -178,7 +177,7 @@ library ClosureDeleveraging {
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
-    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
       arguments.externalArguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

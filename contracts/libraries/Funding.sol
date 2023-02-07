@@ -3,8 +3,8 @@
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { FundingMultiplierQuartetHelper } from "./FundingMultiplierQuartetHelper.sol";
+import { Margin } from "./Margin.sol";
 import { Math } from "./Math.sol";
-import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Time } from "./Time.sol";
@@ -47,7 +47,7 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64) {
-    int64 totalAccountValue = NonMutatingMargin.loadTotalAccountValue(
+    int64 totalAccountValue = Margin.loadTotalAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
