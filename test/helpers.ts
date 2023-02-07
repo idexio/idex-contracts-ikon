@@ -76,17 +76,15 @@ export async function bootstrapLiquidatedWallet() {
     '2150.00000000',
   );
 
-  await (
-    await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-      counterpartyWallet: insuranceWallet.address,
-      counterpartyWalletIndexPrices: [
-        indexPriceToArgumentStruct(newIndexPrice),
-      ],
-      liquidatingWallet: trader1Wallet.address,
-      liquidatingWalletIndexPrices: [indexPriceToArgumentStruct(newIndexPrice)],
-      liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
-    })
-  ).wait();
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+
+  await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+    counterpartyWallet: insuranceWallet.address,
+    liquidatingWallet: trader1Wallet.address,
+    liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+  });
 
   return {
     dispatcherWallet,
@@ -271,8 +269,9 @@ export async function deployAndAssociateContracts(
         isActive: false,
         baseAssetSymbol,
         chainlinkPriceFeedAddress: chainlinkAggregator.address,
-        lastIndexPriceTimestampInMs: 0,
         indexPriceAtDeactivation: 0,
+        lastIndexPrice: 0,
+        lastIndexPriceTimestampInMs: 0,
         overridableFields: {
           initialMarginFraction: '5000000',
           maintenanceMarginFraction: '3000000',
@@ -390,6 +389,10 @@ export async function executeTrade(
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
 ) {
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
   const sellOrder: Order = {
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
@@ -439,10 +442,6 @@ export async function executeTrade(
           sellOrder,
           sellOrderSignature,
           trade,
-          [indexPrice],
-          [indexPrice],
-          undefined,
-          undefined,
         ),
       )
   ).wait();

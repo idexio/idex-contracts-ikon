@@ -85,15 +85,15 @@ describe('Exchange', function () {
         trader1Wallet.address,
       );
 
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
       await (
         await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
           baseAssetSymbol,
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-          insuranceFundIndexPrices: [indexPriceToArgumentStruct(indexPrice)],
-          liquidatingWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
         })
       ).wait();
     });
@@ -101,13 +101,14 @@ describe('Exchange', function () {
 
   describe('liquidatePositionInDeactivatedMarket', async function () {
     it('should work for valid wallet position and market', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
       await (
         await exchange
           .connect(dispatcherWallet)
-          .deactivateMarket(
-            baseAssetSymbol,
-            indexPriceToArgumentStruct(indexPrice),
-          )
+          .deactivateMarket(baseAssetSymbol)
       ).wait();
 
       await (
@@ -118,9 +119,6 @@ describe('Exchange', function () {
             feeQuantity: decimalToPips('20.00000000'),
             liquidatingWallet: trader1Wallet.address,
             liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-            liquidatingWalletIndexPrices: [
-              indexPriceToArgumentStruct(indexPrice),
-            ],
           })
       ).wait();
     });
@@ -142,16 +140,16 @@ describe('Exchange', function () {
         '2150.00000000',
       );
 
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+
       await (
         await exchange
           .connect(dispatcherWallet)
           .liquidateWalletInMaintenanceDuringSystemRecovery({
             counterpartyWallet: exitFundWallet.address,
-            counterpartyWalletIndexPrices: [],
             liquidatingWallet: trader1Wallet.address,
-            liquidatingWalletIndexPrices: [
-              indexPriceToArgumentStruct(newIndexPrice),
-            ],
             liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
           })
       ).wait();
@@ -162,16 +160,14 @@ describe('Exchange', function () {
     it('should work for valid wallet', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
 
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
       await (
         await exchange.connect(dispatcherWallet).liquidateWalletExited({
           counterpartyWallet: insuranceFundWallet.address,
-          counterpartyWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
           liquidatingWallet: trader1Wallet.address,
-          liquidatingWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
           liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
         })
       ).wait();

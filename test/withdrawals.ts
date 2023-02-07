@@ -55,9 +55,7 @@ describe('Exchange', function () {
         await exchange
           .connect(dispatcher)
           .withdraw(
-            ...getWithdrawArguments(withdrawal, '0.00000000', signature, [
-              await buildIndexPrice(index),
-            ]),
+            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
           )
       ).wait();
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 library Time {
   uint64 private constant _SECONDS_IN_ONE_DAY = (24 * 60 * 60); // 24 hours/day * 60 min/hour * 60 seconds/min

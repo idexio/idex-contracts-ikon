@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -18,7 +18,7 @@ import { MutatingMargin } from "./MutatingMargin.sol";
 import { NonMutatingMargin } from "./NonMutatingMargin.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -27,14 +27,12 @@ library Withdrawing {
   struct WithdrawArguments {
     // External arguments
     Withdrawal withdrawal;
-    IndexPrice[] indexPrices;
     // Exchange state
     address quoteAssetAddress;
     ICustodian custodian;
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
     address feeWallet;
-    address[] indexPriceCollectionServiceWallets;
   }
 
   struct WithdrawExitArguments {
@@ -43,7 +41,6 @@ library Withdrawing {
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
-    address[] indexPriceCollectionServiceWallets;
     address quoteAssetAddress;
   }
 
@@ -113,11 +110,7 @@ library Withdrawing {
     } else {
       // Wallet must still maintain initial margin requirement after withdrawal
       MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
-        NonMutatingMargin.LoadArguments(
-          arguments.withdrawal.wallet,
-          arguments.indexPrices,
-          arguments.indexPriceCollectionServiceWallets
-        ),
+        arguments.withdrawal.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,

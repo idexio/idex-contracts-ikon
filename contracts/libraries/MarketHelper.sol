@@ -4,7 +4,7 @@ import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Math } from "./Math.sol";
 import { Market, MarketOverrides } from "./Structs.sol";
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 library MarketHelper {
   function loadOnChainFeedPrice(Market memory self) internal view returns (uint64 price) {
@@ -53,8 +53,9 @@ library MarketHelper {
           isActive: market.isActive,
           baseAssetSymbol: market.baseAssetSymbol,
           chainlinkPriceFeedAddress: market.chainlinkPriceFeedAddress,
-          lastIndexPriceTimestampInMs: market.lastIndexPriceTimestampInMs,
           indexPriceAtDeactivation: market.indexPriceAtDeactivation,
+          lastIndexPrice: market.lastIndexPrice,
+          lastIndexPriceTimestampInMs: market.lastIndexPriceTimestampInMs,
           overridableFields: marketOverrides.overridableFields
         });
     }

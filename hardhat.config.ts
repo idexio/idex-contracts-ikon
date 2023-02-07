@@ -10,6 +10,7 @@ import 'solidity-coverage';
 /*
 import * as path from 'path';
 import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from 'hardhat/builtin-tasks/task-names';
+
 subtask(
   TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS,
   async (_, { config }, runSuper) => {
@@ -21,7 +22,7 @@ subtask(
         solidityFilePath,
       );
 
-      return relativePath === 'libraries/Perpetual.sol';
+      return relativePath === 'Exchange.sol';
     });
   },
 );
@@ -34,7 +35,7 @@ dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: '0.8.17',
+    version: '0.8.18',
     settings: {
       optimizer: {
         enabled: true,

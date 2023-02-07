@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
@@ -28,7 +28,6 @@ library PositionBelowMinimumLiquidation {
     // Exchange state
     uint64 positionBelowMinimumLiquidationPriceToleranceMultiplier;
     address insuranceFundWallet;
-    address[] indexPriceCollectionServiceWallets;
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -60,11 +59,7 @@ library PositionBelowMinimumLiquidation {
 
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = MutatingMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice(
-        NonMutatingMargin.LoadArguments(
-          arguments.externalArguments.liquidatingWallet,
-          arguments.externalArguments.liquidatingWalletIndexPrices,
-          arguments.indexPriceCollectionServiceWallets
-        ),
+        arguments.externalArguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -86,18 +81,14 @@ library PositionBelowMinimumLiquidation {
     Arguments memory arguments,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market, IndexPrice memory indexPrice) {
+  ) private view returns (Market memory market) {
     market = marketsByBaseAssetSymbol[arguments.externalArguments.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
     uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.externalArguments.liquidatingWallet].indexOf(
       arguments.externalArguments.baseAssetSymbol
     );
-    require(i != SortedStringSet.NOT_FOUND, "Index price not found for market");
-
-    indexPrice = arguments.externalArguments.liquidatingWalletIndexPrices[i];
-    // The index price signature and array position were already validated by
-    // loadTotalAccountValueAndMaintenanceMarginRequirementAndUpdateLastIndexPrice
+    require(i != SortedStringSet.NOT_FOUND, "Open position not found for market");
   }
 
   function _updateBalances(
@@ -129,7 +120,7 @@ library PositionBelowMinimumLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (Market memory market, IndexPrice memory indexPrice) = _loadAndValidateMarketAndIndexPrice(
+    Market memory market = _loadAndValidateMarketAndIndexPrice(
       arguments,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
@@ -156,7 +147,7 @@ library PositionBelowMinimumLiquidation {
     _validateQuoteQuantity(
       arguments.positionBelowMinimumLiquidationPriceToleranceMultiplier,
       arguments.externalArguments.liquidationQuoteQuantity,
-      indexPrice.price,
+      market.lastIndexPrice,
       positionSize
     );
 

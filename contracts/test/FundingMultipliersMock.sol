@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { FundingMultiplierQuartet } from "../libraries/Structs.sol";
 import { FundingMultiplierQuartetHelper } from "../libraries/FundingMultiplierQuartetHelper.sol";

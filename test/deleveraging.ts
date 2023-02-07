@@ -70,6 +70,10 @@ describe('Exchange', function () {
         '2150.00000000',
       );
 
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+
       await (
         await exchange
           .connect(dispatcherWallet)
@@ -82,15 +86,6 @@ describe('Exchange', function () {
             ].map(decimalToPips),
             liquidationBaseQuantity: decimalToPips('10.00000000'),
             liquidationQuoteQuantity: decimalToPips('21980.00000000'),
-            deleveragingWalletIndexPrices: [
-              indexPriceToArgumentStruct(newIndexPrice),
-            ],
-            validateInsuranceFundCannotLiquidateWalletIndexPrices: [
-              indexPriceToArgumentStruct(newIndexPrice),
-            ],
-            liquidatingWalletIndexPrices: [
-              indexPriceToArgumentStruct(newIndexPrice),
-            ],
           })
       ).wait();
     });
@@ -106,6 +101,12 @@ describe('Exchange', function () {
         counterpartyWallet,
       } = await bootstrapLiquidatedWallet();
 
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(liquidationIndexPrice),
+        ]);
+
       await (
         await exchange
           .connect(dispatcherWallet)
@@ -115,12 +116,6 @@ describe('Exchange', function () {
             liquidatingWallet: insuranceWallet.address,
             liquidationBaseQuantity: decimalToPips('10.00000000'),
             liquidationQuoteQuantity: decimalToPips('21980.00000000'),
-            liquidatingWalletIndexPrices: [
-              indexPriceToArgumentStruct(liquidationIndexPrice),
-            ],
-            deleveragingWalletIndexPrices: [
-              indexPriceToArgumentStruct(liquidationIndexPrice),
-            ],
           })
       ).wait();
     });
@@ -129,6 +124,10 @@ describe('Exchange', function () {
   describe('deleverageExitAcquisition', async function () {
     it('should work for valid wallet', async function () {
       await exchange.connect(trader2Wallet).exitWallet();
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
 
       await (
         await exchange.connect(dispatcherWallet).deleverageExitAcquisition({
@@ -140,15 +139,6 @@ describe('Exchange', function () {
           ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-          deleveragingWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
-          validateInsuranceFundCannotLiquidateWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
-          liquidatingWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
         })
       ).wait();
     });
@@ -159,6 +149,10 @@ describe('Exchange', function () {
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);
 
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
       await (
         await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
           baseAssetSymbol,
@@ -166,12 +160,6 @@ describe('Exchange', function () {
           liquidatingWallet: exitFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-          liquidatingWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
-          deleveragingWalletIndexPrices: [
-            indexPriceToArgumentStruct(indexPrice),
-          ],
         })
       ).wait();
     });

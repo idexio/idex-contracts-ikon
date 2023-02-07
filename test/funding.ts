@@ -6,6 +6,7 @@ import {
   decimalToPips,
   fundingPeriodLengthInMs,
   getPublishFundingMutiplierArguments,
+  indexPriceToArgumentStruct,
 } from '../lib';
 
 import {
@@ -86,8 +87,6 @@ describe('Exchange', function () {
         index,
       );
 
-      console.log(await loadFundingMultipliers(exchange));
-
       const fundingRates = buildFundingRates(5);
       const indexPrices = await buildIndexPrices(index, 5);
 
@@ -97,16 +96,18 @@ describe('Exchange', function () {
 
         await time.increase(fundingPeriodLengthInMs / 1000);
 
-        await (
-          await exchange
-            .connect(dispatcher)
-            .publishFundingMutiplier(
-              ...getPublishFundingMutiplierArguments(
-                fundingRates[i],
-                indexPrices[i],
-              ),
-            )
-        ).wait();
+        await exchange
+          .connect(dispatcher)
+          .publishIndexPrices([indexPriceToArgumentStruct(indexPrices[i])]);
+
+        await exchange
+          .connect(dispatcher)
+          .publishFundingMultiplier(
+            ...getPublishFundingMutiplierArguments(
+              baseAssetSymbol,
+              fundingRates[i],
+            ),
+          );
       }
 
       const fundingMultipliers = await loadFundingMultipliers(exchange);
@@ -151,13 +152,17 @@ describe('Exchange', function () {
         console.log(`Publishing ${i}`);
         await time.increase(fundingPeriodLengthInMs / 1000);
 
+        await exchange
+          .connect(dispatcher)
+          .publishIndexPrices([indexPriceToArgumentStruct(indexPrices[i])]);
+
         await (
           await exchange
             .connect(dispatcher)
-            .publishFundingMutiplier(
+            .publishFundingMultiplier(
               ...getPublishFundingMutiplierArguments(
+                baseAssetSymbol,
                 fundingRates[i],
-                indexPrices[i],
               ),
             )
         ).wait();
@@ -243,16 +248,18 @@ describe('Exchange', function () {
       for (const i of [...Array(5).keys()]) {
         await time.increase(fundingPeriodLengthInMs / 1000);
 
-        await (
-          await exchange
-            .connect(dispatcherWallet)
-            .publishFundingMutiplier(
-              ...getPublishFundingMutiplierArguments(
-                fundingRates[i],
-                indexPrices[i],
-              ),
-            )
-        ).wait();
+        await exchange
+          .connect(dispatcherWallet)
+          .publishIndexPrices([indexPriceToArgumentStruct(indexPrices[i])]);
+
+        await exchange
+          .connect(dispatcherWallet)
+          .publishFundingMultiplier(
+            ...getPublishFundingMutiplierArguments(
+              baseAssetSymbol,
+              fundingRates[i],
+            ),
+          );
       }
 
       await exchange.updateWalletFundingForMarket(

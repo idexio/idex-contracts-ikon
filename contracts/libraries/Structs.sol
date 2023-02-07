@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
@@ -21,12 +21,6 @@ struct AcquisitionDeleverageArguments {
   uint64 liquidationBaseQuantity;
   // Quote quantity for the position being liquidated
   uint64 liquidationQuoteQuantity;
-  // Index prices for deleveraging wallet after acquiring liquidating positions
-  IndexPrice[] deleveragingWalletIndexPrices;
-  // Index prices for union of liquidating and IF wallet position
-  IndexPrice[] validateInsuranceFundCannotLiquidateWalletIndexPrices;
-  // Index prices for liquidating wallet before liquidation
-  IndexPrice[] liquidatingWalletIndexPrices;
 }
 
 /**
@@ -52,10 +46,6 @@ struct ClosureDeleverageArguments {
   uint64 liquidationBaseQuantity;
   // Quote quantity for the position being liquidated
   uint64 liquidationQuoteQuantity;
-  // Index prices for liquidating wallet before liquidation
-  IndexPrice[] liquidatingWalletIndexPrices;
-  // Index prices for deleveraging wallet after acquiring liquidated positions
-  IndexPrice[] deleveragingWalletIndexPrices;
 }
 
 /**
@@ -80,8 +70,10 @@ struct ExecuteOrderBookTradeArguments {
   Order buy;
   Order sell;
   OrderBookTrade orderBookTrade;
-  IndexPrice[] buyWalletIndexPrices;
-  IndexPrice[] sellWalletIndexPrices;
+  // Though unclear why, adding this unused bytes field at the end of the struct avoilds a stack too deep error in
+  // executeOrderBookTrade_delegatecall
+  // solhint-disable-next-line var-name-mixedcase
+  bytes __;
 }
 
 /**
@@ -121,10 +113,12 @@ struct Market {
   string baseAssetSymbol;
   // Chainlink price feed aggregator contract to use for on-chain exit withdrawals
   IChainlinkAggregator chainlinkPriceFeedAddress;
-  // The timestamp of the latest index price provided for this market
-  uint64 lastIndexPriceTimestampInMs;
   // Set when deactivating a market to determine price for all position liquidations in that market
   uint64 indexPriceAtDeactivation;
+  // The latest index price published for this market
+  uint64 lastIndexPrice;
+  // The timestamp of the latest index price published for this market
+  uint64 lastIndexPriceTimestampInMs;
   // Fields that can be overriden per wallet
   OverridableMarketFields overridableFields;
 }
@@ -177,10 +171,6 @@ struct PositionBelowMinimumLiquidationArguments {
   address liquidatingWallet;
   // Quote quantity for the position being liquidated
   uint64 liquidationQuoteQuantity;
-  // Index prices for IF wallet after liquidation
-  IndexPrice[] insuranceFundIndexPrices;
-  // Index prices for liquidating wallet before liquidation
-  IndexPrice[] liquidatingWalletIndexPrices;
 }
 
 /**
@@ -192,8 +182,6 @@ struct PositionInDeactivatedMarketLiquidationArguments {
   address liquidatingWallet;
   // Quote quantity for the position being liquidated
   uint64 liquidationQuoteQuantity;
-  // Index prices for liquidating wallet before liquidation
-  IndexPrice[] liquidatingWalletIndexPrices;
 }
 
 /**
@@ -284,11 +272,7 @@ struct Transfer {
 struct WalletLiquidationArguments {
   // Insurance Fund or Exit Fund
   address counterpartyWallet;
-  // Index prices for acquiring wallet after liquidation
-  IndexPrice[] counterpartyWalletIndexPrices;
   address liquidatingWallet;
-  // Index prices for liquidating wallet before liquidation
-  IndexPrice[] liquidatingWalletIndexPrices;
   // Quote quantity for each liquidated positions
   uint64[] liquidationQuoteQuantities;
 }
