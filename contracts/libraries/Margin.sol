@@ -4,11 +4,9 @@ pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
-import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
-import { Validations } from "./Validations.sol";
 import { Balance, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
 library Margin {
@@ -55,35 +53,14 @@ library Margin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64) {
-    int64 quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-      wallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
-
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+    return
+      OnChainPriceFeedMargin.loadQuoteQuantityAvailableForExitWithdrawal(
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      quoteQuantityAvailableForExitWithdrawal += _loadQuoteQuantityForPositionExit(
-        baseAssetSymbols[i],
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
-        wallet,
-        balanceTracking,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    }
-
-    // Quote quantity will never be negative per design of exit quote calculations
-    return Math.abs(quoteQuantityAvailableForExitWithdrawal);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -414,42 +391,5 @@ library Margin {
           int64(Constants.PIP_PRICE_MULTIPLIER)
         )
       );
-  }
-
-  function _loadQuoteQuantityForPositionExit(
-    string memory baseAssetSymbol,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (int64) {
-    Balance memory balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
-      wallet,
-      baseAssetSymbol
-    );
-    Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
-
-    uint64 quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
-      balanceStruct.costBasis,
-      // Market indexed redundantly to avoid stack too deep error
-      market.loadOnChainFeedPrice(),
-      market
-        .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maintenanceMarginFraction,
-      balanceStruct.balance,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
-    );
-
-    // For short positions, the wallet gives quote to close the position so subtract. For long positions, the wallet
-    // receives quote to close so add
-    if (balanceStruct.balance < 0) {
-      return -1 * int64(quoteQuantityForPosition);
-    }
-
-    return int64(quoteQuantityForPosition);
   }
 }

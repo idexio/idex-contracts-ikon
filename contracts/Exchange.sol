@@ -985,11 +985,10 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total account value for a wallet by summing its quote asset balance and each open position's
-   * notional values. Result may be negative
+   * notional values as computed by latest published index price. Result may be negative
    *
    * @param wallet The wallet address to calculate total account value for
    */
-  // TODO Load from nn-chain price feed
   function loadTotalAccountValue(address wallet) external view returns (int64) {
     return
       Funding.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
@@ -1003,12 +1002,29 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
+   * @notice Calculate total account value for a wallet by summing its quote asset balance and each open position's
+   * notional values as computed by on-chain feed price. Result may be negative
+   *
+   * @param wallet The wallet address to calculate total account value for
+   */
+  function loadTotalAccountValueFromOnChainPriceFeed(address wallet) external view returns (int64) {
+    return
+      Funding.loadTotalAccountValueIncludingOutstandingWalletFundingFromOnChainPriceFeed_delegatecall(
+        wallet,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        _marketsByBaseAssetSymbol
+      );
+  }
+
+  /**
    * @notice Calculate total initial margin requirement for a wallet by summing each open position's initial margin
-   * requirement
+   * requirement as computed by latest published index price
    *
    * @param wallet The wallet address to calculate total initial margin requirement for
    */
-  // TODO Load from on-chain price feeds
   function loadTotalInitialMarginRequirement(address wallet) external view returns (uint64) {
     return
       Margin.loadTotalInitialMarginRequirement_delegatecall(
@@ -1021,15 +1037,48 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
+   * @notice Calculate total initial margin requirement for a wallet by summing each open position's initial margin
+   * requirement as computed by on-chain feed price
+   *
+   * @param wallet The wallet address to calculate total initial margin requirement for
+   */
+  function loadTotalInitialMarginRequirementFromOnChainPriceFeed(address wallet) external view returns (uint64) {
+    return
+      Margin.loadTotalInitialMarginRequirementFromOnChainPriceFeed_delegatecall(
+        wallet,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
+      );
+  }
+
+  /**
    * @notice Calculate total maintenence margin requirement for a wallet by summing each open position's maintanence
-   * margin requirement as calculated from provided index prices
+   * margin requirement as computed by latest published index price
    *
    * @param wallet The wallet address to calculate total maintanence margin requirement for
    */
-  // TODO Load from on-chain price feeds
   function loadTotalMaintenanceMarginRequirement(address wallet) external view returns (uint64) {
     return
       Margin.loadTotalMaintenanceMarginRequirement_delegatecall(
+        wallet,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
+      );
+  }
+
+  /**
+   * @notice Calculate total maintenence margin requirement for a wallet by summing each open position's maintanence
+   * margin requirement as computed by on-chain feed price
+   *
+   * @param wallet The wallet address to calculate total maintanence margin requirement for
+   */
+  function loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed(address wallet) external view returns (uint64) {
+    return
+      Margin.loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
