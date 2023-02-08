@@ -134,7 +134,7 @@ describe('Exchange', function () {
       // Subsequent calls to withdraw exit perform a zero transfer
       await exchange.withdrawExit(trader1Wallet.address);
 
-      await mine(300000);
+      await mine(300000, { interval: 0 });
 
       await exchange.withdrawExit(exitFundWallet.address);
       // Subsequent calls to withdraw exit perform a zero transfer

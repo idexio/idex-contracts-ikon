@@ -120,7 +120,7 @@ export async function buildIndexPrices(
         const indexPrice = {
           signatureHashVersion,
           baseAssetSymbol,
-          timestampInMs: getNextPeriodInMs(i),
+          timestampInMs: getNextPeriodInMs(i + 1),
           price: prices[i % prices.length],
         };
         const signature = await index.signMessage(
@@ -142,7 +142,7 @@ export async function buildIndexPriceWithValue(
   const indexPrice = {
     signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
-    timestampInMs: new Date().getTime(),
+    timestampInMs: getNextPeriodInMs(1),
     price,
   };
   const signature = await index.signMessage(

@@ -79,7 +79,7 @@ describe('Exchange', function () {
         },
         trader1Wallet.address,
       );
-      await mine((2 * 24 * 60 * 60) / 3);
+      await mine((2 * 24 * 60 * 60) / 3, { interval: 0 });
       await exchange.finalizeMarketOverridesUpgrade(
         baseAssetSymbol,
         trader1Wallet.address,

@@ -7,6 +7,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { FieldUpgradeGovernance } from "./FieldUpgradeGovernance.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
+import { MarketHelper } from "./MarketHelper.sol";
 import { String } from "./String.sol";
 import { Time } from "./Time.sol";
 import { Validations } from "./Validations.sol";
@@ -14,6 +15,7 @@ import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, Overrida
 
 library MarketAdmin {
   using FieldUpgradeGovernance for FieldUpgradeGovernance.Storage;
+  using MarketHelper for Market;
 
   // 0.005
   uint64 private constant _MIN_INITIAL_MARGIN_FRACTION = 500000;
@@ -40,9 +42,8 @@ library MarketAdmin {
     // Populate non-overridable fields and commit new market to storage
     newMarket.exists = true;
     newMarket.isActive = false;
-    newMarket.indexPriceAtDeactivation = 0;
-    newMarket.lastIndexPrice = 0;
-    newMarket.lastIndexPriceTimestampInMs = 0;
+    newMarket.lastIndexPrice = newMarket.loadOnChainFeedPrice();
+    newMarket.lastIndexPriceTimestampInMs = uint64(block.timestamp * 1000);
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
 
     Funding.backfillFundingMultipliersForMarket(

@@ -603,7 +603,8 @@ contract Exchange_v4 is IExchange, Owned {
     PositionInDeactivatedMarketLiquidationArguments memory liquidationArguments
   ) external onlyDispatcher {
     PositionInDeactivatedMarketLiquidation.liquidate_delegatecall(
-      PositionInDeactivatedMarketLiquidation.Arguments(liquidationArguments, feeWallet),
+      liquidationArguments,
+      feeWallet,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,

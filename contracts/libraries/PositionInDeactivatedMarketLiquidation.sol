@@ -14,18 +14,10 @@ library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
   using SortedStringSet for string[];
 
-  /**
-   * @dev Argument for `liquidatePositionInDeactivatedMarket`
-   */
-  struct Arguments {
-    PositionInDeactivatedMarketLiquidationArguments externalArguments;
-    // Exchange state
-    address feeWallet;
-  }
-
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
-    Arguments memory arguments,
+    PositionInDeactivatedMarketLiquidationArguments memory externalArguments,
+    address feeWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
@@ -34,7 +26,7 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
-      arguments.externalArguments.liquidatingWallet,
+      externalArguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -44,7 +36,7 @@ library PositionInDeactivatedMarketLiquidation {
 
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
-        arguments.externalArguments.liquidatingWallet,
+        externalArguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
@@ -53,7 +45,8 @@ library PositionInDeactivatedMarketLiquidation {
     require(totalAccountValue >= int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement not met");
 
     _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
-      arguments,
+      externalArguments,
+      feeWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
@@ -61,17 +54,18 @@ library PositionInDeactivatedMarketLiquidation {
   }
 
   function _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
-    Arguments memory arguments,
+    PositionInDeactivatedMarketLiquidationArguments memory externalArguments,
+    address feeWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Market memory market = marketsByBaseAssetSymbol[arguments.externalArguments.baseAssetSymbol];
+    Market memory market = marketsByBaseAssetSymbol[externalArguments.baseAssetSymbol];
     require(market.exists && !market.isActive, "No inactive market found");
 
     require(
-      baseAssetSymbolsWithOpenPositionsByWallet[arguments.externalArguments.liquidatingWallet].indexOf(
-        arguments.externalArguments.baseAssetSymbol
+      baseAssetSymbolsWithOpenPositionsByWallet[externalArguments.liquidatingWallet].indexOf(
+        externalArguments.baseAssetSymbol
       ) != SortedStringSet.NOT_FOUND,
       "No open position in market"
     );
@@ -80,26 +74,23 @@ library PositionInDeactivatedMarketLiquidation {
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
       market.indexPriceAtDeactivation,
       balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-        arguments.externalArguments.liquidatingWallet,
+        externalArguments.liquidatingWallet,
         market.baseAssetSymbol
       ),
-      arguments.externalArguments.liquidationQuoteQuantity
+      externalArguments.liquidationQuoteQuantity
     );
 
     require(
-      Validations.isFeeQuantityValid(
-        arguments.externalArguments.feeQuantity,
-        arguments.externalArguments.liquidationQuoteQuantity
-      ),
+      Validations.isFeeQuantityValid(externalArguments.feeQuantity, externalArguments.liquidationQuoteQuantity),
       "Excessive maker fee"
     );
 
     balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,
-      arguments.externalArguments.feeQuantity,
-      arguments.feeWallet,
-      arguments.externalArguments.liquidatingWallet,
-      arguments.externalArguments.liquidationQuoteQuantity,
+      externalArguments.feeQuantity,
+      feeWallet,
+      externalArguments.liquidatingWallet,
+      externalArguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
   }
