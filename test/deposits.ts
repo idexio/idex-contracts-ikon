@@ -24,7 +24,11 @@ describe('Exchange', function () {
       );
       await usdc.transfer(trader.address, depositQuantity);
       await usdc.connect(trader).approve(exchange.address, depositQuantity);
-      await (await exchange.connect(trader).deposit(depositQuantity)).wait();
+      await (
+        await exchange
+          .connect(trader)
+          .deposit(depositQuantity, ethers.constants.AddressZero)
+      ).wait();
 
       const depositedEvents = await exchange.queryFilter(
         exchange.filters.Deposited(),

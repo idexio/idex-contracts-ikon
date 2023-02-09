@@ -6,7 +6,7 @@ import { Balance } from "./Structs.sol";
 
 /**
  * @notice Interface to Custodian contract. Used by Exchange and Governance contracts for internal
- * delegate calls
+ * calls
  */
 interface ICustodian {
   /**
@@ -81,10 +81,40 @@ interface IExchange {
   function custodian() external view returns (ICustodian);
 
   /**
+   * @notice Deposit quote token
+   *
+   * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
+   * the token contract for at least this quantity
+   * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
+   */
+
+  function deposit(uint256 quantityInAssetUnits, address destinationWallet) external;
+
+  /**
    * @notice Load the number of deposits made to the contract, for use when upgrading to a new
    * Exchange via Governance
    *
    * @return The number of deposits successfully made to the Exchange
    */
   function depositIndex() external view returns (uint64);
+}
+
+// https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateReceiver.sol
+interface IStargateReceiver {
+  /**
+   *  @param chainId The remote chainId sending the tokens
+   *   @param srcAddress The remote Bridge address
+   *   @param nonce The message ordering nonce
+   *   @param token The token contract on the local chain
+   *   @param amountLD The qty of local _token contract tokens
+   *   @param payload The bytes containing the _tokenOut, _deadline, _amountOutMin, _toAddr
+   */
+  function sgReceive(
+    uint16 chainId,
+    bytes memory srcAddress,
+    uint256 nonce,
+    address token,
+    uint256 amountLD,
+    bytes memory payload
+  ) external;
 }

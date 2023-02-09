@@ -52,7 +52,7 @@ library Math {
     uint256 dividend = uint256(multiplicand) * fractionDividend;
     uint256 result = dividend / fractionDivisor;
 
-    require(result < 2 ** 64, "Pip quantity overflows uint64");
+    require(result <= type(uint64).max, "Pip quantity overflows uint64");
 
     return uint64(result);
   }
@@ -65,8 +65,8 @@ library Math {
     int256 dividend = int256(multiplicand) * fractionDividend;
     int256 result = dividend / fractionDivisor;
 
-    require(result < 2 ** 63, "Pip quantity overflows int64");
-    require(result > -2 ** 63, "Pip quantity underflows int64");
+    require(result <= type(int64).max, "Pip quantity overflows int64");
+    require(result >= type(int64).min, "Pip quantity underflows int64");
 
     return int64(result);
   }

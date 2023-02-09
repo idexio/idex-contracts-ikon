@@ -184,8 +184,8 @@ library LiquidationValidations {
 
     int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
       (int64(Constants.PIP_PRICE_MULTIPLIER));
-    require(quoteQuantity < 2 ** 63, "Pip quantity overflows int64");
-    require(quoteQuantity > -2 ** 63, "Pip quantity underflows int64");
+    require(quoteQuantity <= type(int64).max, "Pip quantity overflows int64");
+    require(quoteQuantity >= type(int64).min, "Pip quantity underflows int64");
 
     return Math.abs(int64(quoteQuantity));
   }

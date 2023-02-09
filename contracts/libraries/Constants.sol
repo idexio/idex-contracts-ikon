@@ -12,7 +12,7 @@ library Constants {
       "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
     );
 
-  uint64 public constant DEPOSIT_INDEX_NOT_SET = 2 ** 64 - 1;
+  uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
 
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 

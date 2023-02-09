@@ -24,9 +24,9 @@ library MarketAdmin {
   // 0.001
   uint64 private constant _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION = 100000;
   // Max int64
-  uint64 private constant _MAX_MAXIMUM_POSITION_SIZE = 2 ** 63 - 1;
+  uint64 private constant _MAX_MAXIMUM_POSITION_SIZE = uint64(type(int64).max);
   // Max int64 - 1
-  uint64 private constant _MAX_MINIMUM_POSITION_SIZE = 2 ** 63 - 2;
+  uint64 private constant _MAX_MINIMUM_POSITION_SIZE = uint64(type(int64).max - 1);
 
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
