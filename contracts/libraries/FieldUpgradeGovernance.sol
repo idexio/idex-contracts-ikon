@@ -6,6 +6,12 @@ import { Constants } from "./Constants.sol";
 import { OverridableMarketFields } from "./Structs.sol";
 
 library FieldUpgradeGovernance {
+  struct IndexPriceCollectionServiceWalletsUpgrade {
+    bool exists;
+    address[] newIndexPriceCollectionServiceWallets;
+    uint256 blockThreshold;
+  }
+
   struct InsuranceFundWalletUpgrade {
     bool exists;
     address newInsuranceFundWallet;
@@ -19,8 +25,63 @@ library FieldUpgradeGovernance {
   }
 
   struct Storage {
+    IndexPriceCollectionServiceWalletsUpgrade currentIndexPriceCollectionServiceWalletsUpgrade;
     InsuranceFundWalletUpgrade currentInsuranceFundWalletUpgrade;
     mapping(string => mapping(address => MarketOverridesUpgrade)) currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function initiateIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
+    Storage storage self,
+    address[] memory newIndexPriceCollectionServiceWallets
+  ) public {
+    for (uint8 i = 0; i < newIndexPriceCollectionServiceWallets.length; i++) {
+      require(newIndexPriceCollectionServiceWallets[0] != address(0x0), "Invalid IF wallet address");
+    }
+
+    require(!self.currentIndexPriceCollectionServiceWalletsUpgrade.exists, "IPCS wallet upgrade already in progress");
+
+    self.currentIndexPriceCollectionServiceWalletsUpgrade = IndexPriceCollectionServiceWalletsUpgrade(
+      true,
+      newIndexPriceCollectionServiceWallets,
+      block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS
+    );
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function cancelIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
+    Storage storage self
+  ) public returns (address[] memory newIndexPriceCollectionServiceWallets) {
+    require(self.currentIndexPriceCollectionServiceWalletsUpgrade.exists, "No IPCS wallet upgrade in progress");
+
+    newIndexPriceCollectionServiceWallets = self
+      .currentIndexPriceCollectionServiceWalletsUpgrade
+      .newIndexPriceCollectionServiceWallets;
+
+    delete self.currentIndexPriceCollectionServiceWalletsUpgrade;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function finalizeIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
+    Storage storage self,
+    address[] memory newIndexPriceCollectionServiceWallets
+  ) public {
+    require(self.currentIndexPriceCollectionServiceWalletsUpgrade.exists, "No IPCS wallet upgrade in progress");
+
+    for (uint8 i = 0; i < newIndexPriceCollectionServiceWallets.length; i++) {
+      require(
+        self.currentIndexPriceCollectionServiceWalletsUpgrade.newIndexPriceCollectionServiceWallets[i] ==
+          newIndexPriceCollectionServiceWallets[i],
+        "Address mismatch"
+      );
+    }
+
+    require(
+      block.number >= self.currentIndexPriceCollectionServiceWalletsUpgrade.blockThreshold,
+      "Block threshold not yet reached"
+    );
+
+    delete (self.currentIndexPriceCollectionServiceWalletsUpgrade);
   }
 
   // solhint-disable-next-line func-name-mixedcase

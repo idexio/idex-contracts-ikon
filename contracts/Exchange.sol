@@ -116,6 +116,28 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
+   * @notice Emitted when admin initiates IPCS wallet upgrade of with `initiateIndexPriceCollectionServiceWalletsUpgrade`
+   */
+  event IndexPriceCollectionServiceWalletsUpgradeInitiated(
+    address[] oldIndexPriceCollectionServiceWallets,
+    address[] newIndexPriceCollectionServiceWallets,
+    uint256 blockThreshold
+  );
+  /**
+   * @notice Emitted when admin cancels previously started IPCS wallet upgrade with `cancelIndexPriceCollectionServiceWalletsUpgrade`
+   */
+  event IndexPriceCollectionServiceWalletsUpgradeCanceled(
+    address[] oldIndexPriceCollectionServiceWalletsWallet,
+    address[] newIndexPriceCollectionServiceWalletsWallet
+  );
+  /**
+   * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
+   */
+  event IndexPriceCollectionServiceWalletsUpgradeFinalized(
+    address[] oldIndexPriceCollectionServiceWalletsWallet,
+    address[] newIndexPriceCollectionServiceWalletsWallet
+  );
+  /**
    * @notice Emitted when admin initiates IF wallet upgrade of with `initiateInsuranceFundWalletUpgrade`
    */
   event InsuranceFundWalletUpgradeInitiated(
@@ -376,6 +398,63 @@ contract Exchange_v4 is IExchange, Owned {
     feeWallet = newFeeWallet;
 
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
+  }
+
+  /**
+   * @notice Initiates Index Price Collection Service wallet upgrade proccess. Once block delay has passed the process
+   * can be finalized with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
+   *
+   * @param newIndexPriceCollectionServiceWallets The IPCS wallet addresses
+   */
+  function initiateIndexPriceCollectionServiceWalletsUpgrade(
+    address[] memory newIndexPriceCollectionServiceWallets
+  ) external onlyAdmin {
+    _fieldUpgradeGovernance.initiateIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
+      newIndexPriceCollectionServiceWallets
+    );
+
+    emit IndexPriceCollectionServiceWalletsUpgradeInitiated(
+      indexPriceCollectionServiceWallets,
+      newIndexPriceCollectionServiceWallets,
+      _fieldUpgradeGovernance.currentIndexPriceCollectionServiceWalletsUpgrade.blockThreshold
+    );
+  }
+
+  /**
+   * @notice Cancels an in-flight IPCS wallet upgrade that has not yet been finalized
+   */
+  function cancelIndexPriceCollectionServiceWalletsUpgrade() external onlyAdmin {
+    address[] memory newIndexPriceCollectionServiceWallets = _fieldUpgradeGovernance
+      .cancelIndexPriceCollectionServiceWalletsUpgrade_delegatecall();
+
+    emit IndexPriceCollectionServiceWalletsUpgradeCanceled(
+      indexPriceCollectionServiceWallets,
+      newIndexPriceCollectionServiceWallets
+    );
+  }
+
+  /**
+   * @notice Finalizes the IPCS wallet upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
+   * `initiateIndexPriceCollectionServiceWalletsUpgrade`
+   *
+   * @param newIndexPriceCollectionServiceWallets The address of the new IPCS wallets. Must equal the addresses
+   * provided to `initiateIndexPriceCollectionServiceWalletsUpgrade`
+   */
+  function finalizeIndexPriceCollectionServiceWalletsUpgrade(
+    address[] memory newIndexPriceCollectionServiceWallets
+  ) external onlyAdmin {
+    _fieldUpgradeGovernance.finalizeIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
+      newIndexPriceCollectionServiceWallets
+    );
+
+    address[] memory oldIndexPriceCollectionServiceWallets = indexPriceCollectionServiceWallets;
+    indexPriceCollectionServiceWallets = newIndexPriceCollectionServiceWallets;
+
+    emit IndexPriceCollectionServiceWalletsUpgradeFinalized(
+      oldIndexPriceCollectionServiceWallets,
+      newIndexPriceCollectionServiceWallets
+    );
   }
 
   /**
