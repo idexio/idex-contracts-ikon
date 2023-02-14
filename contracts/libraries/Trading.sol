@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
-import { MutatingMargin } from "./MutatingMargin.sol";
-import { NonMutatingMargin } from "./NonMutatingMargin.sol";
+import { Margin } from "./Margin.sol";
 import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
 import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation } from "./Structs.sol";
 
@@ -20,7 +19,10 @@ library Trading {
     address exitFundWallet;
     address feeWallet;
     address insuranceFundWallet;
-    address[] indexPriceCollectionServiceWallets;
+    // Though unclear why, adding this unused bytes field at the end of the struct avoilds a stack too deep error in
+    // executeOrderBookTrade_delegatecall
+    // solhint-disable-next-line var-name-mixedcase
+    bytes __;
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -106,7 +108,7 @@ library Trading {
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    _validateInitialMarginRequirementsAndUpdateLastIndexPrice(
+    _validateInitialMarginRequirements(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -190,30 +192,22 @@ library Trading {
     }
   }
 
-  function _validateInitialMarginRequirementsAndUpdateLastIndexPrice(
+  function _validateInitialMarginRequirements(
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private {
-    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
-      NonMutatingMargin.LoadArguments(
-        arguments.externalArguments.buy.wallet,
-        arguments.externalArguments.buyWalletIndexPrices,
-        arguments.indexPriceCollectionServiceWallets
-      ),
+  ) private view {
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      arguments.externalArguments.buy.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
-      NonMutatingMargin.LoadArguments(
-        arguments.externalArguments.sell.wallet,
-        arguments.externalArguments.sellWalletIndexPrices,
-        arguments.indexPriceCollectionServiceWallets
-      ),
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      arguments.externalArguments.sell.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,

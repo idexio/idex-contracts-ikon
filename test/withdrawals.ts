@@ -55,9 +55,7 @@ describe('Exchange', function () {
         await exchange
           .connect(dispatcher)
           .withdraw(
-            ...getWithdrawArguments(withdrawal, '0.00000000', signature, [
-              await buildIndexPrice(index),
-            ]),
+            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
           )
       ).wait();
 
@@ -136,7 +134,7 @@ describe('Exchange', function () {
       // Subsequent calls to withdraw exit perform a zero transfer
       await exchange.withdrawExit(trader1Wallet.address);
 
-      await mine(300000);
+      await mine(300000, { interval: 0 });
 
       await exchange.withdrawExit(exitFundWallet.address);
       // Subsequent calls to withdraw exit perform a zero transfer

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { AcquisitionDeleveraging } from "./libraries/AcquisitionDeleveraging.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
@@ -14,9 +14,9 @@ import { ExitFund } from "./libraries/ExitFund.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
 import { FieldUpgradeGovernance } from "./libraries/FieldUpgradeGovernance.sol";
+import { Margin } from "./libraries/Margin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
-import { NonMutatingMargin } from "./libraries/NonMutatingMargin.sol";
 import { Owned } from "./Owned.sol";
 import { PositionBelowMinimumLiquidation } from "./libraries/PositionBelowMinimumLiquidation.sol";
 import { PositionInDeactivatedMarketLiquidation } from "./libraries/PositionInDeactivatedMarketLiquidation.sol";
@@ -85,7 +85,6 @@ contract Exchange_v4 is IExchange, Owned {
   address public feeWallet;
   // TODO Upgrade through Governance
   address[] public indexPriceCollectionServiceWallets;
-  // TODO Upgrade through Governance
   address public insuranceFundWallet;
 
   // Events //
@@ -477,7 +476,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) external view returns (uint64) {
     return
-      NonMutatingMargin.loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
+      Margin.loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -548,7 +547,7 @@ contract Exchange_v4 is IExchange, Owned {
         exitFundWallet,
         feeWallet,
         insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        new bytes(0)
       ),
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -586,8 +585,7 @@ contract Exchange_v4 is IExchange, Owned {
       PositionBelowMinimumLiquidation.Arguments(
         liquidationArguments,
         positionBelowMinimumLiquidationPriceToleranceMultiplier,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -605,11 +603,8 @@ contract Exchange_v4 is IExchange, Owned {
     PositionInDeactivatedMarketLiquidationArguments memory liquidationArguments
   ) external onlyDispatcher {
     PositionInDeactivatedMarketLiquidation.liquidate_delegatecall(
-      PositionInDeactivatedMarketLiquidation.Arguments(
-        liquidationArguments,
-        feeWallet,
-        indexPriceCollectionServiceWallets
-      ),
+      liquidationArguments,
+      feeWallet,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -631,8 +626,7 @@ contract Exchange_v4 is IExchange, Owned {
         liquidationArguments,
         LiquidationType.WalletInMaintenance,
         exitFundWallet,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       0,
       _balanceTracking,
@@ -658,8 +652,7 @@ contract Exchange_v4 is IExchange, Owned {
         liquidationArguments,
         LiquidationType.WalletInMaintenanceDuringSystemRecovery,
         exitFundWallet,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       _exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
@@ -682,8 +675,7 @@ contract Exchange_v4 is IExchange, Owned {
         liquidationArguments,
         LiquidationType.WalletExited,
         exitFundWallet,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       0,
       _balanceTracking,
@@ -709,8 +701,7 @@ contract Exchange_v4 is IExchange, Owned {
         deleverageArguments,
         DeleverageType.WalletInMaintenance,
         exitFundWallet,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -733,8 +724,7 @@ contract Exchange_v4 is IExchange, Owned {
         deleverageArguments,
         DeleverageType.InsuranceFundClosure,
         exitFundWallet,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       0,
       _balanceTracking,
@@ -760,8 +750,7 @@ contract Exchange_v4 is IExchange, Owned {
         deleverageArguments,
         DeleverageType.WalletExited,
         exitFundWallet,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -782,8 +771,7 @@ contract Exchange_v4 is IExchange, Owned {
         deleverageArguments,
         DeleverageType.ExitFundClosure,
         exitFundWallet,
-        insuranceFundWallet,
-        indexPriceCollectionServiceWallets
+        insuranceFundWallet
       ),
       _exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
@@ -797,16 +785,9 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Transfers //
 
-  function transfer(Transfer memory transfer_, IndexPrice[] memory indexPrices) public onlyDispatcher {
+  function transfer(Transfer memory transfer_) public onlyDispatcher {
     int64 newSourceWalletExchangeBalance = Transferring.transfer_delegatecall(
-      Transferring.Arguments(
-        transfer_,
-        indexPrices,
-        exitFundWallet,
-        insuranceFundWallet,
-        feeWallet,
-        indexPriceCollectionServiceWallets
-      ),
+      Transferring.Arguments(transfer_, exitFundWallet, insuranceFundWallet, feeWallet),
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _completedTransferHashes,
@@ -833,19 +814,17 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param withdrawal A `Withdrawal` struct encoding the parameters of the withdrawal
    */
-  function withdraw(Withdrawal memory withdrawal, IndexPrice[] memory indexPrices) public onlyDispatcher {
+  function withdraw(Withdrawal memory withdrawal) public onlyDispatcher {
     require(!Exiting.isWalletExitFinalized(withdrawal.wallet, _walletExits), "Wallet exited");
 
     int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
       Withdrawing.WithdrawArguments(
         withdrawal,
-        indexPrices,
         quoteAssetAddress,
         custodian,
         _exitFundPositionOpenedAtBlockNumber,
         exitFundWallet,
-        feeWallet,
-        indexPriceCollectionServiceWallets
+        feeWallet
       ),
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -885,10 +864,16 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Deactivate a market
    */
-  function deactivateMarket(string memory baseAssetSymbol, IndexPrice memory indexPrice) external onlyDispatcher {
-    MarketAdmin.deactivateMarket_delegatecall(
-      baseAssetSymbol,
-      indexPrice,
+  function deactivateMarket(string memory baseAssetSymbol) external onlyDispatcher {
+    MarketAdmin.deactivateMarket_delegatecall(baseAssetSymbol, _marketsByBaseAssetSymbol);
+  }
+
+  /**
+   * @notice Publish updated index prices for markets
+   */
+  function publishIndexPrices(IndexPrice[] memory indexPrices) external onlyDispatcher {
+    MarketAdmin.publishIndexPrices_delegatecall(
+      indexPrices,
       indexPriceCollectionServiceWallets,
       _marketsByBaseAssetSymbol
     );
@@ -955,19 +940,17 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Pushes fundingRate × indexPrice to fundingMultipliersByBaseAssetAddress mapping for market. Uses timestamp
    * component of index price to determine if funding rate is too recent after previously publish funding rate, and to
    * backfill empty values if a funding period was missed
-   * TODO Validate funding rates
    */
-  function publishFundingMutiplier(int64 fundingRate, IndexPrice memory indexPrice) external onlyDispatcher {
-    Funding.publishFundingMutiplier_delegatecall(
+  function publishFundingMultiplier(string memory baseAssetSymbol, int64 fundingRate) external onlyDispatcher {
+    Funding.publishFundingMultiplier_delegatecall(
+      baseAssetSymbol,
       fundingRate,
-      indexPrice,
-      indexPriceCollectionServiceWallets,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketsByBaseAssetSymbol
     );
 
-    emit FundingRatePublished(indexPrice.baseAssetSymbol, fundingRate);
+    emit FundingRatePublished(baseAssetSymbol, fundingRate);
   }
 
   /**
@@ -1003,15 +986,32 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total account value for a wallet by summing its quote asset balance and each open position's
-   * notional values. Result may be negative
+   * notional values as computed by latest published index price. Result may be negative
    *
    * @param wallet The wallet address to calculate total account value for
-   * @param indexPrices If empty, position notional values will be calculated from on-chain price feed instead
    */
-  function loadTotalAccountValue(address wallet, IndexPrice[] memory indexPrices) external view returns (int64) {
+  function loadTotalAccountValue(address wallet) external view returns (int64) {
     return
       Funding.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
-        NonMutatingMargin.LoadArguments(wallet, indexPrices, indexPriceCollectionServiceWallets),
+        wallet,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        _marketsByBaseAssetSymbol
+      );
+  }
+
+  /**
+   * @notice Calculate total account value for a wallet by summing its quote asset balance and each open position's
+   * notional values as computed by on-chain feed price. Result may be negative
+   *
+   * @param wallet The wallet address to calculate total account value for
+   */
+  function loadTotalAccountValueFromOnChainPriceFeed(address wallet) external view returns (int64) {
+    return
+      Funding.loadTotalAccountValueIncludingOutstandingWalletFundingFromOnChainPriceFeed_delegatecall(
+        wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
@@ -1022,20 +1022,31 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total initial margin requirement for a wallet by summing each open position's initial margin
-   * requirement
+   * requirement as computed by latest published index price
    *
    * @param wallet The wallet address to calculate total initial margin requirement for
-   * @param indexPrices If empty, position notional values will be calculated from on-chain price feed instead
    */
-  function loadTotalInitialMarginRequirement(
-    address wallet,
-    IndexPrice[] memory indexPrices
-  ) external view returns (uint64) {
+  function loadTotalInitialMarginRequirement(address wallet) external view returns (uint64) {
     return
-      NonMutatingMargin.loadTotalInitialMarginRequirement_delegatecall(
+      Margin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
-        indexPrices,
-        indexPriceCollectionServiceWallets,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
+      );
+  }
+
+  /**
+   * @notice Calculate total initial margin requirement for a wallet by summing each open position's initial margin
+   * requirement as computed by on-chain feed price
+   *
+   * @param wallet The wallet address to calculate total initial margin requirement for
+   */
+  function loadTotalInitialMarginRequirementFromOnChainPriceFeed(address wallet) external view returns (uint64) {
+    return
+      Margin.loadTotalInitialMarginRequirementFromOnChainPriceFeed_delegatecall(
+        wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
         _marketOverridesByBaseAssetSymbolAndWallet,
@@ -1045,20 +1056,31 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total maintenence margin requirement for a wallet by summing each open position's maintanence
-   * margin requirement as calculated from provided index prices
+   * margin requirement as computed by latest published index price
    *
    * @param wallet The wallet address to calculate total maintanence margin requirement for
-   * @param indexPrices If empty, position notional values will be calculated from on-chain price feed instead
    */
-  function loadTotalMaintenanceMarginRequirement(
-    address wallet,
-    IndexPrice[] memory indexPrices
-  ) external view returns (uint64) {
+  function loadTotalMaintenanceMarginRequirement(address wallet) external view returns (uint64) {
     return
-      NonMutatingMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
+      Margin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
-        indexPrices,
-        indexPriceCollectionServiceWallets,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet,
+        _marketOverridesByBaseAssetSymbolAndWallet,
+        _marketsByBaseAssetSymbol
+      );
+  }
+
+  /**
+   * @notice Calculate total maintenence margin requirement for a wallet by summing each open position's maintanence
+   * margin requirement as computed by on-chain feed price
+   *
+   * @param wallet The wallet address to calculate total maintanence margin requirement for
+   */
+  function loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed(address wallet) external view returns (uint64) {
+    return
+      Margin.loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed_delegatecall(
+        wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
         _marketOverridesByBaseAssetSymbolAndWallet,
@@ -1091,13 +1113,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function withdrawExit(address wallet) external {
     (uint256 exitFundPositionOpenedAtBlockNumber, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
-      Withdrawing.WithdrawExitArguments(
-        wallet,
-        custodian,
-        exitFundWallet,
-        indexPriceCollectionServiceWallets,
-        quoteAssetAddress
-      ),
+      Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, quoteAssetAddress),
       _exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,

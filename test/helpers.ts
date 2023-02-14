@@ -76,17 +76,15 @@ export async function bootstrapLiquidatedWallet() {
     '2150.00000000',
   );
 
-  await (
-    await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-      counterpartyWallet: insuranceWallet.address,
-      counterpartyWalletIndexPrices: [
-        indexPriceToArgumentStruct(newIndexPrice),
-      ],
-      liquidatingWallet: trader1Wallet.address,
-      liquidatingWalletIndexPrices: [indexPriceToArgumentStruct(newIndexPrice)],
-      liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
-    })
-  ).wait();
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+
+  await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+    counterpartyWallet: insuranceWallet.address,
+    liquidatingWallet: trader1Wallet.address,
+    liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+  });
 
   return {
     dispatcherWallet,
@@ -122,7 +120,7 @@ export async function buildIndexPrices(
         const indexPrice = {
           signatureHashVersion,
           baseAssetSymbol,
-          timestampInMs: getNextPeriodInMs(i),
+          timestampInMs: getNextPeriodInMs(i + 1),
           price: prices[i % prices.length],
         };
         const signature = await index.signMessage(
@@ -144,7 +142,7 @@ export async function buildIndexPriceWithValue(
   const indexPrice = {
     signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
-    timestampInMs: new Date().getTime(),
+    timestampInMs: getNextPeriodInMs(1),
     price,
   };
   const signature = await index.signMessage(
@@ -271,8 +269,9 @@ export async function deployAndAssociateContracts(
         isActive: false,
         baseAssetSymbol,
         chainlinkPriceFeedAddress: chainlinkAggregator.address,
-        lastIndexPriceTimestampInMs: 0,
         indexPriceAtDeactivation: 0,
+        lastIndexPrice: 0,
+        lastIndexPriceTimestampInMs: 0,
         overridableFields: {
           initialMarginFraction: '5000000',
           maintenanceMarginFraction: '3000000',
@@ -304,9 +303,9 @@ export async function deployLibraryContracts() {
     Depositing,
     FieldUpgradeGovernance,
     Funding,
+    Margin,
     MarketAdmin,
     NonceInvalidations,
-    NonMutatingMargin,
     PositionBelowMinimumLiquidation,
     PositionInDeactivatedMarketLiquidation,
     Trading,
@@ -319,9 +318,9 @@ export async function deployLibraryContracts() {
     ethers.getContractFactory('Depositing'),
     ethers.getContractFactory('FieldUpgradeGovernance'),
     ethers.getContractFactory('Funding'),
+    ethers.getContractFactory('Margin'),
     ethers.getContractFactory('MarketAdmin'),
     ethers.getContractFactory('NonceInvalidations'),
-    ethers.getContractFactory('NonMutatingMargin'),
     ethers.getContractFactory('PositionBelowMinimumLiquidation'),
     ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
     ethers.getContractFactory('Trading'),
@@ -336,9 +335,9 @@ export async function deployLibraryContracts() {
     depositing,
     fieldUpgradeGovernance,
     funding,
+    margin,
     marketAdmin,
     nonceInvalidations,
-    nonMutatingMargin,
     positionBelowMinimumLiquidation,
     positionInDeactivatedMarketLiquidation,
     trading,
@@ -351,9 +350,9 @@ export async function deployLibraryContracts() {
     (await Depositing.deploy()).deployed(),
     (await FieldUpgradeGovernance.deploy()).deployed(),
     (await Funding.deploy()).deployed(),
+    (await Margin.deploy()).deployed(),
     (await MarketAdmin.deploy()).deployed(),
     (await NonceInvalidations.deploy()).deployed(),
-    (await NonMutatingMargin.deploy()).deployed(),
     (await PositionBelowMinimumLiquidation.deploy()).deployed(),
     (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
@@ -371,7 +370,7 @@ export async function deployLibraryContracts() {
       Funding: funding.address,
       MarketAdmin: marketAdmin.address,
       NonceInvalidations: nonceInvalidations.address,
-      NonMutatingMargin: nonMutatingMargin.address,
+      Margin: margin.address,
       PositionBelowMinimumLiquidation: positionBelowMinimumLiquidation.address,
       PositionInDeactivatedMarketLiquidation:
         positionInDeactivatedMarketLiquidation.address,
@@ -390,6 +389,10 @@ export async function executeTrade(
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
 ) {
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
   const sellOrder: Order = {
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
@@ -439,10 +442,6 @@ export async function executeTrade(
           sellOrder,
           sellOrderSignature,
           trade,
-          [indexPrice],
-          [indexPrice],
-          undefined,
-          undefined,
         ),
       )
   ).wait();

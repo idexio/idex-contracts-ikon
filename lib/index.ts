@@ -1,5 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
+import { baseAssetSymbol } from '../test/helpers';
 import {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
@@ -241,10 +242,10 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
 };
 
 export const getPublishFundingMutiplierArguments = (
+  baseAssetSymbol: string,
   fundingRate: string,
-  indexPrice: IndexPrice,
-): [string, IndexPriceStruct] => {
-  return [decimalToPips(fundingRate), indexPriceToArgumentStruct(indexPrice)];
+): [string, string] => {
+  return [baseAssetSymbol, decimalToPips(fundingRate)];
 };
 
 export const getExecuteOrderBookTradeArguments = (
@@ -253,8 +254,6 @@ export const getExecuteOrderBookTradeArguments = (
   sellOrder: Order,
   sellWalletSignature: string,
   trade: Trade,
-  buyWalletIndexPrices: IndexPrice[],
-  sellWalletIndexPrices: IndexPrice[],
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
 ): [ExecuteOrderBookTradeArgumentsStruct] => {
@@ -271,12 +270,7 @@ export const getExecuteOrderBookTradeArguments = (
         sellDelegatedKeyAuthorization,
       ),
       orderBookTrade: tradeToArgumentStruct(trade, buyOrder),
-      buyWalletIndexPrices: buyWalletIndexPrices.map(
-        indexPriceToArgumentStruct,
-      ),
-      sellWalletIndexPrices: sellWalletIndexPrices.map(
-        indexPriceToArgumentStruct,
-      ),
+      __: Buffer.alloc(0),
     },
   ];
 };
@@ -285,8 +279,7 @@ export const getTransferArguments = (
   transfer: Transfer,
   gasFee: string,
   walletSignature: string,
-  indexPrices: IndexPrice[],
-): [TransferStruct, IndexPriceStruct[]] => {
+): [TransferStruct] => {
   return [
     {
       signatureHashVersion: transfer.signatureHashVersion,
@@ -297,7 +290,6 @@ export const getTransferArguments = (
       gasFee: decimalToPips(gasFee),
       walletSignature,
     },
-    indexPrices.map(indexPriceToArgumentStruct),
   ];
 };
 
@@ -305,8 +297,7 @@ export const getWithdrawArguments = (
   withdrawal: Withdrawal,
   gasFee: string,
   walletSignature: string,
-  indexPrices: IndexPrice[],
-): [WithdrawalStruct, IndexPriceStruct[]] => {
+): [WithdrawalStruct] => {
   return [
     {
       signatureHashVersion: withdrawal.signatureHashVersion,
@@ -316,7 +307,6 @@ export const getWithdrawArguments = (
       gasFee: decimalToPips(gasFee),
       walletSignature,
     },
-    indexPrices.map(indexPriceToArgumentStruct),
   ];
 };
 

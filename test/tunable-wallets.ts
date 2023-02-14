@@ -102,7 +102,7 @@ describe('Exchange', function () {
         newInsuranceFundWallet.address,
       );
 
-      await mine((2 * 24 * 60 * 60) / 3);
+      await mine((2 * 24 * 60 * 60) / 3, { interval: 0 });
 
       await exchange.finalizeInsuranceFundWalletUpgrade(
         newInsuranceFundWallet.address,

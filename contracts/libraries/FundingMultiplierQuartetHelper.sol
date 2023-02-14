@@ -4,7 +4,7 @@ import { Constants } from "./Constants.sol";
 import { FundingMultiplierQuartet } from "./Structs.sol";
 import { Math } from "./Math.sol";
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 library FundingMultiplierQuartetHelper {
   // Avoid magic numbers

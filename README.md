@@ -39,7 +39,7 @@ The Ikon on-chain infrastructure includes three main contracts and a host of sup
 - Governance: implements [upgrade logic](#upgradability) while enforcing [governance constraints](#controls-and-governance).
 - Exchange: implements the majority of exchange functionality, including storage for wallet balance tracking.
 
-Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. AcquisitionDeleveraging, ClosureDeleveraging, Depositing, FieldUpgradeGovernance, Funding, MarketAdmin, NonMutatingMargin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletLiquidation, and WIthdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
+Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. AcquisitionDeleveraging, ClosureDeleveraging, Depositing, FieldUpgradeGovernance, Funding, Margin, MarketAdmin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletLiquidation, and WIthdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
 
 ## Perpetuals
 
@@ -178,8 +178,6 @@ Initial margin requirements scale based on the absolute size of a position. Seve
 - `incrementalPositionSize`, `incrementalInitialMarginFraction`: If a position exceeds `baselinePositionSize`, each step of `incrementalPositionSize` increases the `initialMarginFraction` by `incrementalInitialMarginFraction`.
 
 While margin parameters are defined on a market basis, they may be overridden for specific wallets. Specifying non-standard margin terms for a wallet is a restricted admin action and is subject to a governance delay for safety. See [controls and governance](#controls-and-governance) for details.
-
-Margin-related functions are grouped into mutating and non-mutating varieties but ultimately implement the same margin calculation logic. Mutating margin functions also commit the supplied index price timestamp as part of the calculation. See [index pricing](#index-pricing) for details.
 
 All margin calculations are performed on index prices rather than order book prices, providing greater stability and fidelity to underlying asset values.
 

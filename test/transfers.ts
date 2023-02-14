@@ -5,6 +5,7 @@ import {
   decimalToPips,
   getTransferArguments,
   getTransferHash,
+  indexPriceToArgumentStruct,
   signatureHashVersion,
 } from '../lib';
 import {
@@ -45,6 +46,12 @@ describe('Exchange', function () {
       await usdc.connect(trader1).approve(exchange.address, depositQuantity);
       await (await exchange.connect(trader1).deposit(depositQuantity)).wait();
 
+      await exchange
+        .connect(dispatcher)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(await buildIndexPrice(index)),
+        ]);
+
       const transfer = {
         signatureHashVersion,
         nonce: uuidv1(),
@@ -58,11 +65,7 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(dispatcher)
-          .transfer(
-            ...getTransferArguments(transfer, '0.00000000', signature, [
-              await buildIndexPrice(index),
-            ]),
-          )
+          .transfer(...getTransferArguments(transfer, '0.00000000', signature))
       ).wait();
 
       const transferEvents = await exchange.queryFilter(

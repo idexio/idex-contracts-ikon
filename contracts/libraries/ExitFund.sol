@@ -3,7 +3,7 @@
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 library ExitFund {
   using BalanceTracking for BalanceTracking.Storage;

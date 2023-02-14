@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
-import { MutatingMargin } from "./MutatingMargin.sol";
-import { NonMutatingMargin } from "./NonMutatingMargin.sol";
+import { Margin } from "./Margin.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, Transfer } from "./Structs.sol";
 
@@ -17,12 +16,10 @@ library Transferring {
   struct Arguments {
     // External arguments
     Transfer transfer;
-    IndexPrice[] indexPrices;
     // Exchange state
     address exitFundWallet;
     address insuranceFundWallet;
     address feeWallet;
-    address[] indexPriceCollectionServiceWallets;
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -73,12 +70,8 @@ library Transferring {
     newSourceWalletExchangeBalance = balanceTracking.updateForTransfer(arguments.transfer, arguments.feeWallet);
 
     // Wallet must still maintain initial margin requirement after withdrawal
-    MutatingMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirementAndUpdateLastIndexPrice(
-      NonMutatingMargin.LoadArguments(
-        arguments.transfer.sourceWallet,
-        arguments.indexPrices,
-        arguments.indexPriceCollectionServiceWallets
-      ),
+    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      arguments.transfer.sourceWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,

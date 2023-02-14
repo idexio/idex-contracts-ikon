@@ -1,34 +1,48 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
-import { Validations } from "./Validations.sol";
 import { Balance, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
 
-library NonMutatingMargin {
+library Margin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
-
-  struct LoadArguments {
-    address wallet;
-    IndexPrice[] indexPrices;
-    address[] indexPriceCollectionServiceWallets;
-  }
 
   struct ValidateInsuranceFundCannotLiquidateWalletArguments {
     address insuranceFundWallet;
     address liquidatingWallet;
     uint64[] liquidationQuoteQuantities;
     Market[] markets;
-    // Price values only, calling function should validate index price struct
-    uint64[] indexPrices;
-    address[] indexPriceCollectionServiceWallets;
+  }
+
+  function loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
+    totalAccountValue = Margin.loadTotalAccountValue(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -39,118 +53,105 @@ library NonMutatingMargin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64) {
-    int64 quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-      wallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
-
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+    return
+      OnChainPriceFeedMargin.loadQuoteQuantityAvailableForExitWithdrawal(
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      quoteQuantityAvailableForExitWithdrawal += _loadQuoteQuantityForPositionExit(
-        baseAssetSymbols[i],
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
-        wallet,
-        balanceTracking,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    }
-
-    // Quote quantity will never be negative per design of exit quote calculations
-    return Math.abs(quoteQuantityAvailableForExitWithdrawal);
   }
 
   // solhint-disable-next-line func-name-mixedcase
   function loadTotalInitialMarginRequirement_delegatecall(
     address wallet,
-    IndexPrice[] memory indexPrices,
-    address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 initialMarginRequirement) {
     return
-      indexPrices.length > 0
-        ? loadTotalInitialMarginRequirement(
-          wallet,
-          indexPrices,
-          indexPriceCollectionServiceWallets,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
-        )
-        : OnChainPriceFeedMargin.loadTotalInitialMarginRequirement(
-          wallet,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
-        );
+      loadTotalInitialMarginRequirement(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function loadTotalInitialMarginRequirementFromOnChainPriceFeed_delegatecall(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (uint64 initialMarginRequirement) {
+    return
+      OnChainPriceFeedMargin.loadTotalInitialMarginRequirement(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
   }
 
   // solhint-disable-next-line func-name-mixedcase
   function loadTotalMaintenanceMarginRequirement_delegatecall(
     address wallet,
-    IndexPrice[] memory indexPrices,
-    address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 maintenanceMarginRequirement) {
     return
-      indexPrices.length > 0
-        ? loadTotalMaintenanceMarginRequirement(
-          wallet,
-          indexPrices,
-          indexPriceCollectionServiceWallets,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
-        )
-        : OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement(
-          wallet,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
-        );
+      loadTotalMaintenanceMarginRequirement(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed_delegatecall(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (uint64 maintenanceMarginRequirement) {
+    return
+      OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
   }
 
   function loadTotalAccountValue(
-    LoadArguments memory arguments,
+    address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 totalAccountValue) {
-    totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-      arguments.wallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
+    totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL);
 
     Market memory market;
 
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      Validations.validateIndexPrice(arguments.indexPrices[i], arguments.indexPriceCollectionServiceWallets, market);
 
       totalAccountValue += Math.multiplyPipsByFraction(
-        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.wallet, market.baseAssetSymbol),
-        int64(arguments.indexPrices[i].price),
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
+        int64(market.lastIndexPrice),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
@@ -159,51 +160,47 @@ library NonMutatingMargin {
   // Identical to `loadTotalAccountValueAndMaintenanceMarginRequirement` except no wallet-specific overrides are
   // observed for the EF
   function loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
-    LoadArguments memory arguments,
+    address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
     totalAccountValue = loadTotalAccountValue(
-      arguments,
+      exitFundWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
 
     Market memory market;
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
 
       totalMaintenanceMarginRequirement += _loadMarginRequirement(
-        arguments.indexPrices[i],
-        arguments.indexPriceCollectionServiceWallets,
         market.overridableFields.maintenanceMarginFraction,
         market,
-        arguments.wallet,
+        exitFundWallet,
         balanceTracking
       );
     }
   }
 
   function loadTotalAccountValueAndMaintenanceMarginRequirement(
-    LoadArguments memory arguments,
+    address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
     totalAccountValue = loadTotalAccountValue(
-      arguments,
+      wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
     totalMaintenanceMarginRequirement = loadTotalMaintenanceMarginRequirement(
-      arguments.wallet,
-      arguments.indexPrices,
-      arguments.indexPriceCollectionServiceWallets,
+      wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -213,8 +210,6 @@ library NonMutatingMargin {
 
   function loadTotalInitialMarginRequirement(
     address wallet,
-    IndexPrice[] memory indexPrices,
-    address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -227,8 +222,6 @@ library NonMutatingMargin {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
 
       initialMarginRequirement += _loadMarginRequirement(
-        indexPrices[i],
-        indexPriceCollectionServiceWallets,
         market.loadInitialMarginFractionForWallet(
           balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
           wallet,
@@ -243,8 +236,6 @@ library NonMutatingMargin {
 
   function loadTotalMaintenanceMarginRequirement(
     address wallet,
-    IndexPrice[] memory indexPrices,
-    address[] memory indexPriceCollectionServiceWallets,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -257,8 +248,6 @@ library NonMutatingMargin {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
 
       maintenanceMarginRequirement += _loadMarginRequirement(
-        indexPrices[i],
-        indexPriceCollectionServiceWallets,
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
@@ -359,7 +348,7 @@ library NonMutatingMargin {
         // Accumulate account value by adding signed position value
         insuranceFundTotalAccountValue += Math.multiplyPipsByFraction(
           int64(insuranceFundPositionSizeAfterAcquisition),
-          int64(arguments.indexPrices[i]),
+          int64(arguments.markets[i].lastIndexPrice),
           int64(Constants.PIP_PRICE_MULTIPLIER)
         );
         // Accumulate margin requirement
@@ -367,7 +356,7 @@ library NonMutatingMargin {
           Math.multiplyPipsByFraction(
             Math.multiplyPipsByFraction(
               int64(insuranceFundPositionSizeAfterAcquisition),
-              int64(arguments.indexPrices[i]),
+              int64(arguments.markets[i].lastIndexPrice),
               int64(Constants.PIP_PRICE_MULTIPLIER)
             ),
             int64(
@@ -385,63 +374,22 @@ library NonMutatingMargin {
   }
 
   function _loadMarginRequirement(
-    IndexPrice memory indexPrice,
-    address[] memory indexPriceCollectionServiceWallets,
     uint64 marginFraction,
     Market memory market,
     address wallet,
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (uint64) {
-    Validations.validateIndexPrice(indexPrice, indexPriceCollectionServiceWallets, market);
-
     return
       Math.abs(
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-            int64(indexPrice.price),
+            int64(market.lastIndexPrice),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
           int64(marginFraction),
           int64(Constants.PIP_PRICE_MULTIPLIER)
         )
       );
-  }
-
-  function _loadQuoteQuantityForPositionExit(
-    string memory baseAssetSymbol,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (int64) {
-    Balance memory balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
-      wallet,
-      baseAssetSymbol
-    );
-    Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
-
-    uint64 quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
-      balanceStruct.costBasis,
-      // Market indexed redundantly to avoid stack too deep error
-      market.loadOnChainFeedPrice(),
-      market
-        .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maintenanceMarginFraction,
-      balanceStruct.balance,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
-    );
-
-    // For short positions, the wallet gives quote to close the position so subtract. For long positions, the wallet
-    // receives quote to close so add
-    if (balanceStruct.balance < 0) {
-      return -1 * int64(quoteQuantityForPosition);
-    }
-
-    return int64(quoteQuantityForPosition);
   }
 }
