@@ -6,13 +6,12 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { DeleverageType } from "./Enums.sol";
 import { Deleveraging } from "./Deleveraging.sol";
 import { Funding } from "./Funding.sol";
+import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Margin } from "./Margin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { Validations } from "./Validations.sol";
-import { AcquisitionDeleverageArguments, Balance, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
 
 library AcquisitionDeleveraging {
   using BalanceTracking for BalanceTracking.Storage;
@@ -86,8 +85,10 @@ library AcquisitionDeleveraging {
     );
 
     // Validate that the liquidating account has fallen below margin requirements
-    (int64 liquidatingWalletTotalAccountValue, uint64 liquidatingWalletTotalMaintenanceMarginRequirement) = Margin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+    (
+      int64 liquidatingWalletTotalAccountValue,
+      uint64 liquidatingWalletTotalMaintenanceMarginRequirement
+    ) = IndexPriceMargin.loadTotalAccountValueAndMaintenanceMarginRequirement(
         arguments.externalArguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -141,7 +142,7 @@ library AcquisitionDeleveraging {
     ].merge(baseAssetSymbolsWithOpenPositionsByWallet[arguments.externalArguments.liquidatingWallet]);
 
     // Allocate struct to hold arguments needed to perform validation against IF liquidation of wallet
-    Margin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments = Margin
+    IndexPriceMargin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments = IndexPriceMargin
       .ValidateInsuranceFundCannotLiquidateWalletArguments(
         arguments.insuranceFundWallet,
         arguments.externalArguments.liquidatingWallet,
@@ -200,7 +201,7 @@ library AcquisitionDeleveraging {
     }
 
     // Argument struct is populated with validated field values, pass through to margin validation
-    Margin.validateInsuranceFundCannotLiquidateWallet(
+    IndexPriceMargin.validateInsuranceFundCannotLiquidateWallet(
       loadArguments,
       balanceTracking,
       marketOverridesByBaseAssetSymbolAndWallet
@@ -302,7 +303,7 @@ library AcquisitionDeleveraging {
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
-    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
       arguments.externalArguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

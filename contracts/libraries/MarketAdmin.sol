@@ -8,9 +8,7 @@ import { FieldUpgradeGovernance } from "./FieldUpgradeGovernance.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
 import { MarketHelper } from "./MarketHelper.sol";
-import { String } from "./String.sol";
 import { Time } from "./Time.sol";
-import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
 
 library MarketAdmin {
@@ -87,7 +85,7 @@ library MarketAdmin {
 
     for (uint8 i = 0; i < indexPrices.length; i++) {
       market = marketsByBaseAssetSymbol[indexPrices[i].baseAssetSymbol];
-      require(market.exists, "Market not found");
+      require(market.exists && market.isActive, "Active market not found");
 
       _validateIndexPrice(indexPrices[i], indexPriceCollectionServiceWallets, market);
 
@@ -169,7 +167,7 @@ library MarketAdmin {
     address[] memory indexPriceCollectionServiceWallets,
     Market memory market
   ) private view {
-    require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
+    require(market.lastIndexPriceTimestampInMs < indexPrice.timestampInMs, "Outdated index price");
 
     require(indexPrice.timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
 

@@ -2,9 +2,8 @@
 
 pragma solidity 0.8.18;
 
+import { Market } from "./Structs.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { Validations } from "./Validations.sol";
-import { IndexPrice, Market } from "./Structs.sol";
 
 library Deleveraging {
   using SortedStringSet for string[];

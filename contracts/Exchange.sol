@@ -9,14 +9,15 @@ import { BalanceTracking } from "./libraries/BalanceTracking.sol";
 import { ClosureDeleveraging } from "./libraries/ClosureDeleveraging.sol";
 import { Constants } from "./libraries/Constants.sol";
 import { Depositing } from "./libraries/Depositing.sol";
-import { Exiting } from "./libraries/Exiting.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
+import { Exiting } from "./libraries/Exiting.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
 import { FieldUpgradeGovernance } from "./libraries/FieldUpgradeGovernance.sol";
-import { Margin } from "./libraries/Margin.sol";
+import { IndexPriceMargin } from "./libraries/IndexPriceMargin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
+import { OnChainPriceFeedMargin } from "./libraries/OnChainPriceFeedMargin.sol";
 import { Owned } from "./Owned.sol";
 import { PositionBelowMinimumLiquidation } from "./libraries/PositionBelowMinimumLiquidation.sol";
 import { PositionInDeactivatedMarketLiquidation } from "./libraries/PositionInDeactivatedMarketLiquidation.sol";
@@ -176,7 +177,9 @@ contract Exchange_v4 is IExchange, Owned {
     string quoteAssetSymbol,
     uint64 baseQuantity,
     uint64 quoteQuantity,
-    OrderSide takerSide
+    OrderSide takerSide,
+    int64 makerFeeQuantity,
+    uint64 takerFeeQuantity
   );
   /**
    * @notice Emitted when a user invalidates an order nonce with `invalidateOrderNonce`
@@ -206,7 +209,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event WalletExited(address wallet, uint256 effectiveBlockNumber);
   /**
-   * @notice Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with
+   * @notice Emitted when a user withdraws available quote token balance through the Exit Wallet mechanism with
    * `withdrawExit`
    */
   event WalletExitWithdrawn(address wallet, uint64 quantity);
@@ -555,10 +558,12 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) external view returns (uint64) {
     return
-      Margin.loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
+      Funding.loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         _marketOverridesByBaseAssetSymbolAndWallet,
         _marketsByBaseAssetSymbol
       );
@@ -647,7 +652,9 @@ contract Exchange_v4 is IExchange, Owned {
       tradeArguments.orderBookTrade.quoteAssetSymbol,
       tradeArguments.orderBookTrade.baseQuantity,
       tradeArguments.orderBookTrade.quoteQuantity,
-      tradeArguments.orderBookTrade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy
+      tradeArguments.orderBookTrade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy,
+      tradeArguments.orderBookTrade.makerFeeQuantity,
+      tradeArguments.orderBookTrade.takerFeeQuantity
     );
   }
 
@@ -1006,7 +1013,7 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Sends tokens mistakenly sent directly to the `Exchange` to the fee wallet (the abscence of a `receive`
+   * @notice Sends tokens mistakenly sent directly to the `Exchange` to the fee wallet (the absence of a `receive`
    * function rejects incoming native asset transfers)
    */
   function skim(address tokenAddress) external onlyAdmin {
@@ -1107,7 +1114,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function loadTotalInitialMarginRequirement(address wallet) external view returns (uint64) {
     return
-      Margin.loadTotalInitialMarginRequirement_delegatecall(
+      IndexPriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1124,7 +1131,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function loadTotalInitialMarginRequirementFromOnChainPriceFeed(address wallet) external view returns (uint64) {
     return
-      Margin.loadTotalInitialMarginRequirementFromOnChainPriceFeed_delegatecall(
+      OnChainPriceFeedMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1141,7 +1148,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function loadTotalMaintenanceMarginRequirement(address wallet) external view returns (uint64) {
     return
-      Margin.loadTotalMaintenanceMarginRequirement_delegatecall(
+      IndexPriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1158,7 +1165,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed(address wallet) external view returns (uint64) {
     return
-      Margin.loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed_delegatecall(
+      OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,

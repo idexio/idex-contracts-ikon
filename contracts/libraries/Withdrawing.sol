@@ -13,7 +13,7 @@ import { ExitFund } from "./ExitFund.sol";
 import { Hashing } from "./Hashing.sol";
 import { ICustodian } from "./Interfaces.sol";
 import { Funding } from "./Funding.sol";
-import { Margin } from "./Margin.sol";
+import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
@@ -108,7 +108,7 @@ library Withdrawing {
       require(newExchangeBalance >= 0, "EF may only withdraw to zero");
     } else {
       // Wallet must still maintain initial margin requirement after withdrawal
-      Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
         arguments.withdrawal.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -202,8 +202,10 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
+    // Outstanding funding payments already applied in withdrawExit_delegatecall
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
+        0,
         arguments.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,

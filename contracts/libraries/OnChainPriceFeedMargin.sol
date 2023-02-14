@@ -13,7 +13,44 @@ library OnChainPriceFeedMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
+  // solhint-disable-next-line func-name-mixedcase
+  function loadTotalInitialMarginRequirement_delegatecall(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (uint64 initialMarginRequirement) {
+    return
+      OnChainPriceFeedMargin.loadTotalInitialMarginRequirement(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function loadTotalMaintenanceMarginRequirement_delegatecall(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (uint64 maintenanceMarginRequirement) {
+    return
+      OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
   function loadQuoteQuantityAvailableForExitWithdrawal(
+    int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -27,6 +64,7 @@ library OnChainPriceFeedMargin {
 
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
+        outstandingWalletFunding,
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -52,12 +90,15 @@ library OnChainPriceFeedMargin {
   }
 
   function loadTotalAccountValue(
+    int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 totalAccountValue) {
-    totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL);
+    totalAccountValue =
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
+      outstandingWalletFunding;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
@@ -72,6 +113,7 @@ library OnChainPriceFeedMargin {
   }
 
   function loadTotalAccountValueAndMaintenanceMarginRequirement(
+    int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -79,6 +121,7 @@ library OnChainPriceFeedMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 totalAccountValue, uint64 maintenanceMarginRequirement) {
     totalAccountValue = loadTotalAccountValue(
+      outstandingWalletFunding,
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
