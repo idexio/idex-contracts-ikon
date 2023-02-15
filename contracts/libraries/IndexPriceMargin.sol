@@ -267,9 +267,11 @@ library IndexPriceMargin {
 
       // Calculate Insurance Fund position size after acquiring position
       insuranceFundPositionSizeAfterAcquisition =
-        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-          arguments.insuranceFundWallet,
-          arguments.markets[i].baseAssetSymbol
+        int256(
+          balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+            arguments.insuranceFundWallet,
+            arguments.markets[i].baseAssetSymbol
+          )
         ) +
         liquidatingWalletPositionSize;
 

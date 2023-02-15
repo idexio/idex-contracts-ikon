@@ -71,14 +71,16 @@ export async function bootstrapLiquidatedWallet() {
     trader2Wallet,
   );
 
-  const newIndexPrice = await buildIndexPriceWithValue(
+  const liquidationIndexPrice = await buildIndexPriceWithValue(
     indexPriceCollectionServiceWallet,
     '2150.00000000',
+    baseAssetSymbol,
+    2,
   );
 
   await exchange
     .connect(dispatcherWallet)
-    .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+    .publishIndexPrices([indexPriceToArgumentStruct(liquidationIndexPrice)]);
 
   await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
     counterpartyWallet: insuranceWallet.address,
@@ -90,7 +92,7 @@ export async function bootstrapLiquidatedWallet() {
     dispatcherWallet,
     exchange,
     insuranceWallet,
-    liquidationIndexPrice: newIndexPrice,
+    liquidationIndexPrice,
     liquidatedWallet: trader1Wallet,
     counterpartyWallet: trader2Wallet,
   };
@@ -135,17 +137,18 @@ export async function buildIndexPrices(
 }
 
 export async function buildIndexPriceWithValue(
-  index: SignerWithAddress,
+  indexPriceCollectionServiceWallet: SignerWithAddress,
   price: string,
   baseAssetSymbol_ = baseAssetSymbol,
+  periodsInFuture = 1,
 ): Promise<IndexPrice> {
   const indexPrice = {
     signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
-    timestampInMs: getNextPeriodInMs(1),
+    timestampInMs: getNextPeriodInMs(periodsInFuture),
     price,
   };
-  const signature = await index.signMessage(
+  const signature = await indexPriceCollectionServiceWallet.signMessage(
     ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
   );
 

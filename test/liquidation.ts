@@ -66,7 +66,7 @@ describe('Exchange', function () {
 
   describe('liquidatePositionBelowMinimum', async function () {
     it('should work for valid wallet position', async function () {
-      await exchange.initiateMarketOverridesUpgrade(
+      await exchange.connect(dispatcherWallet).initiateMarketOverridesUpgrade(
         baseAssetSymbol,
         {
           initialMarginFraction: '5000000',
@@ -80,14 +80,9 @@ describe('Exchange', function () {
         trader1Wallet.address,
       );
       await mine((2 * 24 * 60 * 60) / 3, { interval: 0 });
-      await exchange.finalizeMarketOverridesUpgrade(
-        baseAssetSymbol,
-        trader1Wallet.address,
-      );
-
       await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+        .finalizeMarketOverridesUpgrade(baseAssetSymbol, trader1Wallet.address);
 
       await (
         await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
@@ -101,10 +96,6 @@ describe('Exchange', function () {
 
   describe('liquidatePositionInDeactivatedMarket', async function () {
     it('should work for valid wallet position and market', async function () {
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
-
       await (
         await exchange
           .connect(dispatcherWallet)
@@ -132,17 +123,19 @@ describe('Exchange', function () {
 
   describe('liquidateWalletInMaintenanceDuringSystemRecovery', async function () {
     it('should work for valid wallet', async function () {
-      await exchange.connect(trader2Wallet).exitWallet();
-      await exchange.withdrawExit(trader2Wallet.address);
-
       const newIndexPrice = await buildIndexPriceWithValue(
         indexPriceCollectionServiceWallet,
         '2150.00000000',
+        baseAssetSymbol,
+        2,
       );
 
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+
+      await exchange.connect(trader2Wallet).exitWallet();
+      await exchange.withdrawExit(trader2Wallet.address);
 
       await (
         await exchange
@@ -159,10 +152,6 @@ describe('Exchange', function () {
   describe('liquidateWalletExited', async function () {
     it('should work for valid wallet', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
 
       await (
         await exchange.connect(dispatcherWallet).liquidateWalletExited({

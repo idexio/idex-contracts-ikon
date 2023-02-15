@@ -220,8 +220,15 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Modifiers //
 
-  modifier onlyDispatcher() {
-    require(msg.sender == dispatcherWallet, "Caller is not dispatcher");
+  modifier onlyDispatcherWhenExitFundHasNoPositions() {
+    require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
+    require(_exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
+    _;
+  }
+
+  modifier onlyDispatcherWhenExitFundHasOpenPositions() {
+    require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
+    require(_exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
     _;
   }
 
@@ -466,7 +473,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param newInsuranceFundWallet The IF wallet address
    */
-  function initiateInsuranceFundWalletUpgrade(address newInsuranceFundWallet) external onlyAdmin {
+  function initiateInsuranceFundWalletUpgrade(
+    address newInsuranceFundWallet
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     _fieldUpgradeGovernance.initiateInsuranceFundWalletUpgrade_delegatecall(
       insuranceFundWallet,
       newInsuranceFundWallet
@@ -482,7 +491,7 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Cancels an in-flight IF wallet upgrade that has not yet been finalized
    */
-  function cancelInsuranceFundWalletUpgrade() external onlyAdmin {
+  function cancelInsuranceFundWalletUpgrade() external onlyDispatcherWhenExitFundHasNoPositions {
     address newInsuranceFundWallet = _fieldUpgradeGovernance.cancelInsuranceFundWalletUpgrade_delegatecall();
 
     emit InsuranceFundWalletUpgradeCanceled(insuranceFundWallet, newInsuranceFundWallet);
@@ -495,7 +504,9 @@ contract Exchange_v4 is IExchange, Owned {
    * @param newInsuranceFundWallet The address of the new IF wallet. Must equal the address provided to
    * `initiateInsuranceFundWalletUpgrade`
    */
-  function finalizeInsuranceFundWalletUpgrade(address newInsuranceFundWallet) external onlyAdmin {
+  function finalizeInsuranceFundWalletUpgrade(
+    address newInsuranceFundWallet
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     _fieldUpgradeGovernance.finalizeInsuranceFundWalletUpgrade_delegatecall(newInsuranceFundWallet);
 
     address oldInsuranceFundWallet = insuranceFundWallet;
@@ -585,7 +596,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Clears the currently set whitelisted dispatcher wallet, effectively disabling calling any functions
-   * restricted by the `onlyDispatcher` modifier until a new wallet is set with `setDispatcher`
+   * restricted by the `onlyDispatcherWhenExitFundHasNoPositions` modifier until a new wallet is set with `setDispatcher`
    */
   function removeDispatcher() external onlyAdmin {
     dispatcherWallet = address(0x0);
@@ -623,7 +634,9 @@ contract Exchange_v4 is IExchange, Owned {
    * @param tradeArguments An `ExecuteOrderBookTradeArguments` struct encoding the buy order, sell order, and trade
    * execution parameters
    */
-  function executeOrderBookTrade(ExecuteOrderBookTradeArguments memory tradeArguments) external onlyDispatcher {
+  function executeOrderBookTrade(
+    ExecuteOrderBookTradeArguments memory tradeArguments
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     Trading.executeOrderBookTrade_delegatecall(
       Trading.Arguments(
         tradeArguments,
@@ -666,7 +679,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidatePositionBelowMinimum(
     PositionBelowMinimumLiquidationArguments memory liquidationArguments
-  ) external onlyDispatcher {
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     PositionBelowMinimumLiquidation.liquidate_delegatecall(
       PositionBelowMinimumLiquidation.Arguments(
         liquidationArguments,
@@ -687,7 +700,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidatePositionInDeactivatedMarket(
     PositionInDeactivatedMarketLiquidationArguments memory liquidationArguments
-  ) external onlyDispatcher {
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     PositionInDeactivatedMarketLiquidation.liquidate_delegatecall(
       liquidationArguments,
       feeWallet,
@@ -695,7 +708,6 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
       _marketsByBaseAssetSymbol
     );
   }
@@ -706,7 +718,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidateWalletInMaintenance(
     WalletLiquidationArguments memory liquidationArguments
-  ) external onlyDispatcher {
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     WalletLiquidation.liquidate_delegatecall(
       WalletLiquidation.Arguments(
         liquidationArguments,
@@ -730,9 +742,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     WalletLiquidationArguments memory liquidationArguments
-  ) external onlyDispatcher {
-    require(_exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
-
+  ) external onlyDispatcherWhenExitFundHasOpenPositions {
     _exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate_delegatecall(
       WalletLiquidation.Arguments(
         liquidationArguments,
@@ -753,7 +763,9 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Liquidates all positions of an exited wallet to the Insurance Fund at each position's exit price
    */
-  function liquidateWalletExited(WalletLiquidationArguments memory liquidationArguments) external onlyDispatcher {
+  function liquidateWalletExited(
+    WalletLiquidationArguments memory liquidationArguments
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[liquidationArguments.liquidatingWallet].exists, "Wallet not exited");
 
     WalletLiquidation.liquidate_delegatecall(
@@ -781,7 +793,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function deleverageInMaintenanceAcquisition(
     AcquisitionDeleverageArguments memory deleverageArguments
-  ) external onlyDispatcher {
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     AcquisitionDeleveraging.deleverage_delegatecall(
       AcquisitionDeleveraging.Arguments(
         deleverageArguments,
@@ -804,7 +816,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function deleverageInsuranceFundClosure(
     ClosureDeleverageArguments memory deleverageArguments
-  ) external onlyDispatcher {
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     ClosureDeleveraging.deleverage_delegatecall(
       ClosureDeleveraging.Arguments(
         deleverageArguments,
@@ -828,7 +840,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function deleverageExitAcquisition(
     AcquisitionDeleverageArguments memory deleverageArguments
-  ) external onlyDispatcher {
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[deleverageArguments.liquidatingWallet].exists, "Wallet not exited");
 
     AcquisitionDeleveraging.deleverage_delegatecall(
@@ -851,7 +863,9 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Reduces a single position held by the Exit Fund by deleveraging a counterparty position at the index
    * price or the Exit Fund's bankruptcy price if the Exit Fund account value is positive or negative, respectively
    */
-  function deleverageExitFundClosure(ClosureDeleverageArguments memory deleverageArguments) external onlyDispatcher {
+  function deleverageExitFundClosure(
+    ClosureDeleverageArguments memory deleverageArguments
+  ) external onlyDispatcherWhenExitFundHasOpenPositions {
     _exitFundPositionOpenedAtBlockNumber = ClosureDeleveraging.deleverage_delegatecall(
       ClosureDeleveraging.Arguments(
         deleverageArguments,
@@ -871,7 +885,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Transfers //
 
-  function transfer(Transfer memory transfer_) public onlyDispatcher {
+  function transfer(Transfer memory transfer_) public onlyDispatcherWhenExitFundHasNoPositions {
     int64 newSourceWalletExchangeBalance = Transferring.transfer_delegatecall(
       Transferring.Arguments(transfer_, exitFundWallet, insuranceFundWallet, feeWallet),
       _balanceTracking,
@@ -900,7 +914,7 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param withdrawal A `Withdrawal` struct encoding the parameters of the withdrawal
    */
-  function withdraw(Withdrawal memory withdrawal) public onlyDispatcher {
+  function withdraw(Withdrawal memory withdrawal) public onlyDispatcherWhenExitFundHasNoPositions {
     require(!Exiting.isWalletExitFinalized(withdrawal.wallet, _walletExits), "Wallet exited");
 
     int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
@@ -943,21 +957,21 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Activate a market, which allows positions to be opened and funding payments made
    */
-  function activateMarket(string memory baseAssetSymbol) external onlyDispatcher {
+  function activateMarket(string memory baseAssetSymbol) external onlyDispatcherWhenExitFundHasNoPositions {
     MarketAdmin.activateMarket_delegatecall(baseAssetSymbol, _marketsByBaseAssetSymbol);
   }
 
   /**
    * @notice Deactivate a market
    */
-  function deactivateMarket(string memory baseAssetSymbol) external onlyDispatcher {
+  function deactivateMarket(string memory baseAssetSymbol) external onlyDispatcherWhenExitFundHasNoPositions {
     MarketAdmin.deactivateMarket_delegatecall(baseAssetSymbol, _marketsByBaseAssetSymbol);
   }
 
   /**
    * @notice Publish updated index prices for markets
    */
-  function publishIndexPrices(IndexPrice[] memory indexPrices) external onlyDispatcher {
+  function publishIndexPrices(IndexPrice[] memory indexPrices) external onlyDispatcherWhenExitFundHasNoPositions {
     MarketAdmin.publishIndexPrices_delegatecall(
       indexPrices,
       indexPriceCollectionServiceWallets,
@@ -974,7 +988,7 @@ contract Exchange_v4 is IExchange, Owned {
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
     address wallet
-  ) external onlyAdmin {
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     uint256 blockThreshold = MarketAdmin.initiateMarketOverridesUpgrade_delegatecall(
       baseAssetSymbol,
       overridableFields,
@@ -989,7 +1003,10 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Cancels an in-flight market override upgrade process that has not yet been finalized
    */
-  function cancelMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) external onlyAdmin {
+  function cancelMarketOverridesUpgrade(
+    string memory baseAssetSymbol,
+    address wallet
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     MarketAdmin.cancelMarketOverridesUpgrade_delegatecall(baseAssetSymbol, wallet, _fieldUpgradeGovernance);
 
     emit MarketOverridesUpgradeCanceled(baseAssetSymbol, wallet);
@@ -1000,7 +1017,10 @@ contract Exchange_v4 is IExchange, Owned {
    * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
    * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
    */
-  function finalizeMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) external onlyAdmin {
+  function finalizeMarketOverridesUpgrade(
+    string memory baseAssetSymbol,
+    address wallet
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     MarketAdmin.finalizeMarketOverridesUpgrade_delegatecall(
       baseAssetSymbol,
       wallet,
@@ -1027,7 +1047,10 @@ contract Exchange_v4 is IExchange, Owned {
    * component of index price to determine if funding rate is too recent after previously publish funding rate, and to
    * backfill empty values if a funding period was missed
    */
-  function publishFundingMultiplier(string memory baseAssetSymbol, int64 fundingRate) external onlyDispatcher {
+  function publishFundingMultiplier(
+    string memory baseAssetSymbol,
+    int64 fundingRate
+  ) external onlyDispatcherWhenExitFundHasNoPositions {
     Funding.publishFundingMultiplier_delegatecall(
       baseAssetSymbol,
       fundingRate,

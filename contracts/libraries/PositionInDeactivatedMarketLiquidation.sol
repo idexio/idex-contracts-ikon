@@ -22,7 +22,6 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
@@ -33,16 +32,6 @@ library PositionInDeactivatedMarketLiquidation {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
-        externalArguments.liquidatingWallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    require(totalAccountValue >= int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement not met");
 
     _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
       externalArguments,

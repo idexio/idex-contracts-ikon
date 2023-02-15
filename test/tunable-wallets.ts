@@ -58,12 +58,12 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/upgrade already in progress/i);
     });
 
-    it('should revert when not called by admin', async () => {
+    it('should revert when not called by dispatch', async () => {
       await expect(
         exchange
           .connect((await ethers.getSigners())[1])
           .initiateInsuranceFundWalletUpgrade(newInsuranceFundWallet.address),
-      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+      ).to.eventually.be.rejectedWith(/caller must be dispatch/i);
     });
   });
 

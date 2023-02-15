@@ -152,6 +152,8 @@ library WalletLiquidation {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
+    require(market.isActive, "Cannot liquidate position in inactive market");
+
     Balance memory balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.externalArguments.liquidatingWallet,
       market.baseAssetSymbol
