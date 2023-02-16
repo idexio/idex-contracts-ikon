@@ -560,11 +560,14 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @return balance The quantity denominated in pips of quote asset that can be withdrawn after exiting the wallet.
    * Result may be zero, in which case an exit withdrawal would not transfer out any quote but would still close all
-   * positions and quote balance
+   * positions and quote balance. The available quote for exit can validly be negative for the EF wallet. For all other
+   * wallets, the exit quote calculations are designed such that the result quantity to withdraw is never negative;
+   * however the return type is still signed to provide visibility into case of unforseen bugs or rounding errors
    */
-  function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) public view returns (uint64) {
+  function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) public view returns (int64) {
     return
       Funding.loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
+        exitFundWallet,
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,

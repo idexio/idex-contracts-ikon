@@ -50,17 +50,23 @@ library OnChainPriceFeedMargin {
   }
 
   function loadQuoteQuantityAvailableForExitWithdrawal(
+    address exitFundWallet,
     int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (uint64) {
+  ) internal view returns (int64) {
     int64 quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       wallet,
       Constants.QUOTE_ASSET_SYMBOL
     );
+
+    if (wallet == exitFundWallet) {
+      // The EF wallet can withdraw any positive quote balance
+      return quoteQuantityAvailableForExitWithdrawal + outstandingWalletFunding;
+    }
 
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
@@ -85,8 +91,7 @@ library OnChainPriceFeedMargin {
       );
     }
 
-    // Quote quantity will never be negative per design of exit quote calculations
-    return Math.abs(quoteQuantityAvailableForExitWithdrawal);
+    return quoteQuantityAvailableForExitWithdrawal;
   }
 
   function loadTotalAccountValue(

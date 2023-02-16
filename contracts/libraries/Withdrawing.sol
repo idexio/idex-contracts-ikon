@@ -164,6 +164,7 @@ library Withdrawing {
     if (arguments.wallet == arguments.exitFundWallet) {
       _validateExitFundWithdrawDelayElapsed(exitFundPositionOpenedAtBlockNumber);
 
+      // The EF wallet can withdraw any positive quote balance
       walletQuoteQuantityToWithdraw = balanceTracking.updateExitFundWalletForExit(arguments.exitFundWallet);
     } else {
       walletQuoteQuantityToWithdraw = _updatePositionsForWalletExit(
@@ -176,9 +177,9 @@ library Withdrawing {
       );
     }
 
-    // The available quote for exit can be negative for the EF. The exit quote calculations are designed such that the
-    // result quantity to withdraw is never negative, however we still perform this check in case of unforseen bugs or
-    // rounding errors
+    // The available quote for exit can validly be negative for the EF wallet. For all other wallets, the exit quote
+    // calculations are designed such that the result quantity to withdraw is never negative; however we still perform
+    // this check in case of unforseen bugs or rounding errors
     require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
 
     arguments.custodian.withdraw(

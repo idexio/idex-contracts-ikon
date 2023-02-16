@@ -39,6 +39,7 @@ library Funding {
 
   // solhint-disable-next-line func-name-mixedcase
   function loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
+    address exitFundWallet,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -46,7 +47,7 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (uint64) {
+  ) public view returns (int64) {
     int64 outstandingWalletFunding = loadOutstandingWalletFunding(
       wallet,
       balanceTracking,
@@ -57,6 +58,7 @@ library Funding {
     );
     return
       OnChainPriceFeedMargin.loadQuoteQuantityAvailableForExitWithdrawal(
+        exitFundWallet,
         outstandingWalletFunding,
         wallet,
         balanceTracking,
