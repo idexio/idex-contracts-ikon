@@ -680,12 +680,10 @@ contract Exchange_v4 is IExchange, Owned {
     PositionBelowMinimumLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     PositionBelowMinimumLiquidation.liquidate_delegatecall(
-      PositionBelowMinimumLiquidation.Arguments(
-        liquidationArguments,
-        exitFundWallet,
-        insuranceFundWallet,
-        positionBelowMinimumLiquidationPriceToleranceMultiplier
-      ),
+      liquidationArguments,
+      exitFundWallet,
+      insuranceFundWallet,
+      positionBelowMinimumLiquidationPriceToleranceMultiplier,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -720,13 +718,11 @@ contract Exchange_v4 is IExchange, Owned {
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     WalletLiquidation.liquidate_delegatecall(
-      WalletLiquidation.Arguments(
-        liquidationArguments,
-        LiquidationType.WalletInMaintenance,
-        exitFundWallet,
-        insuranceFundWallet
-      ),
+      liquidationArguments,
       0,
+      exitFundWallet,
+      insuranceFundWallet,
+      LiquidationType.WalletInMaintenance,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -744,13 +740,11 @@ contract Exchange_v4 is IExchange, Owned {
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
     exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate_delegatecall(
-      WalletLiquidation.Arguments(
-        liquidationArguments,
-        LiquidationType.WalletInMaintenanceDuringSystemRecovery,
-        exitFundWallet,
-        insuranceFundWallet
-      ),
+      liquidationArguments,
       exitFundPositionOpenedAtBlockNumber,
+      exitFundWallet,
+      insuranceFundWallet,
+      LiquidationType.WalletInMaintenanceDuringSystemRecovery,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -769,13 +763,11 @@ contract Exchange_v4 is IExchange, Owned {
     require(_walletExits[liquidationArguments.liquidatingWallet].exists, "Wallet not exited");
 
     WalletLiquidation.liquidate_delegatecall(
-      WalletLiquidation.Arguments(
-        liquidationArguments,
-        LiquidationType.WalletExited,
-        exitFundWallet,
-        insuranceFundWallet
-      ),
+      liquidationArguments,
       0,
+      exitFundWallet,
+      insuranceFundWallet,
+      LiquidationType.WalletExited,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
