@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 import { String } from "./String.sol";
 
 library SortedStringSet {
-  uint256 public constant NOT_FOUND = 2 ** 256 - 1;
+  uint256 public constant NOT_FOUND = type(uint256).max;
 
   function indexOf(string[] memory array, string memory element) internal pure returns (uint256) {
     for (uint256 i = 0; i < array.length; i++) {

@@ -19,7 +19,8 @@ library Depositing {
     uint64 depositIndex,
     uint256 quantityInAssetUnits,
     address quoteAssetAddress,
-    address wallet,
+    address sourceWallet,
+    address destinationWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => Exiting.WalletExit) storage walletExits
   ) public returns (uint64 quantity, int64 newExchangeBalance) {
@@ -28,7 +29,8 @@ library Depositing {
 
     // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and trades which respect
     // the Chain Propagation Period given by `effectiveBlockNumber` via `_isWalletExitFinalized`
-    require(!walletExits[msg.sender].exists, "Wallet exited");
+    require(!walletExits[sourceWallet].exists, "Source wallet exited");
+    require(!walletExits[destinationWallet].exists, "Destination wallet exited");
 
     quantity = AssetUnitConversions.assetUnitsToPips(quantityInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
     require(quantity > 0, "Quantity is too low");
@@ -42,9 +44,9 @@ library Depositing {
     );
 
     // Forward the funds to the `Custodian`
-    IERC20(quoteAssetAddress).transferFrom(wallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
+    IERC20(quoteAssetAddress).transferFrom(sourceWallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
 
     // Update balance with actual transferred quantity
-    newExchangeBalance = balanceTracking.updateForDeposit(wallet, quantity);
+    newExchangeBalance = balanceTracking.updateForDeposit(destinationWallet, quantity);
   }
 }

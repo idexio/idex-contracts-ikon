@@ -40,7 +40,11 @@ describe('Exchange', function () {
       );
       await usdc.transfer(trader.address, depositQuantity);
       await usdc.connect(trader).approve(exchange.address, depositQuantity);
-      await (await exchange.connect(trader).deposit(depositQuantity)).wait();
+      await (
+        await exchange
+          .connect(trader)
+          .deposit(depositQuantity, ethers.constants.AddressZero)
+      ).wait();
 
       const withdrawal = {
         signatureHashVersion,
@@ -127,7 +131,9 @@ describe('Exchange', function () {
         quoteAssetDecimals,
       );
       await usdc.approve(exchange.address, depositQuantity);
-      await (await exchange.deposit(depositQuantity)).wait();
+      await (
+        await exchange.deposit(depositQuantity, ethers.constants.AddressZero)
+      ).wait();
 
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);

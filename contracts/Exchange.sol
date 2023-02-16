@@ -607,14 +607,16 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity
+   * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
    */
-  function deposit(uint256 quantityInAssetUnits) public {
+  function deposit(uint256 quantityInAssetUnits, address destinationWallet) external {
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
       custodian,
       depositIndex,
       quantityInAssetUnits,
       quoteAssetAddress,
       msg.sender,
+      destinationWallet == address(0x0) ? msg.sender : destinationWallet,
       _balanceTracking,
       _walletExits
     );

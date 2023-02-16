@@ -492,7 +492,10 @@ export async function fundWallets(
       (
         await exchange
           .connect(wallet)
-          .deposit(decimalToAssetUnits(quantity, quoteAssetDecimals))
+          .deposit(
+            decimalToAssetUnits(quantity, quoteAssetDecimals),
+            ethers.constants.AddressZero,
+          )
       ).wait(),
     ),
   );

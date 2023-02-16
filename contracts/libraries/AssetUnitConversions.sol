@@ -26,7 +26,7 @@ library AssetUnitConversions {
     } else {
       quantity = quantityInAssetUnits * (uint256(10) ** (8 - assetDecimals));
     }
-    require(quantity < 2 ** 64, "Pip quantity overflows uint64");
+    require(quantity <= type(uint64).max, "Pip quantity overflows uint64");
 
     return uint64(quantity);
   }

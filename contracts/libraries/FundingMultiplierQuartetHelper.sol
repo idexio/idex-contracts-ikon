@@ -10,7 +10,7 @@ library FundingMultiplierQuartetHelper {
   // Avoid magic numbers
   uint64 private constant _QUARTET_SIZE = 4;
 
-  int64 private constant _EMPTY = 2 ** 63 - 1;
+  int64 private constant _EMPTY = type(int64).min;
 
   /**
    * @dev Adds a new funding multiplier to an array of quartets

@@ -278,8 +278,8 @@ library IndexPriceMargin {
       // If acquiring this position exceeds the IF's maximum position size for the market, then it cannot acquire
       // and we can stop here
       isMaximumPositionSizeExceeded =
-        insuranceFundPositionSizeAfterAcquisition >= 2 ** 63 ||
-        insuranceFundPositionSizeAfterAcquisition <= -2 ** 63 ||
+        insuranceFundPositionSizeAfterAcquisition > type(int64).max ||
+        insuranceFundPositionSizeAfterAcquisition < type(int64).min ||
         Math.abs(int64(insuranceFundPositionSizeAfterAcquisition)) >
         arguments
           .markets[i]
