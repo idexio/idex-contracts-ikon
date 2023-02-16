@@ -18,18 +18,13 @@ library ClosureDeleveraging {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
-  struct Arguments {
-    ClosureDeleverageArguments externalArguments;
-    DeleverageType deleverageType;
-    // Exchange state
-    address exitFundWallet;
-    address insuranceFundWallet;
-  }
-
   // solhint-disable-next-line func-name-mixedcase
   function deleverage_delegatecall(
-    Arguments memory arguments,
+    ClosureDeleverageArguments memory arguments,
+    DeleverageType deleverageType,
     uint256 exitFundPositionOpenedAtBlockNumber,
+    address exitFundWallet,
+    address insuranceFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
@@ -37,23 +32,17 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256) {
-    require(arguments.externalArguments.deleveragingWallet != arguments.exitFundWallet, "Cannot deleverage EF");
-    require(arguments.externalArguments.deleveragingWallet != arguments.insuranceFundWallet, "Cannot deleverage IF");
-    if (arguments.deleverageType == DeleverageType.ExitFundClosure) {
-      require(
-        arguments.externalArguments.liquidatingWallet == arguments.exitFundWallet,
-        "Liquidating wallet must be EF"
-      );
+    require(arguments.deleveragingWallet != exitFundWallet, "Cannot deleverage EF");
+    require(arguments.deleveragingWallet != insuranceFundWallet, "Cannot deleverage IF");
+    if (deleverageType == DeleverageType.ExitFundClosure) {
+      require(arguments.liquidatingWallet == exitFundWallet, "Liquidating wallet must be EF");
     } else {
       // DeleverageType.InsuranceFundClosure
-      require(
-        arguments.externalArguments.liquidatingWallet == arguments.insuranceFundWallet,
-        "Liquidating wallet must be IF"
-      );
+      require(arguments.liquidatingWallet == insuranceFundWallet, "Liquidating wallet must be IF");
     }
 
     Funding.updateWalletFunding(
-      arguments.externalArguments.deleveragingWallet,
+      arguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -61,7 +50,7 @@ library ClosureDeleveraging {
       marketsByBaseAssetSymbol
     );
     Funding.updateWalletFunding(
-      arguments.externalArguments.liquidatingWallet,
+      arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -71,6 +60,8 @@ library ClosureDeleveraging {
 
     _validateArgumentsAndDeleverage(
       arguments,
+      deleverageType,
+      exitFundWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -78,11 +69,11 @@ library ClosureDeleveraging {
       marketsByBaseAssetSymbol
     );
 
-    if (arguments.deleverageType == DeleverageType.ExitFundClosure) {
+    if (deleverageType == DeleverageType.ExitFundClosure) {
       return
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
           exitFundPositionOpenedAtBlockNumber,
-          arguments.exitFundWallet,
+          exitFundWallet,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
         );
@@ -92,7 +83,9 @@ library ClosureDeleveraging {
   }
 
   function _validateArgumentsAndDeleverage(
-    Arguments memory arguments,
+    ClosureDeleverageArguments memory arguments,
+    DeleverageType deleverageType,
+    address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -100,14 +93,16 @@ library ClosureDeleveraging {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     Market memory market = Validations.loadAndValidateMarket(
-      arguments.externalArguments.baseAssetSymbol,
-      arguments.externalArguments.liquidatingWallet,
+      arguments.baseAssetSymbol,
+      arguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
 
     _validateQuoteQuantityAndDeleveragePosition(
       arguments,
+      deleverageType,
+      exitFundWallet,
       market,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -118,7 +113,9 @@ library ClosureDeleveraging {
   }
 
   function _validateQuoteQuantityAndDeleveragePosition(
-    Arguments memory arguments,
+    ClosureDeleverageArguments memory arguments,
+    DeleverageType deleverageType,
+    address exitFundWallet,
     Market memory market,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -127,24 +124,24 @@ library ClosureDeleveraging {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     Balance storage balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
-      arguments.externalArguments.liquidatingWallet,
+      arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
 
     // Validate quote quantity
-    if (arguments.deleverageType == DeleverageType.InsuranceFundClosure) {
+    if (deleverageType == DeleverageType.InsuranceFundClosure) {
       LiquidationValidations.validateInsuranceFundClosureQuoteQuantity(
-        arguments.externalArguments.liquidationBaseQuantity,
+        arguments.liquidationBaseQuantity,
         balanceStruct.costBasis,
         balanceStruct.balance,
-        arguments.externalArguments.liquidationQuoteQuantity
+        arguments.liquidationQuoteQuantity
       );
     } else {
       // DeleverageType.ExitFundClosure
       (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
       // Use margin calculation specific to EF that accounts for its unlimited leverage
         .loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
-          arguments.externalArguments.liquidatingWallet,
+          arguments.liquidatingWallet,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet,
           marketsByBaseAssetSymbol
@@ -154,24 +151,24 @@ library ClosureDeleveraging {
       // quantity as the position size to validateExitFundClosureQuoteQuantity while observing the same signedness
       LiquidationValidations.validateExitFundClosureQuoteQuantity(
         balanceStruct.balance < 0
-          ? (-1 * int64(arguments.externalArguments.liquidationBaseQuantity))
-          : int64(arguments.externalArguments.liquidationBaseQuantity),
+          ? (-1 * int64(arguments.liquidationBaseQuantity))
+          : int64(arguments.liquidationBaseQuantity),
         market.lastIndexPrice,
         // Use market default values instead of wallet-specific overrides for the EF, since its margin fraction is zero
         market.overridableFields.maintenanceMarginFraction,
-        arguments.externalArguments.liquidationQuoteQuantity,
+        arguments.liquidationQuoteQuantity,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
     }
 
     balanceTracking.updatePositionsForDeleverage(
-      arguments.externalArguments.liquidationBaseQuantity,
-      arguments.externalArguments.deleveragingWallet,
-      arguments.exitFundWallet,
-      arguments.externalArguments.liquidatingWallet,
+      arguments.liquidationBaseQuantity,
+      arguments.deleveragingWallet,
+      exitFundWallet,
+      arguments.liquidatingWallet,
       market,
-      arguments.externalArguments.liquidationQuoteQuantity,
+      arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet
@@ -179,7 +176,7 @@ library ClosureDeleveraging {
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
     IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
-      arguments.externalArguments.deleveragingWallet,
+      arguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,

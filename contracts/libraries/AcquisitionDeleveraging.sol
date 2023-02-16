@@ -169,8 +169,8 @@ library AcquisitionDeleveraging {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (Market memory) {
-    Market memory market = Validations.loadAndValidateMarket(
+  ) private returns (Market memory market) {
+    market = Validations.loadAndValidateMarket(
       arguments.baseAssetSymbol,
       arguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -214,8 +214,6 @@ library AcquisitionDeleveraging {
         totalMaintenanceMarginRequirement
       );
     }
-
-    return market;
   }
 
   function _validateDeleverageQuoteQuantityAndUpdatePositions(

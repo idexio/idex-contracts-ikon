@@ -808,13 +808,11 @@ contract Exchange_v4 is IExchange, Owned {
     ClosureDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     ClosureDeleveraging.deleverage_delegatecall(
-      ClosureDeleveraging.Arguments(
-        deleverageArguments,
-        DeleverageType.InsuranceFundClosure,
-        exitFundWallet,
-        insuranceFundWallet
-      ),
+      deleverageArguments,
+      DeleverageType.InsuranceFundClosure,
       0,
+      exitFundWallet,
+      insuranceFundWallet,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -855,13 +853,11 @@ contract Exchange_v4 is IExchange, Owned {
     ClosureDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
     exitFundPositionOpenedAtBlockNumber = ClosureDeleveraging.deleverage_delegatecall(
-      ClosureDeleveraging.Arguments(
-        deleverageArguments,
-        DeleverageType.ExitFundClosure,
-        exitFundWallet,
-        insuranceFundWallet
-      ),
+      deleverageArguments,
+      DeleverageType.ExitFundClosure,
       exitFundPositionOpenedAtBlockNumber,
+      exitFundWallet,
+      insuranceFundWallet,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
