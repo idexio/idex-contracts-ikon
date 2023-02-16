@@ -213,26 +213,23 @@ library BalanceTracking {
     if (positionSize < 0) {
       // Take on short position by subtracting base quantity
       _subtractFromPosition(
-        balanceStruct,
+        arguments.market.baseAssetSymbol,
         Math.abs(positionSize),
         quoteQuantity,
-        marketWithExitFundOverrides.overridableFields.maximumPositionSize
+        marketWithExitFundOverrides.overridableFields.maximumPositionSize,
+        balanceStruct,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     } else {
       // Take on long position by adding base quantity
       _addToPosition(
-        balanceStruct,
+        arguments.market.baseAssetSymbol,
         Math.abs(positionSize),
         quoteQuantity,
-        marketWithExitFundOverrides.overridableFields.maximumPositionSize
+        marketWithExitFundOverrides.overridableFields.maximumPositionSize,
+        balanceStruct,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
-    }
-    // If the EF is opening a position in the market for the first time, the position should be updated with the latest
-    // published funding rate for that market so that no funding is applied retroactively
-    if (balanceStruct.lastUpdateTimestampInMs == 0) {
-      balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-        arguments.market.baseAssetSymbol
-      ];
     }
     // Update open position tracking for EF in case the position was opened or closed
     _updateOpenPositionsForWallet(
@@ -267,11 +264,6 @@ library BalanceTracking {
   ) internal {
     Balance storage balanceStruct;
 
-    // Opening a position in a market requires a funding multiplier already be present in order to have a starting
-    // timestamp (from which multiplier array index and offset are calculated) for the wallet from which to apply
-    // funding payments
-    uint64 lastFundingRateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol];
-
     (int64 buyFee, int64 sellFee) = arguments.orderBookTrade.makerSide == OrderSide.Buy
       ? (arguments.orderBookTrade.makerFeeQuantity, int64(arguments.orderBookTrade.takerFeeQuantity))
       : (int64(arguments.orderBookTrade.takerFeeQuantity), arguments.orderBookTrade.makerFeeQuantity);
@@ -289,17 +281,16 @@ library BalanceTracking {
       );
     }
     _subtractFromPosition(
-      balanceStruct,
+      market.baseAssetSymbol,
       arguments.orderBookTrade.baseQuantity,
       arguments.orderBookTrade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.sell.wallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
-        .maximumPositionSize
+        .maximumPositionSize,
+      balanceStruct,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol
     );
-    if (balanceStruct.lastUpdateTimestampInMs == 0) {
-      balanceStruct.lastUpdateTimestampInMs = lastFundingRateTimestampInMs;
-    }
     _updateOpenPositionsForWallet(
       arguments.sell.wallet,
       arguments.orderBookTrade.baseAssetSymbol,
@@ -320,17 +311,16 @@ library BalanceTracking {
       );
     }
     _addToPosition(
-      balanceStruct,
+      market.baseAssetSymbol,
       arguments.orderBookTrade.baseQuantity,
       arguments.orderBookTrade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.buy.wallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
-        .maximumPositionSize
+        .maximumPositionSize,
+      balanceStruct,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol
     );
-    if (balanceStruct.lastUpdateTimestampInMs == 0) {
-      balanceStruct.lastUpdateTimestampInMs = lastFundingRateTimestampInMs;
-    }
     _updateOpenPositionsForWallet(
       arguments.buy.wallet,
       arguments.orderBookTrade.baseAssetSymbol,
@@ -455,67 +445,95 @@ library BalanceTracking {
   // Position updates //
 
   function _addToPosition(
-    Balance storage balance,
+    string memory baseAssetSymbol,
     uint64 baseQuantity,
     uint64 quoteQuantity,
-    uint64 maximumPositionSize
+    uint64 maximumPositionSize,
+    Balance storage balanceStruct,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) private {
-    int64 newBalance = balance.balance + int64(baseQuantity);
+    int64 newBalance = balanceStruct.balance + int64(baseQuantity);
 
+    // Position closed
     if (newBalance == 0) {
-      _resetPositionToZero(balance);
+      _resetPositionToZero(balanceStruct);
       return;
+    }
+
+    // Position opened
+    if (balanceStruct.balance == 0) {
+      // When opening a position update with the latest published funding rate for that market so that no funding is
+      // applied retroactively
+      balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
     require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
 
-    if (balance.balance >= 0) {
+    if (balanceStruct.balance >= 0) {
       // Increase position
-      balance.costBasis += int64(quoteQuantity);
+      balanceStruct.costBasis += int64(quoteQuantity);
     } else if (newBalance > 0) {
       /*
        * Going from negative to positive. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
+      balanceStruct.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasis += Math.multiplyPipsByFraction(balance.costBasis, int64(baseQuantity), balance.balance);
+      balanceStruct.costBasis += Math.multiplyPipsByFraction(
+        balanceStruct.costBasis,
+        int64(baseQuantity),
+        balanceStruct.balance
+      );
     }
 
-    balance.balance = newBalance;
+    balanceStruct.balance = newBalance;
   }
 
   function _subtractFromPosition(
-    Balance storage balance,
+    string memory baseAssetSymbol,
     uint64 baseQuantity,
     uint64 quoteQuantity,
-    uint64 maximumPositionSize
+    uint64 maximumPositionSize,
+    Balance storage balanceStruct,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) private {
-    int64 newBalance = balance.balance - int64(baseQuantity);
+    int64 newBalance = balanceStruct.balance - int64(baseQuantity);
 
+    // Position closed
     if (newBalance == 0) {
-      _resetPositionToZero(balance);
+      _resetPositionToZero(balanceStruct);
       return;
+    }
+
+    // Position opened
+    if (balanceStruct.balance == 0) {
+      // When opening a position update with the latest published funding rate for that market so that no funding is
+      // applied retroactively
+      balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
     require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
 
-    if (balance.balance <= 0) {
+    if (balanceStruct.balance <= 0) {
       // Increase position
-      balance.costBasis -= int64(quoteQuantity);
+      balanceStruct.costBasis -= int64(quoteQuantity);
     } else if (newBalance < 0) {
       /*
        * Going from positive to negative. Only the portion of the quote qty
        * that contributed to the new, positive balance is its cost.
        */
-      balance.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
+      balanceStruct.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
     } else {
       // Reduce cost basis proportional to reduction of position
-      balance.costBasis -= Math.multiplyPipsByFraction(balance.costBasis, int64(baseQuantity), balance.balance);
+      balanceStruct.costBasis -= Math.multiplyPipsByFraction(
+        balanceStruct.costBasis,
+        int64(baseQuantity),
+        balanceStruct.balance
+      );
     }
 
-    balance.balance = newBalance;
+    balanceStruct.balance = newBalance;
   }
 
   function _updateOpenPositionsForWallet(
@@ -551,26 +569,30 @@ library BalanceTracking {
       _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + int64(baseQuantity));
 
       _addToPosition(
-        balanceStruct,
+        market.baseAssetSymbol,
         baseQuantity,
         quoteQuantity,
         market
           .loadMarketWithOverridesForWallet(liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
-          .maximumPositionSize
+          .maximumPositionSize,
+        balanceStruct,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     } else {
       // Decrease positive long position by subtracting base quantity from it
       _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - int64(baseQuantity));
 
       _subtractFromPosition(
-        balanceStruct,
+        market.baseAssetSymbol,
         baseQuantity,
         quoteQuantity,
         market
           .loadMarketWithOverridesForWallet(liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
-          .maximumPositionSize
+          .maximumPositionSize,
+        balanceStruct,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     }
     // Update open position tracking in case any were closed
@@ -601,13 +623,15 @@ library BalanceTracking {
       }
 
       _subtractFromPosition(
-        balanceStruct,
+        market.baseAssetSymbol,
         baseQuantity,
         quoteQuantity,
         market
           .loadMarketWithOverridesForWallet(counterpartyWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
-          .maximumPositionSize
+          .maximumPositionSize,
+        balanceStruct,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     } else {
       // Take on long position by adding base quantity
@@ -616,13 +640,15 @@ library BalanceTracking {
       }
 
       _addToPosition(
-        balanceStruct,
+        market.baseAssetSymbol,
         baseQuantity,
         quoteQuantity,
         market
           .loadMarketWithOverridesForWallet(counterpartyWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
-          .maximumPositionSize
+          .maximumPositionSize,
+        balanceStruct,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     }
     // Update open position tracking in case any were opened (if counterparty wallet is IF or EF only) or closed
@@ -632,14 +658,6 @@ library BalanceTracking {
       balanceStruct.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
-    // During liquidation, the IF or EF may open a position in a market for the first time. When this happens, the
-    // position should be updated with the latest published funding rate for that market so that no funding is applied
-    // retroactively
-    if (balanceStruct.lastUpdateTimestampInMs == 0) {
-      balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
-        market.baseAssetSymbol
-      ];
-    }
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
     if (isLiquidatingWalletPositionShort) {
       // Counterparty receives quote when taking on short position
