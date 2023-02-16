@@ -15,6 +15,7 @@ import { ICustodian } from "./Interfaces.sol";
 import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
+import { Math } from "./Math.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
@@ -175,6 +176,15 @@ library Withdrawing {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
+
+      // Rounding errors can lead to a slightly negative result instead of zero - within the tolerance, coerce to zero
+      // in these cases to allow wallet positions to be closed out
+      if (
+        walletQuoteQuantityToWithdraw < 0 &&
+        Math.abs(walletQuoteQuantityToWithdraw) <= Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
+      ) {
+        walletQuoteQuantityToWithdraw = 0;
+      }
     }
 
     // The available quote for exit can validly be negative for the EF wallet. For all other wallets, the exit quote

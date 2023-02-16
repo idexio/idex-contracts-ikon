@@ -17,8 +17,6 @@ library PositionBelowMinimumLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
-  uint64 private constant _MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD = 10000;
-
   /**
    * @dev Argument for `liquidate`
    */
@@ -173,7 +171,7 @@ library PositionBelowMinimumLiquidation {
     );
 
     // Skip validation for positions with very low quote values to avoid false positives due to rounding error
-    if (expectedLiquidationQuoteQuantity < _MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD) {
+    if (expectedLiquidationQuoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD) {
       return;
     }
 

@@ -55,7 +55,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Deposit index
   uint64 public depositIndex;
   // Zero only if Exit Fund has no open positions or quote balance
-  uint256 private _exitFundPositionOpenedAtBlockNumber;
+  uint256 public exitFundPositionOpenedAtBlockNumber;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => FundingMultiplierQuartet[]) public fundingMultipliersByBaseAssetSymbol;
   // Milliseconds since epoch, always aligned to funding period
@@ -222,13 +222,13 @@ contract Exchange_v4 is IExchange, Owned {
 
   modifier onlyDispatcherWhenExitFundHasNoPositions() {
     require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
-    require(_exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
+    require(exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
     _;
   }
 
   modifier onlyDispatcherWhenExitFundHasOpenPositions() {
     require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
-    require(_exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
+    require(exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
     _;
   }
 
@@ -743,14 +743,14 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
-    _exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate_delegatecall(
+    exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate_delegatecall(
       WalletLiquidation.Arguments(
         liquidationArguments,
         LiquidationType.WalletInMaintenanceDuringSystemRecovery,
         exitFundWallet,
         insuranceFundWallet
       ),
-      _exitFundPositionOpenedAtBlockNumber,
+      exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -866,14 +866,14 @@ contract Exchange_v4 is IExchange, Owned {
   function deleverageExitFundClosure(
     ClosureDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
-    _exitFundPositionOpenedAtBlockNumber = ClosureDeleveraging.deleverage_delegatecall(
+    exitFundPositionOpenedAtBlockNumber = ClosureDeleveraging.deleverage_delegatecall(
       ClosureDeleveraging.Arguments(
         deleverageArguments,
         DeleverageType.ExitFundClosure,
         exitFundWallet,
         insuranceFundWallet
       ),
-      _exitFundPositionOpenedAtBlockNumber,
+      exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -922,7 +922,7 @@ contract Exchange_v4 is IExchange, Owned {
         withdrawal,
         quoteAssetAddress,
         custodian,
-        _exitFundPositionOpenedAtBlockNumber,
+        exitFundPositionOpenedAtBlockNumber,
         exitFundWallet,
         feeWallet
       ),
@@ -1221,9 +1221,9 @@ contract Exchange_v4 is IExchange, Owned {
    * Period must have already passed since calling `exitWallet`
    */
   function withdrawExit(address wallet) public {
-    (uint256 exitFundPositionOpenedAtBlockNumber, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
+    (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, quoteAssetAddress),
-      _exitFundPositionOpenedAtBlockNumber,
+      exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -1232,7 +1232,7 @@ contract Exchange_v4 is IExchange, Owned {
       _marketsByBaseAssetSymbol,
       _walletExits
     );
-    _exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber;
+    exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
 
     emit WalletExitWithdrawn(wallet, quantity);
   }
