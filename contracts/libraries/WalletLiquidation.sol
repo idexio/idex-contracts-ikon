@@ -17,7 +17,7 @@ library WalletLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
-  // Placing arguments in calldata avoids a stack too deep error
+  // Placing arguments in calldata avoids a stack too deep error from the Yul optimizer
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
     WalletLiquidationArguments calldata arguments,

@@ -461,9 +461,9 @@ library BalanceTracking {
       return;
     }
 
-    // Position opened
+    // Position opened (newBalance is non-zero per preceding guard)
     if (balanceStruct.balance == 0) {
-      // When opening a position update with the latest published funding rate for that market so that no funding is
+      // Update newly-opened position with the latest published funding rate for that market so that no funding is
       // applied retroactively
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
@@ -507,9 +507,9 @@ library BalanceTracking {
       return;
     }
 
-    // Position opened
+    // Position opened (newBalance is non-zero per preceding guard)
     if (balanceStruct.balance == 0) {
-      // When opening a position update with the latest published funding rate for that market so that no funding is
+      // Update newly-opened position with the latest published funding rate for that market so that no funding is
       // applied retroactively
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }

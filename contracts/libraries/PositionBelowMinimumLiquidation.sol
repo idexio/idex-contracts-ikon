@@ -30,6 +30,9 @@ library PositionBelowMinimumLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
+    require(arguments.liquidatingWallet != exitFundWallet, "Cannot liquidate EF");
+    require(arguments.liquidatingWallet != insuranceFundWallet, "Cannot liquidate IF");
+
     Funding.updateWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
