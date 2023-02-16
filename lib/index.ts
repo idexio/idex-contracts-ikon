@@ -270,7 +270,6 @@ export const getExecuteOrderBookTradeArguments = (
         sellDelegatedKeyAuthorization,
       ),
       orderBookTrade: tradeToArgumentStruct(trade, buyOrder),
-      __: Buffer.alloc(0),
     },
   ];
 };

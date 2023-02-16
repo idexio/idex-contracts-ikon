@@ -4,13 +4,13 @@ pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { DeleverageType } from "./Enums.sol";
-import { Deleveraging } from "./Deleveraging.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { Validations } from "./Validations.sol";
 import { Balance, ClosureDeleverageArguments, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
 
 library ClosureDeleveraging {
@@ -99,7 +99,7 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Market memory market = Deleveraging.loadAndValidateMarket(
+    Market memory market = Validations.loadAndValidateMarket(
       arguments.externalArguments.baseAssetSymbol,
       arguments.externalArguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,

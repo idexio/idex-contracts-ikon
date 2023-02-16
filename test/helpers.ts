@@ -393,13 +393,15 @@ export async function deployLibraryContracts() {
 export async function executeTrade(
   exchange: Exchange_v4,
   dispatcherWallet: SignerWithAddress,
-  indexPrice: IndexPrice,
+  indexPrice: IndexPrice | null,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
 ) {
-  await exchange
-    .connect(dispatcherWallet)
-    .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+  if (indexPrice) {
+    await exchange
+      .connect(dispatcherWallet)
+      .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+  }
 
   const sellOrder: Order = {
     signatureHashVersion,

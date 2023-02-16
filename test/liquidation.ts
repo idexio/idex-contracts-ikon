@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import type { Exchange_v4 } from '../typechain-types';
+import type { Exchange_v4, USDC } from '../typechain-types';
 import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
 import {
   baseAssetSymbol,
@@ -11,6 +11,7 @@ import {
   buildIndexPriceWithValue,
   deployAndAssociateContracts,
   executeTrade,
+  expect,
   fundWallets,
 } from './helpers';
 
@@ -24,6 +25,7 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
+  let usdc: USDC;
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -48,10 +50,11 @@ describe('Exchange', function () {
       indexPriceCollectionServiceWallet,
     );
     exchange = results.exchange;
+    usdc = results.usdc;
 
     await results.usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
 
     indexPrice = await buildIndexPrice(indexPriceCollectionServiceWallet);
 
@@ -65,7 +68,7 @@ describe('Exchange', function () {
   });
 
   describe('liquidatePositionBelowMinimum', async function () {
-    it('should work for valid wallet position', async function () {
+    beforeEach(async () => {
       await exchange.connect(dispatcherWallet).initiateMarketOverridesUpgrade(
         baseAssetSymbol,
         {
@@ -83,14 +86,26 @@ describe('Exchange', function () {
       await exchange
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(baseAssetSymbol, trader1Wallet.address);
+    });
 
-      await (
-        await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
+    it('should work for valid wallet', async function () {
+      await fundWallets([insuranceFundWallet], exchange, usdc);
+
+      await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
+        baseAssetSymbol,
+        liquidatingWallet: trader1Wallet.address,
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+    });
+
+    it('should revert when IF cannot acquire', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
           baseAssetSymbol,
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-        })
-      ).wait();
+        }),
+      ).to.eventually.be.rejectedWith(/initial margin requirement not met/i);
     });
   });
 

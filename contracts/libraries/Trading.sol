@@ -19,15 +19,11 @@ library Trading {
     address exitFundWallet;
     address feeWallet;
     address insuranceFundWallet;
-    // Though unclear why, adding this unused bytes field at the end of the struct avoilds a stack too deep error in
-    // executeOrderBookTrade_delegatecall
-    // solhint-disable-next-line var-name-mixedcase
-    bytes __;
   }
 
   // solhint-disable-next-line func-name-mixedcase
   function executeOrderBookTrade_delegatecall(
-    Arguments memory arguments,
+    Arguments calldata arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedOrderHashes,

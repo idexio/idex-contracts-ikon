@@ -67,13 +67,9 @@ struct DelegatedKeyAuthorization {
  */
 struct ExecuteOrderBookTradeArguments {
   // External arguments
+  OrderBookTrade orderBookTrade;
   Order buy;
   Order sell;
-  OrderBookTrade orderBookTrade;
-  // Though unclear why, adding this unused bytes field at the end of the struct avoilds a stack too deep error in
-  // executeOrderBookTrade_delegatecall
-  // solhint-disable-next-line var-name-mixedcase
-  bytes __;
 }
 
 /**

@@ -9,6 +9,7 @@ import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, Market, MarketOverrides, PositionBelowMinimumLiquidationArguments } from "./Structs.sol";
 
 library PositionBelowMinimumLiquidation {
@@ -73,20 +74,15 @@ library PositionBelowMinimumLiquidation {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-  }
 
-  function _loadAndValidateMarket(
-    Arguments memory arguments,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (Market memory market) {
-    market = marketsByBaseAssetSymbol[arguments.externalArguments.baseAssetSymbol];
-    require(market.exists && market.isActive, "No active market found");
-
-    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[arguments.externalArguments.liquidatingWallet].indexOf(
-      arguments.externalArguments.baseAssetSymbol
+    // Validate that the Insurance Fund still meets its initial margin requirements
+    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      arguments.insuranceFundWallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
-    require(i != SortedStringSet.NOT_FOUND, "Open position not found for market");
   }
 
   function _updateBalances(
@@ -118,8 +114,9 @@ library PositionBelowMinimumLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Market memory market = _loadAndValidateMarket(
-      arguments,
+    Market memory market = Validations.loadAndValidateMarket(
+      arguments.externalArguments.baseAssetSymbol,
+      arguments.externalArguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );

@@ -176,6 +176,11 @@ library Withdrawing {
       );
     }
 
+    // The available quote for exit can be negative for the EF. The exit quote calculations are designed such that the
+    // result quantity to withdraw is never negative, however we still perform this check in case of unforseen bugs or
+    // rounding errors
+    require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
+
     arguments.custodian.withdraw(
       arguments.wallet,
       arguments.quoteAssetAddress,
