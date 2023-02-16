@@ -25,8 +25,9 @@ library PositionBelowMinimumLiquidation {
   struct Arguments {
     PositionBelowMinimumLiquidationArguments externalArguments;
     // Exchange state
-    uint64 positionBelowMinimumLiquidationPriceToleranceMultiplier;
+    address exitFundWallet;
     address insuranceFundWallet;
+    uint64 positionBelowMinimumLiquidationPriceToleranceMultiplier;
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -96,6 +97,7 @@ library PositionBelowMinimumLiquidation {
   ) private {
     balanceTracking.updatePositionForLiquidation(
       arguments.insuranceFundWallet,
+      arguments.exitFundWallet,
       arguments.externalArguments.liquidatingWallet,
       market,
       positionSize,

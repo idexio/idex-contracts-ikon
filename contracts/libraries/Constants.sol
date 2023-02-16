@@ -34,6 +34,9 @@ library Constants {
   // 1 year
   uint64 public constant MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS = 365 * 24 * 60 * 60 * 1000;
 
+  // Max int64
+  uint64 public constant MAX_MAXIMUM_POSITION_SIZE = uint64(type(int64).max);
+
   // 8 hours
   uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
 

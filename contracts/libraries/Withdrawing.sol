@@ -237,8 +237,7 @@ library Withdrawing {
           arguments.wallet
         ),
         baseAssetSymbolsWithOpenPositionsByWallet,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     }
 

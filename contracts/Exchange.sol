@@ -682,8 +682,9 @@ contract Exchange_v4 is IExchange, Owned {
     PositionBelowMinimumLiquidation.liquidate_delegatecall(
       PositionBelowMinimumLiquidation.Arguments(
         liquidationArguments,
-        positionBelowMinimumLiquidationPriceToleranceMultiplier,
-        insuranceFundWallet
+        exitFundWallet,
+        insuranceFundWallet,
+        positionBelowMinimumLiquidationPriceToleranceMultiplier
       ),
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,

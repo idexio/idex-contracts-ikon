@@ -294,6 +294,7 @@ library AcquisitionDeleveraging {
     balanceTracking.updatePositionForDeleverage(
       arguments.externalArguments.liquidationBaseQuantity,
       arguments.externalArguments.deleveragingWallet,
+      arguments.exitFundWallet,
       arguments.externalArguments.liquidatingWallet,
       market,
       arguments.externalArguments.liquidationQuoteQuantity,

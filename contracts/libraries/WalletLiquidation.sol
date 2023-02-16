@@ -95,6 +95,30 @@ library WalletLiquidation {
     }
   }
 
+  // Wrap balance update to avoid stack too deep error
+  function _updatePositionForLiquidation(
+    uint8 index,
+    Arguments memory arguments,
+    Market memory market,
+    Balance memory balanceStruct,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private {
+    balanceTracking.updatePositionForLiquidation(
+      arguments.externalArguments.counterpartyWallet,
+      arguments.exitFundWallet,
+      arguments.externalArguments.liquidatingWallet,
+      market,
+      balanceStruct.balance,
+      arguments.externalArguments.liquidationQuoteQuantities[index],
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet
+    );
+  }
+
   function _validateQuoteQuantitiesAndLiquidatePositions(
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
@@ -197,12 +221,12 @@ library WalletLiquidation {
       );
     }
 
-    balanceTracking.updatePositionForLiquidation(
-      arguments.externalArguments.counterpartyWallet,
-      arguments.externalArguments.liquidatingWallet,
+    _updatePositionForLiquidation(
+      index,
+      arguments,
       market,
-      balanceStruct.balance,
-      arguments.externalArguments.liquidationQuoteQuantities[index],
+      balanceStruct,
+      balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet

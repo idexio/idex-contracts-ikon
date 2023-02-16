@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
+import { Constants } from "./Constants.sol";
 import { FieldUpgradeGovernance } from "./FieldUpgradeGovernance.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
@@ -21,8 +22,6 @@ library MarketAdmin {
   uint64 private constant _MIN_MAINTENANCE_MARGIN_FRACTION = 300000;
   // 0.001
   uint64 private constant _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION = 100000;
-  // Max int64
-  uint64 private constant _MAX_MAXIMUM_POSITION_SIZE = uint64(type(int64).max);
   // Max int64 - 1
   uint64 private constant _MAX_MINIMUM_POSITION_SIZE = uint64(type(int64).max - 1);
 
@@ -158,7 +157,10 @@ library MarketAdmin {
       overridableFields.baselinePositionSize <= overridableFields.maximumPositionSize,
       "Baseline position size exceeds maximum"
     );
-    require(overridableFields.maximumPositionSize <= _MAX_MAXIMUM_POSITION_SIZE, "Maximum position size exceeds max");
+    require(
+      overridableFields.maximumPositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,
+      "Maximum position size exceeds max"
+    );
     require(overridableFields.minimumPositionSize <= _MAX_MINIMUM_POSITION_SIZE, "Minimum position size exceeds max");
   }
 
