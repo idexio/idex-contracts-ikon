@@ -90,7 +90,7 @@ library PositionBelowMinimumLiquidation {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    balanceTracking.updatePositionForLiquidation(
+    balanceTracking.updatePositionsForLiquidation(
       insuranceFundWallet,
       exitFundWallet,
       arguments.liquidatingWallet,

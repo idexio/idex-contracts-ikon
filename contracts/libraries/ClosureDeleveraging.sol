@@ -81,8 +81,8 @@ library ClosureDeleveraging {
     if (arguments.deleverageType == DeleverageType.ExitFundClosure) {
       return
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-          arguments.exitFundWallet,
           exitFundPositionOpenedAtBlockNumber,
+          arguments.exitFundWallet,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
         );
@@ -165,7 +165,7 @@ library ClosureDeleveraging {
       );
     }
 
-    balanceTracking.updatePositionForDeleverage(
+    balanceTracking.updatePositionsForDeleverage(
       arguments.externalArguments.liquidationBaseQuantity,
       arguments.externalArguments.deleveragingWallet,
       arguments.exitFundWallet,

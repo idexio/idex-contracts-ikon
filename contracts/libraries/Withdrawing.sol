@@ -200,8 +200,8 @@ library Withdrawing {
 
     return (
       ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-        arguments.exitFundWallet,
         exitFundPositionOpenedAtBlockNumber,
+        arguments.exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),

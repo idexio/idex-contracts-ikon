@@ -41,7 +41,7 @@ library BalanceTracking {
 
   // Liquidation //
 
-  function updatePositionForDeleverage(
+  function updatePositionsForDeleverage(
     Storage storage self,
     uint64 baseQuantity,
     address counterpartyWallet,
@@ -68,7 +68,7 @@ library BalanceTracking {
     );
   }
 
-  function updatePositionForLiquidation(
+  function updatePositionsForLiquidation(
     Storage storage self,
     address counterpartyWallet,
     address exitFundWallet,

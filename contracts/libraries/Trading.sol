@@ -21,6 +21,7 @@ library Trading {
     address insuranceFundWallet;
   }
 
+  // Placing arguments in calldata avoids a stack too deep error
   // solhint-disable-next-line func-name-mixedcase
   function executeOrderBookTrade_delegatecall(
     Arguments calldata arguments,

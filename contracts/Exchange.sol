@@ -787,12 +787,10 @@ contract Exchange_v4 is IExchange, Owned {
     AcquisitionDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     AcquisitionDeleveraging.deleverage_delegatecall(
-      AcquisitionDeleveraging.Arguments(
-        deleverageArguments,
-        DeleverageType.WalletInMaintenance,
-        exitFundWallet,
-        insuranceFundWallet
-      ),
+      deleverageArguments,
+      DeleverageType.WalletInMaintenance,
+      exitFundWallet,
+      insuranceFundWallet,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -836,12 +834,10 @@ contract Exchange_v4 is IExchange, Owned {
     require(_walletExits[deleverageArguments.liquidatingWallet].exists, "Wallet not exited");
 
     AcquisitionDeleveraging.deleverage_delegatecall(
-      AcquisitionDeleveraging.Arguments(
-        deleverageArguments,
-        DeleverageType.WalletExited,
-        exitFundWallet,
-        insuranceFundWallet
-      ),
+      deleverageArguments,
+      DeleverageType.WalletExited,
+      exitFundWallet,
+      insuranceFundWallet,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,

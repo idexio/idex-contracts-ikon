@@ -17,6 +17,7 @@ library WalletLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  // Placing arguments in calldata avoids a stack too deep error
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
     WalletLiquidationArguments calldata arguments,
@@ -70,8 +71,8 @@ library WalletLiquidation {
 
     if (liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
       resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-        exitFundWallet,
         currentExitFundPositionOpenedAtBlockNumber,
+        exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       );
@@ -105,7 +106,7 @@ library WalletLiquidation {
       market.baseAssetSymbol
     );
 
-    balanceTracking.updatePositionForLiquidation(
+    balanceTracking.updatePositionsForLiquidation(
       arguments.counterpartyWallet,
       exitFundWallet,
       arguments.liquidatingWallet,
