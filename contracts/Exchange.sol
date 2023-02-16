@@ -117,7 +117,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
-   * @notice Emitted when admin initiates IPCS wallet upgrade of with `initiateIndexPriceCollectionServiceWalletsUpgrade`
+   * @notice Emitted when admin initiates IPCS wallet upgrade with `initiateIndexPriceCollectionServiceWalletsUpgrade`
    */
   event IndexPriceCollectionServiceWalletsUpgradeInitiated(
     address[] oldIndexPriceCollectionServiceWallets,
@@ -139,7 +139,7 @@ contract Exchange_v4 is IExchange, Owned {
     address[] newIndexPriceCollectionServiceWalletsWallet
   );
   /**
-   * @notice Emitted when admin initiates IF wallet upgrade of with `initiateInsuranceFundWalletUpgrade`
+   * @notice Emitted when admin initiates IF wallet upgrade with `initiateInsuranceFundWalletUpgrade`
    */
   event InsuranceFundWalletUpgradeInitiated(
     address oldInsuranceFundWallet,
@@ -221,13 +221,13 @@ contract Exchange_v4 is IExchange, Owned {
   // Modifiers //
 
   modifier onlyDispatcherWhenExitFundHasNoPositions() {
-    require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
+    _onlyDispatcher();
     require(exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
     _;
   }
 
   modifier onlyDispatcherWhenExitFundHasOpenPositions() {
-    require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
+    _onlyDispatcher();
     require(exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
     _;
   }
@@ -562,7 +562,7 @@ contract Exchange_v4 is IExchange, Owned {
    * Result may be zero, in which case an exit withdrawal would not transfer out any quote but would still close all
    * positions and quote balance. The available quote for exit can validly be negative for the EF wallet. For all other
    * wallets, the exit quote calculations are designed such that the result quantity to withdraw is never negative;
-   * however the return type is still signed to provide visibility into case of unforseen bugs or rounding errors
+   * however the return type is still signed to provide visibility into unforseen bugs or rounding errors
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) public view returns (int64) {
     return
@@ -1249,5 +1249,9 @@ contract Exchange_v4 is IExchange, Owned {
     );
 
     emit OrderNonceInvalidated(msg.sender, nonce, timestampInMs, effectiveBlockNumber);
+  }
+
+  function _onlyDispatcher() private view {
+    require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
   }
 }
