@@ -25,9 +25,10 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       depositing: string;
       fieldUpgradeGovernance: string;
       funding: string;
-      margin: string;
+      indexPriceMargin: string;
       marketAdmin: string;
       nonceInvalidations: string;
+      onChainPriceFeedMargin: string;
       positionBelowMinimumLiquidation: string;
       positionInDeactivatedMarketLiquidation: string;
       trading: string;
@@ -49,11 +50,14 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       ['contracts/libraries/FieldUpgradeGovernance.sol:FieldUpgradeGovernance']:
         libraryAddresses.fieldUpgradeGovernance,
       ['contracts/libraries/Funding.sol:Funding']: libraryAddresses.funding,
-      ['contracts/libraries/Margin.sol:Margin']: libraryAddresses.margin,
+      ['contracts/libraries/IndexPriceMargin.sol:IndexPriceMargin']:
+        libraryAddresses.indexPriceMargin,
       ['contracts/libraries/MarketAdmin.sol:MarketAdmin']:
         libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
+      ['contracts/libraries/OnChainPriceFeedMargin.sol:OnChainPriceFeedMargin']:
+        libraryAddresses.onChainPriceFeedMargin,
       ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
         libraryAddresses.positionBelowMinimumLiquidation,
       ['contracts/libraries/PositionInDeactivatedMarketLiquidation.sol:PositionInDeactivatedMarketLiquidation']:

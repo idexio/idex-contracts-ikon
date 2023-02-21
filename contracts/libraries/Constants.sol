@@ -12,7 +12,7 @@ library Constants {
       "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
     );
 
-  uint64 public constant DEPOSIT_INDEX_NOT_SET = 2 ** 64 - 1;
+  uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
 
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
@@ -33,6 +33,13 @@ library Constants {
 
   // 1 year
   uint64 public constant MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS = 365 * 24 * 60 * 60 * 1000;
+
+  // Max int64
+  uint64 public constant MAX_MAXIMUM_POSITION_SIZE = uint64(type(int64).max);
+
+  // Positions smaller than this threshold will skip quote quantity validation for Position Below Minimum liquidations
+  // and skip non-negative total quote validation Wallet Exits
+  uint64 public constant MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD = 10000;
 
   // 8 hours
   uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;

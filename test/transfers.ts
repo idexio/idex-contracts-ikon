@@ -44,7 +44,11 @@ describe('Exchange', function () {
       );
       await usdc.transfer(trader1.address, depositQuantity);
       await usdc.connect(trader1).approve(exchange.address, depositQuantity);
-      await (await exchange.connect(trader1).deposit(depositQuantity)).wait();
+      await (
+        await exchange
+          .connect(trader1)
+          .deposit(depositQuantity, ethers.constants.AddressZero)
+      ).wait();
 
       await exchange
         .connect(dispatcher)

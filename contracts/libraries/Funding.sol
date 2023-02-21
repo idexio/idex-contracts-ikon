@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
+pragma solidity 0.8.18;
+
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { FundingMultiplierQuartetHelper } from "./FundingMultiplierQuartetHelper.sol";
-import { Margin } from "./Margin.sol";
+import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { Math } from "./Math.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Time } from "./Time.sol";
-import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, Market, IndexPrice } from "./Structs.sol";
-
-pragma solidity 0.8.18;
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
 
 library Funding {
   using BalanceTracking for BalanceTracking.Storage;
@@ -39,6 +38,37 @@ library Funding {
   }
 
   // solhint-disable-next-line func-name-mixedcase
+  function loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
+    address exitFundWallet,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (int64) {
+    int64 outstandingWalletFunding = loadOutstandingWalletFunding(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+    return
+      OnChainPriceFeedMargin.loadQuoteQuantityAvailableForExitWithdrawal(
+        exitFundWallet,
+        outstandingWalletFunding,
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
   function loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -47,7 +77,7 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64) {
-    int64 totalAccountValue = Margin.loadTotalAccountValue(
+    int64 totalAccountValue = IndexPriceMargin.loadTotalAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -75,7 +105,16 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64) {
+    int64 outstandingWalletFunding = loadOutstandingWalletFunding(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
     int64 totalAccountValue = OnChainPriceFeedMargin.loadTotalAccountValue(
+      outstandingWalletFunding,
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

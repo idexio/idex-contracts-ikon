@@ -1,6 +1,5 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
-import { baseAssetSymbol } from '../test/helpers';
 import {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
@@ -270,7 +269,6 @@ export const getExecuteOrderBookTradeArguments = (
         sellDelegatedKeyAuthorization,
       ),
       orderBookTrade: tradeToArgumentStruct(trade, buyOrder),
-      __: Buffer.alloc(0),
     },
   ];
 };

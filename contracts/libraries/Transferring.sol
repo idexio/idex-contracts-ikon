@@ -6,9 +6,9 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
-import { Margin } from "./Margin.sol";
+import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { Validations } from "./Validations.sol";
-import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, Transfer } from "./Structs.sol";
+import { FundingMultiplierQuartet, Market, MarketOverrides, Transfer } from "./Structs.sol";
 
 library Transferring {
   using BalanceTracking for BalanceTracking.Storage;
@@ -70,7 +70,7 @@ library Transferring {
     newSourceWalletExchangeBalance = balanceTracking.updateForTransfer(arguments.transfer, arguments.feeWallet);
 
     // Wallet must still maintain initial margin requirement after withdrawal
-    Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
       arguments.transfer.sourceWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

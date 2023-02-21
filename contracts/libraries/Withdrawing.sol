@@ -13,8 +13,9 @@ import { ExitFund } from "./ExitFund.sol";
 import { Hashing } from "./Hashing.sol";
 import { ICustodian } from "./Interfaces.sol";
 import { Funding } from "./Funding.sol";
-import { Margin } from "./Margin.sol";
+import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
+import { Math } from "./Math.sol";
 import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
@@ -108,7 +109,7 @@ library Withdrawing {
       require(newExchangeBalance >= 0, "EF may only withdraw to zero");
     } else {
       // Wallet must still maintain initial margin requirement after withdrawal
-      Margin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
         arguments.withdrawal.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -164,6 +165,7 @@ library Withdrawing {
     if (arguments.wallet == arguments.exitFundWallet) {
       _validateExitFundWithdrawDelayElapsed(exitFundPositionOpenedAtBlockNumber);
 
+      // The EF wallet can withdraw any positive quote balance
       walletQuoteQuantityToWithdraw = balanceTracking.updateExitFundWalletForExit(arguments.exitFundWallet);
     } else {
       walletQuoteQuantityToWithdraw = _updatePositionsForWalletExit(
@@ -174,7 +176,23 @@ library Withdrawing {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
+
+      // Rounding errors can lead to a slightly negative result instead of zero - within the tolerance, coerce to zero
+      // in these cases to allow wallet positions to be closed out
+      if (
+        walletQuoteQuantityToWithdraw < 0 &&
+        Math.abs(walletQuoteQuantityToWithdraw) <= Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
+      ) {
+        walletQuoteQuantityToWithdraw = 0;
+      }
     }
+
+    // The available quote for exit can validly be negative for the EF wallet. For all other wallets, the exit quote
+    // calculations are designed such that the result quantity to withdraw is never negative; however we still perform
+    // this check in case of unforseen bugs or rounding errors. In either case we should revert on negative
+    // A zero available quantity would not transfer out any quote but would still close all positions and quote
+    // balance, so we do not revert on zero
+    require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
 
     arguments.custodian.withdraw(
       arguments.wallet,
@@ -184,8 +202,8 @@ library Withdrawing {
 
     return (
       ExitFund.getExitFundBalanceOpenedAtBlockNumber(
-        arguments.exitFundWallet,
         exitFundPositionOpenedAtBlockNumber,
+        arguments.exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       ),
@@ -202,8 +220,10 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
+    // Outstanding funding payments already applied in withdrawExit_delegatecall
     (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
+        0,
         arguments.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -229,8 +249,7 @@ library Withdrawing {
           arguments.wallet
         ),
         baseAssetSymbolsWithOpenPositionsByWallet,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     }
 

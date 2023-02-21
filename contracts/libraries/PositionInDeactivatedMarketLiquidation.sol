@@ -4,11 +4,11 @@ pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Funding } from "./Funding.sol";
+import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
-import { Margin } from "./Margin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, PositionInDeactivatedMarketLiquidationArguments } from "./Structs.sol";
+import { FundingMultiplierQuartet, Market, MarketOverrides, PositionInDeactivatedMarketLiquidationArguments } from "./Structs.sol";
 
 library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -22,7 +22,6 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
@@ -33,16 +32,6 @@ library PositionInDeactivatedMarketLiquidation {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = Margin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
-        externalArguments.liquidatingWallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    require(totalAccountValue >= int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement not met");
 
     _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
       externalArguments,

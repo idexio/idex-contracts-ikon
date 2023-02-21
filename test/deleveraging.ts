@@ -97,15 +97,8 @@ describe('Exchange', function () {
         dispatcherWallet,
         exchange,
         insuranceWallet,
-        liquidationIndexPrice,
         counterpartyWallet,
       } = await bootstrapLiquidatedWallet();
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(liquidationIndexPrice),
-        ]);
 
       await (
         await exchange
@@ -124,10 +117,6 @@ describe('Exchange', function () {
   describe('deleverageExitAcquisition', async function () {
     it('should work for valid wallet', async function () {
       await exchange.connect(trader2Wallet).exitWallet();
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
 
       await (
         await exchange.connect(dispatcherWallet).deleverageExitAcquisition({
@@ -148,10 +137,6 @@ describe('Exchange', function () {
     it('should work for open position', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
 
       await (
         await exchange.connect(dispatcherWallet).deleverageExitFundClosure({

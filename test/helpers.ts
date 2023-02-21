@@ -71,14 +71,16 @@ export async function bootstrapLiquidatedWallet() {
     trader2Wallet,
   );
 
-  const newIndexPrice = await buildIndexPriceWithValue(
+  const liquidationIndexPrice = await buildIndexPriceWithValue(
     indexPriceCollectionServiceWallet,
     '2150.00000000',
+    baseAssetSymbol,
+    2,
   );
 
   await exchange
     .connect(dispatcherWallet)
-    .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+    .publishIndexPrices([indexPriceToArgumentStruct(liquidationIndexPrice)]);
 
   await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
     counterpartyWallet: insuranceWallet.address,
@@ -90,7 +92,7 @@ export async function bootstrapLiquidatedWallet() {
     dispatcherWallet,
     exchange,
     insuranceWallet,
-    liquidationIndexPrice: newIndexPrice,
+    liquidationIndexPrice,
     liquidatedWallet: trader1Wallet,
     counterpartyWallet: trader2Wallet,
   };
@@ -135,17 +137,18 @@ export async function buildIndexPrices(
 }
 
 export async function buildIndexPriceWithValue(
-  index: SignerWithAddress,
+  indexPriceCollectionServiceWallet: SignerWithAddress,
   price: string,
   baseAssetSymbol_ = baseAssetSymbol,
+  periodsInFuture = 1,
 ): Promise<IndexPrice> {
   const indexPrice = {
     signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
-    timestampInMs: getNextPeriodInMs(1),
+    timestampInMs: getNextPeriodInMs(periodsInFuture),
     price,
   };
-  const signature = await index.signMessage(
+  const signature = await indexPriceCollectionServiceWallet.signMessage(
     ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
   );
 
@@ -303,9 +306,10 @@ export async function deployLibraryContracts() {
     Depositing,
     FieldUpgradeGovernance,
     Funding,
-    Margin,
+    IndexPriceMargin,
     MarketAdmin,
     NonceInvalidations,
+    OnChainPriceFeedMargin,
     PositionBelowMinimumLiquidation,
     PositionInDeactivatedMarketLiquidation,
     Trading,
@@ -318,9 +322,10 @@ export async function deployLibraryContracts() {
     ethers.getContractFactory('Depositing'),
     ethers.getContractFactory('FieldUpgradeGovernance'),
     ethers.getContractFactory('Funding'),
-    ethers.getContractFactory('Margin'),
+    ethers.getContractFactory('IndexPriceMargin'),
     ethers.getContractFactory('MarketAdmin'),
     ethers.getContractFactory('NonceInvalidations'),
+    ethers.getContractFactory('OnChainPriceFeedMargin'),
     ethers.getContractFactory('PositionBelowMinimumLiquidation'),
     ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
     ethers.getContractFactory('Trading'),
@@ -335,9 +340,10 @@ export async function deployLibraryContracts() {
     depositing,
     fieldUpgradeGovernance,
     funding,
-    margin,
+    indexPriceMargin,
     marketAdmin,
     nonceInvalidations,
+    onChainPriceFeedMargin,
     positionBelowMinimumLiquidation,
     positionInDeactivatedMarketLiquidation,
     trading,
@@ -350,9 +356,10 @@ export async function deployLibraryContracts() {
     (await Depositing.deploy()).deployed(),
     (await FieldUpgradeGovernance.deploy()).deployed(),
     (await Funding.deploy()).deployed(),
-    (await Margin.deploy()).deployed(),
+    (await IndexPriceMargin.deploy()).deployed(),
     (await MarketAdmin.deploy()).deployed(),
     (await NonceInvalidations.deploy()).deployed(),
+    (await OnChainPriceFeedMargin.deploy()).deployed(),
     (await PositionBelowMinimumLiquidation.deploy()).deployed(),
     (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
@@ -368,9 +375,10 @@ export async function deployLibraryContracts() {
       Depositing: depositing.address,
       FieldUpgradeGovernance: fieldUpgradeGovernance.address,
       Funding: funding.address,
+      IndexPriceMargin: indexPriceMargin.address,
       MarketAdmin: marketAdmin.address,
       NonceInvalidations: nonceInvalidations.address,
-      Margin: margin.address,
+      OnChainPriceFeedMargin: onChainPriceFeedMargin.address,
       PositionBelowMinimumLiquidation: positionBelowMinimumLiquidation.address,
       PositionInDeactivatedMarketLiquidation:
         positionInDeactivatedMarketLiquidation.address,
@@ -385,13 +393,15 @@ export async function deployLibraryContracts() {
 export async function executeTrade(
   exchange: Exchange_v4,
   dispatcherWallet: SignerWithAddress,
-  indexPrice: IndexPrice,
+  indexPrice: IndexPrice | null,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
 ) {
-  await exchange
-    .connect(dispatcherWallet)
-    .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+  if (indexPrice) {
+    await exchange
+      .connect(dispatcherWallet)
+      .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+  }
 
   const sellOrder: Order = {
     signatureHashVersion,
@@ -482,7 +492,10 @@ export async function fundWallets(
       (
         await exchange
           .connect(wallet)
-          .deposit(decimalToAssetUnits(quantity, quoteAssetDecimals))
+          .deposit(
+            decimalToAssetUnits(quantity, quoteAssetDecimals),
+            ethers.constants.AddressZero,
+          )
       ).wait(),
     ),
   );

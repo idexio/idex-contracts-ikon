@@ -9,8 +9,8 @@ library ExitFund {
   using BalanceTracking for BalanceTracking.Storage;
 
   function getExitFundBalanceOpenedAtBlockNumber(
-    address exitFundWallet,
     uint256 currentExitFundBalanceOpenedAtBlockNumber,
+    address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
   ) internal view returns (uint256) {

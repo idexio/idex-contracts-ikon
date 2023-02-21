@@ -6,10 +6,9 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
-import { Balance, IndexPrice, Market, MarketOverrides } from "./Structs.sol";
+import { Market, MarketOverrides } from "./Structs.sol";
 
-library Margin {
+library IndexPriceMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
@@ -27,7 +26,7 @@ library Margin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
-    totalAccountValue = Margin.loadTotalAccountValue(
+    totalAccountValue = loadTotalAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -43,24 +42,6 @@ library Margin {
     );
 
     require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function loadQuoteQuantityAvailableForExitWithdrawal_delegatecall(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (uint64) {
-    return
-      OnChainPriceFeedMargin.loadQuoteQuantityAvailableForExitWithdrawal(
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -82,24 +63,6 @@ library Margin {
   }
 
   // solhint-disable-next-line func-name-mixedcase
-  function loadTotalInitialMarginRequirementFromOnChainPriceFeed_delegatecall(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (uint64 initialMarginRequirement) {
-    return
-      OnChainPriceFeedMargin.loadTotalInitialMarginRequirement(
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
   function loadTotalMaintenanceMarginRequirement_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -109,24 +72,6 @@ library Margin {
   ) public view returns (uint64 maintenanceMarginRequirement) {
     return
       loadTotalMaintenanceMarginRequirement(
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed_delegatecall(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (uint64 maintenanceMarginRequirement) {
-    return
-      OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement(
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -322,17 +267,19 @@ library Margin {
 
       // Calculate Insurance Fund position size after acquiring position
       insuranceFundPositionSizeAfterAcquisition =
-        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-          arguments.insuranceFundWallet,
-          arguments.markets[i].baseAssetSymbol
+        int256(
+          balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+            arguments.insuranceFundWallet,
+            arguments.markets[i].baseAssetSymbol
+          )
         ) +
         liquidatingWalletPositionSize;
 
       // If acquiring this position exceeds the IF's maximum position size for the market, then it cannot acquire
       // and we can stop here
       isMaximumPositionSizeExceeded =
-        insuranceFundPositionSizeAfterAcquisition >= 2 ** 63 ||
-        insuranceFundPositionSizeAfterAcquisition <= -2 ** 63 ||
+        insuranceFundPositionSizeAfterAcquisition > type(int64).max ||
+        insuranceFundPositionSizeAfterAcquisition < type(int64).min ||
         Math.abs(int64(insuranceFundPositionSizeAfterAcquisition)) >
         arguments
           .markets[i]

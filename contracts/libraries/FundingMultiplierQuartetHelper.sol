@@ -10,7 +10,7 @@ library FundingMultiplierQuartetHelper {
   // Avoid magic numbers
   uint64 private constant _QUARTET_SIZE = 4;
 
-  int64 private constant _EMPTY = 2 ** 63 - 1;
+  int64 private constant _EMPTY = type(int64).min;
 
   /**
    * @dev Adds a new funding multiplier to an array of quartets
@@ -111,7 +111,7 @@ library FundingMultiplierQuartetHelper {
     // Calculate the timestamp of the very first multiplier
     uint64 firstTimestampInMs = lastTimestampInMs - ((totalNumberOfMultipliers - 1) * Constants.FUNDING_PERIOD_IN_MS);
 
-    // Calculate the number of multipliers from the timestamp to the last published timestamp, both inclusive
+    // Calculate the number of multipliers from the first published timestamp to the target timestamp, both inclusive
     uint64 numberOfMultipliersFromFirstToTargetTimestamp = 1 +
       ((targetTimestampInMs - firstTimestampInMs) / Constants.FUNDING_PERIOD_IN_MS);
 

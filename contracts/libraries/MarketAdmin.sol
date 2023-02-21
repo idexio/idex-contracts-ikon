@@ -4,13 +4,12 @@ pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
+import { Constants } from "./Constants.sol";
 import { FieldUpgradeGovernance } from "./FieldUpgradeGovernance.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
 import { MarketHelper } from "./MarketHelper.sol";
-import { String } from "./String.sol";
 import { Time } from "./Time.sol";
-import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
 
 library MarketAdmin {
@@ -23,10 +22,8 @@ library MarketAdmin {
   uint64 private constant _MIN_MAINTENANCE_MARGIN_FRACTION = 300000;
   // 0.001
   uint64 private constant _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION = 100000;
-  // Max int64
-  uint64 private constant _MAX_MAXIMUM_POSITION_SIZE = 2 ** 63 - 1;
   // Max int64 - 1
-  uint64 private constant _MAX_MINIMUM_POSITION_SIZE = 2 ** 63 - 2;
+  uint64 private constant _MAX_MINIMUM_POSITION_SIZE = uint64(type(int64).max - 1);
 
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
@@ -87,7 +84,7 @@ library MarketAdmin {
 
     for (uint8 i = 0; i < indexPrices.length; i++) {
       market = marketsByBaseAssetSymbol[indexPrices[i].baseAssetSymbol];
-      require(market.exists, "Market not found");
+      require(market.exists && market.isActive, "Active market not found");
 
       _validateIndexPrice(indexPrices[i], indexPriceCollectionServiceWallets, market);
 
@@ -160,7 +157,10 @@ library MarketAdmin {
       overridableFields.baselinePositionSize <= overridableFields.maximumPositionSize,
       "Baseline position size exceeds maximum"
     );
-    require(overridableFields.maximumPositionSize <= _MAX_MAXIMUM_POSITION_SIZE, "Maximum position size exceeds max");
+    require(
+      overridableFields.maximumPositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,
+      "Maximum position size exceeds max"
+    );
     require(overridableFields.minimumPositionSize <= _MAX_MINIMUM_POSITION_SIZE, "Minimum position size exceeds max");
   }
 
@@ -169,7 +169,7 @@ library MarketAdmin {
     address[] memory indexPriceCollectionServiceWallets,
     Market memory market
   ) private view {
-    require(market.lastIndexPriceTimestampInMs <= indexPrice.timestampInMs, "Outdated index price");
+    require(market.lastIndexPriceTimestampInMs < indexPrice.timestampInMs, "Outdated index price");
 
     require(indexPrice.timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
 
