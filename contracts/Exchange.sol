@@ -11,9 +11,9 @@ import { Constants } from "./libraries/Constants.sol";
 import { Depositing } from "./libraries/Depositing.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
 import { Exiting } from "./libraries/Exiting.sol";
+import { FieldUpgradeGovernance } from "./libraries/FieldUpgradeGovernance.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
-import { FieldUpgradeGovernance } from "./libraries/FieldUpgradeGovernance.sol";
 import { IndexPriceMargin } from "./libraries/IndexPriceMargin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
@@ -26,7 +26,7 @@ import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -48,6 +48,8 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(bytes32 => bool) private _completedTransferHashes;
   // Withdrawals - mapping of withdrawal wallet hash => isComplete
   mapping(bytes32 => bool) private _completedWithdrawalHashes;
+  // Registry of cross-chain bridge adapter contracts
+  CrossChainBridgeAdapter[] private _crossChainBridgeAdapters;
   // In-progress IF wallet upgrade
   FieldUpgradeGovernance.Storage private _fieldUpgradeGovernance;
   // Fund custody contract
@@ -117,6 +119,31 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
+   * @notice Emitted when admin initiates Cross-chain Bridge Adapter upgrade with
+   * `initiateCrossChainBridgeAdaptersUpgrade`
+   */
+  event CrossChainBridgeAdaptersUpgradeInitiated(
+    CrossChainBridgeAdapter[] CrossChainBridgeAdapters,
+    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters,
+    uint256 blockThreshold
+  );
+  /**
+   * @notice Emitted when admin cancels previously started Cross-chain Bridge Adapter upgrade with
+   * `cancelCrossChainBridgeAdaptersUpgrade`
+   */
+  event CrossChainBridgeAdaptersUpgradeCanceled(
+    CrossChainBridgeAdapter[] oldCrossChainBridgeAdapters,
+    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters
+  );
+  /**
+   * @notice Emitted when admin finalizes Cross-chain Bridge Adapter upgrade with
+   * `finalizeCrossChainBridgeAdaptersUpgrade`
+   */
+  event CrossChainBridgeAdaptersUpgradeFinalized(
+    CrossChainBridgeAdapter[] oldCrossChainBridgeAdapters,
+    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters
+  );
+  /**
    * @notice Emitted when admin initiates IPCS wallet upgrade with `initiateIndexPriceCollectionServiceWalletsUpgrade`
    */
   event IndexPriceCollectionServiceWalletsUpgradeInitiated(
@@ -125,18 +152,19 @@ contract Exchange_v4 is IExchange, Owned {
     uint256 blockThreshold
   );
   /**
-   * @notice Emitted when admin cancels previously started IPCS wallet upgrade with `cancelIndexPriceCollectionServiceWalletsUpgrade`
+   * @notice Emitted when admin cancels previously started IPCS wallet upgrade with
+   * `cancelIndexPriceCollectionServiceWalletsUpgrade`
    */
   event IndexPriceCollectionServiceWalletsUpgradeCanceled(
-    address[] oldIndexPriceCollectionServiceWalletsWallet,
-    address[] newIndexPriceCollectionServiceWalletsWallet
+    address[] oldIndexPriceCollectionServiceWallets,
+    address[] newIndexPriceCollectionServiceWallets
   );
   /**
    * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
    */
   event IndexPriceCollectionServiceWalletsUpgradeFinalized(
-    address[] oldIndexPriceCollectionServiceWalletsWallet,
-    address[] newIndexPriceCollectionServiceWalletsWallet
+    address[] oldIndexPriceCollectionServiceWallets,
+    address[] newIndexPriceCollectionServiceWallets
   );
   /**
    * @notice Emitted when admin initiates IF wallet upgrade with `initiateInsuranceFundWalletUpgrade`
@@ -406,6 +434,56 @@ contract Exchange_v4 is IExchange, Owned {
     feeWallet = newFeeWallet;
 
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
+  }
+
+  /**
+   * @notice Initiates Cross-chain Bridge Adapter upgrade proccess. Once block delay has passed the process can be
+   * finalized with `finalizeCrossChainBridgeAdaptersUpgrade`
+   *
+   * @param newCrossChainBridgeAdapters The new adapter descriptor structs
+   */
+  function initiateCrossChainBridgeAdaptersUpgrade(
+    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
+  ) public onlyAdmin {
+    _fieldUpgradeGovernance.initiateCrossChainBridgeAdaptersUpgrade_delegatecall(newCrossChainBridgeAdapters);
+
+    emit CrossChainBridgeAdaptersUpgradeInitiated(
+      _crossChainBridgeAdapters,
+      newCrossChainBridgeAdapters,
+      _fieldUpgradeGovernance.currentCrossChainBridgeAdaptersUpgrade.blockThreshold
+    );
+  }
+
+  /**
+   * @notice Cancels an in-flight Cross-chain Bridge Adapter upgrade that has not yet been finalized
+   */
+  function cancelCrossChainBridgeAdaptersUpgrade() public onlyAdmin {
+    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters = _fieldUpgradeGovernance
+      .cancelCrossChainBridgeAdaptersUpgrade_delegatecall();
+
+    emit CrossChainBridgeAdaptersUpgradeCanceled(_crossChainBridgeAdapters, newCrossChainBridgeAdapters);
+  }
+
+  /**
+   * @notice Finalizes the Cross-chain Bridge Adapter upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
+   * `initiateCrossChainBridgeAdaptersUpgrade`
+   *
+   * @param newCrossChainBridgeAdapters The descriptors for the new Cross-chain Bridge Adapter. Must equal the addresses
+   * provided to `initiateCrossChainBridgeAdaptersUpgrade`
+   */
+  function finalizeCrossChainBridgeAdaptersUpgrade(
+    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
+  ) public onlyAdmin {
+    CrossChainBridgeAdapter[] memory oldCrossChainBridgeAdapters = _crossChainBridgeAdapters;
+    delete _crossChainBridgeAdapters;
+
+    _fieldUpgradeGovernance.finalizeCrossChainBridgeAdaptersUpgrade_delegatecall(
+      newCrossChainBridgeAdapters,
+      _crossChainBridgeAdapters
+    );
+
+    emit CrossChainBridgeAdaptersUpgradeFinalized(oldCrossChainBridgeAdapters, newCrossChainBridgeAdapters);
   }
 
   /**
@@ -913,6 +991,7 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _completedWithdrawalHashes,
+      _crossChainBridgeAdapters,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,

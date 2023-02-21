@@ -125,7 +125,8 @@ library Hashing {
           withdrawal.signatureHashVersion,
           withdrawal.nonce,
           withdrawal.wallet,
-          _pipToDecimal(withdrawal.grossQuantity)
+          _pipToDecimal(withdrawal.grossQuantity),
+          withdrawal.targetChainName
         )
       );
   }

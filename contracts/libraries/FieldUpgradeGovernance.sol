@@ -3,9 +3,15 @@
 pragma solidity 0.8.18;
 
 import { Constants } from "./Constants.sol";
-import { OverridableMarketFields } from "./Structs.sol";
+import { CrossChainBridgeAdapter, OverridableMarketFields } from "./Structs.sol";
 
 library FieldUpgradeGovernance {
+  struct CrossChainBridgeAdaptersUpgrade {
+    bool exists;
+    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters;
+    uint256 blockThreshold;
+  }
+
   struct IndexPriceCollectionServiceWalletsUpgrade {
     bool exists;
     address[] newIndexPriceCollectionServiceWallets;
@@ -25,9 +31,66 @@ library FieldUpgradeGovernance {
   }
 
   struct Storage {
+    CrossChainBridgeAdaptersUpgrade currentCrossChainBridgeAdaptersUpgrade;
     IndexPriceCollectionServiceWalletsUpgrade currentIndexPriceCollectionServiceWalletsUpgrade;
     InsuranceFundWalletUpgrade currentInsuranceFundWalletUpgrade;
     mapping(string => mapping(address => MarketOverridesUpgrade)) currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function initiateCrossChainBridgeAdaptersUpgrade_delegatecall(
+    Storage storage self,
+    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
+  ) public {
+    require(!self.currentCrossChainBridgeAdaptersUpgrade.exists, "IPCS wallet upgrade already in progress");
+
+    for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
+      // Local adapters (no cross-chain bridges should have a zero address for the adapter contract)
+      require(
+        newCrossChainBridgeAdapters[i].adapterContract != address(0x0) || newCrossChainBridgeAdapters[0].isLocal,
+        "Invalid adapter address"
+      );
+      self.currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
+    }
+
+    self.currentCrossChainBridgeAdaptersUpgrade.exists = true;
+    self.currentCrossChainBridgeAdaptersUpgrade.blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function cancelCrossChainBridgeAdaptersUpgrade_delegatecall(
+    Storage storage self
+  ) public returns (CrossChainBridgeAdapter[] memory newCrossChainBridgeAdaptersUpgrade) {
+    require(self.currentIndexPriceCollectionServiceWalletsUpgrade.exists, "No adapter upgrade in progress");
+
+    newCrossChainBridgeAdaptersUpgrade = self.currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters;
+
+    delete self.currentCrossChainBridgeAdaptersUpgrade;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function finalizeCrossChainBridgeAdaptersUpgrade_delegatecall(
+    Storage storage self,
+    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters,
+    CrossChainBridgeAdapter[] storage crossChainBridgeAdapters
+  ) public {
+    require(self.currentCrossChainBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
+
+    require(
+      block.number >= self.currentCrossChainBridgeAdaptersUpgrade.blockThreshold,
+      "Block threshold not yet reached"
+    );
+
+    for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
+      require(
+        self.currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters[i].adapterContract ==
+          newCrossChainBridgeAdapters[i].adapterContract,
+        "Address mismatch"
+      );
+      crossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
+    }
+
+    delete (self.currentCrossChainBridgeAdaptersUpgrade);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -36,7 +99,7 @@ library FieldUpgradeGovernance {
     address[] memory newIndexPriceCollectionServiceWallets
   ) public {
     for (uint8 i = 0; i < newIndexPriceCollectionServiceWallets.length; i++) {
-      require(newIndexPriceCollectionServiceWallets[0] != address(0x0), "Invalid IF wallet address");
+      require(newIndexPriceCollectionServiceWallets[i] != address(0x0), "Invalid IF wallet address");
     }
 
     require(!self.currentIndexPriceCollectionServiceWalletsUpgrade.exists, "IPCS wallet upgrade already in progress");

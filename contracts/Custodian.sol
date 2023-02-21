@@ -27,6 +27,16 @@ contract Custodian is ICustodian, Owned {
   address public exchange;
   address public governance;
 
+  modifier onlyExchange() {
+    require(msg.sender == exchange, "Caller must be Exchange contract");
+    _;
+  }
+
+  modifier onlyGovernance() {
+    require(msg.sender == governance, "Caller must be Governance contract");
+    _;
+  }
+
   /**
    * @notice Instantiate a new Custodian
    *
@@ -87,17 +97,5 @@ contract Custodian is ICustodian, Owned {
     governance = newGovernance;
 
     emit GovernanceChanged(oldGovernance, newGovernance);
-  }
-
-  // RBAC //
-
-  modifier onlyExchange() {
-    require(msg.sender == exchange, "Caller must be Exchange contract");
-    _;
-  }
-
-  modifier onlyGovernance() {
-    require(msg.sender == governance, "Caller must be Governance contract");
-    _;
   }
 }
