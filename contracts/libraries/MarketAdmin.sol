@@ -10,20 +10,12 @@ import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Time } from "./Time.sol";
+import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, OverridableMarketFields } from "./Structs.sol";
 
 library MarketAdmin {
   using FieldUpgradeGovernance for FieldUpgradeGovernance.Storage;
   using MarketHelper for Market;
-
-  // 0.005
-  uint64 private constant _MIN_INITIAL_MARGIN_FRACTION = 500000;
-  // 0.003
-  uint64 private constant _MIN_MAINTENANCE_MARGIN_FRACTION = 300000;
-  // 0.001
-  uint64 private constant _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION = 100000;
-  // Max int64 - 1
-  uint64 private constant _MAX_MINIMUM_POSITION_SIZE = uint64(type(int64).max - 1);
 
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
@@ -34,7 +26,7 @@ library MarketAdmin {
   ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
     require(Address.isContract(address(newMarket.chainlinkPriceFeedAddress)), "Invalid Chainlink price feed");
-    _validateOverridableMarketFields(newMarket.overridableFields);
+    Validations.validateOverridableMarketFields(newMarket.overridableFields);
 
     // Populate non-overridable fields and commit new market to storage
     newMarket.exists = true;
@@ -102,7 +94,7 @@ library MarketAdmin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256 blockThreshold) {
     require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Market does not exist");
-    _validateOverridableMarketFields(overridableFields);
+    Validations.validateOverridableMarketFields(overridableFields);
 
     blockThreshold = fieldUpgradeGovernance.initiateMarketOverridesUpgrade(baseAssetSymbol, overridableFields, wallet);
   }
@@ -114,54 +106,6 @@ library MarketAdmin {
     FieldUpgradeGovernance.Storage storage fieldUpgradeGovernance
   ) public {
     fieldUpgradeGovernance.cancelMarketOverridesUpgrade(baseAssetSymbol, wallet);
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function finalizeMarketOverridesUpgrade_delegatecall(
-    string memory baseAssetSymbol,
-    address wallet,
-    FieldUpgradeGovernance.Storage storage fieldUpgradeGovernance,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public {
-    OverridableMarketFields memory marketOverrides = fieldUpgradeGovernance.finalizeMarketOverridesUpgrade(
-      baseAssetSymbol,
-      wallet
-    );
-
-    if (wallet == address(0x0)) {
-      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
-    } else {
-      marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
-        exists: true,
-        overridableFields: marketOverrides
-      });
-    }
-  }
-
-  // Validate reasonable limits on overridable market fields
-  function _validateOverridableMarketFields(OverridableMarketFields memory overridableFields) private pure {
-    require(
-      overridableFields.initialMarginFraction >= _MIN_INITIAL_MARGIN_FRACTION,
-      "Initial margin fraction below min"
-    );
-    require(
-      overridableFields.maintenanceMarginFraction >= _MIN_MAINTENANCE_MARGIN_FRACTION,
-      "Maintenance margin fraction below min"
-    );
-    require(
-      overridableFields.incrementalInitialMarginFraction >= _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION,
-      "Incremental initial margin fraction below min"
-    );
-    require(
-      overridableFields.baselinePositionSize <= overridableFields.maximumPositionSize,
-      "Baseline position size exceeds maximum"
-    );
-    require(
-      overridableFields.maximumPositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,
-      "Maximum position size exceeds max"
-    );
-    require(overridableFields.minimumPositionSize <= _MAX_MINIMUM_POSITION_SIZE, "Minimum position size exceeds max");
   }
 
   function _validateIndexPrice(

@@ -3,12 +3,21 @@
 pragma solidity 0.8.18;
 
 import { Constants } from "./Constants.sol";
-import { Market } from "./Structs.sol";
 import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { Market, OverridableMarketFields } from "./Structs.sol";
 
 library Validations {
   using SortedStringSet for string[];
+
+  // 0.005
+  uint64 private constant _MIN_INITIAL_MARGIN_FRACTION = 500000;
+  // 0.003
+  uint64 private constant _MIN_MAINTENANCE_MARGIN_FRACTION = 300000;
+  // 0.001
+  uint64 private constant _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION = 100000;
+  // Max int64 - 1
+  uint64 private constant _MAX_MINIMUM_POSITION_SIZE = uint64(type(int64).max - 1);
 
   function isFeeQuantityValid(uint64 fee, uint64 total) internal pure returns (bool) {
     uint64 feeMultiplier = Math.multiplyPipsByFraction(fee, Constants.PIP_PRICE_MULTIPLIER, total);
@@ -27,5 +36,30 @@ library Validations {
 
     uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[liquidatingWallet].indexOf(baseAssetSymbol);
     require(i != SortedStringSet.NOT_FOUND, "Open position not found for market");
+  }
+
+  // Validate reasonable limits on overridable market fields
+  function validateOverridableMarketFields(OverridableMarketFields memory overridableFields) public pure {
+    require(
+      overridableFields.initialMarginFraction >= _MIN_INITIAL_MARGIN_FRACTION,
+      "Initial margin fraction below min"
+    );
+    require(
+      overridableFields.maintenanceMarginFraction >= _MIN_MAINTENANCE_MARGIN_FRACTION,
+      "Maintenance margin fraction below min"
+    );
+    require(
+      overridableFields.incrementalInitialMarginFraction >= _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION,
+      "Incremental initial margin fraction below min"
+    );
+    require(
+      overridableFields.baselinePositionSize <= overridableFields.maximumPositionSize,
+      "Baseline position size exceeds maximum"
+    );
+    require(
+      overridableFields.maximumPositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,
+      "Maximum position size exceeds max"
+    );
+    require(overridableFields.minimumPositionSize <= _MAX_MINIMUM_POSITION_SIZE, "Minimum position size exceeds max");
   }
 }

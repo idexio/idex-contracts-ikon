@@ -14,7 +14,6 @@
     "artifacts/contracts/libraries/AcquisitionDeleveraging.sol/AcquisitionDeleveraging.json",
     "artifacts/contracts/libraries/ClosureDeleveraging.sol/ClosureDeleveraging.json",
     "artifacts/contracts/libraries/Depositing.sol/Depositing.json",
-    "artifacts/contracts/libraries/FieldUpgradeGovernance.sol/FieldUpgradeGovernance.json",
     "artifacts/contracts/libraries/Funding.sol/Funding.json",
     "artifacts/contracts/libraries/IndexPriceMargin.sol/IndexPriceMargin.json",
     "artifacts/contracts/libraries/MarketAdmin.sol/MarketAdmin.json",

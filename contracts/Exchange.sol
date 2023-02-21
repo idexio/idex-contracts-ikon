@@ -11,7 +11,6 @@ import { Constants } from "./libraries/Constants.sol";
 import { Depositing } from "./libraries/Depositing.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
 import { Exiting } from "./libraries/Exiting.sol";
-import { FieldUpgradeGovernance } from "./libraries/FieldUpgradeGovernance.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
 import { IndexPriceMargin } from "./libraries/IndexPriceMargin.sol";
@@ -33,7 +32,6 @@ import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 // solhint-disable-next-line contract-name-camelcase
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
-  using FieldUpgradeGovernance for FieldUpgradeGovernance.Storage;
   using NonceInvalidations for mapping(address => NonceInvalidation[]);
 
   // State variables //
@@ -50,8 +48,6 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(bytes32 => bool) private _completedWithdrawalHashes;
   // Registry of cross-chain bridge adapter contracts
   CrossChainBridgeAdapter[] private _crossChainBridgeAdapters;
-  // In-progress IF wallet upgrade
-  FieldUpgradeGovernance.Storage private _fieldUpgradeGovernance;
   // Fund custody contract
   ICustodian public custodian;
   // Deposit index
@@ -119,82 +115,6 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
-   * @notice Emitted when admin initiates Cross-chain Bridge Adapter upgrade with
-   * `initiateCrossChainBridgeAdaptersUpgrade`
-   */
-  event CrossChainBridgeAdaptersUpgradeInitiated(
-    CrossChainBridgeAdapter[] CrossChainBridgeAdapters,
-    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters,
-    uint256 blockThreshold
-  );
-  /**
-   * @notice Emitted when admin cancels previously started Cross-chain Bridge Adapter upgrade with
-   * `cancelCrossChainBridgeAdaptersUpgrade`
-   */
-  event CrossChainBridgeAdaptersUpgradeCanceled(
-    CrossChainBridgeAdapter[] oldCrossChainBridgeAdapters,
-    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters
-  );
-  /**
-   * @notice Emitted when admin finalizes Cross-chain Bridge Adapter upgrade with
-   * `finalizeCrossChainBridgeAdaptersUpgrade`
-   */
-  event CrossChainBridgeAdaptersUpgradeFinalized(
-    CrossChainBridgeAdapter[] oldCrossChainBridgeAdapters,
-    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters
-  );
-  /**
-   * @notice Emitted when admin initiates IPCS wallet upgrade with `initiateIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  event IndexPriceCollectionServiceWalletsUpgradeInitiated(
-    address[] oldIndexPriceCollectionServiceWallets,
-    address[] newIndexPriceCollectionServiceWallets,
-    uint256 blockThreshold
-  );
-  /**
-   * @notice Emitted when admin cancels previously started IPCS wallet upgrade with
-   * `cancelIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  event IndexPriceCollectionServiceWalletsUpgradeCanceled(
-    address[] oldIndexPriceCollectionServiceWallets,
-    address[] newIndexPriceCollectionServiceWallets
-  );
-  /**
-   * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  event IndexPriceCollectionServiceWalletsUpgradeFinalized(
-    address[] oldIndexPriceCollectionServiceWallets,
-    address[] newIndexPriceCollectionServiceWallets
-  );
-  /**
-   * @notice Emitted when admin initiates IF wallet upgrade with `initiateInsuranceFundWalletUpgrade`
-   */
-  event InsuranceFundWalletUpgradeInitiated(
-    address oldInsuranceFundWallet,
-    address newInsuranceFundWallet,
-    uint256 blockThreshold
-  );
-  /**
-   * @notice Emitted when admin cancels previously started IF wallet upgrade with `cancelInsuranceFundWalletUpgrade`
-   */
-  event InsuranceFundWalletUpgradeCanceled(address oldInsuranceFundWallet, address newInsuranceFundWallet);
-  /**
-   * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeInsuranceFundWalletUpgrade`
-   */
-  event InsuranceFundWalletUpgradeFinalized(address oldInsuranceFundWallet, address newInsuranceFundWallet);
-  /**
-   * @notice Emitted when admin initiates market override upgrade with `initiateMarketOverridesUpgrade`
-   */
-  event MarketOverridesUpgradeInitiated(string baseAssetSymbol, address wallet, uint256 blockThreshold);
-  /**
-   * @notice Emitted when admin cancels previously started market override upgrade with `cancelMarketOverridesUpgrade`
-   */
-  event MarketOverridesUpgradeCanceled(string baseAssetSymbol, address wallet);
-  /**
-   * @notice Emitted when admin finalizes market override upgrade with `finalizeMarketOverridesUpgrade`
-   */
-  event MarketOverridesUpgradeFinalized(string baseAssetSymbol, address wallet);
-  /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
    * `executeOrderBookTrade`
    */
@@ -257,6 +177,11 @@ contract Exchange_v4 is IExchange, Owned {
   modifier onlyDispatcherWhenExitFundHasOpenPositions() {
     _onlyDispatcher();
     require(exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
+    _;
+  }
+
+  modifier onlyGovernance() {
+    require(msg.sender == custodian.governance(), "Caller must be Governance contract");
     _;
   }
 
@@ -436,159 +361,24 @@ contract Exchange_v4 is IExchange, Owned {
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
   }
 
-  /**
-   * @notice Initiates Cross-chain Bridge Adapter upgrade proccess. Once block delay has passed the process can be
-   * finalized with `finalizeCrossChainBridgeAdaptersUpgrade`
-   *
-   * @param newCrossChainBridgeAdapters The new adapter descriptor structs
-   */
-  function initiateCrossChainBridgeAdaptersUpgrade(
+  function setCrossChainBridgeAdapters(
     CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
-  ) public onlyAdmin {
-    _fieldUpgradeGovernance.initiateCrossChainBridgeAdaptersUpgrade_delegatecall(newCrossChainBridgeAdapters);
-
-    emit CrossChainBridgeAdaptersUpgradeInitiated(
-      _crossChainBridgeAdapters,
-      newCrossChainBridgeAdapters,
-      _fieldUpgradeGovernance.currentCrossChainBridgeAdaptersUpgrade.blockThreshold
-    );
-  }
-
-  /**
-   * @notice Cancels an in-flight Cross-chain Bridge Adapter upgrade that has not yet been finalized
-   */
-  function cancelCrossChainBridgeAdaptersUpgrade() public onlyAdmin {
-    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters = _fieldUpgradeGovernance
-      .cancelCrossChainBridgeAdaptersUpgrade_delegatecall();
-
-    emit CrossChainBridgeAdaptersUpgradeCanceled(_crossChainBridgeAdapters, newCrossChainBridgeAdapters);
-  }
-
-  /**
-   * @notice Finalizes the Cross-chain Bridge Adapter upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateCrossChainBridgeAdaptersUpgrade`
-   *
-   * @param newCrossChainBridgeAdapters The descriptors for the new Cross-chain Bridge Adapter. Must equal the addresses
-   * provided to `initiateCrossChainBridgeAdaptersUpgrade`
-   */
-  function finalizeCrossChainBridgeAdaptersUpgrade(
-    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
-  ) public onlyAdmin {
-    CrossChainBridgeAdapter[] memory oldCrossChainBridgeAdapters = _crossChainBridgeAdapters;
+  ) public onlyGovernance {
     delete _crossChainBridgeAdapters;
 
-    _fieldUpgradeGovernance.finalizeCrossChainBridgeAdaptersUpgrade_delegatecall(
-      newCrossChainBridgeAdapters,
-      _crossChainBridgeAdapters
-    );
-
-    emit CrossChainBridgeAdaptersUpgradeFinalized(oldCrossChainBridgeAdapters, newCrossChainBridgeAdapters);
+    for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
+      _crossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
+    }
   }
 
-  /**
-   * @notice Initiates Index Price Collection Service wallet upgrade proccess. Once block delay has passed the process
-   * can be finalized with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
-   *
-   * @param newIndexPriceCollectionServiceWallets The IPCS wallet addresses
-   */
-  function initiateIndexPriceCollectionServiceWalletsUpgrade(
+  function setIndexPriceCollectionServiceWallets(
     address[] memory newIndexPriceCollectionServiceWallets
-  ) public onlyAdmin {
-    _fieldUpgradeGovernance.initiateIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
-      newIndexPriceCollectionServiceWallets
-    );
-
-    emit IndexPriceCollectionServiceWalletsUpgradeInitiated(
-      indexPriceCollectionServiceWallets,
-      newIndexPriceCollectionServiceWallets,
-      _fieldUpgradeGovernance.currentIndexPriceCollectionServiceWalletsUpgrade.blockThreshold
-    );
-  }
-
-  /**
-   * @notice Cancels an in-flight IPCS wallet upgrade that has not yet been finalized
-   */
-  function cancelIndexPriceCollectionServiceWalletsUpgrade() public onlyAdmin {
-    address[] memory newIndexPriceCollectionServiceWallets = _fieldUpgradeGovernance
-      .cancelIndexPriceCollectionServiceWalletsUpgrade_delegatecall();
-
-    emit IndexPriceCollectionServiceWalletsUpgradeCanceled(
-      indexPriceCollectionServiceWallets,
-      newIndexPriceCollectionServiceWallets
-    );
-  }
-
-  /**
-   * @notice Finalizes the IPCS wallet upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateIndexPriceCollectionServiceWalletsUpgrade`
-   *
-   * @param newIndexPriceCollectionServiceWallets The address of the new IPCS wallets. Must equal the addresses
-   * provided to `initiateIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  function finalizeIndexPriceCollectionServiceWalletsUpgrade(
-    address[] memory newIndexPriceCollectionServiceWallets
-  ) public onlyAdmin {
-    _fieldUpgradeGovernance.finalizeIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
-      newIndexPriceCollectionServiceWallets
-    );
-
-    address[] memory oldIndexPriceCollectionServiceWallets = indexPriceCollectionServiceWallets;
+  ) public onlyGovernance {
     indexPriceCollectionServiceWallets = newIndexPriceCollectionServiceWallets;
-
-    emit IndexPriceCollectionServiceWalletsUpgradeFinalized(
-      oldIndexPriceCollectionServiceWallets,
-      newIndexPriceCollectionServiceWallets
-    );
   }
 
-  /**
-   * @notice Initiates Insurance Fund wallet upgrade proccess. Once block delay has passed
-   * the process can be finalized with `finalizeInsuranceFundWalletUpgrade`
-   *
-   * @param newInsuranceFundWallet The IF wallet address
-   */
-  function initiateInsuranceFundWalletUpgrade(
-    address newInsuranceFundWallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    _fieldUpgradeGovernance.initiateInsuranceFundWalletUpgrade_delegatecall(
-      insuranceFundWallet,
-      newInsuranceFundWallet
-    );
-
-    emit InsuranceFundWalletUpgradeInitiated(
-      insuranceFundWallet,
-      newInsuranceFundWallet,
-      _fieldUpgradeGovernance.currentInsuranceFundWalletUpgrade.blockThreshold
-    );
-  }
-
-  /**
-   * @notice Cancels an in-flight IF wallet upgrade that has not yet been finalized
-   */
-  function cancelInsuranceFundWalletUpgrade() public onlyDispatcherWhenExitFundHasNoPositions {
-    address newInsuranceFundWallet = _fieldUpgradeGovernance.cancelInsuranceFundWalletUpgrade_delegatecall();
-
-    emit InsuranceFundWalletUpgradeCanceled(insuranceFundWallet, newInsuranceFundWallet);
-  }
-
-  /**
-   * @notice Finalizes the IF wallet upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateInsuranceFundWalletUpgrade`
-   *
-   * @param newInsuranceFundWallet The address of the new IF wallet. Must equal the address provided to
-   * `initiateInsuranceFundWalletUpgrade`
-   */
-  function finalizeInsuranceFundWalletUpgrade(
-    address newInsuranceFundWallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    _fieldUpgradeGovernance.finalizeInsuranceFundWalletUpgrade_delegatecall(newInsuranceFundWallet);
-
-    address oldInsuranceFundWallet = insuranceFundWallet;
+  function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
     insuranceFundWallet = newInsuranceFundWallet;
-
-    emit InsuranceFundWalletUpgradeFinalized(oldInsuranceFundWallet, newInsuranceFundWallet);
   }
 
   /**
@@ -1042,57 +832,19 @@ contract Exchange_v4 is IExchange, Owned {
     );
   }
 
-  /**
-   * @notice Initiates market override upgrade proccess for `wallet`. If `wallet` is zero address, then the overrides
-   * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
-   * process can be finalized with `finalizeMarketOverridesUpgrade`
-   */
-  function initiateMarketOverridesUpgrade(
+  function setMarketOverrides(
     string memory baseAssetSymbol,
-    OverridableMarketFields memory overridableFields,
+    OverridableMarketFields memory marketOverrides,
     address wallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    uint256 blockThreshold = MarketAdmin.initiateMarketOverridesUpgrade_delegatecall(
-      baseAssetSymbol,
-      overridableFields,
-      wallet,
-      _fieldUpgradeGovernance,
-      _marketsByBaseAssetSymbol
-    );
-
-    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, blockThreshold);
-  }
-
-  /**
-   * @notice Cancels an in-flight market override upgrade process that has not yet been finalized
-   */
-  function cancelMarketOverridesUpgrade(
-    string memory baseAssetSymbol,
-    address wallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.cancelMarketOverridesUpgrade_delegatecall(baseAssetSymbol, wallet, _fieldUpgradeGovernance);
-
-    emit MarketOverridesUpgradeCanceled(baseAssetSymbol, wallet);
-  }
-
-  /**
-   * @notice Finalizes a market override upgrade process by changing the market's default overridable field values if
-   * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
-   */
-  function finalizeMarketOverridesUpgrade(
-    string memory baseAssetSymbol,
-    address wallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.finalizeMarketOverridesUpgrade_delegatecall(
-      baseAssetSymbol,
-      wallet,
-      _fieldUpgradeGovernance,
-      _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
-    );
-
-    emit MarketOverridesUpgradeFinalized(baseAssetSymbol, wallet);
+  ) public onlyGovernance {
+    if (wallet == address(0x0)) {
+      _marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
+    } else {
+      _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
+        exists: true,
+        overridableFields: marketOverrides
+      });
+    }
   }
 
   /**

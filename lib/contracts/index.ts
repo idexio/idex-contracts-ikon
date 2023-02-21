@@ -26,7 +26,6 @@ export type LibraryName =
   | 'AcquisitionDeleveraging'
   | 'ClosureDeleveraging'
   | 'Depositing'
-  | 'FieldUpgradeGovernance'
   | 'Funding'
   | 'IndexPriceMargin'
   | 'MarketAdmin'

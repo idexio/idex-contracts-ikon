@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.18;
 
-import { Balance } from "./Structs.sol";
+import { Balance, CrossChainBridgeAdapter, OverridableMarketFields } from "./Structs.sol";
 
 interface ICrossChainBridgeAdapter {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity) external;
@@ -101,6 +101,18 @@ interface IExchange {
    * @return The number of deposits successfully made to the Exchange
    */
   function depositIndex() external view returns (uint64);
+
+  function setCrossChainBridgeAdapters(CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters) external;
+
+  function setIndexPriceCollectionServiceWallets(address[] memory newIndexPriceCollectionServiceWallets) external;
+
+  function setInsuranceFundWallet(address newInsuranceFundWallet) external;
+
+  function setMarketOverrides(
+    string memory baseAssetSymbol,
+    OverridableMarketFields memory marketOverrides,
+    address wallet
+  ) external;
 }
 
 // https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateReceiver.sol
