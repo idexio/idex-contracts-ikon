@@ -2,6 +2,7 @@ import BigNumber from 'bignumber.js';
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { ethers } from 'hardhat';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
@@ -196,8 +197,8 @@ export async function deployContractsExceptCustodian(
   owner: SignerWithAddress,
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
-  insuranceFund: SignerWithAddress = owner,
   indexPriceCollectionServiceWallet: SignerWithAddress = owner,
+  insuranceFund: SignerWithAddress = owner,
   governanceBlockDelay = 0,
 ) {
   const [
@@ -213,25 +214,27 @@ export async function deployContractsExceptCustodian(
   ]);
 
   const chainlinkAggregator = await (
-    await ChainlinkAggregatorFactory.deploy()
+    await ChainlinkAggregatorFactory.connect(owner).deploy()
   ).deployed();
 
   (await chainlinkAggregator.setPrice(decimalToPips('2000.00000000'))).wait();
 
-  const usdc = await (await USDCFactory.deploy()).deployed();
+  const usdc = await (await USDCFactory.connect(owner).deploy()).deployed();
 
   const [exchange, governance] = await Promise.all([
     (
-      await ExchangeFactory.deploy(
+      await ExchangeFactory.connect(owner).deploy(
         ethers.constants.AddressZero,
-        usdc.address,
         exitFundWallet.address,
         feeWallet.address,
-        insuranceFund.address,
         [indexPriceCollectionServiceWallet.address],
+        insuranceFund.address,
+        usdc.address,
       )
     ).deployed(),
-    (await GovernanceFactory.deploy(governanceBlockDelay)).deployed(),
+    (
+      await GovernanceFactory.connect(owner).deploy(governanceBlockDelay)
+    ).deployed(),
   ]);
 
   return { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc };
@@ -251,8 +254,8 @@ export async function deployAndAssociateContracts(
       owner,
       exitFundWallet,
       feeWallet,
-      insuranceFund,
       indexPriceCollectionServiceWallet,
+      insuranceFund,
       governanceBlockDelay,
     );
 
@@ -288,6 +291,15 @@ export async function deployAndAssociateContracts(
     ).wait(),
   ]);
   (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
+
+  const localAdapter = {
+    isLocal: true,
+    adapterContract: ethers.constants.AddressZero,
+    targetChain: 'matic',
+  };
+  await governance.initiateCrossChainBridgeAdaptersUpgrade([localAdapter]);
+  await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+  await governance.finalizeCrossChainBridgeAdaptersUpgrade([localAdapter]);
 
   return {
     chainlinkAggregator,

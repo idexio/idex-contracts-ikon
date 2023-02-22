@@ -16,14 +16,14 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
   // The pool ID on the target chain
   uint256 public immutable targetPoolId;
   // Address of Exchange contract
-  address public immutable exchange;
+  IExchange public immutable exchange;
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteAssetAddress;
   // Address of Stargate router contract
-  address public immutable router;
+  IStargateRouter public immutable router;
 
   modifier onlyExchange() {
-    require(msg.sender == exchange, "Caller must be Exchange contract");
+    require(msg.sender == address(exchange), "Caller must be Exchange contract");
     _;
   }
 
@@ -39,19 +39,19 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
     address quoteAssetAddress_
   ) {
     require(Address.isContract(exchange_), "Invalid Exchange address");
-    exchange = exchange_;
+    exchange = IExchange(exchange_);
 
     sourcePoolId = sourcePoolId_;
     targetChainId = targetChainId_;
     targetPoolId = targetPoolId_;
 
     require(Address.isContract(router_), "Invalid Router address");
-    router = router_;
+    router = IStargateRouter(router_);
 
     require(Address.isContract(quoteAssetAddress_), "Invalid quote asset address");
     quoteAssetAddress = quoteAssetAddress_;
 
-    IERC20(quoteAssetAddress).approve(exchange, type(uint256).max);
+    IERC20(quoteAssetAddress).approve(address(exchange), type(uint256).max);
   }
 
   receive() external payable onlyAdmin {}
@@ -68,15 +68,15 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
     address token,
     uint256 amountLD,
     bytes memory payload
-  ) external override {
+  ) public override {
     require(token == address(quoteAssetAddress), "Invalid token");
 
     address destinationWallet = abi.decode(payload, (address));
-    IExchange(exchange).deposit(amountLD, destinationWallet);
+    exchange.deposit(amountLD, destinationWallet);
   }
 
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity) public onlyExchange {
-    (uint256 fee, ) = IStargateRouter(router).quoteLayerZeroFee(
+    (uint256 fee, ) = router.quoteLayerZeroFee(
       targetChainId,
       1,
       abi.encodePacked(destinationWallet),
@@ -86,7 +86,7 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
 
     // perform a Stargate swap() in a solidity smart contract function
     // the msg.value is the "fee" that Stargate needs to pay for the cross chain message
-    IStargateRouter(router).swap{ value: fee }(
+    router.swap{ value: fee }(
       targetChainId, // target chainId (use LayerZero chainId)
       sourcePoolId, // source pool id
       targetPoolId, // dest pool id

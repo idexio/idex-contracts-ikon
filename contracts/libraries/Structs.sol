@@ -40,7 +40,7 @@ struct Balance {
 struct CrossChainBridgeAdapter {
   bool isLocal;
   address adapterContract;
-  string targetChainName;
+  string targetChain;
 }
 
 /**
@@ -295,7 +295,7 @@ struct Withdrawal {
   // Withdrawal quantity
   uint64 grossQuantity;
   // Name of target chain to transfer tokens out to
-  string targetChainName;
+  string targetChain;
   // Cross-chain bridge adapter index corresponding to target chain name
   uint8 crossChainBridgeAdapterIndex;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs

@@ -194,11 +194,11 @@ contract Exchange_v4 is IExchange, Owned {
    */
   constructor(
     IExchange balanceMigrationSource,
-    address quoteAssetAddress_,
     address exitFundWallet_,
     address feeWallet_,
+    address[] memory indexPriceCollectionServiceWallets_,
     address insuranceFundWallet_,
-    address[] memory indexPriceCollectionServiceWallets_
+    address quoteAssetAddress_
   ) Owned() {
     require(
       address(balanceMigrationSource) == address(0x0) || Address.isContract(address(balanceMigrationSource)),
@@ -837,6 +837,8 @@ contract Exchange_v4 is IExchange, Owned {
     OverridableMarketFields memory marketOverrides,
     address wallet
   ) public onlyGovernance {
+    require(_marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
+
     if (wallet == address(0x0)) {
       _marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
     } else {
@@ -1083,6 +1085,6 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   function _onlyDispatcher() private view {
-    require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
+    require(msg.sender == dispatcherWallet, "Caller must be Dispatcher wallet");
   }
 }

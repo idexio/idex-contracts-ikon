@@ -123,10 +123,7 @@ library Withdrawing {
     CrossChainBridgeAdapter memory adapter = crossChainBridgeAdapters[
       arguments.withdrawal.crossChainBridgeAdapterIndex
     ];
-    require(
-      String.isEqual(adapter.targetChainName, arguments.withdrawal.targetChainName),
-      "Invalid bridge adapter index"
-    );
+    require(String.isEqual(adapter.targetChain, arguments.withdrawal.targetChain), "Invalid bridge adapter index");
 
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(

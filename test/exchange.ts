@@ -32,11 +32,11 @@ describe('Exchange', function () {
 
       await ExchangeFactory.deploy(
         ethers.constants.AddressZero,
-        usdc.address,
-        ownerWallet.address,
         ownerWallet.address,
         ownerWallet.address,
         [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
       );
     });
 
@@ -48,11 +48,11 @@ describe('Exchange', function () {
 
       await ExchangeFactory.deploy(
         balanceMigrationSourceMock.address,
-        usdc.address,
-        ownerWallet.address,
         ownerWallet.address,
         ownerWallet.address,
         [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
       );
     });
 
@@ -62,11 +62,11 @@ describe('Exchange', function () {
       await expect(
         ExchangeFactory.deploy(
           ownerWallet.address,
-          usdc.address,
-          ownerWallet.address,
           ownerWallet.address,
           ownerWallet.address,
           [ownerWallet.address],
+          ownerWallet.address,
+          usdc.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid migration source/i);
     });
@@ -82,9 +82,9 @@ describe('Exchange', function () {
           balanceMigrationSourceMock.address,
           ownerWallet.address,
           ownerWallet.address,
-          ownerWallet.address,
-          ownerWallet.address,
           [ownerWallet.address],
+          ownerWallet.address,
+          ownerWallet.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
     });
@@ -98,11 +98,11 @@ describe('Exchange', function () {
       await expect(
         ExchangeFactory.deploy(
           balanceMigrationSourceMock.address,
-          usdc.address,
-          ownerWallet.address,
           ownerWallet.address,
           ownerWallet.address,
           [ethers.constants.AddressZero],
+          ownerWallet.address,
+          usdc.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
     });
@@ -127,11 +127,11 @@ describe('Exchange', function () {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
         ethers.constants.AddressZero,
-        usdc.address,
-        ownerWallet.address,
         ownerWallet.address,
         ownerWallet.address,
         [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
       );
 
       await expect(
@@ -143,11 +143,11 @@ describe('Exchange', function () {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
         ethers.constants.AddressZero,
-        usdc.address,
-        ownerWallet.address,
         ownerWallet.address,
         ownerWallet.address,
         [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
       );
 
       await expect(

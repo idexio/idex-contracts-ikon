@@ -51,6 +51,7 @@ describe('Exchange', function () {
         nonce: uuidv1(),
         wallet: trader.address,
         quantity: '1.00000000',
+        targetChain: 'matic',
       };
       const signature = await trader.signMessage(
         ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
@@ -126,13 +127,18 @@ describe('Exchange', function () {
     });
 
     it('should work for exited wallet', async function () {
+      // Deposit additional quote to allow for EF exit withdrawal
       const depositQuantity = ethers.utils.parseUnits(
         '100000.0',
         quoteAssetDecimals,
       );
-      await usdc.approve(exchange.address, depositQuantity);
+      await usdc
+        .connect(ownerWallet)
+        .approve(exchange.address, depositQuantity);
       await (
-        await exchange.deposit(depositQuantity, ethers.constants.AddressZero)
+        await exchange
+          .connect(ownerWallet)
+          .deposit(depositQuantity, ethers.constants.AddressZero)
       ).wait();
 
       await exchange.connect(trader1Wallet).exitWallet();

@@ -39,7 +39,7 @@ library Validations {
   }
 
   // Validate reasonable limits on overridable market fields
-  function validateOverridableMarketFields(OverridableMarketFields memory overridableFields) public pure {
+  function validateOverridableMarketFields(OverridableMarketFields memory overridableFields) internal pure {
     require(
       overridableFields.initialMarginFraction >= _MIN_INITIAL_MARGIN_FRACTION,
       "Initial margin fraction below min"

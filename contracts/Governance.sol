@@ -142,6 +142,14 @@ contract Governance is Owned {
   mapping(string => mapping(address => MarketOverridesUpgrade))
     public currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet;
 
+  modifier onlyAdminOrDispatcher() {
+    require(
+      msg.sender == adminWallet || msg.sender == exchange.dispatcherWallet(),
+      "Caller must be Admin or Dispatcher wallet"
+    );
+    _;
+  }
+
   /**
    * @notice Instantiate a new `Governance` contract
    *
@@ -165,11 +173,12 @@ contract Governance is Owned {
    * @param newCustodian The address of the `Custodian` contract deployed against this `Governance`
    * contract's address
    */
-  function setCustodian(ICustodian newCustodian) external onlyAdmin {
+  function setCustodian(ICustodian newCustodian) public onlyAdmin {
     require(custodian == ICustodian(payable(address(0x0))), "Custodian can only be set once");
     require(Address.isContract(address(newCustodian)), "Invalid address");
 
     custodian = newCustodian;
+    exchange = IExchange(custodian.exchange());
   }
 
   // Exchange upgrade //
@@ -180,26 +189,26 @@ contract Governance is Owned {
    *
    * @param newExchange The address of the new `Exchange` contract
    */
-  function initiateExchangeUpgrade(address newExchange) external onlyAdmin {
+  function initiateExchangeUpgrade(address newExchange) public onlyAdmin {
     require(Address.isContract(address(newExchange)), "Invalid address");
     require(newExchange != custodian.exchange(), "Must be different from current Exchange");
     require(!currentExchangeUpgrade.exists, "Exchange upgrade already in progress");
 
     currentExchangeUpgrade = ContractUpgrade(true, newExchange, block.number + blockDelay);
 
-    emit ExchangeUpgradeInitiated(custodian.exchange(), newExchange, currentExchangeUpgrade.blockThreshold);
+    emit ExchangeUpgradeInitiated(address(exchange), newExchange, currentExchangeUpgrade.blockThreshold);
   }
 
   /**
    * @notice Cancels an in-flight `Exchange` contract upgrade that has not yet been finalized
    */
-  function cancelExchangeUpgrade() external onlyAdmin {
+  function cancelExchangeUpgrade() public onlyAdmin {
     require(currentExchangeUpgrade.exists, "No Exchange upgrade in progress");
 
     address newExchange = currentExchangeUpgrade.newContract;
     delete currentExchangeUpgrade;
 
-    emit ExchangeUpgradeCanceled(custodian.exchange(), newExchange);
+    emit ExchangeUpgradeCanceled(address(exchange), newExchange);
   }
 
   /**
@@ -210,12 +219,12 @@ contract Governance is Owned {
    * @param newExchange The address of the new `Exchange` contract. Must equal the address provided to
    * `initiateExchangeUpgrade`
    */
-  function finalizeExchangeUpgrade(address newExchange) external onlyAdmin {
+  function finalizeExchangeUpgrade(address newExchange) public onlyAdmin {
     require(currentExchangeUpgrade.exists, "No Exchange upgrade in progress");
     require(currentExchangeUpgrade.newContract == newExchange, "Address mismatch");
     require(block.number >= currentExchangeUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    address oldExchange = custodian.exchange();
+    address oldExchange = address(exchange);
     custodian.setExchange(newExchange);
     delete currentExchangeUpgrade;
 
@@ -230,7 +239,7 @@ contract Governance is Owned {
    *
    * @param newGovernance The address of the new `Governance` contract
    */
-  function initiateGovernanceUpgrade(address newGovernance) external onlyAdmin {
+  function initiateGovernanceUpgrade(address newGovernance) public onlyAdmin {
     require(Address.isContract(address(newGovernance)), "Invalid address");
     require(newGovernance != custodian.governance(), "Must be different from current Governance");
     require(!currentGovernanceUpgrade.exists, "Governance upgrade already in progress");
@@ -243,7 +252,7 @@ contract Governance is Owned {
   /**
    * @notice Cancels an in-flight `Governance` contract upgrade that has not yet been finalized
    */
-  function cancelGovernanceUpgrade() external onlyAdmin {
+  function cancelGovernanceUpgrade() public onlyAdmin {
     require(currentGovernanceUpgrade.exists, "No Governance upgrade in progress");
 
     address newGovernance = currentGovernanceUpgrade.newContract;
@@ -263,7 +272,7 @@ contract Governance is Owned {
    * @param newGovernance The address of the new `Governance` contract. Must equal the address provided to
    * `initiateGovernanceUpgrade`
    */
-  function finalizeGovernanceUpgrade(address newGovernance) external onlyAdmin {
+  function finalizeGovernanceUpgrade(address newGovernance) public onlyAdmin {
     require(currentGovernanceUpgrade.exists, "No Governance upgrade in progress");
     require(currentGovernanceUpgrade.newContract == newGovernance, "Address mismatch");
     require(block.number >= currentGovernanceUpgrade.blockThreshold, "Block threshold not yet reached");
@@ -277,10 +286,15 @@ contract Governance is Owned {
 
   // Field upgrade governance //
 
-  // solhint-disable-next-line func-name-mixedcase
-  function initiateCrossChainBridgeAdaptersUpgrade_delegatecall(
+  /**
+   * @notice Initiates Cross-chain Bridge Adapter upgrade proccess. Once block delay has passed the process can be
+   * finalized with `finalizeCrossChainBridgeAdaptersUpgrade`
+   *
+   * @param newCrossChainBridgeAdapters The new adapter descriptor structs
+   */
+  function initiateCrossChainBridgeAdaptersUpgrade(
     CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
-  ) public {
+  ) public onlyAdmin {
     require(!currentCrossChainBridgeAdaptersUpgrade.exists, "IPCS wallet upgrade already in progress");
 
     for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
@@ -301,9 +315,12 @@ contract Governance is Owned {
     );
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function cancelCrossChainBridgeAdaptersUpgrade_delegatecall()
+  /**
+   * @notice Cancels an in-flight Cross-chain Bridge Adapter upgrade that has not yet been finalized
+   */
+  function cancelCrossChainBridgeAdaptersUpgrade()
     public
+    onlyAdmin
     returns (CrossChainBridgeAdapter[] memory newCrossChainBridgeAdaptersUpgrade)
   {
     require(currentIndexPriceCollectionServiceWalletsUpgrade.exists, "No adapter upgrade in progress");
@@ -315,10 +332,17 @@ contract Governance is Owned {
     emit CrossChainBridgeAdaptersUpgradeCanceled();
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function finalizeCrossChainBridgeAdaptersUpgrade_delegatecall(
+  /**
+   * @notice Finalizes the Cross-chain Bridge Adapter upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
+   * `initiateCrossChainBridgeAdaptersUpgrade`
+   *
+   * @param newCrossChainBridgeAdapters The descriptors for the new Cross-chain Bridge Adapter. Must equal the addresses
+   * provided to `initiateCrossChainBridgeAdaptersUpgrade`
+   */
+  function finalizeCrossChainBridgeAdaptersUpgrade(
     CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
-  ) public {
+  ) public onlyAdminOrDispatcher {
     require(currentCrossChainBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
 
     require(block.number >= currentCrossChainBridgeAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
@@ -331,17 +355,22 @@ contract Governance is Owned {
       );
     }
 
-    IExchange(custodian.exchange()).setCrossChainBridgeAdapters(newCrossChainBridgeAdapters);
+    exchange.setCrossChainBridgeAdapters(newCrossChainBridgeAdapters);
 
     delete currentCrossChainBridgeAdaptersUpgrade;
 
     emit CrossChainBridgeAdaptersUpgradeFinalized(newCrossChainBridgeAdapters);
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function initiateIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
+  /**
+   * @notice Initiates Index Price Collection Service wallet upgrade proccess. Once block delay has passed the process
+   * can be finalized with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
+   *
+   * @param newIndexPriceCollectionServiceWallets The IPCS wallet addresses
+   */
+  function initiateIndexPriceCollectionServiceWalletsUpgrade(
     address[] memory newIndexPriceCollectionServiceWallets
-  ) public {
+  ) public onlyAdmin {
     for (uint8 i = 0; i < newIndexPriceCollectionServiceWallets.length; i++) {
       require(newIndexPriceCollectionServiceWallets[i] != address(0x0), "Invalid IF wallet address");
     }
@@ -360,9 +389,12 @@ contract Governance is Owned {
     );
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function cancelIndexPriceCollectionServiceWalletsUpgrade_delegatecall()
+  /**
+   * @notice Cancels an in-flight IPCS wallet upgrade that has not yet been finalized
+   */
+  function cancelIndexPriceCollectionServiceWalletsUpgrade()
     public
+    onlyAdmin
     returns (address[] memory newIndexPriceCollectionServiceWallets)
   {
     require(currentIndexPriceCollectionServiceWalletsUpgrade.exists, "No IPCS wallet upgrade in progress");
@@ -375,10 +407,17 @@ contract Governance is Owned {
     emit IndexPriceCollectionServiceWalletsUpgradeCanceled();
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function finalizeIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
+  /**
+   * @notice Finalizes the IPCS wallet upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
+   * `initiateIndexPriceCollectionServiceWalletsUpgrade`
+   *
+   * @param newIndexPriceCollectionServiceWallets The address of the new IPCS wallets. Must equal the addresses
+   * provided to `initiateIndexPriceCollectionServiceWalletsUpgrade`
+   */
+  function finalizeIndexPriceCollectionServiceWalletsUpgrade(
     address[] memory newIndexPriceCollectionServiceWallets
-  ) public {
+  ) public onlyAdminOrDispatcher {
     require(currentIndexPriceCollectionServiceWalletsUpgrade.exists, "No IPCS wallet upgrade in progress");
 
     for (uint8 i = 0; i < newIndexPriceCollectionServiceWallets.length; i++) {
@@ -394,15 +433,20 @@ contract Governance is Owned {
       "Block threshold not yet reached"
     );
 
-    IExchange(custodian.exchange()).setIndexPriceCollectionServiceWallets(newIndexPriceCollectionServiceWallets);
+    exchange.setIndexPriceCollectionServiceWallets(newIndexPriceCollectionServiceWallets);
 
     delete (currentIndexPriceCollectionServiceWalletsUpgrade);
 
     emit IndexPriceCollectionServiceWalletsUpgradeFinalized(newIndexPriceCollectionServiceWallets);
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function initiateInsuranceFundWalletUpgrade_delegatecall(address newInsuranceFundWallet) public {
+  /**
+   * @notice Initiates Insurance Fund wallet upgrade proccess. Once block delay has passed
+   * the process can be finalized with `finalizeInsuranceFundWalletUpgrade`
+   *
+   * @param newInsuranceFundWallet The IF wallet address
+   */
+  function initiateInsuranceFundWalletUpgrade(address newInsuranceFundWallet) public onlyAdmin {
     require(newInsuranceFundWallet != address(0x0), "Invalid IF wallet address");
     require(!currentInsuranceFundWalletUpgrade.exists, "IF wallet upgrade already in progress");
 
@@ -415,8 +459,10 @@ contract Governance is Owned {
     emit InsuranceFundWalletUpgradeInitiated(newInsuranceFundWallet, currentInsuranceFundWalletUpgrade.blockThreshold);
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function cancelInsuranceFundWalletUpgrade_delegatecall() public returns (address newInsuranceFundWallet) {
+  /**
+   * @notice Cancels an in-flight IF wallet upgrade that has not yet been finalized
+   */
+  function cancelInsuranceFundWalletUpgrade() public onlyAdmin returns (address newInsuranceFundWallet) {
     require(currentInsuranceFundWalletUpgrade.exists, "No IF wallet upgrade in progress");
 
     newInsuranceFundWallet = currentInsuranceFundWalletUpgrade.newInsuranceFundWallet;
@@ -426,24 +472,35 @@ contract Governance is Owned {
     emit InsuranceFundWalletUpgradeCanceled();
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function finalizeInsuranceFundWalletUpgrade_delegatecall(address newInsuranceFundWallet) public {
+  /**
+   * @notice Finalizes the IF wallet upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateInsuranceFundWalletUpgrade`
+   *
+   * @param newInsuranceFundWallet The address of the new IF wallet. Must equal the address provided to
+   * `initiateInsuranceFundWalletUpgrade`
+   */
+  function finalizeInsuranceFundWalletUpgrade(address newInsuranceFundWallet) public onlyAdminOrDispatcher {
     require(currentInsuranceFundWalletUpgrade.exists, "No IF wallet upgrade in progress");
     require(currentInsuranceFundWalletUpgrade.newInsuranceFundWallet == newInsuranceFundWallet, "Address mismatch");
     require(block.number >= currentInsuranceFundWalletUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    IExchange(custodian.exchange()).setInsuranceFundWallet(newInsuranceFundWallet);
+    exchange.setInsuranceFundWallet(newInsuranceFundWallet);
 
     delete (currentInsuranceFundWalletUpgrade);
 
     emit InsuranceFundWalletUpgradeFinalized(newInsuranceFundWallet);
   }
 
+  /**
+   * @notice Initiates market override upgrade proccess for `wallet`. If `wallet` is zero address, then the overrides
+   * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
+   * process can be finalized with `finalizeMarketOverridesUpgrade`
+   */
   function initiateMarketOverridesUpgrade(
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
     address wallet
-  ) internal returns (uint256 blockThreshold) {
+  ) public onlyAdmin returns (uint256 blockThreshold) {
     require(
       !currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
       "Market override upgrade already in progress for wallet"
@@ -461,7 +518,10 @@ contract Governance is Owned {
     emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, blockThreshold);
   }
 
-  function cancelMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) internal {
+  /**
+   * @notice Cancels an in-flight market override upgrade process that has not yet been finalized
+   */
+  function cancelMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) public onlyAdmin {
     require(
       currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
       "No market override upgrade in progress for wallet"
@@ -472,10 +532,15 @@ contract Governance is Owned {
     emit MarketOverridesUpgradeCanceled();
   }
 
+  /**
+   * @notice Finalizes a market override upgrade process by changing the market's default overridable field values if
+   * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
+   */
   function finalizeMarketOverridesUpgrade(
     string memory baseAssetSymbol,
     address wallet
-  ) internal returns (OverridableMarketFields memory marketOverrides) {
+  ) public onlyAdminOrDispatcher returns (OverridableMarketFields memory marketOverrides) {
     MarketOverridesUpgrade storage upgrade = currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][
       wallet
     ];
@@ -484,7 +549,7 @@ contract Governance is Owned {
 
     marketOverrides = upgrade.newMarketOverrides;
 
-    IExchange(custodian.exchange()).setMarketOverrides(baseAssetSymbol, marketOverrides, wallet);
+    exchange.setMarketOverrides(baseAssetSymbol, marketOverrides, wallet);
 
     delete (currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet]);
 
