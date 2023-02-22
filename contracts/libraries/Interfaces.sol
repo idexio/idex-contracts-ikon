@@ -121,11 +121,11 @@ interface IExchange {
 interface IStargateReceiver {
   /**
    *  @param chainId The remote chainId sending the tokens
-   *   @param srcAddress The remote Bridge address
-   *   @param nonce The message ordering nonce
-   *   @param token The token contract on the local chain
-   *   @param amountLD The qty of local _token contract tokens
-   *   @param payload The bytes containing the _tokenOut, _deadline, _amountOutMin, _toAddr
+   *  @param srcAddress The remote Bridge address
+   *  @param nonce The message ordering nonce
+   *  @param token The token contract on the local chain
+   *  @param amountLD The qty of local _token contract tokens
+   *  @param payload ABI-encoded bytes containing additional arguments
    */
   function sgReceive(
     uint16 chainId,

@@ -437,13 +437,14 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @return balance The quantity denominated in pips of quote asset that can be withdrawn after exiting the wallet.
    * Result may be zero, in which case an exit withdrawal would not transfer out any quote but would still close all
-   * positions and quote balance. The available quote for exit can validly be negative for the EF wallet. For all other
-   * wallets, the exit quote calculations are designed such that the result quantity to withdraw is never negative;
-   * however the return type is still signed to provide visibility into unforseen bugs or rounding errors
+   * positions and quote balance. The available quote for exit can validly be negative for the EF wallet, in which case
+   * this function will return 0 since no withdrawal is possible. For all other wallets, the exit quote calculations are
+   * designed such that the result quantity to withdraw is never negative; however the return type is still signed to
+   * provide visibility into unforseen bugs or rounding errors
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) public view returns (int64) {
     return
-      Funding.loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
+      OraclePriceMargin.loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
         exitFundWallet,
         wallet,
         _balanceTracking,
@@ -919,13 +920,14 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total account value for a wallet by summing its quote asset balance and each open position's
-   * notional values as computed by latest published index price. Result may be negative
+   * notional values as computed by latest published index price. Result may be negative. Since index prices are
+   * published lazily, the result may be out of date for a market with little activity
    *
    * @param wallet The wallet address to calculate total account value for
    */
-  function loadTotalAccountValue(address wallet) public view returns (int64) {
+  function loadTotalAccountValueFromIndexPrices(address wallet) public view returns (int64) {
     return
-      Funding.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
+      IndexPriceMargin.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -941,9 +943,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total account value for
    */
-  function loadTotalAccountValueFromOraclePriceFeed(address wallet) public view returns (int64) {
+  function loadTotalAccountValueFromOraclePrices(address wallet) public view returns (int64) {
     return
-      Funding.loadTotalAccountValueIncludingOutstandingWalletFundingFromOraclePriceFeed_delegatecall(
+      OraclePriceMargin.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -955,11 +957,12 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total initial margin requirement for a wallet by summing each open position's initial margin
-   * requirement as computed by latest published index price
+   * requirement as computed by latest published index price. Since index prices are published lazily, the result may be
+   * out of date for a market with little activity
    *
    * @param wallet The wallet address to calculate total initial margin requirement for
    */
-  function loadTotalInitialMarginRequirement(address wallet) public view returns (uint64) {
+  function loadTotalInitialMarginRequirementFromIndexPrices(address wallet) public view returns (uint64) {
     return
       IndexPriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
@@ -976,7 +979,7 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total initial margin requirement for
    */
-  function loadTotalInitialMarginRequirementFromOraclePriceFeed(address wallet) public view returns (uint64) {
+  function loadTotalInitialMarginRequirementFromOraclePrices(address wallet) public view returns (uint64) {
     return
       OraclePriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
@@ -989,11 +992,12 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total maintenence margin requirement for a wallet by summing each open position's maintanence
-   * margin requirement as computed by latest published index price
+   * margin requirement as computed by latest published index price. Since index prices are published lazily, the result
+   * may be out of date for a market with little activity
    *
    * @param wallet The wallet address to calculate total maintanence margin requirement for
    */
-  function loadTotalMaintenanceMarginRequirement(address wallet) public view returns (uint64) {
+  function loadTotalMaintenanceMarginRequirementFromIndexPrices(address wallet) public view returns (uint64) {
     return
       IndexPriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
@@ -1010,7 +1014,7 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total maintanence margin requirement for
    */
-  function loadTotalMaintenanceMarginRequirementFromOraclePriceFeed(address wallet) public view returns (uint64) {
+  function loadTotalMaintenanceMarginRequirementFromOraclePrices(address wallet) public view returns (uint64) {
     return
       OraclePriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,

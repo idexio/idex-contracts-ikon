@@ -25,7 +25,20 @@ library Validations {
     return feeMultiplier <= Constants.MAX_FEE_MULTIPLIER;
   }
 
-  function loadAndValidateMarket(
+  function loadAndValidateInactiveMarket(
+    string memory baseAssetSymbol,
+    address liquidatingWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (Market memory market) {
+    market = marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists && !market.isActive, "No inactive market found");
+
+    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[liquidatingWallet].indexOf(baseAssetSymbol);
+    require(i != SortedStringSet.NOT_FOUND, "Open position not found for market");
+  }
+
+  function loadAndValidateActiveMarket(
     string memory baseAssetSymbol,
     address liquidatingWallet,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,

@@ -4,11 +4,10 @@ pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Funding } from "./Funding.sol";
-import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { FundingMultiplierQuartet, Market, MarketOverrides, PositionInDeactivatedMarketLiquidationArguments } from "./Structs.sol";
+import { FundingMultiplierQuartet, Market, PositionInDeactivatedMarketLiquidationArguments } from "./Structs.sol";
 
 library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
@@ -16,7 +15,7 @@ library PositionInDeactivatedMarketLiquidation {
 
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
-    PositionInDeactivatedMarketLiquidationArguments memory externalArguments,
+    PositionInDeactivatedMarketLiquidationArguments memory arguments,
     address feeWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -25,7 +24,7 @@ library PositionInDeactivatedMarketLiquidation {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Funding.updateWalletFunding(
-      externalArguments.liquidatingWallet,
+      arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -33,53 +32,31 @@ library PositionInDeactivatedMarketLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
-      externalArguments,
-      feeWallet,
-      balanceTracking,
+    Market memory market = Validations.loadAndValidateInactiveMarket(
+      arguments.baseAssetSymbol,
+      arguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
-    );
-  }
-
-  function _validateQuantitiesAndLiquidatePositionInDeactivatedMarket(
-    PositionInDeactivatedMarketLiquidationArguments memory externalArguments,
-    address feeWallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private {
-    Market memory market = marketsByBaseAssetSymbol[externalArguments.baseAssetSymbol];
-    require(market.exists && !market.isActive, "No inactive market found");
-
-    require(
-      baseAssetSymbolsWithOpenPositionsByWallet[externalArguments.liquidatingWallet].indexOf(
-        externalArguments.baseAssetSymbol
-      ) != SortedStringSet.NOT_FOUND,
-      "No open position in market"
     );
 
     // Validate quote quantity
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
       market.indexPriceAtDeactivation,
-      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-        externalArguments.liquidatingWallet,
-        market.baseAssetSymbol
-      ),
-      externalArguments.liquidationQuoteQuantity
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
+      arguments.liquidationQuoteQuantity
     );
 
     require(
-      Validations.isFeeQuantityValid(externalArguments.feeQuantity, externalArguments.liquidationQuoteQuantity),
+      Validations.isFeeQuantityValid(arguments.feeQuantity, arguments.liquidationQuoteQuantity),
       "Excessive maker fee"
     );
 
     balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,
-      externalArguments.feeQuantity,
+      arguments.feeQuantity,
       feeWallet,
-      externalArguments.liquidatingWallet,
-      externalArguments.liquidationQuoteQuantity,
+      arguments.liquidatingWallet,
+      arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
   }

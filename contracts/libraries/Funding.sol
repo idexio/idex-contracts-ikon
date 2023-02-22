@@ -5,12 +5,10 @@ pragma solidity 0.8.18;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { FundingMultiplierQuartetHelper } from "./FundingMultiplierQuartetHelper.sol";
-import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { Math } from "./Math.sol";
-import { OraclePriceMargin } from "./OraclePriceMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Time } from "./Time.sol";
-import { Balance, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market } from "./Structs.sol";
 
 library Funding {
   using BalanceTracking for BalanceTracking.Storage;
@@ -27,102 +25,6 @@ library Funding {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64 funding) {
     return
-      loadOutstandingWalletFunding(
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        fundingMultipliersByBaseAssetSymbol,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
-    address exitFundWallet,
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64) {
-    int64 outstandingWalletFunding = loadOutstandingWalletFunding(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
-    );
-    return
-      OraclePriceMargin.loadQuoteQuantityAvailableForExitWithdrawal(
-        exitFundWallet,
-        outstandingWalletFunding,
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64) {
-    int64 totalAccountValue = IndexPriceMargin.loadTotalAccountValue(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    return
-      totalAccountValue +
-      loadOutstandingWalletFunding(
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        fundingMultipliersByBaseAssetSymbol,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
-  function loadTotalAccountValueIncludingOutstandingWalletFundingFromOraclePriceFeed_delegatecall(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64) {
-    int64 outstandingWalletFunding = loadOutstandingWalletFunding(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
-    );
-    int64 totalAccountValue = OraclePriceMargin.loadTotalAccountValue(
-      outstandingWalletFunding,
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    return
-      totalAccountValue +
       loadOutstandingWalletFunding(
         wallet,
         balanceTracking,
