@@ -16,7 +16,7 @@ import { Hashing } from "./libraries/Hashing.sol";
 import { IndexPriceMargin } from "./libraries/IndexPriceMargin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
-import { OnChainPriceFeedMargin } from "./libraries/OnChainPriceFeedMargin.sol";
+import { OraclePriceMargin } from "./libraries/OraclePriceMargin.sol";
 import { Owned } from "./Owned.sol";
 import { PositionBelowMinimumLiquidation } from "./libraries/PositionBelowMinimumLiquidation.sol";
 import { PositionInDeactivatedMarketLiquidation } from "./libraries/PositionInDeactivatedMarketLiquidation.sol";
@@ -83,7 +83,7 @@ contract Exchange_v4 is IExchange, Owned {
   address public exitFundWallet;
   address public feeWallet;
   // TODO Upgrade through Governance
-  address[] public indexPriceCollectionServiceWallets;
+  address[] public indexPriceServiceWallets;
   address public insuranceFundWallet;
 
   // Events //
@@ -101,7 +101,13 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(uint64 index, address wallet, uint64 quantity, int64 newExchangeBalance);
+  event Deposited(
+    uint64 index,
+    address sourceWallet,
+    address destinationWallet,
+    uint64 quantity,
+    int64 newExchangeBalance
+  );
   /**
    * @notice Emitted when an admin changes the Exit Fund Wallet tunable parameter with `setExitFundWallet`
    */
@@ -168,6 +174,11 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Modifiers //
 
+  modifier onlyDispatcher() {
+    _onlyDispatcher();
+    _;
+  }
+
   modifier onlyDispatcherWhenExitFundHasNoPositions() {
     _onlyDispatcher();
     require(exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
@@ -196,7 +207,7 @@ contract Exchange_v4 is IExchange, Owned {
     IExchange balanceMigrationSource,
     address exitFundWallet_,
     address feeWallet_,
-    address[] memory indexPriceCollectionServiceWallets_,
+    address[] memory indexPriceServiceWallets_,
     address insuranceFundWallet_,
     address quoteAssetAddress_
   ) Owned() {
@@ -216,10 +227,10 @@ contract Exchange_v4 is IExchange, Owned {
     require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet address");
     insuranceFundWallet = insuranceFundWallet_;
 
-    for (uint8 i = 0; i < indexPriceCollectionServiceWallets_.length; i++) {
-      require(address(indexPriceCollectionServiceWallets_[i]) != address(0x0), "Invalid IPCS wallet");
+    for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {
+      require(address(indexPriceServiceWallets_[i]) != address(0x0), "Invalid IPS wallet");
     }
-    indexPriceCollectionServiceWallets = indexPriceCollectionServiceWallets_;
+    indexPriceServiceWallets = indexPriceServiceWallets_;
 
     // Deposits must be manually enabled via `setDepositIndex`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;
@@ -371,10 +382,8 @@ contract Exchange_v4 is IExchange, Owned {
     }
   }
 
-  function setIndexPriceCollectionServiceWallets(
-    address[] memory newIndexPriceCollectionServiceWallets
-  ) public onlyGovernance {
-    indexPriceCollectionServiceWallets = newIndexPriceCollectionServiceWallets;
+  function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) public onlyGovernance {
+    indexPriceServiceWallets = newIndexPriceServiceWallets;
   }
 
   function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
@@ -477,7 +486,7 @@ contract Exchange_v4 is IExchange, Owned {
    * the token contract for at least this quantity
    * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
    */
-  function deposit(uint256 quantityInAssetUnits, address destinationWallet) external {
+  function deposit(uint256 quantityInAssetUnits, address destinationWallet) public {
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
       custodian,
       depositIndex,
@@ -491,7 +500,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     depositIndex++;
 
-    emit Deposited(depositIndex, msg.sender, quantity, newExchangeBalance);
+    emit Deposited(depositIndex, msg.sender, destinationWallet, quantity, newExchangeBalance);
   }
 
   // Trades //
@@ -587,7 +596,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     WalletLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      0,
+      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       LiquidationType.WalletInMaintenance,
@@ -632,7 +641,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     WalletLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      0,
+      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       LiquidationType.WalletExited,
@@ -678,7 +687,7 @@ contract Exchange_v4 is IExchange, Owned {
     ClosureDeleveraging.deleverage_delegatecall(
       deleverageArguments,
       DeleverageType.InsuranceFundClosure,
-      0,
+      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -823,13 +832,11 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Publish updated index prices for markets
+   *
+   * @dev Acess must be `onlyDispatcher` to facilitate EF closure deleveraging during system recovery
    */
-  function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.publishIndexPrices_delegatecall(
-      indexPrices,
-      indexPriceCollectionServiceWallets,
-      _marketsByBaseAssetSymbol
-    );
+  function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcher {
+    MarketAdmin.publishIndexPrices_delegatecall(indexPrices, indexPriceServiceWallets, _marketsByBaseAssetSymbol);
   }
 
   function setMarketOverrides(
@@ -934,9 +941,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total account value for
    */
-  function loadTotalAccountValueFromOnChainPriceFeed(address wallet) public view returns (int64) {
+  function loadTotalAccountValueFromOraclePriceFeed(address wallet) public view returns (int64) {
     return
-      Funding.loadTotalAccountValueIncludingOutstandingWalletFundingFromOnChainPriceFeed_delegatecall(
+      Funding.loadTotalAccountValueIncludingOutstandingWalletFundingFromOraclePriceFeed_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -969,9 +976,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total initial margin requirement for
    */
-  function loadTotalInitialMarginRequirementFromOnChainPriceFeed(address wallet) public view returns (uint64) {
+  function loadTotalInitialMarginRequirementFromOraclePriceFeed(address wallet) public view returns (uint64) {
     return
-      OnChainPriceFeedMargin.loadTotalInitialMarginRequirement_delegatecall(
+      OraclePriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1003,9 +1010,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total maintanence margin requirement for
    */
-  function loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed(address wallet) public view returns (uint64) {
+  function loadTotalMaintenanceMarginRequirementFromOraclePriceFeed(address wallet) public view returns (uint64) {
     return
-      OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
+      OraclePriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,

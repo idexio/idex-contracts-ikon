@@ -106,7 +106,7 @@ interface IExchange {
 
   function setCrossChainBridgeAdapters(CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters) external;
 
-  function setIndexPriceCollectionServiceWallets(address[] memory newIndexPriceCollectionServiceWallets) external;
+  function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) external;
 
   function setInsuranceFundWallet(address newInsuranceFundWallet) external;
 

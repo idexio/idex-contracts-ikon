@@ -89,7 +89,7 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
     });
 
-    it('should revert for zero IPCS wallet', async () => {
+    it('should revert for zero IPS wallet', async () => {
       const [ownerWallet] = await ethers.getSigners();
 
       const balanceMigrationSourceMock =

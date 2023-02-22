@@ -7,7 +7,7 @@ import { Constants } from "./Constants.sol";
 import { FundingMultiplierQuartetHelper } from "./FundingMultiplierQuartetHelper.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { Math } from "./Math.sol";
-import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
+import { OraclePriceMargin } from "./OraclePriceMargin.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Time } from "./Time.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
@@ -57,7 +57,7 @@ library Funding {
       marketsByBaseAssetSymbol
     );
     return
-      OnChainPriceFeedMargin.loadQuoteQuantityAvailableForExitWithdrawal(
+      OraclePriceMargin.loadQuoteQuantityAvailableForExitWithdrawal(
         exitFundWallet,
         outstandingWalletFunding,
         wallet,
@@ -97,7 +97,7 @@ library Funding {
   }
 
   // solhint-disable-next-line func-name-mixedcase
-  function loadTotalAccountValueIncludingOutstandingWalletFundingFromOnChainPriceFeed_delegatecall(
+  function loadTotalAccountValueIncludingOutstandingWalletFundingFromOraclePriceFeed_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -113,7 +113,7 @@ library Funding {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    int64 totalAccountValue = OnChainPriceFeedMargin.loadTotalAccountValue(
+    int64 totalAccountValue = OraclePriceMargin.loadTotalAccountValue(
       outstandingWalletFunding,
       wallet,
       balanceTracking,

@@ -186,7 +186,7 @@ library BalanceTracking {
     // Calculate amount of quote to close position
     uint64 quoteQuantity = LiquidationValidations.calculateExitQuoteQuantity(
       balanceStruct.costBasis,
-      arguments.market.loadOnChainFeedPrice(),
+      arguments.market.loadOracleFeedPrice(),
       arguments.maintenanceMarginFraction,
       positionSize,
       arguments.totalAccountValue,

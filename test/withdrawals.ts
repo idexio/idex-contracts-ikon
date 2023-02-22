@@ -79,7 +79,7 @@ describe('Exchange', function () {
     let exchange: Exchange_v4;
     let exitFundWallet: SignerWithAddress;
     let indexPrice: IndexPrice;
-    let indexPriceCollectionServiceWallet: SignerWithAddress;
+    let indexPriceServiceWallet: SignerWithAddress;
     let insuranceFundWallet: SignerWithAddress;
     let ownerWallet: SignerWithAddress;
     let trader1Wallet: SignerWithAddress;
@@ -94,7 +94,7 @@ describe('Exchange', function () {
         ,
         dispatcherWallet,
         exitFundWallet,
-        indexPriceCollectionServiceWallet,
+        indexPriceServiceWallet,
         insuranceFundWallet,
         ownerWallet,
         trader1Wallet,
@@ -106,7 +106,7 @@ describe('Exchange', function () {
         exitFundWallet,
         feeWallet,
         insuranceFundWallet,
-        indexPriceCollectionServiceWallet,
+        indexPriceServiceWallet,
       );
       exchange = results.exchange;
       usdc = results.usdc;
@@ -115,7 +115,7 @@ describe('Exchange', function () {
 
       await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
 
-      indexPrice = await buildIndexPrice(indexPriceCollectionServiceWallet);
+      indexPrice = await buildIndexPrice(indexPriceServiceWallet);
 
       await executeTrade(
         exchange,

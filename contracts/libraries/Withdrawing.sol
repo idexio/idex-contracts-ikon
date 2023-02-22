@@ -15,7 +15,7 @@ import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
+import { OraclePriceMargin } from "./OraclePriceMargin.sol";
 import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
 import { ICrossChainBridgeAdapter, ICustodian } from "./Interfaces.sol";
@@ -236,7 +236,7 @@ library Withdrawing {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
     // Outstanding funding payments already applied in withdrawExit_delegatecall
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OraclePriceMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         0,
         arguments.wallet,

@@ -53,7 +53,7 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
         libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
-      ['contracts/libraries/OnChainPriceFeedMargin.sol:OnChainPriceFeedMargin']:
+      ['contracts/libraries/OraclePriceMargin.sol:OraclePriceMargin']:
         libraryAddresses.onChainPriceFeedMargin,
       ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
         libraryAddresses.positionBelowMinimumLiquidation,

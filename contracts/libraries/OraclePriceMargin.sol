@@ -9,7 +9,7 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { Balance, Market, MarketOverrides } from "./Structs.sol";
 
-library OnChainPriceFeedMargin {
+library OraclePriceMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
@@ -22,7 +22,7 @@ library OnChainPriceFeedMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 initialMarginRequirement) {
     return
-      OnChainPriceFeedMargin.loadTotalInitialMarginRequirement(
+      OraclePriceMargin.loadTotalInitialMarginRequirement(
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -40,7 +40,7 @@ library OnChainPriceFeedMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (uint64 maintenanceMarginRequirement) {
     return
-      OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement(
+      OraclePriceMargin.loadTotalMaintenanceMarginRequirement(
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -68,7 +68,7 @@ library OnChainPriceFeedMargin {
       return quoteQuantityAvailableForExitWithdrawal + outstandingWalletFunding;
     }
 
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OraclePriceMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         outstandingWalletFunding,
         wallet,
@@ -111,7 +111,7 @@ library OnChainPriceFeedMargin {
 
       totalAccountValue += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-        int64(market.loadOnChainFeedPrice()),
+        int64(market.loadOracleFeedPrice()),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
@@ -199,7 +199,7 @@ library OnChainPriceFeedMargin {
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-            int64(market.loadOnChainFeedPrice()),
+            int64(market.loadOracleFeedPrice()),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
           int64(marginFraction),
@@ -226,7 +226,7 @@ library OnChainPriceFeedMargin {
     uint64 quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
       balanceStruct.costBasis,
       // Market indexed redundantly to avoid stack too deep error
-      market.loadOnChainFeedPrice(),
+      market.loadOracleFeedPrice(),
       market
         .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields

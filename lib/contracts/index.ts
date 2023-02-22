@@ -30,7 +30,7 @@ export type LibraryName =
   | 'IndexPriceMargin'
   | 'MarketAdmin'
   | 'NonceInvalidations'
-  | 'OnChainPriceFeedMargin'
+  | 'OraclePriceMargin'
   | 'PositionBelowMinimumLiquidation'
   | 'PositionInDeactivatedMarketLiquidation'
   | 'Trading'

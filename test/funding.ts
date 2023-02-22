@@ -207,7 +207,7 @@ describe('Exchange', function () {
         exitFundWallet,
         feeWallet,
         insuranceWallet,
-        indexPriceCollectionServiceWallet,
+        indexPriceServiceWallet,
         trader1Wallet,
         trader2Wallet,
       ] = await ethers.getSigners();
@@ -217,7 +217,7 @@ describe('Exchange', function () {
         exitFundWallet,
         feeWallet,
         insuranceWallet,
-        indexPriceCollectionServiceWallet,
+        indexPriceServiceWallet,
       );
 
       await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
@@ -228,9 +228,7 @@ describe('Exchange', function () {
         usdc,
       );
 
-      const indexPrice = await buildIndexPrice(
-        indexPriceCollectionServiceWallet,
-      );
+      const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
 
       await executeTrade(
         exchange,
@@ -241,10 +239,7 @@ describe('Exchange', function () {
       );
 
       const fundingRates = buildFundingRates(5);
-      const indexPrices = await buildIndexPrices(
-        indexPriceCollectionServiceWallet,
-        5,
-      );
+      const indexPrices = await buildIndexPrices(indexPriceServiceWallet, 5);
       for (const i of [...Array(5).keys()]) {
         await time.increase(fundingPeriodLengthInMs / 1000);
 

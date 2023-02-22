@@ -20,7 +20,7 @@ describe('Exchange', function () {
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
   let indexPrice: IndexPrice;
-  let indexPriceCollectionServiceWallet: SignerWithAddress;
+  let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
   let dispatcherWallet: SignerWithAddress;
@@ -36,7 +36,7 @@ describe('Exchange', function () {
       ,
       dispatcherWallet,
       exitFundWallet,
-      indexPriceCollectionServiceWallet,
+      indexPriceServiceWallet,
       insuranceFundWallet,
       ownerWallet,
       trader1Wallet,
@@ -48,7 +48,7 @@ describe('Exchange', function () {
       exitFundWallet,
       feeWallet,
       insuranceFundWallet,
-      indexPriceCollectionServiceWallet,
+      indexPriceServiceWallet,
     );
     exchange = results.exchange;
     governance = results.governance;
@@ -58,7 +58,7 @@ describe('Exchange', function () {
 
     await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
 
-    indexPrice = await buildIndexPrice(indexPriceCollectionServiceWallet);
+    indexPrice = await buildIndexPrice(indexPriceServiceWallet);
 
     await executeTrade(
       exchange,
@@ -141,7 +141,7 @@ describe('Exchange', function () {
   describe('liquidateWalletInMaintenanceDuringSystemRecovery', async function () {
     it('should work for valid wallet', async function () {
       const newIndexPrice = await buildIndexPriceWithValue(
-        indexPriceCollectionServiceWallet,
+        indexPriceServiceWallet,
         '2150.00000000',
         baseAssetSymbol,
         2,

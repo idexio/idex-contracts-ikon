@@ -102,7 +102,7 @@ struct IndexPrice {
   uint64 timestampInMs;
   // Price of base asset in decimal pips * 10^8 in quote terms
   uint64 price;
-  // Signature from index price collection service wallet
+  // Signature from index price service wallet
   bytes signature;
 }
 
