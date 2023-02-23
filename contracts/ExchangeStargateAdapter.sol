@@ -6,9 +6,13 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { Owned } from "./Owned.sol";
-import { ICrossChainBridgeAdapter, IExchange, IStargateReceiver, IStargateRouter } from "./libraries/Interfaces.sol";
+import { ICrossChainBridgeAdapter, ICustodian, IExchange, IStargateReceiver, IStargateRouter } from "./libraries/Interfaces.sol";
 
 contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver, Owned {
+  // Must be true or `sgReceive` will revert
+  bool public isDepositEnabled;
+  // Must be true or `withdrawQuoteAsset` will revert
+  bool public isWithdrawEnabled;
   // The pool ID on the source chain
   uint16 public immutable sourcePoolId;
   // The LayerZero ID for the target chain
@@ -16,14 +20,14 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
   // The pool ID on the target chain
   uint256 public immutable targetPoolId;
   // Address of Exchange contract
-  IExchange public immutable exchange;
+  ICustodian public immutable custodian;
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteAssetAddress;
   // Address of Stargate router contract
   IStargateRouter public immutable router;
 
   modifier onlyExchange() {
-    require(msg.sender == address(exchange), "Caller must be Exchange contract");
+    require(msg.sender == address(custodian.exchange()), "Caller must be Exchange contract");
     _;
   }
 
@@ -31,15 +35,15 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
    * @notice Instantiate a new `ExchangeStargateAdapter` contract
    */
   constructor(
-    address exchange_,
+    address custodian_,
     uint16 sourcePoolId_,
     uint16 targetChainId_,
     uint256 targetPoolId_,
     address router_,
     address quoteAssetAddress_
   ) {
-    require(Address.isContract(exchange_), "Invalid Exchange address");
-    exchange = IExchange(exchange_);
+    require(Address.isContract(custodian_), "Invalid Custodian address");
+    custodian = ICustodian(custodian_);
 
     sourcePoolId = sourcePoolId_;
     targetChainId = targetChainId_;
@@ -51,9 +55,12 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
     require(Address.isContract(quoteAssetAddress_), "Invalid quote asset address");
     quoteAssetAddress = quoteAssetAddress_;
 
-    IERC20(quoteAssetAddress).approve(address(exchange), type(uint256).max);
+    IERC20(quoteAssetAddress).approve(custodian.exchange(), type(uint256).max);
   }
 
+  /**
+   * @notice Allow Admin wallet to fund contract for gas fees
+   */
   receive() external payable onlyAdmin {}
 
   /**
@@ -69,13 +76,17 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
     uint256 amountLD,
     bytes memory payload
   ) public override {
+    require(isDepositEnabled, "Deposits disabled");
+
     require(token == address(quoteAssetAddress), "Invalid token");
 
     address destinationWallet = abi.decode(payload, (address));
-    exchange.deposit(amountLD, destinationWallet);
+    IExchange(custodian.exchange()).deposit(amountLD, destinationWallet);
   }
 
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity) public onlyExchange {
+    require(isWithdrawEnabled, "Withdraw disabled");
+
     (uint256 fee, ) = router.quoteLayerZeroFee(
       targetChainId,
       1,
@@ -83,6 +94,8 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
       "0x",
       IStargateRouter.lzTxObj(0, 0, abi.encodePacked(destinationWallet))
     );
+
+    IERC20(quoteAssetAddress).approve(address(router), quantity);
 
     // perform a Stargate swap() in a solidity smart contract function
     // the msg.value is the "fee" that Stargate needs to pay for the cross chain message
@@ -99,7 +112,18 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
     );
   }
 
-  function skim(address tokenAddress, address destinationWallet) public onlyAdmin {
+  function setDepositEnabled(bool isEnabled) public onlyAdmin {
+    isDepositEnabled = isEnabled;
+  }
+
+  function setWithdrawEnabled(bool isEnabled) public onlyAdmin {
+    isWithdrawEnabled = isEnabled;
+  }
+
+  /**
+   * @notice Sends tokens mistakenly sent directly to the adapter contract to a destination wallet
+   */
+  function skimToken(address tokenAddress, address destinationWallet) public onlyAdmin {
     require(Address.isContract(tokenAddress), "Invalid token address");
 
     uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
@@ -108,6 +132,9 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
     IERC20(tokenAddress).transfer(destinationWallet, balance);
   }
 
+  /**
+   * @notice Allow Admin wallet to withdraw gas fee funding
+   */
   function withdrawNativeAsset(address payable destinationWallet, uint256 quantity) public onlyAdmin {
     destinationWallet.transfer(quantity);
   }

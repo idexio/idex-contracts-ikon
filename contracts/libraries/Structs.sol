@@ -75,7 +75,6 @@ struct DelegatedKeyAuthorization {
  */
 struct ExchangeConstructorArguments {
   address balanceMigrationSource;
-  CrossChainBridgeAdapter[] crossChainBridgeAdapters;
   address exitFundWallet;
   address feeWallet;
   address[] indexPriceServiceWallets;

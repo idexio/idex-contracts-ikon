@@ -98,7 +98,6 @@ describe('Custodian', function () {
     it('should work when sent from governance address', async () => {
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],

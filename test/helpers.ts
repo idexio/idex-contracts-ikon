@@ -225,7 +225,6 @@ export async function deployContractsExceptCustodian(
     (
       await ExchangeFactory.connect(owner).deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: exitFundWallet.address,
         feeWallet: feeWallet.address,
         indexPriceServiceWallets: [indexPriceServiceWallet.address],
@@ -266,7 +265,7 @@ export async function deployAndAssociateContracts(
   ).deployed();
 
   await Promise.all([
-    (await exchange.setCustodian(custodian.address)).wait(),
+    (await exchange.setCustodian(custodian.address, [])).wait(),
     (await exchange.setDepositIndex()).wait(),
     (await exchange.setDispatcher(dispatcher.address)).wait(),
     (await governance.setCustodian(custodian.address)).wait(),

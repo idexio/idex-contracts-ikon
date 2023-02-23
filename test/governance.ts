@@ -138,7 +138,6 @@ describe('Governance', function () {
     it('should work for valid contract address', async () => {
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -166,7 +165,6 @@ describe('Governance', function () {
     it('should revert when upgrade already in progress', async () => {
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -205,7 +203,6 @@ describe('Governance', function () {
       const usdc = await (await ethers.getContractFactory('USDC')).deploy();
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -249,7 +246,6 @@ describe('Governance', function () {
     it('should work when upgrade was initiated and addresses match', async () => {
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -270,7 +266,6 @@ describe('Governance', function () {
     it('should revert when upgrade was initiated and addresses mismatch', async () => {
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -297,7 +292,6 @@ describe('Governance', function () {
       governance = results.governance;
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],

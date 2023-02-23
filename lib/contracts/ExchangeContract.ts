@@ -27,7 +27,7 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       indexPriceMargin: string;
       marketAdmin: string;
       nonceInvalidations: string;
-      onChainPriceFeedMargin: string;
+      oraclePriceMargin: string;
       positionBelowMinimumLiquidation: string;
       positionInDeactivatedMarketLiquidation: string;
       trading: string;
@@ -54,7 +54,7 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
       ['contracts/libraries/OraclePriceMargin.sol:OraclePriceMargin']:
-        libraryAddresses.onChainPriceFeedMargin,
+        libraryAddresses.oraclePriceMargin,
       ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
         libraryAddresses.positionBelowMinimumLiquidation,
       ['contracts/libraries/PositionInDeactivatedMarketLiquidation.sol:PositionInDeactivatedMarketLiquidation']:

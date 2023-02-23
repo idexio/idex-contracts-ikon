@@ -213,11 +213,6 @@ contract Exchange_v4 is IExchange, Owned {
     );
     _balanceTracking.migrationSource = IExchange(arguments_.balanceMigrationSource);
 
-    for (uint8 i = 0; i < arguments_.crossChainBridgeAdapters.length; i++) {
-      Validations.validateCrossChainBridgeAdapter(arguments_.crossChainBridgeAdapters[i]);
-      _crossChainBridgeAdapters.push(arguments_.crossChainBridgeAdapters[i]);
-    }
-
     require(Address.isContract(address(arguments_.quoteAssetAddress)), "Invalid quote asset address");
     quoteAssetAddress = arguments_.quoteAssetAddress;
 
@@ -301,7 +296,7 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Sets the address of the `Custodian` contract
+   * @notice Sets the address of the `Custodian` contract as well as initial cross-chain bridge adapters
    *
    * @dev The `Custodian` accepts `Exchange` and `Governance` addresses in its constructor, after
    * which they can only be changed by the `Governance` contract itself. Therefore the `Custodian`
@@ -310,12 +305,22 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange`
    * contract's address
+   * @param crossChainBridgeAdapters An array of cross-chain bridge adapter descriptors. They can be passed in here
+   * as a convenience to avoid waiting the full field upgrade governance delay following initial deploy
    */
-  function setCustodian(ICustodian newCustodian) public onlyAdmin {
+  function setCustodian(
+    ICustodian newCustodian,
+    CrossChainBridgeAdapter[] memory crossChainBridgeAdapters
+  ) public onlyAdmin {
     require(custodian == ICustodian(payable(address(0x0))), "Custodian can only be set once");
     require(Address.isContract(address(newCustodian)), "Invalid address");
 
     custodian = newCustodian;
+
+    for (uint8 i = 0; i < crossChainBridgeAdapters.length; i++) {
+      Validations.validateCrossChainBridgeAdapter(crossChainBridgeAdapters[i]);
+      _crossChainBridgeAdapters.push(crossChainBridgeAdapters[i]);
+    }
   }
 
   /**

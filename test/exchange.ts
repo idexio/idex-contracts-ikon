@@ -32,7 +32,6 @@ describe('Exchange', function () {
 
       await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -49,7 +48,6 @@ describe('Exchange', function () {
 
       await ExchangeFactory.deploy({
         balanceMigrationSource: balanceMigrationSourceMock.address,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -64,7 +62,6 @@ describe('Exchange', function () {
       await expect(
         ExchangeFactory.deploy({
           balanceMigrationSource: ownerWallet.address,
-          crossChainBridgeAdapters: [],
           exitFundWallet: ownerWallet.address,
           feeWallet: ownerWallet.address,
           indexPriceServiceWallets: [ownerWallet.address],
@@ -83,7 +80,6 @@ describe('Exchange', function () {
       await expect(
         ExchangeFactory.deploy({
           balanceMigrationSource: balanceMigrationSourceMock.address,
-          crossChainBridgeAdapters: [],
           exitFundWallet: ownerWallet.address,
           feeWallet: ownerWallet.address,
           indexPriceServiceWallets: [ownerWallet.address],
@@ -102,7 +98,6 @@ describe('Exchange', function () {
       await expect(
         ExchangeFactory.deploy({
           balanceMigrationSource: balanceMigrationSourceMock.address,
-          crossChainBridgeAdapters: [],
           exitFundWallet: ownerWallet.address,
           feeWallet: ownerWallet.address,
           indexPriceServiceWallets: [ethers.constants.AddressZero],
@@ -132,7 +127,6 @@ describe('Exchange', function () {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -141,7 +135,7 @@ describe('Exchange', function () {
       });
 
       await expect(
-        newExchange.setCustodian(ethers.constants.AddressZero),
+        newExchange.setCustodian(ethers.constants.AddressZero, []),
       ).to.eventually.be.rejectedWith(/invalid address/i);
     });
 
@@ -149,7 +143,6 @@ describe('Exchange', function () {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy({
         balanceMigrationSource: ethers.constants.AddressZero,
-        crossChainBridgeAdapters: [],
         exitFundWallet: ownerWallet.address,
         feeWallet: ownerWallet.address,
         indexPriceServiceWallets: [ownerWallet.address],
@@ -158,13 +151,13 @@ describe('Exchange', function () {
       });
 
       await expect(
-        newExchange.setCustodian((await ethers.getSigners())[1].address),
+        newExchange.setCustodian((await ethers.getSigners())[1].address, []),
       ).to.eventually.be.rejectedWith(/invalid address/i);
     });
 
     it('should revert when already set', async () => {
       await expect(
-        exchange.setCustodian(ethers.constants.AddressZero),
+        exchange.setCustodian(ethers.constants.AddressZero, []),
       ).to.eventually.be.rejectedWith(/custodian can only be set once/i);
     });
 
@@ -172,7 +165,7 @@ describe('Exchange', function () {
       await expect(
         exchange
           .connect((await ethers.getSigners())[1])
-          .setCustodian(governance.address),
+          .setCustodian(governance.address, []),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
