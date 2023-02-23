@@ -32,7 +32,7 @@ library PositionInDeactivatedMarketLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    Market memory market = Validations.loadAndValidateInactiveMarket(
+    Market memory market = _loadAndValidateInactiveMarket(
       arguments.baseAssetSymbol,
       arguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -59,5 +59,19 @@ library PositionInDeactivatedMarketLiquidation {
       arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
+  }
+
+  // Note this is slightly different from `Validations.loadAndValidateActiveMarket`
+  function _loadAndValidateInactiveMarket(
+    string memory baseAssetSymbol,
+    address liquidatingWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (Market memory market) {
+    market = marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists && !market.isActive, "No inactive market found");
+
+    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[liquidatingWallet].indexOf(baseAssetSymbol);
+    require(i != SortedStringSet.NOT_FOUND, "Open position not found for market");
   }
 }

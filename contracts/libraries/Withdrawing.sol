@@ -120,23 +120,26 @@ library Withdrawing {
       );
     }
 
-    CrossChainBridgeAdapter memory adapter = crossChainBridgeAdapters[
-      arguments.withdrawal.crossChainBridgeAdapterIndex
-    ];
-    require(String.isEqual(adapter.targetChain, arguments.withdrawal.targetChain), "Invalid bridge adapter index");
-
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
       arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
       Constants.QUOTE_ASSET_DECIMALS
     );
-    if (adapter.isLocal) {
+    if (String.isEqual(arguments.withdrawal.targetChainName, Constants.LOCAL_CHAIN_NAME)) {
       arguments.custodian.withdraw(
         arguments.withdrawal.wallet,
         arguments.quoteAssetAddress,
         netAssetQuantityInAssetUnits
       );
     } else {
+      CrossChainBridgeAdapter memory adapter = crossChainBridgeAdapters[
+        arguments.withdrawal.crossChainBridgeAdapterIndex
+      ];
+      require(
+        String.isEqual(adapter.targetChainName, arguments.withdrawal.targetChainName),
+        "Invalid bridge adapter index"
+      );
+
       arguments.custodian.withdraw(adapter.adapterContract, arguments.quoteAssetAddress, netAssetQuantityInAssetUnits);
       ICrossChainBridgeAdapter(adapter.adapterContract).withdrawQuoteAsset(
         arguments.withdrawal.wallet,

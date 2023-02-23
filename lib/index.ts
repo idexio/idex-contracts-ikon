@@ -138,7 +138,7 @@ export interface Withdrawal {
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
-  targetChain: string;
+  targetChainName: string;
 }
 
 export const compareMarketSymbols = (a: string, b: string): number =>
@@ -238,7 +238,7 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
     ['uint128', uuidToUint8Array(withdrawal.nonce)],
     ['address', withdrawal.wallet],
     ['string', withdrawal.quantity],
-    ['string', withdrawal.targetChain],
+    ['string', withdrawal.targetChainName],
   ]);
 };
 
@@ -304,7 +304,7 @@ export const getWithdrawArguments = (
       nonce: uuidToHexString(withdrawal.nonce),
       wallet: withdrawal.wallet,
       grossQuantity: decimalToPips(withdrawal.quantity),
-      targetChain: 'matic',
+      targetChainName: 'matic',
       crossChainBridgeAdapterIndex: 0,
       gasFee: decimalToPips(gasFee),
       walletSignature,

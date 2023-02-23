@@ -299,11 +299,12 @@ contract Governance is Owned {
     require(!currentCrossChainBridgeAdaptersUpgrade.exists, "IPS wallet upgrade already in progress");
 
     for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
-      // Local adapters (no cross-chain bridges should have a zero address for the adapter contract)
+      require(Address.isContract(newCrossChainBridgeAdapters[i].adapterContract), "Invalid adapter address");
       require(
-        newCrossChainBridgeAdapters[i].adapterContract != address(0x0) || newCrossChainBridgeAdapters[0].isLocal,
-        "Invalid adapter address"
+        !String.isEqual(newCrossChainBridgeAdapters[i].targetChainName, Constants.LOCAL_CHAIN_NAME),
+        "Cannot target local chain"
       );
+
       currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
     }
 
@@ -352,19 +353,14 @@ contract Governance is Owned {
     // Verify provided descriptors match originals
     for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
       require(
-        currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters[i].isLocal ==
-          newCrossChainBridgeAdapters[i].isLocal,
-        "Local flag mismatch"
-      );
-      require(
         currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters[i].adapterContract ==
           newCrossChainBridgeAdapters[i].adapterContract,
         "Address mismatch"
       );
       require(
         String.isEqual(
-          currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters[i].targetChain,
-          newCrossChainBridgeAdapters[i].targetChain
+          currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters[i].targetChainName,
+          newCrossChainBridgeAdapters[i].targetChainName
         ),
         "Target chain mismatch"
       );

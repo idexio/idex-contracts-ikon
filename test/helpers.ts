@@ -292,15 +292,6 @@ export async function deployAndAssociateContracts(
   ]);
   (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
 
-  const localAdapter = {
-    isLocal: true,
-    adapterContract: ethers.constants.AddressZero,
-    targetChain: 'matic',
-  };
-  await governance.initiateCrossChainBridgeAdaptersUpgrade([localAdapter]);
-  await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
-  await governance.finalizeCrossChainBridgeAdaptersUpgrade([localAdapter]);
-
   return {
     chainlinkAggregator,
     custodian,

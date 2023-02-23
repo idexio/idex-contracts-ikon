@@ -51,7 +51,7 @@ describe('Exchange', function () {
         nonce: uuidv1(),
         wallet: trader.address,
         quantity: '1.00000000',
-        targetChain: 'matic',
+        targetChainName: 'matic',
       };
       const signature = await trader.signMessage(
         ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
