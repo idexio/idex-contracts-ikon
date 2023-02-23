@@ -71,6 +71,19 @@ struct DelegatedKeyAuthorization {
 }
 
 /**
+ * @notice Argument tyep for Exchange constructor
+ */
+struct ExchangeConstructorArguments {
+  address balanceMigrationSource;
+  CrossChainBridgeAdapter[] crossChainBridgeAdapters;
+  address exitFundWallet;
+  address feeWallet;
+  address[] indexPriceServiceWallets;
+  address insuranceFundWallet;
+  address quoteAssetAddress;
+}
+
+/**
  * @notice Argument type for `executeOrderBookTrade`
  */
 struct ExecuteOrderBookTradeArguments {

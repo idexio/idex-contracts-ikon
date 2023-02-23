@@ -136,14 +136,15 @@ describe('Governance', function () {
     });
 
     it('should work for valid contract address', async () => {
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await governance.initiateExchangeUpgrade(newExchange.address);
     });
@@ -163,14 +164,15 @@ describe('Governance', function () {
     });
 
     it('should revert when upgrade already in progress', async () => {
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await governance.initiateExchangeUpgrade(newExchange.address);
       await expect(
@@ -201,14 +203,15 @@ describe('Governance', function () {
 
     it('should work when upgrade was initiated', async () => {
       const usdc = await (await ethers.getContractFactory('USDC')).deploy();
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await governance.initiateExchangeUpgrade(newExchange.address);
       await governance.cancelExchangeUpgrade();
@@ -244,14 +247,15 @@ describe('Governance', function () {
     });
 
     it('should work when upgrade was initiated and addresses match', async () => {
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await governance.initiateExchangeUpgrade(newExchange.address);
       await governance.finalizeExchangeUpgrade(newExchange.address);
@@ -264,14 +268,15 @@ describe('Governance', function () {
     });
 
     it('should revert when upgrade was initiated and addresses mismatch', async () => {
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await governance.initiateExchangeUpgrade(newExchange.address);
       await expect(
@@ -290,14 +295,15 @@ describe('Governance', function () {
         100,
       );
       governance = results.governance;
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await governance.initiateExchangeUpgrade(newExchange.address);
       await expect(

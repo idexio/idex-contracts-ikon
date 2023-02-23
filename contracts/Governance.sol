@@ -299,11 +299,7 @@ contract Governance is Owned {
     require(!currentCrossChainBridgeAdaptersUpgrade.exists, "IPS wallet upgrade already in progress");
 
     for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
-      require(Address.isContract(newCrossChainBridgeAdapters[i].adapterContract), "Invalid adapter address");
-      require(
-        !String.isEqual(newCrossChainBridgeAdapters[i].targetChainName, Constants.LOCAL_CHAIN_NAME),
-        "Cannot target local chain"
-      );
+      Validations.validateCrossChainBridgeAdapter(newCrossChainBridgeAdapters[i]);
 
       currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
     }

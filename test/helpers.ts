@@ -223,14 +223,15 @@ export async function deployContractsExceptCustodian(
 
   const [exchange, governance] = await Promise.all([
     (
-      await ExchangeFactory.connect(owner).deploy(
-        ethers.constants.AddressZero,
-        exitFundWallet.address,
-        feeWallet.address,
-        [indexPriceServiceWallet.address],
-        insuranceFund.address,
-        usdc.address,
-      )
+      await ExchangeFactory.connect(owner).deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: exitFundWallet.address,
+        feeWallet: feeWallet.address,
+        indexPriceServiceWallets: [indexPriceServiceWallet.address],
+        insuranceFundWallet: insuranceFund.address,
+        quoteAssetAddress: usdc.address,
+      })
     ).deployed(),
     (
       await GovernanceFactory.connect(owner).deploy(governanceBlockDelay)

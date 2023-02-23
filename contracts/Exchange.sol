@@ -23,9 +23,10 @@ import { PositionInDeactivatedMarketLiquidation } from "./libraries/PositionInDe
 import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
+import { Validations } from "./libraries/Validations.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExchangeConstructorArguments, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -201,36 +202,36 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Instantiate a new `Exchange` contract
    *
-   * @dev Sets `_balanceTracking.migrationSource` to first argument, and `owner_` and `admin_` to `msg.sender`
+   * @dev Sets `owner_` and `admin_` to `msg.sender`
+   * @dev Since arguments is a keyword in JS, postfix _ to arguments here to avoid error in generated Typechain code
    */
-  constructor(
-    IExchange balanceMigrationSource,
-    address exitFundWallet_,
-    address feeWallet_,
-    address[] memory indexPriceServiceWallets_,
-    address insuranceFundWallet_,
-    address quoteAssetAddress_
-  ) Owned() {
+  constructor(ExchangeConstructorArguments memory arguments_) Owned() {
     require(
-      address(balanceMigrationSource) == address(0x0) || Address.isContract(address(balanceMigrationSource)),
+      address(arguments_.balanceMigrationSource) == address(0x0) ||
+        Address.isContract(address(arguments_.balanceMigrationSource)),
       "Invalid migration source"
     );
-    _balanceTracking.migrationSource = balanceMigrationSource;
+    _balanceTracking.migrationSource = IExchange(arguments_.balanceMigrationSource);
 
-    require(Address.isContract(address(quoteAssetAddress_)), "Invalid quote asset address");
-    quoteAssetAddress = quoteAssetAddress_;
-
-    setExitFundWallet(exitFundWallet_);
-
-    setFeeWallet(feeWallet_);
-
-    require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet address");
-    insuranceFundWallet = insuranceFundWallet_;
-
-    for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {
-      require(address(indexPriceServiceWallets_[i]) != address(0x0), "Invalid IPS wallet");
+    for (uint8 i = 0; i < arguments_.crossChainBridgeAdapters.length; i++) {
+      Validations.validateCrossChainBridgeAdapter(arguments_.crossChainBridgeAdapters[i]);
+      _crossChainBridgeAdapters.push(arguments_.crossChainBridgeAdapters[i]);
     }
-    indexPriceServiceWallets = indexPriceServiceWallets_;
+
+    require(Address.isContract(address(arguments_.quoteAssetAddress)), "Invalid quote asset address");
+    quoteAssetAddress = arguments_.quoteAssetAddress;
+
+    setExitFundWallet(arguments_.exitFundWallet);
+
+    setFeeWallet(arguments_.feeWallet);
+
+    require(arguments_.insuranceFundWallet != address(0x0), "Invalid IF wallet address");
+    insuranceFundWallet = arguments_.insuranceFundWallet;
+
+    for (uint8 i = 0; i < arguments_.indexPriceServiceWallets.length; i++) {
+      require(address(arguments_.indexPriceServiceWallets[i]) != address(0x0), "Invalid IPS wallet");
+    }
+    indexPriceServiceWallets = arguments_.indexPriceServiceWallets;
 
     // Deposits must be manually enabled via `setDepositIndex`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;

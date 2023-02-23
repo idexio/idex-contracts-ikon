@@ -30,14 +30,15 @@ describe('Exchange', function () {
     it('should work for zero address migration source', async () => {
       const [ownerWallet] = await ethers.getSigners();
 
-      await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
     });
 
     it('should work for contract migration source', async () => {
@@ -46,28 +47,30 @@ describe('Exchange', function () {
       const balanceMigrationSourceMock =
         await BalanceMigrationSourceMockFactory.deploy(0);
 
-      await ExchangeFactory.deploy(
-        balanceMigrationSourceMock.address,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      await ExchangeFactory.deploy({
+        balanceMigrationSource: balanceMigrationSourceMock.address,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
     });
 
     it('should revert for non-contract migration source', async () => {
       const [ownerWallet] = await ethers.getSigners();
 
       await expect(
-        ExchangeFactory.deploy(
-          ownerWallet.address,
-          ownerWallet.address,
-          ownerWallet.address,
-          [ownerWallet.address],
-          ownerWallet.address,
-          usdc.address,
-        ),
+        ExchangeFactory.deploy({
+          balanceMigrationSource: ownerWallet.address,
+          crossChainBridgeAdapters: [],
+          exitFundWallet: ownerWallet.address,
+          feeWallet: ownerWallet.address,
+          indexPriceServiceWallets: [ownerWallet.address],
+          insuranceFundWallet: ownerWallet.address,
+          quoteAssetAddress: usdc.address,
+        }),
       ).to.eventually.be.rejectedWith(/invalid migration source/i);
     });
 
@@ -78,14 +81,15 @@ describe('Exchange', function () {
         await BalanceMigrationSourceMockFactory.deploy(0);
 
       await expect(
-        ExchangeFactory.deploy(
-          balanceMigrationSourceMock.address,
-          ownerWallet.address,
-          ownerWallet.address,
-          [ownerWallet.address],
-          ownerWallet.address,
-          ownerWallet.address,
-        ),
+        ExchangeFactory.deploy({
+          balanceMigrationSource: balanceMigrationSourceMock.address,
+          crossChainBridgeAdapters: [],
+          exitFundWallet: ownerWallet.address,
+          feeWallet: ownerWallet.address,
+          indexPriceServiceWallets: [ownerWallet.address],
+          insuranceFundWallet: ownerWallet.address,
+          quoteAssetAddress: ownerWallet.address,
+        }),
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
     });
 
@@ -96,14 +100,15 @@ describe('Exchange', function () {
         await BalanceMigrationSourceMockFactory.deploy(0);
 
       await expect(
-        ExchangeFactory.deploy(
-          balanceMigrationSourceMock.address,
-          ownerWallet.address,
-          ownerWallet.address,
-          [ethers.constants.AddressZero],
-          ownerWallet.address,
-          usdc.address,
-        ),
+        ExchangeFactory.deploy({
+          balanceMigrationSource: balanceMigrationSourceMock.address,
+          crossChainBridgeAdapters: [],
+          exitFundWallet: ownerWallet.address,
+          feeWallet: ownerWallet.address,
+          indexPriceServiceWallets: [ethers.constants.AddressZero],
+          insuranceFundWallet: ownerWallet.address,
+          quoteAssetAddress: ownerWallet.address,
+        }),
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
     });
   });
@@ -125,14 +130,15 @@ describe('Exchange', function () {
 
     it('should revert for zero address', async () => {
       const [ownerWallet] = await ethers.getSigners();
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await expect(
         newExchange.setCustodian(ethers.constants.AddressZero),
@@ -141,14 +147,15 @@ describe('Exchange', function () {
 
     it('should revert for non-contract address', async () => {
       const [ownerWallet] = await ethers.getSigners();
-      const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
-        ownerWallet.address,
-        ownerWallet.address,
-        [ownerWallet.address],
-        ownerWallet.address,
-        usdc.address,
-      );
+      const newExchange = await ExchangeFactory.deploy({
+        balanceMigrationSource: ethers.constants.AddressZero,
+        crossChainBridgeAdapters: [],
+        exitFundWallet: ownerWallet.address,
+        feeWallet: ownerWallet.address,
+        indexPriceServiceWallets: [ownerWallet.address],
+        insuranceFundWallet: ownerWallet.address,
+        quoteAssetAddress: usdc.address,
+      });
 
       await expect(
         newExchange.setCustodian((await ethers.getSigners())[1].address),
