@@ -506,20 +506,22 @@ contract Exchange_v4 is IExchange, Owned {
    * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
    */
   function deposit(uint256 quantityInAssetUnits, address destinationWallet) public {
+    address destinationWallet_ = destinationWallet == address(0x0) ? msg.sender : destinationWallet;
+
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
       custodian,
       depositIndex,
       quantityInAssetUnits,
       quoteAssetAddress,
       msg.sender,
-      destinationWallet == address(0x0) ? msg.sender : destinationWallet,
+      destinationWallet_,
       _balanceTracking,
       _walletExits
     );
 
     depositIndex++;
 
-    emit Deposited(depositIndex, msg.sender, destinationWallet, quantity, newExchangeBalance);
+    emit Deposited(depositIndex, msg.sender, destinationWallet_, quantity, newExchangeBalance);
   }
 
   // Trades //
