@@ -8,8 +8,8 @@ import { Constants } from "./libraries/Constants.sol";
 import { Owned } from "./Owned.sol";
 import { String } from "./libraries/String.sol";
 import { Validations } from "./libraries/Validations.sol";
-import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 import { CrossChainBridgeAdapter, OverridableMarketFields } from "./libraries/Structs.sol";
+import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
 contract Governance is Owned {
   // State variables //
@@ -165,11 +165,10 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Sets the address of the `Custodian` contract. The `Custodian` accepts `Exchange` and
-   * `Governance` addresses in its constructor, after which they can only be changed by the
-   * `Governance` contract it Therefore the `Custodian` must be deployed last and its address
-   * set here on an existing `Governance` contract. This value is immutable once set and cannot be
-   * changed again
+   * @notice Sets the address of the `Custodian` contract. The `Custodian` accepts `Exchange` and `Governance` addresses
+   * in its constructor, after which they can only be changed by the `Governance` contract itself. Therefore the
+   * `Custodian` must be deployed last and its address set here on an existing `Governance` contract. This value is
+   * immutable once set and cannot be changed again
    *
    * @param newCustodian The address of the `Custodian` contract deployed against this `Governance`
    * contract's address

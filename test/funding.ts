@@ -83,8 +83,8 @@ describe('Exchange', function () {
         dispatcher,
         exitFund,
         fee,
-        insurance,
         index,
+        insurance,
       );
 
       const fundingRates = buildFundingRates(5);
@@ -139,8 +139,8 @@ describe('Exchange', function () {
         dispatcher,
         exitFund,
         fee,
-        insurance,
         index,
+        insurance,
       );
 
       const fundingRates = buildFundingRates(5);
@@ -216,8 +216,8 @@ describe('Exchange', function () {
         dispatcherWallet,
         exitFundWallet,
         feeWallet,
-        insuranceWallet,
         indexPriceServiceWallet,
+        insuranceWallet,
       );
 
       await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);

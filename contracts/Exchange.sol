@@ -26,7 +26,7 @@ import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExchangeConstructorArguments, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -48,7 +48,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Withdrawals - mapping of withdrawal wallet hash => isComplete
   mapping(bytes32 => bool) private _completedWithdrawalHashes;
   // Registry of cross-chain bridge adapter contracts
-  CrossChainBridgeAdapter[] private _crossChainBridgeAdapters;
+  CrossChainBridgeAdapter[] public crossChainBridgeAdapters;
   // Fund custody contract
   ICustodian public custodian;
   // Deposit index
@@ -202,31 +202,43 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Instantiate a new `Exchange` contract
    *
+   * @param balanceMigrationSource Previous Exchange contract to migrate wallet balances from. Not used if zero
+   * @param exitFundWallet_ Address of EF wallet
+   * @param feeWallet_ Address of Fee wallet
+   * @param indexPriceServiceWallets_ Addresses of IPCS wallets whitelisted to sign index prices
+   * @param insuranceFundWallet_ Address of IF wallet
+   * @param quoteAssetAddress_ Address of quote asset ERC20 contract
+   *
    * @dev Sets `owner_` and `admin_` to `msg.sender`
-   * @dev Since arguments is a keyword in JS, postfix _ to arguments here to avoid error in generated Typechain code
    */
-  constructor(ExchangeConstructorArguments memory arguments_) Owned() {
+  constructor(
+    IExchange balanceMigrationSource,
+    address exitFundWallet_,
+    address feeWallet_,
+    address[] memory indexPriceServiceWallets_,
+    address insuranceFundWallet_,
+    address quoteAssetAddress_
+  ) Owned() {
     require(
-      address(arguments_.balanceMigrationSource) == address(0x0) ||
-        Address.isContract(address(arguments_.balanceMigrationSource)),
+      address(balanceMigrationSource) == address(0x0) || Address.isContract(address(balanceMigrationSource)),
       "Invalid migration source"
     );
-    _balanceTracking.migrationSource = IExchange(arguments_.balanceMigrationSource);
+    _balanceTracking.migrationSource = IExchange(balanceMigrationSource);
 
-    require(Address.isContract(address(arguments_.quoteAssetAddress)), "Invalid quote asset address");
-    quoteAssetAddress = arguments_.quoteAssetAddress;
+    require(Address.isContract(address(quoteAssetAddress_)), "Invalid quote asset address");
+    quoteAssetAddress = quoteAssetAddress_;
 
-    setExitFundWallet(arguments_.exitFundWallet);
+    setExitFundWallet(exitFundWallet_);
 
-    setFeeWallet(arguments_.feeWallet);
+    setFeeWallet(feeWallet_);
 
-    require(arguments_.insuranceFundWallet != address(0x0), "Invalid IF wallet address");
-    insuranceFundWallet = arguments_.insuranceFundWallet;
+    require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet address");
+    insuranceFundWallet = insuranceFundWallet_;
 
-    for (uint8 i = 0; i < arguments_.indexPriceServiceWallets.length; i++) {
-      require(address(arguments_.indexPriceServiceWallets[i]) != address(0x0), "Invalid IPS wallet");
+    for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {
+      require(indexPriceServiceWallets_[i] != address(0x0), "Invalid IPS wallet");
     }
-    indexPriceServiceWallets = arguments_.indexPriceServiceWallets;
+    indexPriceServiceWallets = indexPriceServiceWallets_;
 
     // Deposits must be manually enabled via `setDepositIndex`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;
@@ -305,12 +317,12 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange`
    * contract's address
-   * @param crossChainBridgeAdapters An array of cross-chain bridge adapter descriptors. They can be passed in here
+   * @param crossChainBridgeAdapters_ An array of cross-chain bridge adapter descriptors. They can be passed in here
    * as a convenience to avoid waiting the full field upgrade governance delay following initial deploy
    */
   function setCustodian(
     ICustodian newCustodian,
-    CrossChainBridgeAdapter[] memory crossChainBridgeAdapters
+    CrossChainBridgeAdapter[] memory crossChainBridgeAdapters_
   ) public onlyAdmin {
     require(custodian == ICustodian(payable(address(0x0))), "Custodian can only be set once");
     require(Address.isContract(address(newCustodian)), "Invalid address");
@@ -318,8 +330,8 @@ contract Exchange_v4 is IExchange, Owned {
     custodian = newCustodian;
 
     for (uint8 i = 0; i < crossChainBridgeAdapters.length; i++) {
-      Validations.validateCrossChainBridgeAdapter(crossChainBridgeAdapters[i]);
-      _crossChainBridgeAdapters.push(crossChainBridgeAdapters[i]);
+      Validations.validateCrossChainBridgeAdapter(crossChainBridgeAdapters_[i]);
+      crossChainBridgeAdapters.push(crossChainBridgeAdapters_[i]);
     }
   }
 
@@ -381,10 +393,10 @@ contract Exchange_v4 is IExchange, Owned {
   function setCrossChainBridgeAdapters(
     CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
   ) public onlyGovernance {
-    delete _crossChainBridgeAdapters;
+    delete crossChainBridgeAdapters;
 
     for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
-      _crossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
+      crossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
     }
   }
 
@@ -797,7 +809,7 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _completedWithdrawalHashes,
-      _crossChainBridgeAdapters,
+      crossChainBridgeAdapters,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
@@ -840,12 +852,16 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Publish updated index prices for markets
    *
-   * @dev Acess must be `onlyDispatcher` to facilitate EF closure deleveraging during system recovery
+   * @dev Access must be `onlyDispatcher` rather than `onlyDispatcherWhenExitFundHasNoPositions` to facilitate EF
+   * closure deleveraging during system recovery
    */
   function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcher {
     MarketAdmin.publishIndexPrices_delegatecall(indexPrices, indexPriceServiceWallets, _marketsByBaseAssetSymbol);
   }
 
+  /**
+   * @notice Set overridable market parameters for a specific wallet or as new market defaults
+   */
   function setMarketOverrides(
     string memory baseAssetSymbol,
     OverridableMarketFields memory marketOverrides,

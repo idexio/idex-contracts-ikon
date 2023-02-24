@@ -238,7 +238,7 @@ library OraclePriceMargin {
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-            int64(market.loadOracleFeedPrice()),
+            int64(market.loadOraclePrice()),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
           int64(marginFraction),
@@ -264,7 +264,7 @@ library OraclePriceMargin {
 
     uint64 quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
       balanceStruct.costBasis,
-      market.loadOracleFeedPrice(),
+      market.loadOraclePrice(),
       market
         .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
@@ -300,7 +300,7 @@ library OraclePriceMargin {
 
       totalAccountValue += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-        int64(market.loadOracleFeedPrice()),
+        int64(market.loadOraclePrice()),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }

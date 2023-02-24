@@ -71,18 +71,6 @@ struct DelegatedKeyAuthorization {
 }
 
 /**
- * @notice Argument tyep for Exchange constructor
- */
-struct ExchangeConstructorArguments {
-  address balanceMigrationSource;
-  address exitFundWallet;
-  address feeWallet;
-  address[] indexPriceServiceWallets;
-  address insuranceFundWallet;
-  address quoteAssetAddress;
-}
-
-/**
  * @notice Argument type for `executeOrderBookTrade`
  */
 struct ExecuteOrderBookTradeArguments {
@@ -125,7 +113,7 @@ struct Market {
   bool exists;
   // Flag must be asserted to allow any actions other than deactivation liquidation
   bool isActive;
-  // No need to specify quote asset - it is always the same as the quote asset
+  // No need to specify quote asset, it is always `Constants.QUOTE_ASSET_SYMBOL`
   string baseAssetSymbol;
   // Chainlink price feed aggregator contract to use for on-chain exit withdrawals
   IChainlinkAggregator chainlinkPriceFeedAddress;

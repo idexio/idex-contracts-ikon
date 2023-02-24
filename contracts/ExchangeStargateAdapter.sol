@@ -59,7 +59,7 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
   }
 
   /**
-   * @notice Allow Admin wallet to fund contract for gas fees
+   * @notice Allow Admin wallet to fund contract with native asset for gas fees
    */
   receive() external payable onlyAdmin {}
 

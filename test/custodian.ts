@@ -96,14 +96,14 @@ describe('Custodian', function () {
     });
 
     it('should work when sent from governance address', async () => {
-      const newExchange = await ExchangeFactory.deploy({
-        balanceMigrationSource: ethers.constants.AddressZero,
-        exitFundWallet: ownerWallet.address,
-        feeWallet: ownerWallet.address,
-        indexPriceServiceWallets: [ownerWallet.address],
-        insuranceFundWallet: ownerWallet.address,
-        quoteAssetAddress: usdc.address,
-      });
+      const newExchange = await ExchangeFactory.deploy(
+        ethers.constants.AddressZero,
+        ownerWallet.address,
+        ownerWallet.address,
+        [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
+      );
 
       await governanceMock.setExchange(newExchange.address);
 

@@ -2,7 +2,6 @@ import BigNumber from 'bignumber.js';
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { ethers } from 'hardhat';
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
@@ -50,8 +49,8 @@ export async function bootstrapLiquidatedWallet() {
     dispatcherWallet,
     exitFundWallet,
     feeWallet,
-    insuranceWallet,
     indexPriceServiceWallet,
+    insuranceWallet,
   );
 
   await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
@@ -223,14 +222,14 @@ export async function deployContractsExceptCustodian(
 
   const [exchange, governance] = await Promise.all([
     (
-      await ExchangeFactory.connect(owner).deploy({
-        balanceMigrationSource: ethers.constants.AddressZero,
-        exitFundWallet: exitFundWallet.address,
-        feeWallet: feeWallet.address,
-        indexPriceServiceWallets: [indexPriceServiceWallet.address],
-        insuranceFundWallet: insuranceFund.address,
-        quoteAssetAddress: usdc.address,
-      })
+      await ExchangeFactory.connect(owner).deploy(
+        ethers.constants.AddressZero,
+        exitFundWallet.address,
+        feeWallet.address,
+        [indexPriceServiceWallet.address],
+        insuranceFund.address,
+        usdc.address,
+      )
     ).deployed(),
     (
       await GovernanceFactory.connect(owner).deploy(governanceBlockDelay)
@@ -245,8 +244,8 @@ export async function deployAndAssociateContracts(
   dispatcher: SignerWithAddress = owner,
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
-  insuranceFund: SignerWithAddress = owner,
   indexPriceServiceWallet: SignerWithAddress = owner,
+  insuranceFund: SignerWithAddress = owner,
   governanceBlockDelay = 0,
 ) {
   const { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc } =

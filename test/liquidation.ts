@@ -47,8 +47,8 @@ describe('Exchange', function () {
       dispatcherWallet,
       exitFundWallet,
       feeWallet,
-      insuranceFundWallet,
       indexPriceServiceWallet,
+      insuranceFundWallet,
     );
     exchange = results.exchange;
     governance = results.governance;

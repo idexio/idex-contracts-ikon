@@ -28,7 +28,7 @@ library MarketAdmin {
     // Populate non-overridable fields and commit new market to storage
     newMarket.exists = true;
     newMarket.isActive = false;
-    newMarket.lastIndexPrice = newMarket.loadOracleFeedPrice();
+    newMarket.lastIndexPrice = newMarket.loadOraclePrice();
     newMarket.lastIndexPriceTimestampInMs = uint64(block.timestamp * 1000);
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
 

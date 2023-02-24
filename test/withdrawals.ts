@@ -30,8 +30,8 @@ describe('Exchange', function () {
         dispatcher,
         exitFund,
         fee,
-        insurance,
         index,
+        insurance,
       );
 
       const depositQuantity = ethers.utils.parseUnits(
@@ -105,8 +105,8 @@ describe('Exchange', function () {
         dispatcherWallet,
         exitFundWallet,
         feeWallet,
-        insuranceFundWallet,
         indexPriceServiceWallet,
+        insuranceFundWallet,
       );
       exchange = results.exchange;
       usdc = results.usdc;
