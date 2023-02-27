@@ -5,6 +5,7 @@ pragma solidity 0.8.18;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import { Constants } from "../libraries/Constants.sol";
 import { Owned } from "../Owned.sol";
 import { IBridgeAdapter, ICustodian, IExchange } from "../libraries/Interfaces.sol";
 
@@ -59,12 +60,14 @@ interface IStargateRouter {
 }
 
 contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
+  // Address of Custodian contract
+  ICustodian public immutable custodian;
   // Must be true or `sgReceive` will revert
   bool public isDepositEnabled;
   // Must be true or `withdrawQuoteAsset` will revert
   bool public isWithdrawEnabled;
-  // Address of Exchange contract
-  ICustodian public immutable custodian;
+  // Multiplier in pips used to calculate minimum withdraw quantity after slippage
+  uint64 public minimumWithdrawQuantityMultiplier;
   // Address of ERC20 contract used as collateral and quote for all markets
   IERC20 public immutable quoteAsset;
   // Address of Stargate router contract
@@ -80,9 +83,11 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   /**
    * @notice Instantiate a new `ExchangeStargateAdapter` contract
    */
-  constructor(address custodian_, address router_, address quoteAsset_) {
+  constructor(address custodian_, uint64 minimumWithdrawQuantityMultiplier_, address router_, address quoteAsset_) {
     require(Address.isContract(custodian_), "Invalid Custodian address");
     custodian = ICustodian(custodian_);
+
+    minimumWithdrawQuantityMultiplier = minimumWithdrawQuantityMultiplier_;
 
     require(Address.isContract(router_), "Invalid Router address");
     router = IStargateRouter(router_);
@@ -125,17 +130,14 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
     require(isWithdrawEnabled, "Withdraw disabled");
 
-    (uint16 targetChainId, uint16 sourcePoolId, uint256 targetPoolId, uint256 minQuantity) = abi.decode(
-      payload,
-      (uint16, uint16, uint256, uint256)
-    );
+    (uint16 targetChainId, uint16 sourcePoolId, uint256 targetPoolId) = abi.decode(payload, (uint16, uint16, uint256));
 
     (uint256 fee, ) = router.quoteLayerZeroFee(
       targetChainId,
       1,
       abi.encodePacked(destinationWallet),
       "0x",
-      IStargateRouter.lzTxObj(0, 0, abi.encodePacked(destinationWallet))
+      IStargateRouter.lzTxObj(0, 0, "0x")
     );
 
     try
@@ -146,7 +148,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
         targetPoolId,
         payable(this), // Refund adddress. extra gas (if any) is returned to this address
         quantity,
-        minQuantity,
+        (quantity * minimumWithdrawQuantityMultiplier) / Constants.PIP_PRICE_MULTIPLIER,
         IStargateRouter.lzTxObj(0, 0, "0x"), // 0 additional gasLimit increase, 0 airdrop, at 0x address
         abi.encodePacked(msg.sender), // Destination wallet
         bytes("") // No payload, will not perform contract call on target chain
@@ -159,6 +161,10 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
 
   function setDepositEnabled(bool isEnabled) public onlyAdmin {
     isDepositEnabled = isEnabled;
+  }
+
+  function setMinimumWithdrawQuantityMultiplierEnabled(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
+    minimumWithdrawQuantityMultiplier = newMinimumWithdrawQuantityMultiplier;
   }
 
   function setWithdrawEnabled(bool isEnabled) public onlyAdmin {

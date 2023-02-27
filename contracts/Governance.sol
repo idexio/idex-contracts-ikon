@@ -301,6 +301,10 @@ contract Governance is Owned {
   function initiateBridgeAdaptersUpgrade(IBridgeAdapter[] memory newBridgeAdapters) public onlyAdmin {
     require(!currentBridgeAdaptersUpgrade.exists, "IPS wallet upgrade already in progress");
 
+    for (uint8 i = 0; i < newBridgeAdapters.length; i++) {
+      require(Address.isContract(address(newBridgeAdapters[i])), "Invalid adapter address");
+    }
+
     currentBridgeAdaptersUpgrade.exists = true;
     currentBridgeAdaptersUpgrade.newBridgeAdapters = newBridgeAdapters;
     currentBridgeAdaptersUpgrade.blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
@@ -485,7 +489,7 @@ contract Governance is Owned {
     currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverridesUpgrade(
       true,
       overridableFields,
-      block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS
+      blockThreshold
     );
 
     emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, overridableFields, blockThreshold);
@@ -512,8 +516,8 @@ contract Governance is Owned {
    */
   function finalizeMarketOverridesUpgrade(
     string memory baseAssetSymbol,
-    address wallet,
-    OverridableMarketFields memory overridableFields
+    OverridableMarketFields memory overridableFields,
+    address wallet
   ) public onlyAdminOrDispatcher {
     MarketOverridesUpgrade memory upgrade = currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][
       wallet

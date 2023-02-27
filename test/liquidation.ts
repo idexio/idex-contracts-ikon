@@ -92,8 +92,8 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
-          trader1Wallet.address,
           overrides,
+          trader1Wallet.address,
         );
     });
 

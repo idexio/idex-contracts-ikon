@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.18;
 
-import { IBridgeAdapter } from "./Interfaces.sol";
 import { Balance, OverridableMarketFields } from "./Structs.sol";
 
 interface IBridgeAdapter {
