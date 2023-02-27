@@ -35,14 +35,6 @@ struct Balance {
 }
 
 /**
- * @notice Struct for describing cross-chain bridge adapter contracts
- */
-struct CrossChainBridgeAdapter {
-  address adapterContract;
-  string targetChainName;
-}
-
-/**
  * @notice Argument type for `Exchange.deleverageInsuranceFundClosure` and `Exchange.deleverageExitFundClosure`
  */
 struct ClosureDeleverageArguments {
@@ -293,10 +285,10 @@ struct Withdrawal {
   address wallet;
   // Withdrawal quantity
   uint64 grossQuantity;
-  // Name of target chain to transfer tokens out to
-  string targetChainName;
-  // Cross-chain bridge adapter index corresponding to target chain name
-  uint8 crossChainBridgeAdapterIndex;
+  // Address of target bridge adapter contract. If zero, quote goes to wallet on local chain
+  address bridgeAdapter;
+  // If bridge adapter contract is non-zero, ABI-encoded parameters to supply specific bridge protocol
+  bytes bridgeAdapterPayload;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs
   uint64 gasFee;
   // The ECDSA signature of the withdrawal hash as produced by Hashing.getWithdrawalWalletHash

@@ -2,10 +2,11 @@
 
 pragma solidity 0.8.18;
 
-import { Balance, CrossChainBridgeAdapter, OverridableMarketFields } from "./Structs.sol";
+import { IBridgeAdapter } from "./Interfaces.sol";
+import { Balance, OverridableMarketFields } from "./Structs.sol";
 
-interface ICrossChainBridgeAdapter {
-  function withdrawQuoteAsset(address destinationWallet, uint256 quantity) external;
+interface IBridgeAdapter {
+  function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) external;
 }
 
 /**
@@ -104,7 +105,7 @@ interface IExchange {
 
   function dispatcherWallet() external view returns (address);
 
-  function setCrossChainBridgeAdapters(CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters) external;
+  function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) external;
 
   function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) external;
 
@@ -115,54 +116,4 @@ interface IExchange {
     OverridableMarketFields memory marketOverrides,
     address wallet
   ) external;
-}
-
-// https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateReceiver.sol
-interface IStargateReceiver {
-  /**
-   *  @param chainId The remote chainId sending the tokens
-   *  @param srcAddress The remote Bridge address
-   *  @param nonce The message ordering nonce
-   *  @param token The token contract on the local chain
-   *  @param amountLD The qty of local _token contract tokens
-   *  @param payload ABI-encoded bytes containing additional arguments
-   */
-  function sgReceive(
-    uint16 chainId,
-    bytes memory srcAddress,
-    uint256 nonce,
-    address token,
-    uint256 amountLD,
-    bytes memory payload
-  ) external;
-}
-
-// https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateRouter.sol
-interface IStargateRouter {
-  // solhint-disable-next-line contract-name-camelcase
-  struct lzTxObj {
-    uint256 dstGasForCall;
-    uint256 dstNativeAmount;
-    bytes dstNativeAddr;
-  }
-
-  function swap(
-    uint16 _dstChainId,
-    uint256 _srcPoolId,
-    uint256 _dstPoolId,
-    address payable _refundAddress,
-    uint256 _amountLD,
-    uint256 _minAmountLD,
-    lzTxObj memory _lzTxParams,
-    bytes calldata _to,
-    bytes calldata _payload
-  ) external payable;
-
-  function quoteLayerZeroFee(
-    uint16 _dstChainId,
-    uint8 _functionType,
-    bytes calldata _toAddress,
-    bytes calldata _transferAndCallPayload,
-    lzTxObj memory _lzTxParams
-  ) external view returns (uint256, uint256);
 }

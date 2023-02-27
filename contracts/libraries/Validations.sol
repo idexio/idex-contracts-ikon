@@ -8,7 +8,7 @@ import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { String } from "./String.sol";
-import { CrossChainBridgeAdapter, Market, OverridableMarketFields } from "./Structs.sol";
+import { Market, OverridableMarketFields } from "./Structs.sol";
 
 library Validations {
   using SortedStringSet for string[];
@@ -42,11 +42,6 @@ library Validations {
         SortedStringSet.NOT_FOUND,
       "Open position not found for market"
     );
-  }
-
-  function validateCrossChainBridgeAdapter(CrossChainBridgeAdapter memory adapter) internal view {
-    require(Address.isContract(adapter.adapterContract), "Invalid adapter address");
-    require(!String.isEqual(adapter.targetChainName, Constants.LOCAL_CHAIN_NAME), "Cannot target local chain");
   }
 
   // Validate reasonable limits on overridable market fields

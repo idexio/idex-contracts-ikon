@@ -26,9 +26,9 @@ import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
-import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
+import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
 // solhint-disable-next-line contract-name-camelcase
 contract Exchange_v4 is IExchange, Owned {
@@ -47,8 +47,8 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(bytes32 => bool) private _completedTransferHashes;
   // Withdrawals - mapping of withdrawal wallet hash => isComplete
   mapping(bytes32 => bool) private _completedWithdrawalHashes;
-  // Registry of cross-chain bridge adapter contracts
-  CrossChainBridgeAdapter[] public crossChainBridgeAdapters;
+  // List of whitelisted cross-chain bridge adapter contracts
+  IBridgeAdapter[] public bridgeAdapters;
   // Fund custody contract
   ICustodian public custodian;
   // Deposit index
@@ -309,29 +309,25 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Sets the address of the `Custodian` contract as well as initial cross-chain bridge adapters
    *
-   * @dev The `Custodian` accepts `Exchange` and `Governance` addresses in its constructor, after
-   * which they can only be changed by the `Governance` contract itself. Therefore the `Custodian`
-   * must be deployed last and its address set here on an existing `Exchange` contract. This value
-   * is immutable once set and cannot be changed again
+   * @dev The `Custodian` accepts `Exchange` and `Governance` addresses in its constructor, after which they can only be
+   * changed by the `Governance` contract itself. Therefore the `Custodian` must be deployed last and its address set
+   * here on an existing `Exchange` contract. This value is immutable once set and cannot be changed again
    *
-   * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange`
-   * contract's address
-   * @param crossChainBridgeAdapters_ An array of cross-chain bridge adapter descriptors. They can be passed in here
-   * as a convenience to avoid waiting the full field upgrade governance delay following initial deploy
+   * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange` contract's address
+   * @param newBridgeAdapters An array of cross-chain bridge adapter contract addresses. They can be passed in here as a
+   * convenience to avoid waiting the full field upgrade governance delay following initial deploy
    */
-  function setCustodian(
-    ICustodian newCustodian,
-    CrossChainBridgeAdapter[] memory crossChainBridgeAdapters_
-  ) public onlyAdmin {
+  function setCustodian(ICustodian newCustodian, IBridgeAdapter[] memory newBridgeAdapters) public onlyAdmin {
     require(custodian == ICustodian(payable(address(0x0))), "Custodian can only be set once");
     require(Address.isContract(address(newCustodian)), "Invalid address");
 
     custodian = newCustodian;
 
-    for (uint8 i = 0; i < crossChainBridgeAdapters.length; i++) {
-      Validations.validateCrossChainBridgeAdapter(crossChainBridgeAdapters_[i]);
-      crossChainBridgeAdapters.push(crossChainBridgeAdapters_[i]);
+    for (uint8 i = 0; i < newBridgeAdapters.length; i++) {
+      require(Address.isContract(address(newBridgeAdapters[i])), "Invalid adapter address");
     }
+
+    bridgeAdapters = newBridgeAdapters;
   }
 
   /**
@@ -389,14 +385,8 @@ contract Exchange_v4 is IExchange, Owned {
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
   }
 
-  function setCrossChainBridgeAdapters(
-    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
-  ) public onlyGovernance {
-    delete crossChainBridgeAdapters;
-
-    for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
-      crossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
-    }
+  function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) public onlyGovernance {
+    bridgeAdapters = newBridgeAdapters;
   }
 
   function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) public onlyGovernance {
@@ -808,7 +798,7 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _completedWithdrawalHashes,
-      crossChainBridgeAdapters,
+      bridgeAdapters,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,

@@ -5,20 +5,64 @@ pragma solidity 0.8.18;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { Owned } from "./Owned.sol";
-import { ICrossChainBridgeAdapter, ICustodian, IExchange, IStargateReceiver, IStargateRouter } from "./libraries/Interfaces.sol";
+import { Owned } from "../Owned.sol";
+import { IBridgeAdapter, ICustodian, IExchange } from "../libraries/Interfaces.sol";
 
-contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver, Owned {
+// https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateReceiver.sol
+interface IStargateReceiver {
+  /**
+   *  @param chainId The remote chainId sending the tokens
+   *  @param srcAddress The remote Bridge address
+   *  @param nonce The message ordering nonce
+   *  @param token The token contract on the local chain
+   *  @param amountLD The qty of local _token contract tokens
+   *  @param payload ABI-encoded bytes containing additional arguments
+   */
+  function sgReceive(
+    uint16 chainId,
+    bytes memory srcAddress,
+    uint256 nonce,
+    address token,
+    uint256 amountLD,
+    bytes memory payload
+  ) external;
+}
+
+// https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateRouter.sol
+interface IStargateRouter {
+  // solhint-disable-next-line contract-name-camelcase
+  struct lzTxObj {
+    uint256 dstGasForCall;
+    uint256 dstNativeAmount;
+    bytes dstNativeAddr;
+  }
+
+  function swap(
+    uint16 _dstChainId,
+    uint256 _srcPoolId,
+    uint256 _dstPoolId,
+    address payable _refundAddress,
+    uint256 _amountLD,
+    uint256 _minAmountLD,
+    lzTxObj memory _lzTxParams,
+    bytes calldata _to,
+    bytes calldata _payload
+  ) external payable;
+
+  function quoteLayerZeroFee(
+    uint16 _dstChainId,
+    uint8 _functionType,
+    bytes calldata _toAddress,
+    bytes calldata _transferAndCallPayload,
+    lzTxObj memory _lzTxParams
+  ) external view returns (uint256, uint256);
+}
+
+contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   // Must be true or `sgReceive` will revert
   bool public isDepositEnabled;
   // Must be true or `withdrawQuoteAsset` will revert
   bool public isWithdrawEnabled;
-  // The pool ID on the source chain
-  uint16 public immutable sourcePoolId;
-  // The LayerZero ID for the target chain
-  uint16 public immutable targetChainId;
-  // The pool ID on the target chain
-  uint256 public immutable targetPoolId;
   // Address of Exchange contract
   ICustodian public immutable custodian;
   // Address of ERC20 contract used as collateral and quote for all markets
@@ -34,20 +78,9 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
   /**
    * @notice Instantiate a new `ExchangeStargateAdapter` contract
    */
-  constructor(
-    address custodian_,
-    uint16 sourcePoolId_,
-    uint16 targetChainId_,
-    uint256 targetPoolId_,
-    address router_,
-    address quoteAssetAddress_
-  ) {
+  constructor(address custodian_, address router_, address quoteAssetAddress_) {
     require(Address.isContract(custodian_), "Invalid Custodian address");
     custodian = ICustodian(custodian_);
-
-    sourcePoolId = sourcePoolId_;
-    targetChainId = targetChainId_;
-    targetPoolId = targetPoolId_;
 
     require(Address.isContract(router_), "Invalid Router address");
     router = IStargateRouter(router_);
@@ -84,8 +117,10 @@ contract ExchangeStargateAdapter is ICrossChainBridgeAdapter, IStargateReceiver,
     IExchange(custodian.exchange()).deposit(amountLD, destinationWallet);
   }
 
-  function withdrawQuoteAsset(address destinationWallet, uint256 quantity) public onlyExchange {
+  function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
     require(isWithdrawEnabled, "Withdraw disabled");
+
+    (uint16 targetChainId, uint16 sourcePoolId, uint256 targetPoolId) = abi.decode(payload, (uint16, uint16, uint256));
 
     (uint256 fee, ) = router.quoteLayerZeroFee(
       targetChainId,
