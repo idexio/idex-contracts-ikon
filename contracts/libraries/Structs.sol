@@ -71,11 +71,11 @@ struct DelegatedKeyAuthorization {
 }
 
 /**
- * @notice Argument type for `executeOrderBookTrade`
+ * @notice Argument type for `executeTrade`
  */
-struct ExecuteOrderBookTradeArguments {
+struct ExecuteTradeArguments {
   // External arguments
-  OrderBookTrade orderBookTrade;
+  Trade trade;
   Order buy;
   Order sell;
 }
@@ -189,7 +189,7 @@ struct PositionInDeactivatedMarketLiquidationArguments {
 }
 
 /**
- * @notice Argument type for `Exchange.executeOrderBookTrade` and `Hashing.getOrderWalletHash`
+ * @notice Argument type for `Exchange.executeTrade` and `Hashing.getOrderWalletHash`
  */
 struct Order {
   // Must equal `Constants.SIGNATURE_HASH_VERSION`
@@ -231,9 +231,9 @@ struct Order {
 }
 
 /**
- * @notice Argument type for `Exchange.executeOrderBookTrade` specifying execution parameters for matching orders
+ * @notice Argument type for `Exchange.executeTrade` specifying execution parameters for matching orders
  */
-struct OrderBookTrade {
+struct Trade {
   // Base asset symbol
   string baseAssetSymbol;
   // Quote asset symbol

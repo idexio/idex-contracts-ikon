@@ -26,7 +26,7 @@ import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -83,7 +83,6 @@ contract Exchange_v4 is IExchange, Owned {
   address public dispatcherWallet;
   address public exitFundWallet;
   address public feeWallet;
-  // TODO Upgrade through Governance
   address[] public indexPriceServiceWallets;
   address public insuranceFundWallet;
 
@@ -123,9 +122,9 @@ contract Exchange_v4 is IExchange, Owned {
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
-   * `executeOrderBookTrade`
+   * `executeTrade`
    */
-  event OrderBookTradeExecuted(
+  event TradeExecuted(
     address buyWallet,
     address sellWallet,
     string baseAssetSymbol,
@@ -205,7 +204,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @param balanceMigrationSource Previous Exchange contract to migrate wallet balances from. Not used if zero
    * @param exitFundWallet_ Address of EF wallet
    * @param feeWallet_ Address of Fee wallet
-   * @param indexPriceServiceWallets_ Addresses of IPCS wallets whitelisted to sign index prices
+   * @param indexPriceServiceWallets_ Addresses of IPS wallets whitelisted to sign index prices
    * @param insuranceFundWallet_ Address of IF wallet
    * @param quoteAssetAddress_ Address of quote asset ERC20 contract
    *
@@ -248,7 +247,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets a new Chain Propagation Period - the block delay after which order nonce invalidations are respected
-   * by `executeOrderBookTrade` and wallet exits are respected by `executeOrderBookTrade` and `withdraw`
+   * by `executeTrade` and wallet exits are respected by `executeTrade` and `withdraw`
    *
    * @param newChainPropagationPeriodInBlocks The new Chain Propagation Period expressed as a number of blocks. Must
    * be less than `Constants.MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS`
@@ -477,7 +476,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Dispatcher whitelisting //
 
   /**
-   * @notice Sets the wallet whitelisted to dispatch transactions calling the `executeOrderBookTrade` and `withdraw`
+   * @notice Sets the wallet whitelisted to dispatch transactions calling the `executeTrade` and `withdraw`
    * functions
    *
    * @param newDispatcherWallet The new whitelisted dispatcher wallet. Must be different from the current one
@@ -529,13 +528,11 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Settles a trade between two orders submitted and matched off-chain
    *
-   * @param tradeArguments An `ExecuteOrderBookTradeArguments` struct encoding the buy order, sell order, and trade
+   * @param tradeArguments An `ExecuteTradeArguments` struct encoding the buy order, sell order, and trade
    * execution parameters
    */
-  function executeOrderBookTrade(
-    ExecuteOrderBookTradeArguments memory tradeArguments
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    Trading.executeOrderBookTrade_delegatecall(
+  function executeTrade(ExecuteTradeArguments memory tradeArguments) public onlyDispatcherWhenExitFundHasNoPositions {
+    Trading.executeTrade_delegatecall(
       Trading.Arguments(
         tradeArguments,
         delegateKeyExpirationPeriodInMs,
@@ -555,16 +552,16 @@ contract Exchange_v4 is IExchange, Owned {
       _walletExits
     );
 
-    emit OrderBookTradeExecuted(
+    emit TradeExecuted(
       tradeArguments.buy.wallet,
       tradeArguments.sell.wallet,
-      tradeArguments.orderBookTrade.baseAssetSymbol,
-      tradeArguments.orderBookTrade.quoteAssetSymbol,
-      tradeArguments.orderBookTrade.baseQuantity,
-      tradeArguments.orderBookTrade.quoteQuantity,
-      tradeArguments.orderBookTrade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy,
-      tradeArguments.orderBookTrade.makerFeeQuantity,
-      tradeArguments.orderBookTrade.takerFeeQuantity
+      tradeArguments.trade.baseAssetSymbol,
+      tradeArguments.trade.quoteAssetSymbol,
+      tradeArguments.trade.baseQuantity,
+      tradeArguments.trade.quoteQuantity,
+      tradeArguments.trade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy,
+      tradeArguments.trade.makerFeeQuantity,
+      tradeArguments.trade.takerFeeQuantity
     );
   }
 
@@ -1107,7 +1104,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Invalidate all order nonces with a timestampInMs lower than the one provided
    *
    * @param nonce A Version 1 UUID. After calling and once the Chain Propagation Period has elapsed,
-   * `executeOrderBookTrade` will reject order nonces from this wallet with a timestampInMs component lower than the one
+   * `executeTrade` will reject order nonces from this wallet with a timestampInMs component lower than the one
    * provided
    */
   function invalidateOrderNonce(uint128 nonce) public {

@@ -37,8 +37,11 @@ library Validations {
     market = marketsByBaseAssetSymbol[baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
-    uint256 i = baseAssetSymbolsWithOpenPositionsByWallet[liquidatingWallet].indexOf(baseAssetSymbol);
-    require(i != SortedStringSet.NOT_FOUND, "Open position not found for market");
+    require(
+      baseAssetSymbolsWithOpenPositionsByWallet[liquidatingWallet].indexOf(baseAssetSymbol) !=
+        SortedStringSet.NOT_FOUND,
+      "Open position not found for market"
+    );
   }
 
   function validateCrossChainBridgeAdapter(CrossChainBridgeAdapter memory adapter) internal view {

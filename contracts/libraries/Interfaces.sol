@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.18;
 
-import { Balance, CrossChainBridgeAdapter, Market, OverridableMarketFields } from "./Structs.sol";
+import { Balance, CrossChainBridgeAdapter, OverridableMarketFields } from "./Structs.sol";
 
 interface ICrossChainBridgeAdapter {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity) external;

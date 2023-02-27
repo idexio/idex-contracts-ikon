@@ -9,7 +9,7 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { OrderSide } from "./Enums.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
-import { Balance, ExecuteOrderBookTradeArguments, Market, MarketOverrides, Transfer, Withdrawal } from "./Structs.sol";
+import { Balance, ExecuteTradeArguments, Market, MarketOverrides, Transfer, Withdrawal } from "./Structs.sol";
 
 library BalanceTracking {
   using MarketHelper for Market;
@@ -254,9 +254,9 @@ library BalanceTracking {
    * @dev Updates buyer, seller, and fee wallet balances for both assets in trade pair according to
    * trade parameters
    */
-  function updateForOrderBookTrade(
+  function updateForTrade(
     Storage storage self,
-    ExecuteOrderBookTradeArguments memory arguments,
+    ExecuteTradeArguments memory arguments,
     address feeWallet,
     Market memory market,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -265,26 +265,22 @@ library BalanceTracking {
   ) internal {
     Balance storage balanceStruct;
 
-    (int64 buyFee, int64 sellFee) = arguments.orderBookTrade.makerSide == OrderSide.Buy
-      ? (arguments.orderBookTrade.makerFeeQuantity, int64(arguments.orderBookTrade.takerFeeQuantity))
-      : (int64(arguments.orderBookTrade.takerFeeQuantity), arguments.orderBookTrade.makerFeeQuantity);
+    (int64 buyFee, int64 sellFee) = arguments.trade.makerSide == OrderSide.Buy
+      ? (arguments.trade.makerFeeQuantity, int64(arguments.trade.takerFeeQuantity))
+      : (int64(arguments.trade.takerFeeQuantity), arguments.trade.makerFeeQuantity);
 
     // Seller gives base asset
-    balanceStruct = loadBalanceStructAndMigrateIfNeeded(
-      self,
-      arguments.sell.wallet,
-      arguments.orderBookTrade.baseAssetSymbol
-    );
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.sell.wallet, arguments.trade.baseAssetSymbol);
     if (arguments.sell.isReduceOnly) {
       _validatePositionUpdatedTowardsZero(
         balanceStruct.balance,
-        balanceStruct.balance - int64(arguments.orderBookTrade.baseQuantity)
+        balanceStruct.balance - int64(arguments.trade.baseQuantity)
       );
     }
     _subtractFromPosition(
       market.baseAssetSymbol,
-      arguments.orderBookTrade.baseQuantity,
-      arguments.orderBookTrade.quoteQuantity,
+      arguments.trade.baseQuantity,
+      arguments.trade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.sell.wallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
@@ -294,27 +290,23 @@ library BalanceTracking {
     );
     _updateOpenPositionsForWallet(
       arguments.sell.wallet,
-      arguments.orderBookTrade.baseAssetSymbol,
+      arguments.trade.baseAssetSymbol,
       balanceStruct.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Buyer receives base asset
-    balanceStruct = loadBalanceStructAndMigrateIfNeeded(
-      self,
-      arguments.buy.wallet,
-      arguments.orderBookTrade.baseAssetSymbol
-    );
+    balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.buy.wallet, arguments.trade.baseAssetSymbol);
     if (arguments.buy.isReduceOnly) {
       _validatePositionUpdatedTowardsZero(
         balanceStruct.balance,
-        balanceStruct.balance + int64(arguments.orderBookTrade.baseQuantity)
+        balanceStruct.balance + int64(arguments.trade.baseQuantity)
       );
     }
     _addToPosition(
       market.baseAssetSymbol,
-      arguments.orderBookTrade.baseQuantity,
-      arguments.orderBookTrade.quoteQuantity,
+      arguments.trade.baseQuantity,
+      arguments.trade.quoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.buy.wallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
@@ -324,18 +316,18 @@ library BalanceTracking {
     );
     _updateOpenPositionsForWallet(
       arguments.buy.wallet,
-      arguments.orderBookTrade.baseAssetSymbol,
+      arguments.trade.baseAssetSymbol,
       balanceStruct.balance,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
 
     // Buyer gives quote asset including fees
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.buy.wallet, Constants.QUOTE_ASSET_SYMBOL);
-    balanceStruct.balance -= int64(arguments.orderBookTrade.quoteQuantity) + buyFee;
+    balanceStruct.balance -= int64(arguments.trade.quoteQuantity) + buyFee;
 
     // Seller receives quote asset minus fees
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.sell.wallet, Constants.QUOTE_ASSET_SYMBOL);
-    balanceStruct.balance += int64(arguments.orderBookTrade.quoteQuantity) - sellFee;
+    balanceStruct.balance += int64(arguments.trade.quoteQuantity) - sellFee;
 
     // Fee wallet receives maker and taker fees
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);

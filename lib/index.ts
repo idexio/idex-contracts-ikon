@@ -3,9 +3,9 @@ import { ethers } from 'ethers';
 import {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
-  ExecuteOrderBookTradeArgumentsStruct,
+  ExecuteTradeArgumentsStruct,
   IndexPriceStruct,
-  OrderBookTradeStruct,
+  TradeStruct,
   OrderStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
   PositionInDeactivatedMarketLiquidationArgumentsStruct,
@@ -19,9 +19,9 @@ import * as contracts from './contracts';
 export {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
-  ExecuteOrderBookTradeArgumentsStruct,
+  ExecuteTradeArgumentsStruct,
   IndexPriceStruct,
-  OrderBookTradeStruct,
+  TradeStruct,
   OrderStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
   PositionInDeactivatedMarketLiquidationArgumentsStruct,
@@ -249,7 +249,7 @@ export const getPublishFundingMutiplierArguments = (
   return [baseAssetSymbol, decimalToPips(fundingRate)];
 };
 
-export const getExecuteOrderBookTradeArguments = (
+export const getExecuteTradeArguments = (
   buyOrder: Order,
   buyWalletSignature: string,
   sellOrder: Order,
@@ -257,7 +257,7 @@ export const getExecuteOrderBookTradeArguments = (
   trade: Trade,
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
-): [ExecuteOrderBookTradeArgumentsStruct] => {
+): [ExecuteTradeArgumentsStruct] => {
   return [
     {
       buy: orderToArgumentStruct(
@@ -270,7 +270,7 @@ export const getExecuteOrderBookTradeArguments = (
         sellWalletSignature,
         sellDelegatedKeyAuthorization,
       ),
-      orderBookTrade: tradeToArgumentStruct(trade, buyOrder),
+      trade: tradeToArgumentStruct(trade, buyOrder),
     },
   ];
 };

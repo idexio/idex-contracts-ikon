@@ -13,7 +13,7 @@ import {
   decimalToAssetUnits,
   decimalToPips,
   fundingPeriodLengthInMs,
-  getExecuteOrderBookTradeArguments,
+  getExecuteTradeArguments,
   getIndexPriceHash,
   getOrderHash,
   indexPriceToArgumentStruct,
@@ -442,8 +442,8 @@ export async function executeTrade(
   await (
     await exchange
       .connect(dispatcherWallet)
-      .executeOrderBookTrade(
-        ...getExecuteOrderBookTradeArguments(
+      .executeTrade(
+        ...getExecuteTradeArguments(
           buyOrder,
           buyOrderSignature,
           sellOrder,
