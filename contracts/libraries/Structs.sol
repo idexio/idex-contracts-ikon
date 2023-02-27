@@ -120,28 +120,6 @@ struct Market {
 }
 
 /**
- * @notice Argument type for `Exchange.setMarketOverrides`
- */
-struct OverridableMarketFields {
-  // The margin fraction needed to open a position
-  uint64 initialMarginFraction;
-  // The margin fraction required to prevent liquidation
-  uint64 maintenanceMarginFraction;
-  // The increase of initialMarginFraction for each incrementalPositionSize above the
-  // baselinePositionSize
-  uint64 incrementalInitialMarginFraction;
-  // The max position size in base token before increasing the initial-margin-fraction.
-  uint64 baselinePositionSize;
-  // The step size (in base token) for increasing the initialMarginFraction by
-  // (incrementalInitialMarginFraction per step)
-  uint64 incrementalPositionSize;
-  // The max position size in base token
-  uint64 maximumPositionSize;
-  // The min position size in base token
-  uint64 minimumPositionSize;
-}
-
-/**
  * @notice Struct to track market overrides per wallet
  */
 struct MarketOverrides {
@@ -167,6 +145,28 @@ struct PositionBelowMinimumLiquidationArguments {
   address liquidatingWallet;
   // Quote quantity for the position being liquidated
   uint64 liquidationQuoteQuantity;
+}
+
+/**
+ * @notice Argument type for `Exchange.setMarketOverrides`
+ */
+struct OverridableMarketFields {
+  // The margin fraction needed to open a position
+  uint64 initialMarginFraction;
+  // The margin fraction required to prevent liquidation
+  uint64 maintenanceMarginFraction;
+  // The increase of initialMarginFraction for each incrementalPositionSize above the
+  // baselinePositionSize
+  uint64 incrementalInitialMarginFraction;
+  // The max position size in base token before increasing the initial-margin-fraction.
+  uint64 baselinePositionSize;
+  // The step size (in base token) for increasing the initialMarginFraction by
+  // (incrementalInitialMarginFraction per step)
+  uint64 incrementalPositionSize;
+  // The max position size in base token
+  uint64 maximumPositionSize;
+  // The min position size in base token
+  uint64 minimumPositionSize;
 }
 
 /**

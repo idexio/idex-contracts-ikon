@@ -385,14 +385,23 @@ contract Exchange_v4 is IExchange, Owned {
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
   }
 
+  /**
+   * @notice Sets bridge adapter contract addresses whitelisted for withdrawals
+   */
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) public onlyGovernance {
     bridgeAdapters = newBridgeAdapters;
   }
 
+  /**
+   * @notice Sets IPS wallet addresses whitelisted to sign Index Price payloads
+   */
   function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) public onlyGovernance {
     indexPriceServiceWallets = newIndexPriceServiceWallets;
   }
 
+  /**
+   * @notice Sets IF wallet address
+   */
   function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
     insuranceFundWallet = newInsuranceFundWallet;
   }

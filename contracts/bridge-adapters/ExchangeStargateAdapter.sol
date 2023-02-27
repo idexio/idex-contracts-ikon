@@ -117,13 +117,18 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     require(token == address(quoteAsset), "Invalid token");
 
     address destinationWallet = abi.decode(payload, (address));
+    require(destinationWallet != address(0x0), "Invalid destination wallet");
+
     IExchange(custodian.exchange()).deposit(amountLD, destinationWallet);
   }
 
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
     require(isWithdrawEnabled, "Withdraw disabled");
 
-    (uint16 targetChainId, uint16 sourcePoolId, uint256 targetPoolId) = abi.decode(payload, (uint16, uint16, uint256));
+    (uint16 targetChainId, uint16 sourcePoolId, uint256 targetPoolId, uint256 minQuantity) = abi.decode(
+      payload,
+      (uint16, uint16, uint256, uint256)
+    );
 
     (uint256 fee, ) = router.quoteLayerZeroFee(
       targetChainId,
@@ -141,7 +146,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
         targetPoolId,
         payable(this), // Refund adddress. extra gas (if any) is returned to this address
         quantity,
-        0, // TODO Should be user-specified
+        minQuantity,
         IStargateRouter.lzTxObj(0, 0, "0x"), // 0 additional gasLimit increase, 0 airdrop, at 0x address
         abi.encodePacked(msg.sender), // Destination wallet
         bytes("") // No payload, will not perform contract call on target chain

@@ -311,10 +311,8 @@ contract Governance is Owned {
   /**
    * @notice Cancels an in-flight Bridge Adapter upgrade that has not yet been finalized
    */
-  function cancelBridgeAdaptersUpgrade() public onlyAdmin returns (IBridgeAdapter[] memory newBridgeAdaptersUpgrade) {
-    require(currentIndexPriceServiceWalletsUpgrade.exists, "No adapter upgrade in progress");
-
-    newBridgeAdaptersUpgrade = currentBridgeAdaptersUpgrade.newBridgeAdapters;
+  function cancelBridgeAdaptersUpgrade() public onlyAdmin {
+    require(currentBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
 
     delete currentBridgeAdaptersUpgrade;
 
@@ -376,14 +374,8 @@ contract Governance is Owned {
   /**
    * @notice Cancels an in-flight IPS wallet upgrade that has not yet been finalized
    */
-  function cancelIndexPriceServiceWalletsUpgrade()
-    public
-    onlyAdmin
-    returns (address[] memory newIndexPriceServiceWallets)
-  {
+  function cancelIndexPriceServiceWalletsUpgrade() public onlyAdmin {
     require(currentIndexPriceServiceWalletsUpgrade.exists, "No IPS wallet upgrade in progress");
-
-    newIndexPriceServiceWallets = currentIndexPriceServiceWalletsUpgrade.newIndexPriceServiceWallets;
 
     delete currentIndexPriceServiceWalletsUpgrade;
 
@@ -445,10 +437,8 @@ contract Governance is Owned {
   /**
    * @notice Cancels an in-flight IF wallet upgrade that has not yet been finalized
    */
-  function cancelInsuranceFundWalletUpgrade() public onlyAdmin returns (address newInsuranceFundWallet) {
+  function cancelInsuranceFundWalletUpgrade() public onlyAdmin {
     require(currentInsuranceFundWalletUpgrade.exists, "No IF wallet upgrade in progress");
-
-    newInsuranceFundWallet = currentInsuranceFundWalletUpgrade.newInsuranceFundWallet;
 
     delete currentInsuranceFundWalletUpgrade;
 
@@ -483,7 +473,7 @@ contract Governance is Owned {
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
     address wallet
-  ) public onlyAdmin returns (uint256 blockThreshold) {
+  ) public onlyAdmin {
     require(
       !currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
       "Market override upgrade already in progress for wallet"
@@ -491,11 +481,11 @@ contract Governance is Owned {
 
     Validations.validateOverridableMarketFields(overridableFields);
 
-    blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+    uint256 blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
     currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverridesUpgrade(
       true,
       overridableFields,
-      blockThreshold
+      block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS
     );
 
     emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, overridableFields, blockThreshold);
@@ -520,14 +510,28 @@ contract Governance is Owned {
    * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
    * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
    */
-  function finalizeMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) public onlyAdminOrDispatcher {
-    MarketOverridesUpgrade storage upgrade = currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][
+  function finalizeMarketOverridesUpgrade(
+    string memory baseAssetSymbol,
+    address wallet,
+    OverridableMarketFields memory overridableFields
+  ) public onlyAdminOrDispatcher {
+    MarketOverridesUpgrade memory upgrade = currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][
       wallet
     ];
     require(upgrade.exists, "No market override upgrade in progress for wallet");
     require(block.number >= upgrade.blockThreshold, "Block threshold not yet reached");
 
-    OverridableMarketFields memory overridableFields = upgrade.newMarketOverrides;
+    require(
+      upgrade.newMarketOverrides.initialMarginFraction == overridableFields.initialMarginFraction &&
+        upgrade.newMarketOverrides.maintenanceMarginFraction == overridableFields.maintenanceMarginFraction &&
+        upgrade.newMarketOverrides.incrementalInitialMarginFraction ==
+        overridableFields.incrementalInitialMarginFraction &&
+        upgrade.newMarketOverrides.baselinePositionSize == overridableFields.baselinePositionSize &&
+        upgrade.newMarketOverrides.incrementalPositionSize == overridableFields.incrementalPositionSize &&
+        upgrade.newMarketOverrides.maximumPositionSize == overridableFields.maximumPositionSize &&
+        upgrade.newMarketOverrides.minimumPositionSize == overridableFields.minimumPositionSize,
+      "Overrides mismatch"
+    );
 
     exchange.setMarketOverrides(baseAssetSymbol, overridableFields, wallet);
 
