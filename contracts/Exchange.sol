@@ -13,27 +13,26 @@ import { ExitFund } from "./libraries/ExitFund.sol";
 import { Exiting } from "./libraries/Exiting.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
-import { FieldUpgradeGovernance } from "./libraries/FieldUpgradeGovernance.sol";
 import { IndexPriceMargin } from "./libraries/IndexPriceMargin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
-import { OnChainPriceFeedMargin } from "./libraries/OnChainPriceFeedMargin.sol";
+import { OraclePriceMargin } from "./libraries/OraclePriceMargin.sol";
 import { Owned } from "./Owned.sol";
 import { PositionBelowMinimumLiquidation } from "./libraries/PositionBelowMinimumLiquidation.sol";
 import { PositionInDeactivatedMarketLiquidation } from "./libraries/PositionInDeactivatedMarketLiquidation.sol";
 import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
+import { Validations } from "./libraries/Validations.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, CrossChainBridgeAdapter, ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, OrderBookTrade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
 // solhint-disable-next-line contract-name-camelcase
 contract Exchange_v4 is IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
-  using FieldUpgradeGovernance for FieldUpgradeGovernance.Storage;
   using NonceInvalidations for mapping(address => NonceInvalidation[]);
 
   // State variables //
@@ -48,8 +47,8 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(bytes32 => bool) private _completedTransferHashes;
   // Withdrawals - mapping of withdrawal wallet hash => isComplete
   mapping(bytes32 => bool) private _completedWithdrawalHashes;
-  // In-progress IF wallet upgrade
-  FieldUpgradeGovernance.Storage private _fieldUpgradeGovernance;
+  // Registry of cross-chain bridge adapter contracts
+  CrossChainBridgeAdapter[] public crossChainBridgeAdapters;
   // Fund custody contract
   ICustodian public custodian;
   // Deposit index
@@ -85,7 +84,7 @@ contract Exchange_v4 is IExchange, Owned {
   address public exitFundWallet;
   address public feeWallet;
   // TODO Upgrade through Governance
-  address[] public indexPriceCollectionServiceWallets;
+  address[] public indexPriceServiceWallets;
   address public insuranceFundWallet;
 
   // Events //
@@ -103,7 +102,13 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(uint64 index, address wallet, uint64 quantity, int64 newExchangeBalance);
+  event Deposited(
+    uint64 index,
+    address sourceWallet,
+    address destinationWallet,
+    uint64 quantity,
+    int64 newExchangeBalance
+  );
   /**
    * @notice Emitted when an admin changes the Exit Fund Wallet tunable parameter with `setExitFundWallet`
    */
@@ -116,56 +121,6 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Emitted when the Dispatch Wallet publishes a new funding rate with `publishFundingMutiplier`
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
-  /**
-   * @notice Emitted when admin initiates IPCS wallet upgrade with `initiateIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  event IndexPriceCollectionServiceWalletsUpgradeInitiated(
-    address[] oldIndexPriceCollectionServiceWallets,
-    address[] newIndexPriceCollectionServiceWallets,
-    uint256 blockThreshold
-  );
-  /**
-   * @notice Emitted when admin cancels previously started IPCS wallet upgrade with `cancelIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  event IndexPriceCollectionServiceWalletsUpgradeCanceled(
-    address[] oldIndexPriceCollectionServiceWalletsWallet,
-    address[] newIndexPriceCollectionServiceWalletsWallet
-  );
-  /**
-   * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  event IndexPriceCollectionServiceWalletsUpgradeFinalized(
-    address[] oldIndexPriceCollectionServiceWalletsWallet,
-    address[] newIndexPriceCollectionServiceWalletsWallet
-  );
-  /**
-   * @notice Emitted when admin initiates IF wallet upgrade with `initiateInsuranceFundWalletUpgrade`
-   */
-  event InsuranceFundWalletUpgradeInitiated(
-    address oldInsuranceFundWallet,
-    address newInsuranceFundWallet,
-    uint256 blockThreshold
-  );
-  /**
-   * @notice Emitted when admin cancels previously started IF wallet upgrade with `cancelInsuranceFundWalletUpgrade`
-   */
-  event InsuranceFundWalletUpgradeCanceled(address oldInsuranceFundWallet, address newInsuranceFundWallet);
-  /**
-   * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeInsuranceFundWalletUpgrade`
-   */
-  event InsuranceFundWalletUpgradeFinalized(address oldInsuranceFundWallet, address newInsuranceFundWallet);
-  /**
-   * @notice Emitted when admin initiates market override upgrade with `initiateMarketOverridesUpgrade`
-   */
-  event MarketOverridesUpgradeInitiated(string baseAssetSymbol, address wallet, uint256 blockThreshold);
-  /**
-   * @notice Emitted when admin cancels previously started market override upgrade with `cancelMarketOverridesUpgrade`
-   */
-  event MarketOverridesUpgradeCanceled(string baseAssetSymbol, address wallet);
-  /**
-   * @notice Emitted when admin finalizes market override upgrade with `finalizeMarketOverridesUpgrade`
-   */
-  event MarketOverridesUpgradeFinalized(string baseAssetSymbol, address wallet);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
    * `executeOrderBookTrade`
@@ -220,6 +175,11 @@ contract Exchange_v4 is IExchange, Owned {
 
   // Modifiers //
 
+  modifier onlyDispatcher() {
+    _onlyDispatcher();
+    _;
+  }
+
   modifier onlyDispatcherWhenExitFundHasNoPositions() {
     _onlyDispatcher();
     require(exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
@@ -232,26 +192,38 @@ contract Exchange_v4 is IExchange, Owned {
     _;
   }
 
+  modifier onlyGovernance() {
+    require(msg.sender == custodian.governance(), "Caller must be Governance contract");
+    _;
+  }
+
   // Functions //
 
   /**
    * @notice Instantiate a new `Exchange` contract
    *
-   * @dev Sets `_balanceTracking.migrationSource` to first argument, and `owner_` and `admin_` to `msg.sender`
+   * @param balanceMigrationSource Previous Exchange contract to migrate wallet balances from. Not used if zero
+   * @param exitFundWallet_ Address of EF wallet
+   * @param feeWallet_ Address of Fee wallet
+   * @param indexPriceServiceWallets_ Addresses of IPCS wallets whitelisted to sign index prices
+   * @param insuranceFundWallet_ Address of IF wallet
+   * @param quoteAssetAddress_ Address of quote asset ERC20 contract
+   *
+   * @dev Sets `owner_` and `admin_` to `msg.sender`
    */
   constructor(
     IExchange balanceMigrationSource,
-    address quoteAssetAddress_,
     address exitFundWallet_,
     address feeWallet_,
+    address[] memory indexPriceServiceWallets_,
     address insuranceFundWallet_,
-    address[] memory indexPriceCollectionServiceWallets_
+    address quoteAssetAddress_
   ) Owned() {
     require(
       address(balanceMigrationSource) == address(0x0) || Address.isContract(address(balanceMigrationSource)),
       "Invalid migration source"
     );
-    _balanceTracking.migrationSource = balanceMigrationSource;
+    _balanceTracking.migrationSource = IExchange(balanceMigrationSource);
 
     require(Address.isContract(address(quoteAssetAddress_)), "Invalid quote asset address");
     quoteAssetAddress = quoteAssetAddress_;
@@ -263,10 +235,10 @@ contract Exchange_v4 is IExchange, Owned {
     require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet address");
     insuranceFundWallet = insuranceFundWallet_;
 
-    for (uint8 i = 0; i < indexPriceCollectionServiceWallets_.length; i++) {
-      require(address(indexPriceCollectionServiceWallets_[i]) != address(0x0), "Invalid IPCS wallet");
+    for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {
+      require(indexPriceServiceWallets_[i] != address(0x0), "Invalid IPS wallet");
     }
-    indexPriceCollectionServiceWallets = indexPriceCollectionServiceWallets_;
+    indexPriceServiceWallets = indexPriceServiceWallets_;
 
     // Deposits must be manually enabled via `setDepositIndex`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;
@@ -336,7 +308,7 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Sets the address of the `Custodian` contract
+   * @notice Sets the address of the `Custodian` contract as well as initial cross-chain bridge adapters
    *
    * @dev The `Custodian` accepts `Exchange` and `Governance` addresses in its constructor, after
    * which they can only be changed by the `Governance` contract itself. Therefore the `Custodian`
@@ -345,12 +317,22 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange`
    * contract's address
+   * @param crossChainBridgeAdapters_ An array of cross-chain bridge adapter descriptors. They can be passed in here
+   * as a convenience to avoid waiting the full field upgrade governance delay following initial deploy
    */
-  function setCustodian(ICustodian newCustodian) public onlyAdmin {
+  function setCustodian(
+    ICustodian newCustodian,
+    CrossChainBridgeAdapter[] memory crossChainBridgeAdapters_
+  ) public onlyAdmin {
     require(custodian == ICustodian(payable(address(0x0))), "Custodian can only be set once");
     require(Address.isContract(address(newCustodian)), "Invalid address");
 
     custodian = newCustodian;
+
+    for (uint8 i = 0; i < crossChainBridgeAdapters.length; i++) {
+      Validations.validateCrossChainBridgeAdapter(crossChainBridgeAdapters_[i]);
+      crossChainBridgeAdapters.push(crossChainBridgeAdapters_[i]);
+    }
   }
 
   /**
@@ -408,109 +390,22 @@ contract Exchange_v4 is IExchange, Owned {
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
   }
 
-  /**
-   * @notice Initiates Index Price Collection Service wallet upgrade proccess. Once block delay has passed the process
-   * can be finalized with `finalizeIndexPriceCollectionServiceWalletsUpgrade`
-   *
-   * @param newIndexPriceCollectionServiceWallets The IPCS wallet addresses
-   */
-  function initiateIndexPriceCollectionServiceWalletsUpgrade(
-    address[] memory newIndexPriceCollectionServiceWallets
-  ) public onlyAdmin {
-    _fieldUpgradeGovernance.initiateIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
-      newIndexPriceCollectionServiceWallets
-    );
+  function setCrossChainBridgeAdapters(
+    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
+  ) public onlyGovernance {
+    delete crossChainBridgeAdapters;
 
-    emit IndexPriceCollectionServiceWalletsUpgradeInitiated(
-      indexPriceCollectionServiceWallets,
-      newIndexPriceCollectionServiceWallets,
-      _fieldUpgradeGovernance.currentIndexPriceCollectionServiceWalletsUpgrade.blockThreshold
-    );
+    for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
+      crossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
+    }
   }
 
-  /**
-   * @notice Cancels an in-flight IPCS wallet upgrade that has not yet been finalized
-   */
-  function cancelIndexPriceCollectionServiceWalletsUpgrade() public onlyAdmin {
-    address[] memory newIndexPriceCollectionServiceWallets = _fieldUpgradeGovernance
-      .cancelIndexPriceCollectionServiceWalletsUpgrade_delegatecall();
-
-    emit IndexPriceCollectionServiceWalletsUpgradeCanceled(
-      indexPriceCollectionServiceWallets,
-      newIndexPriceCollectionServiceWallets
-    );
+  function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) public onlyGovernance {
+    indexPriceServiceWallets = newIndexPriceServiceWallets;
   }
 
-  /**
-   * @notice Finalizes the IPCS wallet upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateIndexPriceCollectionServiceWalletsUpgrade`
-   *
-   * @param newIndexPriceCollectionServiceWallets The address of the new IPCS wallets. Must equal the addresses
-   * provided to `initiateIndexPriceCollectionServiceWalletsUpgrade`
-   */
-  function finalizeIndexPriceCollectionServiceWalletsUpgrade(
-    address[] memory newIndexPriceCollectionServiceWallets
-  ) public onlyAdmin {
-    _fieldUpgradeGovernance.finalizeIndexPriceCollectionServiceWalletsUpgrade_delegatecall(
-      newIndexPriceCollectionServiceWallets
-    );
-
-    address[] memory oldIndexPriceCollectionServiceWallets = indexPriceCollectionServiceWallets;
-    indexPriceCollectionServiceWallets = newIndexPriceCollectionServiceWallets;
-
-    emit IndexPriceCollectionServiceWalletsUpgradeFinalized(
-      oldIndexPriceCollectionServiceWallets,
-      newIndexPriceCollectionServiceWallets
-    );
-  }
-
-  /**
-   * @notice Initiates Insurance Fund wallet upgrade proccess. Once block delay has passed
-   * the process can be finalized with `finalizeInsuranceFundWalletUpgrade`
-   *
-   * @param newInsuranceFundWallet The IF wallet address
-   */
-  function initiateInsuranceFundWalletUpgrade(
-    address newInsuranceFundWallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    _fieldUpgradeGovernance.initiateInsuranceFundWalletUpgrade_delegatecall(
-      insuranceFundWallet,
-      newInsuranceFundWallet
-    );
-
-    emit InsuranceFundWalletUpgradeInitiated(
-      insuranceFundWallet,
-      newInsuranceFundWallet,
-      _fieldUpgradeGovernance.currentInsuranceFundWalletUpgrade.blockThreshold
-    );
-  }
-
-  /**
-   * @notice Cancels an in-flight IF wallet upgrade that has not yet been finalized
-   */
-  function cancelInsuranceFundWalletUpgrade() public onlyDispatcherWhenExitFundHasNoPositions {
-    address newInsuranceFundWallet = _fieldUpgradeGovernance.cancelInsuranceFundWalletUpgrade_delegatecall();
-
-    emit InsuranceFundWalletUpgradeCanceled(insuranceFundWallet, newInsuranceFundWallet);
-  }
-
-  /**
-   * @notice Finalizes the IF wallet upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateInsuranceFundWalletUpgrade`
-   *
-   * @param newInsuranceFundWallet The address of the new IF wallet. Must equal the address provided to
-   * `initiateInsuranceFundWalletUpgrade`
-   */
-  function finalizeInsuranceFundWalletUpgrade(
-    address newInsuranceFundWallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    _fieldUpgradeGovernance.finalizeInsuranceFundWalletUpgrade_delegatecall(newInsuranceFundWallet);
-
-    address oldInsuranceFundWallet = insuranceFundWallet;
+  function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
     insuranceFundWallet = newInsuranceFundWallet;
-
-    emit InsuranceFundWalletUpgradeFinalized(oldInsuranceFundWallet, newInsuranceFundWallet);
   }
 
   /**
@@ -560,13 +455,14 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @return balance The quantity denominated in pips of quote asset that can be withdrawn after exiting the wallet.
    * Result may be zero, in which case an exit withdrawal would not transfer out any quote but would still close all
-   * positions and quote balance. The available quote for exit can validly be negative for the EF wallet. For all other
-   * wallets, the exit quote calculations are designed such that the result quantity to withdraw is never negative;
-   * however the return type is still signed to provide visibility into unforseen bugs or rounding errors
+   * positions and quote balance. The available quote for exit can validly be negative for the EF wallet, in which case
+   * this function will return 0 since no withdrawal is possible. For all other wallets, the exit quote calculations are
+   * designed such that the result quantity to withdraw is never negative; however the return type is still signed to
+   * provide visibility into unforseen bugs or rounding errors
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) public view returns (int64) {
     return
-      Funding.loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
+      OraclePriceMargin.loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
         exitFundWallet,
         wallet,
         _balanceTracking,
@@ -609,21 +505,23 @@ contract Exchange_v4 is IExchange, Owned {
    * the token contract for at least this quantity
    * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
    */
-  function deposit(uint256 quantityInAssetUnits, address destinationWallet) external {
+  function deposit(uint256 quantityInAssetUnits, address destinationWallet) public {
+    address destinationWallet_ = destinationWallet == address(0x0) ? msg.sender : destinationWallet;
+
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
       custodian,
       depositIndex,
       quantityInAssetUnits,
       quoteAssetAddress,
       msg.sender,
-      destinationWallet == address(0x0) ? msg.sender : destinationWallet,
+      destinationWallet_,
       _balanceTracking,
       _walletExits
     );
 
     depositIndex++;
 
-    emit Deposited(depositIndex, msg.sender, quantity, newExchangeBalance);
+    emit Deposited(depositIndex, msg.sender, destinationWallet_, quantity, newExchangeBalance);
   }
 
   // Trades //
@@ -719,7 +617,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     WalletLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      0,
+      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       LiquidationType.WalletInMaintenance,
@@ -764,7 +662,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     WalletLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      0,
+      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       LiquidationType.WalletExited,
@@ -810,7 +708,7 @@ contract Exchange_v4 is IExchange, Owned {
     ClosureDeleveraging.deleverage_delegatecall(
       deleverageArguments,
       DeleverageType.InsuranceFundClosure,
-      0,
+      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -913,6 +811,7 @@ contract Exchange_v4 is IExchange, Owned {
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       _completedWithdrawalHashes,
+      crossChainBridgeAdapters,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
@@ -954,66 +853,32 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Publish updated index prices for markets
+   *
+   * @dev Access must be `onlyDispatcher` rather than `onlyDispatcherWhenExitFundHasNoPositions` to facilitate EF
+   * closure deleveraging during system recovery
    */
-  function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.publishIndexPrices_delegatecall(
-      indexPrices,
-      indexPriceCollectionServiceWallets,
-      _marketsByBaseAssetSymbol
-    );
+  function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcher {
+    MarketAdmin.publishIndexPrices_delegatecall(indexPrices, indexPriceServiceWallets, _marketsByBaseAssetSymbol);
   }
 
   /**
-   * @notice Initiates market override upgrade proccess for `wallet`. If `wallet` is zero address, then the overrides
-   * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
-   * process can be finalized with `finalizeMarketOverridesUpgrade`
+   * @notice Set overridable market parameters for a specific wallet or as new market defaults
    */
-  function initiateMarketOverridesUpgrade(
+  function setMarketOverrides(
     string memory baseAssetSymbol,
-    OverridableMarketFields memory overridableFields,
+    OverridableMarketFields memory marketOverrides,
     address wallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    uint256 blockThreshold = MarketAdmin.initiateMarketOverridesUpgrade_delegatecall(
-      baseAssetSymbol,
-      overridableFields,
-      wallet,
-      _fieldUpgradeGovernance,
-      _marketsByBaseAssetSymbol
-    );
+  ) public onlyGovernance {
+    require(_marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
 
-    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, blockThreshold);
-  }
-
-  /**
-   * @notice Cancels an in-flight market override upgrade process that has not yet been finalized
-   */
-  function cancelMarketOverridesUpgrade(
-    string memory baseAssetSymbol,
-    address wallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.cancelMarketOverridesUpgrade_delegatecall(baseAssetSymbol, wallet, _fieldUpgradeGovernance);
-
-    emit MarketOverridesUpgradeCanceled(baseAssetSymbol, wallet);
-  }
-
-  /**
-   * @notice Finalizes a market override upgrade process by changing the market's default overridable field values if
-   * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
-   */
-  function finalizeMarketOverridesUpgrade(
-    string memory baseAssetSymbol,
-    address wallet
-  ) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.finalizeMarketOverridesUpgrade_delegatecall(
-      baseAssetSymbol,
-      wallet,
-      _fieldUpgradeGovernance,
-      _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
-    );
-
-    emit MarketOverridesUpgradeFinalized(baseAssetSymbol, wallet);
+    if (wallet == address(0x0)) {
+      _marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
+    } else {
+      _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
+        exists: true,
+        overridableFields: marketOverrides
+      });
+    }
   }
 
   /**
@@ -1079,13 +944,14 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total account value for a wallet by summing its quote asset balance and each open position's
-   * notional values as computed by latest published index price. Result may be negative
+   * notional values as computed by latest published index price. Result may be negative. Since index prices are
+   * published lazily, the result may be out of date for a market with little activity
    *
    * @param wallet The wallet address to calculate total account value for
    */
-  function loadTotalAccountValue(address wallet) public view returns (int64) {
+  function loadTotalAccountValueFromIndexPrices(address wallet) public view returns (int64) {
     return
-      Funding.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
+      IndexPriceMargin.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1101,9 +967,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total account value for
    */
-  function loadTotalAccountValueFromOnChainPriceFeed(address wallet) public view returns (int64) {
+  function loadTotalAccountValueFromOraclePrices(address wallet) public view returns (int64) {
     return
-      Funding.loadTotalAccountValueIncludingOutstandingWalletFundingFromOnChainPriceFeed_delegatecall(
+      OraclePriceMargin.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1115,11 +981,12 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total initial margin requirement for a wallet by summing each open position's initial margin
-   * requirement as computed by latest published index price
+   * requirement as computed by latest published index price. Since index prices are published lazily, the result may be
+   * out of date for a market with little activity
    *
    * @param wallet The wallet address to calculate total initial margin requirement for
    */
-  function loadTotalInitialMarginRequirement(address wallet) public view returns (uint64) {
+  function loadTotalInitialMarginRequirementFromIndexPrices(address wallet) public view returns (uint64) {
     return
       IndexPriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
@@ -1136,9 +1003,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total initial margin requirement for
    */
-  function loadTotalInitialMarginRequirementFromOnChainPriceFeed(address wallet) public view returns (uint64) {
+  function loadTotalInitialMarginRequirementFromOraclePrices(address wallet) public view returns (uint64) {
     return
-      OnChainPriceFeedMargin.loadTotalInitialMarginRequirement_delegatecall(
+      OraclePriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1149,11 +1016,12 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Calculate total maintenence margin requirement for a wallet by summing each open position's maintanence
-   * margin requirement as computed by latest published index price
+   * margin requirement as computed by latest published index price. Since index prices are published lazily, the result
+   * may be out of date for a market with little activity
    *
    * @param wallet The wallet address to calculate total maintanence margin requirement for
    */
-  function loadTotalMaintenanceMarginRequirement(address wallet) public view returns (uint64) {
+  function loadTotalMaintenanceMarginRequirementFromIndexPrices(address wallet) public view returns (uint64) {
     return
       IndexPriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
@@ -1170,9 +1038,9 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @param wallet The wallet address to calculate total maintanence margin requirement for
    */
-  function loadTotalMaintenanceMarginRequirementFromOnChainPriceFeed(address wallet) public view returns (uint64) {
+  function loadTotalMaintenanceMarginRequirementFromOraclePrices(address wallet) public view returns (uint64) {
     return
-      OnChainPriceFeedMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
+      OraclePriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1252,6 +1120,6 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   function _onlyDispatcher() private view {
-    require(msg.sender == dispatcherWallet, "Caller must be dispatcher");
+    require(msg.sender == dispatcherWallet, "Caller must be Dispatcher wallet");
   }
 }

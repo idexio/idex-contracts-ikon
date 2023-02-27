@@ -39,7 +39,7 @@ The Ikon on-chain infrastructure includes three main contracts and a host of sup
 - Governance: implements [upgrade logic](#upgradability) while enforcing [governance constraints](#controls-and-governance).
 - Exchange: implements the majority of exchange functionality, including storage for wallet balance tracking.
 
-Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. AcquisitionDeleveraging, ClosureDeleveraging, Depositing, FieldUpgradeGovernance, Funding, Margin, MarketAdmin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletLiquidation, and WIthdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
+Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. AcquisitionDeleveraging, ClosureDeleveraging, Depositing, Funding, Margin, MarketAdmin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletLiquidation, and WIthdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
 
 ## Perpetuals
 

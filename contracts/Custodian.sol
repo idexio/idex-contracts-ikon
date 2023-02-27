@@ -27,6 +27,16 @@ contract Custodian is ICustodian, Owned {
   address public exchange;
   address public governance;
 
+  modifier onlyExchange() {
+    require(msg.sender == exchange, "Caller must be Exchange contract");
+    _;
+  }
+
+  modifier onlyGovernance() {
+    require(msg.sender == governance, "Caller must be Governance contract");
+    _;
+  }
+
   /**
    * @notice Instantiate a new Custodian
    *
@@ -57,7 +67,7 @@ contract Custodian is ICustodian, Owned {
    * @param asset The address of the asset to withdraw (ERC-20 contract)
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
-  function withdraw(address wallet, address asset, uint256 quantityInAssetUnits) external override onlyExchange {
+  function withdraw(address wallet, address asset, uint256 quantityInAssetUnits) public override onlyExchange {
     IERC20(asset).transfer(wallet, quantityInAssetUnits);
   }
 
@@ -66,7 +76,7 @@ contract Custodian is ICustodian, Owned {
    *
    * @param newExchange The address of the new whitelisted Exchange contract
    */
-  function setExchange(address newExchange) external override onlyGovernance {
+  function setExchange(address newExchange) public override onlyGovernance {
     require(Address.isContract(newExchange), "Invalid contract address");
 
     address oldExchange = exchange;
@@ -80,24 +90,12 @@ contract Custodian is ICustodian, Owned {
    *
    * @param newGovernance The address of the new whitelisted Governance contract
    */
-  function setGovernance(address newGovernance) external override onlyGovernance {
+  function setGovernance(address newGovernance) public override onlyGovernance {
     require(Address.isContract(newGovernance), "Invalid contract address");
 
     address oldGovernance = governance;
     governance = newGovernance;
 
     emit GovernanceChanged(oldGovernance, newGovernance);
-  }
-
-  // RBAC //
-
-  modifier onlyExchange() {
-    require(msg.sender == exchange, "Caller must be Exchange contract");
-    _;
-  }
-
-  modifier onlyGovernance() {
-    require(msg.sender == governance, "Caller must be Governance contract");
-    _;
   }
 }

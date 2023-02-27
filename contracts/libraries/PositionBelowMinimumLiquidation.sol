@@ -117,7 +117,7 @@ library PositionBelowMinimumLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    Market memory market = Validations.loadAndValidateMarket(
+    Market memory market = Validations.loadAndValidateActiveMarket(
       arguments.baseAssetSymbol,
       arguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,

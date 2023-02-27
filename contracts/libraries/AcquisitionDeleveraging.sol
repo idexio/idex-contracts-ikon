@@ -78,7 +78,8 @@ library AcquisitionDeleveraging {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
     require(
-      balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, arguments.baseAssetSymbol) != 0,
+      baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet].indexOf(arguments.baseAssetSymbol) !=
+        SortedStringSet.NOT_FOUND,
       "No open position in market"
     );
 
@@ -170,7 +171,7 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (Market memory market) {
-    market = Validations.loadAndValidateMarket(
+    market = Validations.loadAndValidateActiveMarket(
       arguments.baseAssetSymbol,
       arguments.liquidatingWallet,
       baseAssetSymbolsWithOpenPositionsByWallet,

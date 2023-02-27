@@ -4,7 +4,7 @@ import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import { deployAndAssociateContracts } from './helpers';
-import type { Exchange_v4 } from '../typechain-types';
+import type { Exchange_v4, Governance } from '../typechain-types';
 
 describe('Exchange', function () {
   let exchange: Exchange_v4;
@@ -17,7 +17,7 @@ describe('Exchange', function () {
   });
 
   describe('initiateInsuranceFundWalletUpgrade', () => {
-    let exchange: Exchange_v4;
+    let governance: Governance;
     let ownerWallet: SignerWithAddress;
     let newInsuranceFundWallet: SignerWithAddress;
 
@@ -25,50 +25,45 @@ describe('Exchange', function () {
       [ownerWallet, newInsuranceFundWallet] = await ethers.getSigners();
       const results = await deployAndAssociateContracts(ownerWallet);
       exchange = results.exchange;
+      governance = results.governance;
     });
 
     it('should work for valid wallet address', async () => {
-      await exchange.initiateInsuranceFundWalletUpgrade(
+      await governance.initiateInsuranceFundWalletUpgrade(
         newInsuranceFundWallet.address,
       );
     });
 
     it('should revert for zero address', async () => {
       await expect(
-        exchange.initiateInsuranceFundWalletUpgrade(
+        governance.initiateInsuranceFundWalletUpgrade(
           ethers.constants.AddressZero,
         ),
       ).to.eventually.be.rejectedWith(/invalid IF wallet address/i);
     });
 
-    it('should revert for same wallet address', async () => {
-      await expect(
-        exchange.initiateInsuranceFundWalletUpgrade(ownerWallet.address),
-      ).to.eventually.be.rejectedWith(/must be different from current/i);
-    });
-
     it('should revert when upgrade already in progress', async () => {
-      await exchange.initiateInsuranceFundWalletUpgrade(
+      await governance.initiateInsuranceFundWalletUpgrade(
         newInsuranceFundWallet.address,
       );
       await expect(
-        exchange.initiateInsuranceFundWalletUpgrade(
+        governance.initiateInsuranceFundWalletUpgrade(
           newInsuranceFundWallet.address,
         ),
       ).to.eventually.be.rejectedWith(/upgrade already in progress/i);
     });
 
-    it('should revert when not called by dispatch', async () => {
+    it('should revert when not called by admin', async () => {
       await expect(
-        exchange
+        governance
           .connect((await ethers.getSigners())[1])
           .initiateInsuranceFundWalletUpgrade(newInsuranceFundWallet.address),
-      ).to.eventually.be.rejectedWith(/caller must be dispatch/i);
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 
   describe('cancelInsuranceFundWalletUpgrade', () => {
-    let exchange: Exchange_v4;
+    let governance: Governance;
     let ownerWallet: SignerWithAddress;
     let newInsuranceFundWallet: SignerWithAddress;
 
@@ -76,18 +71,20 @@ describe('Exchange', function () {
       [ownerWallet, newInsuranceFundWallet] = await ethers.getSigners();
       const results = await deployAndAssociateContracts(ownerWallet);
       exchange = results.exchange;
+      governance = results.governance;
     });
 
     it('should work when upgrade was initiated', async () => {
-      await exchange.initiateInsuranceFundWalletUpgrade(
+      await governance.initiateInsuranceFundWalletUpgrade(
         newInsuranceFundWallet.address,
       );
-      await exchange.cancelInsuranceFundWalletUpgrade();
+      await governance.cancelInsuranceFundWalletUpgrade();
     });
   });
 
   describe('finalizeInsuranceFundWalletUpgrade', () => {
     let exchange: Exchange_v4;
+    let governance: Governance;
     let ownerWallet: SignerWithAddress;
     let newInsuranceFundWallet: SignerWithAddress;
 
@@ -95,16 +92,17 @@ describe('Exchange', function () {
       [ownerWallet, newInsuranceFundWallet] = await ethers.getSigners();
       const results = await deployAndAssociateContracts(ownerWallet);
       exchange = results.exchange;
+      governance = results.governance;
     });
 
     it('should work after block delay when upgrade was initiated', async () => {
-      await exchange.initiateInsuranceFundWalletUpgrade(
+      await governance.initiateInsuranceFundWalletUpgrade(
         newInsuranceFundWallet.address,
       );
 
       await mine((2 * 24 * 60 * 60) / 3, { interval: 0 });
 
-      await exchange.finalizeInsuranceFundWalletUpgrade(
+      await governance.finalizeInsuranceFundWalletUpgrade(
         newInsuranceFundWallet.address,
       );
 

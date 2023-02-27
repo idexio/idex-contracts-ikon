@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import type { Exchange_v4, USDC } from '../typechain-types';
+import type { Exchange_v4, Governance, USDC } from '../typechain-types';
 import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
 import {
   baseAssetSymbol,
@@ -18,8 +18,9 @@ import {
 describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
+  let governance: Governance;
   let indexPrice: IndexPrice;
-  let indexPriceCollectionServiceWallet: SignerWithAddress;
+  let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
   let dispatcherWallet: SignerWithAddress;
@@ -35,7 +36,7 @@ describe('Exchange', function () {
       ,
       dispatcherWallet,
       exitFundWallet,
-      indexPriceCollectionServiceWallet,
+      indexPriceServiceWallet,
       insuranceFundWallet,
       ownerWallet,
       trader1Wallet,
@@ -46,17 +47,18 @@ describe('Exchange', function () {
       dispatcherWallet,
       exitFundWallet,
       feeWallet,
+      indexPriceServiceWallet,
       insuranceFundWallet,
-      indexPriceCollectionServiceWallet,
     );
     exchange = results.exchange;
+    governance = results.governance;
     usdc = results.usdc;
 
     await results.usdc.faucet(dispatcherWallet.address);
 
     await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
 
-    indexPrice = await buildIndexPrice(indexPriceCollectionServiceWallet);
+    indexPrice = await buildIndexPrice(indexPriceServiceWallet);
 
     await executeTrade(
       exchange,
@@ -69,7 +71,7 @@ describe('Exchange', function () {
 
   describe('liquidatePositionBelowMinimum', async function () {
     beforeEach(async () => {
-      await exchange.connect(dispatcherWallet).initiateMarketOverridesUpgrade(
+      await governance.connect(ownerWallet).initiateMarketOverridesUpgrade(
         baseAssetSymbol,
         {
           initialMarginFraction: '5000000',
@@ -82,8 +84,8 @@ describe('Exchange', function () {
         },
         trader1Wallet.address,
       );
-      await mine((2 * 24 * 60 * 60) / 3, { interval: 0 });
-      await exchange
+      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(baseAssetSymbol, trader1Wallet.address);
     });
@@ -139,7 +141,7 @@ describe('Exchange', function () {
   describe('liquidateWalletInMaintenanceDuringSystemRecovery', async function () {
     it('should work for valid wallet', async function () {
       const newIndexPrice = await buildIndexPriceWithValue(
-        indexPriceCollectionServiceWallet,
+        indexPriceServiceWallet,
         '2150.00000000',
         baseAssetSymbol,
         2,

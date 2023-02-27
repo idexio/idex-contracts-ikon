@@ -40,7 +40,7 @@ export async function bootstrapLiquidatedWallet() {
     exitFundWallet,
     feeWallet,
     insuranceWallet,
-    indexPriceCollectionServiceWallet,
+    indexPriceServiceWallet,
     trader1Wallet,
     trader2Wallet,
   ] = await ethers.getSigners();
@@ -49,8 +49,8 @@ export async function bootstrapLiquidatedWallet() {
     dispatcherWallet,
     exitFundWallet,
     feeWallet,
+    indexPriceServiceWallet,
     insuranceWallet,
-    indexPriceCollectionServiceWallet,
   );
 
   await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
@@ -61,7 +61,7 @@ export async function bootstrapLiquidatedWallet() {
     usdc,
   );
 
-  const indexPrice = await buildIndexPrice(indexPriceCollectionServiceWallet);
+  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
 
   await executeTrade(
     exchange,
@@ -72,7 +72,7 @@ export async function bootstrapLiquidatedWallet() {
   );
 
   const liquidationIndexPrice = await buildIndexPriceWithValue(
-    indexPriceCollectionServiceWallet,
+    indexPriceServiceWallet,
     '2150.00000000',
     baseAssetSymbol,
     2,
@@ -137,7 +137,7 @@ export async function buildIndexPrices(
 }
 
 export async function buildIndexPriceWithValue(
-  indexPriceCollectionServiceWallet: SignerWithAddress,
+  indexPriceServiceWallet: SignerWithAddress,
   price: string,
   baseAssetSymbol_ = baseAssetSymbol,
   periodsInFuture = 1,
@@ -148,7 +148,7 @@ export async function buildIndexPriceWithValue(
     timestampInMs: getNextPeriodInMs(periodsInFuture),
     price,
   };
-  const signature = await indexPriceCollectionServiceWallet.signMessage(
+  const signature = await indexPriceServiceWallet.signMessage(
     ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
   );
 
@@ -196,8 +196,8 @@ export async function deployContractsExceptCustodian(
   owner: SignerWithAddress,
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
+  indexPriceServiceWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
-  indexPriceCollectionServiceWallet: SignerWithAddress = owner,
   governanceBlockDelay = 0,
 ) {
   const [
@@ -213,25 +213,27 @@ export async function deployContractsExceptCustodian(
   ]);
 
   const chainlinkAggregator = await (
-    await ChainlinkAggregatorFactory.deploy()
+    await ChainlinkAggregatorFactory.connect(owner).deploy()
   ).deployed();
 
   (await chainlinkAggregator.setPrice(decimalToPips('2000.00000000'))).wait();
 
-  const usdc = await (await USDCFactory.deploy()).deployed();
+  const usdc = await (await USDCFactory.connect(owner).deploy()).deployed();
 
   const [exchange, governance] = await Promise.all([
     (
-      await ExchangeFactory.deploy(
+      await ExchangeFactory.connect(owner).deploy(
         ethers.constants.AddressZero,
-        usdc.address,
         exitFundWallet.address,
         feeWallet.address,
+        [indexPriceServiceWallet.address],
         insuranceFund.address,
-        [indexPriceCollectionServiceWallet.address],
+        usdc.address,
       )
     ).deployed(),
-    (await GovernanceFactory.deploy(governanceBlockDelay)).deployed(),
+    (
+      await GovernanceFactory.connect(owner).deploy(governanceBlockDelay)
+    ).deployed(),
   ]);
 
   return { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc };
@@ -242,8 +244,8 @@ export async function deployAndAssociateContracts(
   dispatcher: SignerWithAddress = owner,
   exitFundWallet: SignerWithAddress = owner,
   feeWallet: SignerWithAddress = owner,
+  indexPriceServiceWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
-  indexPriceCollectionServiceWallet: SignerWithAddress = owner,
   governanceBlockDelay = 0,
 ) {
   const { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc } =
@@ -251,8 +253,8 @@ export async function deployAndAssociateContracts(
       owner,
       exitFundWallet,
       feeWallet,
+      indexPriceServiceWallet,
       insuranceFund,
-      indexPriceCollectionServiceWallet,
       governanceBlockDelay,
     );
 
@@ -262,7 +264,7 @@ export async function deployAndAssociateContracts(
   ).deployed();
 
   await Promise.all([
-    (await exchange.setCustodian(custodian.address)).wait(),
+    (await exchange.setCustodian(custodian.address, [])).wait(),
     (await exchange.setDepositIndex()).wait(),
     (await exchange.setDispatcher(dispatcher.address)).wait(),
     (await governance.setCustodian(custodian.address)).wait(),
@@ -304,12 +306,11 @@ export async function deployLibraryContracts() {
     AcquisitionDeleveraging,
     ClosureDeleveraging,
     Depositing,
-    FieldUpgradeGovernance,
     Funding,
     IndexPriceMargin,
     MarketAdmin,
     NonceInvalidations,
-    OnChainPriceFeedMargin,
+    OraclePriceMargin,
     PositionBelowMinimumLiquidation,
     PositionInDeactivatedMarketLiquidation,
     Trading,
@@ -320,12 +321,11 @@ export async function deployLibraryContracts() {
     ethers.getContractFactory('AcquisitionDeleveraging'),
     ethers.getContractFactory('ClosureDeleveraging'),
     ethers.getContractFactory('Depositing'),
-    ethers.getContractFactory('FieldUpgradeGovernance'),
     ethers.getContractFactory('Funding'),
     ethers.getContractFactory('IndexPriceMargin'),
     ethers.getContractFactory('MarketAdmin'),
     ethers.getContractFactory('NonceInvalidations'),
-    ethers.getContractFactory('OnChainPriceFeedMargin'),
+    ethers.getContractFactory('OraclePriceMargin'),
     ethers.getContractFactory('PositionBelowMinimumLiquidation'),
     ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
     ethers.getContractFactory('Trading'),
@@ -338,7 +338,6 @@ export async function deployLibraryContracts() {
     acquisitionDeleveraging,
     closureDeleveraging,
     depositing,
-    fieldUpgradeGovernance,
     funding,
     indexPriceMargin,
     marketAdmin,
@@ -354,12 +353,11 @@ export async function deployLibraryContracts() {
     (await AcquisitionDeleveraging.deploy()).deployed(),
     (await ClosureDeleveraging.deploy()).deployed(),
     (await Depositing.deploy()).deployed(),
-    (await FieldUpgradeGovernance.deploy()).deployed(),
     (await Funding.deploy()).deployed(),
     (await IndexPriceMargin.deploy()).deployed(),
     (await MarketAdmin.deploy()).deployed(),
     (await NonceInvalidations.deploy()).deployed(),
-    (await OnChainPriceFeedMargin.deploy()).deployed(),
+    (await OraclePriceMargin.deploy()).deployed(),
     (await PositionBelowMinimumLiquidation.deploy()).deployed(),
     (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
@@ -373,12 +371,11 @@ export async function deployLibraryContracts() {
       AcquisitionDeleveraging: acquisitionDeleveraging.address,
       ClosureDeleveraging: closureDeleveraging.address,
       Depositing: depositing.address,
-      FieldUpgradeGovernance: fieldUpgradeGovernance.address,
       Funding: funding.address,
       IndexPriceMargin: indexPriceMargin.address,
       MarketAdmin: marketAdmin.address,
       NonceInvalidations: nonceInvalidations.address,
-      OnChainPriceFeedMargin: onChainPriceFeedMargin.address,
+      OraclePriceMargin: onChainPriceFeedMargin.address,
       PositionBelowMinimumLiquidation: positionBelowMinimumLiquidation.address,
       PositionInDeactivatedMarketLiquidation:
         positionInDeactivatedMarketLiquidation.address,

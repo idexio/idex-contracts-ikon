@@ -30,8 +30,8 @@ describe('Exchange', function () {
         dispatcher,
         exitFund,
         fee,
-        insurance,
         index,
+        insurance,
       );
 
       const depositQuantity = ethers.utils.parseUnits(
@@ -51,6 +51,7 @@ describe('Exchange', function () {
         nonce: uuidv1(),
         wallet: trader.address,
         quantity: '1.00000000',
+        targetChainName: 'matic',
       };
       const signature = await trader.signMessage(
         ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
@@ -78,7 +79,7 @@ describe('Exchange', function () {
     let exchange: Exchange_v4;
     let exitFundWallet: SignerWithAddress;
     let indexPrice: IndexPrice;
-    let indexPriceCollectionServiceWallet: SignerWithAddress;
+    let indexPriceServiceWallet: SignerWithAddress;
     let insuranceFundWallet: SignerWithAddress;
     let ownerWallet: SignerWithAddress;
     let trader1Wallet: SignerWithAddress;
@@ -93,7 +94,7 @@ describe('Exchange', function () {
         ,
         dispatcherWallet,
         exitFundWallet,
-        indexPriceCollectionServiceWallet,
+        indexPriceServiceWallet,
         insuranceFundWallet,
         ownerWallet,
         trader1Wallet,
@@ -104,8 +105,8 @@ describe('Exchange', function () {
         dispatcherWallet,
         exitFundWallet,
         feeWallet,
+        indexPriceServiceWallet,
         insuranceFundWallet,
-        indexPriceCollectionServiceWallet,
       );
       exchange = results.exchange;
       usdc = results.usdc;
@@ -114,7 +115,7 @@ describe('Exchange', function () {
 
       await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
 
-      indexPrice = await buildIndexPrice(indexPriceCollectionServiceWallet);
+      indexPrice = await buildIndexPrice(indexPriceServiceWallet);
 
       await executeTrade(
         exchange,
@@ -126,13 +127,18 @@ describe('Exchange', function () {
     });
 
     it('should work for exited wallet', async function () {
+      // Deposit additional quote to allow for EF exit withdrawal
       const depositQuantity = ethers.utils.parseUnits(
         '100000.0',
         quoteAssetDecimals,
       );
-      await usdc.approve(exchange.address, depositQuantity);
+      await usdc
+        .connect(ownerWallet)
+        .approve(exchange.address, depositQuantity);
       await (
-        await exchange.deposit(depositQuantity, ethers.constants.AddressZero)
+        await exchange
+          .connect(ownerWallet)
+          .deposit(depositQuantity, ethers.constants.AddressZero)
       ).wait();
 
       await exchange.connect(trader1Wallet).exitWallet();

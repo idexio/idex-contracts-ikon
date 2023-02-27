@@ -4,9 +4,10 @@ pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
+import { Funding } from "./Funding.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { Market, MarketOverrides } from "./Structs.sol";
+import { FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
 
 library IndexPriceMargin {
   using BalanceTracking for BalanceTracking.Storage;
@@ -19,29 +20,32 @@ library IndexPriceMargin {
     Market[] markets;
   }
 
-  function loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+  // solhint-disable-next-line func-name-mixedcase
+  function loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
-    totalAccountValue = loadTotalAccountValue(
+  ) public view returns (int64) {
+    int64 totalAccountValue = IndexPriceMargin.loadTotalAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
 
-    totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
+    return
+      totalAccountValue +
+      Funding.loadOutstandingWalletFunding(
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketsByBaseAssetSymbol
+      );
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -78,6 +82,31 @@ library IndexPriceMargin {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
+  }
+
+  function loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
+    totalAccountValue = loadTotalAccountValue(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
   function loadTotalAccountValue(

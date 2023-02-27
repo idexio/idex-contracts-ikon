@@ -35,6 +35,14 @@ struct Balance {
 }
 
 /**
+ * @notice Struct for describing cross-chain bridge adapter contracts
+ */
+struct CrossChainBridgeAdapter {
+  address adapterContract;
+  string targetChainName;
+}
+
+/**
  * @notice Argument type for `Exchange.deleverageInsuranceFundClosure` and `Exchange.deleverageExitFundClosure`
  */
 struct ClosureDeleverageArguments {
@@ -93,7 +101,7 @@ struct IndexPrice {
   uint64 timestampInMs;
   // Price of base asset in decimal pips * 10^8 in quote terms
   uint64 price;
-  // Signature from index price collection service wallet
+  // Signature from index price service wallet
   bytes signature;
 }
 
@@ -105,7 +113,7 @@ struct Market {
   bool exists;
   // Flag must be asserted to allow any actions other than deactivation liquidation
   bool isActive;
-  // No need to specify quote asset - it is always the same as the quote asset
+  // No need to specify quote asset, it is always `Constants.QUOTE_ASSET_SYMBOL`
   string baseAssetSymbol;
   // Chainlink price feed aggregator contract to use for on-chain exit withdrawals
   IChainlinkAggregator chainlinkPriceFeedAddress;
@@ -285,6 +293,10 @@ struct Withdrawal {
   address wallet;
   // Withdrawal quantity
   uint64 grossQuantity;
+  // Name of target chain to transfer tokens out to
+  string targetChainName;
+  // Cross-chain bridge adapter index corresponding to target chain name
+  uint8 crossChainBridgeAdapterIndex;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs
   uint64 gasFee;
   // The ECDSA signature of the withdrawal hash as produced by Hashing.getWithdrawalWalletHash

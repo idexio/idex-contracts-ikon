@@ -39,6 +39,18 @@ abstract contract Owned {
   }
 
   /**
+   * @notice Sets a new owner wallet
+   *
+   * @param newOwner The new owner wallet. Must be different from the current one
+   */
+  function setOwner(address newOwner) external onlyOwner {
+    require(newOwner != address(0x0), "Invalid wallet address");
+    require(newOwner != ownerWallet, "Must be different from current owner");
+
+    ownerWallet = newOwner;
+  }
+
+  /**
    * @notice Clears the currently whitelisted admin wallet, effectively disabling any functions requiring
    * the admin role
    */

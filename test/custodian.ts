@@ -98,11 +98,11 @@ describe('Custodian', function () {
     it('should work when sent from governance address', async () => {
       const newExchange = await ExchangeFactory.deploy(
         ethers.constants.AddressZero,
-        usdc.address,
-        ownerWallet.address,
         ownerWallet.address,
         ownerWallet.address,
         [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
       );
 
       await governanceMock.setExchange(newExchange.address);

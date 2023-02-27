@@ -14,8 +14,8 @@ describe('Exchange', function () {
         dispatcher,
         exitFund,
         fee,
-        insurance,
         index,
+        insurance,
       );
 
       const depositQuantity = ethers.utils.parseUnits(

@@ -11,14 +11,15 @@ import { Constants } from "./Constants.sol";
 import { Exiting } from "./Exiting.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Hashing } from "./Hashing.sol";
-import { ICustodian } from "./Interfaces.sol";
 import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { OnChainPriceFeedMargin } from "./OnChainPriceFeedMargin.sol";
+import { OraclePriceMargin } from "./OraclePriceMargin.sol";
+import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
-import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
+import { ICrossChainBridgeAdapter, ICustodian } from "./Interfaces.sol";
+import { Balance, CrossChainBridgeAdapter, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -76,6 +77,7 @@ library Withdrawing {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedWithdrawalHashes,
+    CrossChainBridgeAdapter[] storage crossChainBridgeAdapters,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -123,11 +125,27 @@ library Withdrawing {
       arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
       Constants.QUOTE_ASSET_DECIMALS
     );
-    arguments.custodian.withdraw(
-      arguments.withdrawal.wallet,
-      arguments.quoteAssetAddress,
-      netAssetQuantityInAssetUnits
-    );
+    if (String.isEqual(arguments.withdrawal.targetChainName, Constants.LOCAL_CHAIN_NAME)) {
+      arguments.custodian.withdraw(
+        arguments.withdrawal.wallet,
+        arguments.quoteAssetAddress,
+        netAssetQuantityInAssetUnits
+      );
+    } else {
+      CrossChainBridgeAdapter memory adapter = crossChainBridgeAdapters[
+        arguments.withdrawal.crossChainBridgeAdapterIndex
+      ];
+      require(
+        String.isEqual(adapter.targetChainName, arguments.withdrawal.targetChainName),
+        "Invalid bridge adapter index"
+      );
+
+      arguments.custodian.withdraw(adapter.adapterContract, arguments.quoteAssetAddress, netAssetQuantityInAssetUnits);
+      ICrossChainBridgeAdapter(adapter.adapterContract).withdrawQuoteAsset(
+        arguments.withdrawal.wallet,
+        netAssetQuantityInAssetUnits
+      );
+    }
 
     // Replay prevention
     completedWithdrawalHashes[withdrawalHash] = true;
@@ -221,7 +239,7 @@ library Withdrawing {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
     // Outstanding funding payments already applied in withdrawExit_delegatecall
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OnChainPriceFeedMargin
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OraclePriceMargin
       .loadTotalAccountValueAndMaintenanceMarginRequirement(
         0,
         arguments.wallet,

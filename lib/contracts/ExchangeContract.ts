@@ -23,12 +23,11 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       acquisitionDeleveraging: string;
       closureDeleveraging: string;
       depositing: string;
-      fieldUpgradeGovernance: string;
       funding: string;
       indexPriceMargin: string;
       marketAdmin: string;
       nonceInvalidations: string;
-      onChainPriceFeedMargin: string;
+      oraclePriceMargin: string;
       positionBelowMinimumLiquidation: string;
       positionInDeactivatedMarketLiquidation: string;
       trading: string;
@@ -47,8 +46,6 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
         libraryAddresses.closureDeleveraging,
       ['contracts/libraries/Depositing.sol:Depositing']:
         libraryAddresses.depositing,
-      ['contracts/libraries/FieldUpgradeGovernance.sol:FieldUpgradeGovernance']:
-        libraryAddresses.fieldUpgradeGovernance,
       ['contracts/libraries/Funding.sol:Funding']: libraryAddresses.funding,
       ['contracts/libraries/IndexPriceMargin.sol:IndexPriceMargin']:
         libraryAddresses.indexPriceMargin,
@@ -56,8 +53,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
         libraryAddresses.marketAdmin,
       ['contracts/libraries/NonceInvalidations.sol:NonceInvalidations']:
         libraryAddresses.nonceInvalidations,
-      ['contracts/libraries/OnChainPriceFeedMargin.sol:OnChainPriceFeedMargin']:
-        libraryAddresses.onChainPriceFeedMargin,
+      ['contracts/libraries/OraclePriceMargin.sol:OraclePriceMargin']:
+        libraryAddresses.oraclePriceMargin,
       ['contracts/libraries/PositionBelowMinimumLiquidation.sol:PositionBelowMinimumLiquidation']:
         libraryAddresses.positionBelowMinimumLiquidation,
       ['contracts/libraries/PositionInDeactivatedMarketLiquidation.sol:PositionInDeactivatedMarketLiquidation']:
