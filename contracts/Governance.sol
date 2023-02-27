@@ -130,7 +130,12 @@ contract Governance is Owned {
   /**
    * @notice Emitted when admin initiates market override upgrade with `initiateMarketOverridesUpgrade`
    */
-  event MarketOverridesUpgradeInitiated(string baseAssetSymbol, address wallet, uint256 blockThreshold);
+  event MarketOverridesUpgradeInitiated(
+    string baseAssetSymbol,
+    address wallet,
+    OverridableMarketFields overridableFields,
+    uint256 blockThreshold
+  );
   /**
    * @notice Emitted when admin cancels previously started market override upgrade with `cancelMarketOverridesUpgrade`
    */
@@ -138,7 +143,11 @@ contract Governance is Owned {
   /**
    * @notice Emitted when admin finalizes market override upgrade with `finalizeMarketOverridesUpgrade`
    */
-  event MarketOverridesUpgradeFinalized(string baseAssetSymbol, address wallet);
+  event MarketOverridesUpgradeFinalized(
+    string baseAssetSymbol,
+    address wallet,
+    OverridableMarketFields overridableFields
+  );
 
   modifier onlyAdminOrDispatcher() {
     require(
@@ -489,7 +498,7 @@ contract Governance is Owned {
       blockThreshold
     );
 
-    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, blockThreshold);
+    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, overridableFields, blockThreshold);
   }
 
   /**
@@ -511,22 +520,19 @@ contract Governance is Owned {
    * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
    * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
    */
-  function finalizeMarketOverridesUpgrade(
-    string memory baseAssetSymbol,
-    address wallet
-  ) public onlyAdminOrDispatcher returns (OverridableMarketFields memory marketOverrides) {
+  function finalizeMarketOverridesUpgrade(string memory baseAssetSymbol, address wallet) public onlyAdminOrDispatcher {
     MarketOverridesUpgrade storage upgrade = currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][
       wallet
     ];
     require(upgrade.exists, "No market override upgrade in progress for wallet");
     require(block.number >= upgrade.blockThreshold, "Block threshold not yet reached");
 
-    marketOverrides = upgrade.newMarketOverrides;
+    OverridableMarketFields memory overridableFields = upgrade.newMarketOverrides;
 
-    exchange.setMarketOverrides(baseAssetSymbol, marketOverrides, wallet);
+    exchange.setMarketOverrides(baseAssetSymbol, overridableFields, wallet);
 
     delete (currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet]);
 
-    emit MarketOverridesUpgradeFinalized(baseAssetSymbol, wallet);
+    emit MarketOverridesUpgradeFinalized(baseAssetSymbol, wallet, overridableFields);
   }
 }

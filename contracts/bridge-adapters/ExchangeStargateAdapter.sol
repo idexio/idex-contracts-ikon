@@ -66,9 +66,11 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   // Address of Exchange contract
   ICustodian public immutable custodian;
   // Address of ERC20 contract used as collateral and quote for all markets
-  address public immutable quoteAssetAddress;
+  IERC20 public immutable quoteAsset;
   // Address of Stargate router contract
   IStargateRouter public immutable router;
+
+  event WithdrawQuoteAssetFailed(address destinationWallet, uint256 quantity, bytes payload, bytes errorData);
 
   modifier onlyExchange() {
     require(msg.sender == address(custodian.exchange()), "Caller must be Exchange contract");
@@ -78,17 +80,18 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   /**
    * @notice Instantiate a new `ExchangeStargateAdapter` contract
    */
-  constructor(address custodian_, address router_, address quoteAssetAddress_) {
+  constructor(address custodian_, address router_, address quoteAsset_) {
     require(Address.isContract(custodian_), "Invalid Custodian address");
     custodian = ICustodian(custodian_);
 
     require(Address.isContract(router_), "Invalid Router address");
     router = IStargateRouter(router_);
 
-    require(Address.isContract(quoteAssetAddress_), "Invalid quote asset address");
-    quoteAssetAddress = quoteAssetAddress_;
+    require(Address.isContract(quoteAsset_), "Invalid quote asset address");
+    quoteAsset = IERC20(quoteAsset_);
 
-    IERC20(quoteAssetAddress).approve(custodian.exchange(), type(uint256).max);
+    IERC20(quoteAsset).approve(custodian.exchange(), type(uint256).max);
+    IERC20(quoteAsset).approve(router_, type(uint256).max);
   }
 
   /**
@@ -111,7 +114,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   ) public override {
     require(isDepositEnabled, "Deposits disabled");
 
-    require(token == address(quoteAssetAddress), "Invalid token");
+    require(token == address(quoteAsset), "Invalid token");
 
     address destinationWallet = abi.decode(payload, (address));
     IExchange(custodian.exchange()).deposit(amountLD, destinationWallet);
@@ -130,21 +133,23 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
       IStargateRouter.lzTxObj(0, 0, abi.encodePacked(destinationWallet))
     );
 
-    IERC20(quoteAssetAddress).approve(address(router), quantity);
-
-    // perform a Stargate swap() in a solidity smart contract function
-    // the msg.value is the "fee" that Stargate needs to pay for the cross chain message
-    router.swap{ value: fee }(
-      targetChainId, // target chainId (use LayerZero chainId)
-      sourcePoolId, // source pool id
-      targetPoolId, // dest pool id
-      payable(this), // refund adddress. extra gas (if any) is returned to this address
-      quantity, // quantity to swap
-      0, // the min qty you would accept on the destination
-      IStargateRouter.lzTxObj(0, 0, "0x"), // 0 additional gasLimit increase, 0 airdrop, at 0x address
-      abi.encodePacked(msg.sender), // the address to send the tokens to on the destination
-      bytes("") // bytes param, if you wish to send additional payload you can abi.encode() them here
-    );
+    try
+      // Perform a Stargate swap()
+      router.swap{ value: fee }(
+        targetChainId,
+        sourcePoolId,
+        targetPoolId,
+        payable(this), // Refund adddress. extra gas (if any) is returned to this address
+        quantity,
+        0, // TODO Should be user-specified
+        IStargateRouter.lzTxObj(0, 0, "0x"), // 0 additional gasLimit increase, 0 airdrop, at 0x address
+        abi.encodePacked(msg.sender), // Destination wallet
+        bytes("") // No payload, will not perform contract call on target chain
+      )
+    {} catch (bytes memory errorData) {
+      quoteAsset.transfer(destinationWallet, quantity);
+      emit WithdrawQuoteAssetFailed(destinationWallet, quantity, payload, errorData);
+    }
   }
 
   function setDepositEnabled(bool isEnabled) public onlyAdmin {
