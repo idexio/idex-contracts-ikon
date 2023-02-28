@@ -18,8 +18,8 @@ import { Math } from "./Math.sol";
 import { OraclePriceMargin } from "./OraclePriceMargin.sol";
 import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
-import { ICrossChainBridgeAdapter, ICustodian } from "./Interfaces.sol";
-import { Balance, CrossChainBridgeAdapter, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
+import { IBridgeAdapter, ICustodian } from "./Interfaces.sol";
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -77,7 +77,7 @@ library Withdrawing {
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(bytes32 => bool) storage completedWithdrawalHashes,
-    CrossChainBridgeAdapter[] storage crossChainBridgeAdapters,
+    IBridgeAdapter[] storage bridgeAdapters,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -120,32 +120,7 @@ library Withdrawing {
       );
     }
 
-    // Transfer funds from Custodian to wallet
-    uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
-      arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
-      Constants.QUOTE_ASSET_DECIMALS
-    );
-    if (String.isEqual(arguments.withdrawal.targetChainName, Constants.LOCAL_CHAIN_NAME)) {
-      arguments.custodian.withdraw(
-        arguments.withdrawal.wallet,
-        arguments.quoteAssetAddress,
-        netAssetQuantityInAssetUnits
-      );
-    } else {
-      CrossChainBridgeAdapter memory adapter = crossChainBridgeAdapters[
-        arguments.withdrawal.crossChainBridgeAdapterIndex
-      ];
-      require(
-        String.isEqual(adapter.targetChainName, arguments.withdrawal.targetChainName),
-        "Invalid bridge adapter index"
-      );
-
-      arguments.custodian.withdraw(adapter.adapterContract, arguments.quoteAssetAddress, netAssetQuantityInAssetUnits);
-      ICrossChainBridgeAdapter(adapter.adapterContract).withdrawQuoteAsset(
-        arguments.withdrawal.wallet,
-        netAssetQuantityInAssetUnits
-      );
-    }
+    _transferWithdrawnQuoteAsset(arguments, bridgeAdapters);
 
     // Replay prevention
     completedWithdrawalHashes[withdrawalHash] = true;
@@ -153,7 +128,7 @@ library Withdrawing {
 
   // solhint-disable-next-line func-name-mixedcase
   function withdrawExit_delegatecall(
-    Withdrawing.WithdrawExitArguments memory arguments,
+    WithdrawExitArguments memory arguments,
     uint256 exitFundPositionOpenedAtBlockNumber,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -285,6 +260,44 @@ library Withdrawing {
     walletQuoteQuantityToWithdraw = balanceStruct.balance - exitFundQuoteQuantityChange;
     // Zero out quote balance
     balanceStruct.balance = 0;
+  }
+
+  function _transferWithdrawnQuoteAsset(
+    WithdrawArguments memory arguments,
+    IBridgeAdapter[] storage bridgeAdapters
+  ) private {
+    // Transfer funds from Custodian to wallet
+    uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
+      arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
+      Constants.QUOTE_ASSET_DECIMALS
+    );
+    if (arguments.withdrawal.bridgeAdapter == address(0x0)) {
+      arguments.custodian.withdraw(
+        arguments.withdrawal.wallet,
+        arguments.quoteAssetAddress,
+        netAssetQuantityInAssetUnits
+      );
+    } else {
+      bool bridgeAdapterIsWhitelisted = false;
+      for (uint8 i = 0; i < bridgeAdapters.length; i++) {
+        if (arguments.withdrawal.bridgeAdapter == address(bridgeAdapters[i])) {
+          bridgeAdapterIsWhitelisted = true;
+          break;
+        }
+      }
+      require(bridgeAdapterIsWhitelisted, "Invalid bridge adapter");
+
+      arguments.custodian.withdraw(
+        arguments.withdrawal.bridgeAdapter,
+        arguments.quoteAssetAddress,
+        netAssetQuantityInAssetUnits
+      );
+      IBridgeAdapter(arguments.withdrawal.bridgeAdapter).withdrawQuoteAsset(
+        arguments.withdrawal.wallet,
+        netAssetQuantityInAssetUnits,
+        arguments.withdrawal.bridgeAdapterPayload
+      );
+    }
   }
 
   function _validateExitFundWithdrawDelayElapsed(uint256 exitFundPositionOpenedAtBlockNumber) private view {

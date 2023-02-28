@@ -3,9 +3,9 @@ import { ethers } from 'ethers';
 import {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
-  ExecuteOrderBookTradeArgumentsStruct,
+  ExecuteTradeArgumentsStruct,
   IndexPriceStruct,
-  OrderBookTradeStruct,
+  TradeStruct,
   OrderStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
   PositionInDeactivatedMarketLiquidationArgumentsStruct,
@@ -19,9 +19,9 @@ import * as contracts from './contracts';
 export {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
-  ExecuteOrderBookTradeArgumentsStruct,
+  ExecuteTradeArgumentsStruct,
   IndexPriceStruct,
-  OrderBookTradeStruct,
+  TradeStruct,
   OrderStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
   PositionInDeactivatedMarketLiquidationArgumentsStruct,
@@ -138,7 +138,6 @@ export interface Withdrawal {
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
-  targetChainName: string;
 }
 
 export const compareMarketSymbols = (a: string, b: string): number =>
@@ -238,7 +237,8 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
     ['uint128', uuidToUint8Array(withdrawal.nonce)],
     ['address', withdrawal.wallet],
     ['string', withdrawal.quantity],
-    ['string', withdrawal.targetChainName],
+    ['address', ethers.constants.AddressZero], // No bridge adapter
+    ['bytes', Buffer.alloc(0)], // No bridge adapter
   ]);
 };
 
@@ -249,7 +249,7 @@ export const getPublishFundingMutiplierArguments = (
   return [baseAssetSymbol, decimalToPips(fundingRate)];
 };
 
-export const getExecuteOrderBookTradeArguments = (
+export const getExecuteTradeArguments = (
   buyOrder: Order,
   buyWalletSignature: string,
   sellOrder: Order,
@@ -257,7 +257,7 @@ export const getExecuteOrderBookTradeArguments = (
   trade: Trade,
   buyDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
   sellDelegatedKeyAuthorization?: DelegatedKeyAuthorization,
-): [ExecuteOrderBookTradeArgumentsStruct] => {
+): [ExecuteTradeArgumentsStruct] => {
   return [
     {
       buy: orderToArgumentStruct(
@@ -270,7 +270,7 @@ export const getExecuteOrderBookTradeArguments = (
         sellWalletSignature,
         sellDelegatedKeyAuthorization,
       ),
-      orderBookTrade: tradeToArgumentStruct(trade, buyOrder),
+      trade: tradeToArgumentStruct(trade, buyOrder),
     },
   ];
 };
@@ -304,8 +304,8 @@ export const getWithdrawArguments = (
       nonce: uuidToHexString(withdrawal.nonce),
       wallet: withdrawal.wallet,
       grossQuantity: decimalToPips(withdrawal.quantity),
-      targetChainName: 'matic',
-      crossChainBridgeAdapterIndex: 0,
+      bridgeAdapter: ethers.constants.AddressZero,
+      bridgeAdapterPayload: Buffer.alloc(0),
       gasFee: decimalToPips(gasFee),
       walletSignature,
     },
@@ -382,7 +382,8 @@ type TypeValuePair =
   | ['string' | 'address', string]
   | ['uint128' | 'uint256', string | Uint8Array]
   | ['uint8' | 'uint32' | 'uint64', number]
-  | ['bool', boolean];
+  | ['bool', boolean]
+  | ['bytes', Buffer];
 
 const solidityHashOfParams = (params: TypeValuePair[]): string => {
   const fields = params.map((param) => param[0]);

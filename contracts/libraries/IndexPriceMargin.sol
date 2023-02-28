@@ -29,7 +29,7 @@ library IndexPriceMargin {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public view returns (int64) {
-    int64 totalAccountValue = IndexPriceMargin.loadTotalAccountValue(
+    int64 totalAccountValue = loadTotalAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

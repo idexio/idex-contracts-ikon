@@ -6,14 +6,14 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
-import { OrderBookTradeValidations } from "./OrderBookTradeValidations.sol";
-import { ExecuteOrderBookTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation } from "./Structs.sol";
+import { TradeValidations } from "./TradeValidations.sol";
+import { ExecuteTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation } from "./Structs.sol";
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
 
   struct Arguments {
-    ExecuteOrderBookTradeArguments externalArguments;
+    ExecuteTradeArguments externalArguments;
     // Exchange state
     uint64 delegateKeyExpirationPeriodInMs;
     address exitFundWallet;
@@ -23,7 +23,7 @@ library Trading {
 
   // Placing arguments in calldata avoids a stack too deep error from the Yul optimizer
   // solhint-disable-next-line func-name-mixedcase
-  function executeOrderBookTrade_delegatecall(
+  function executeTrade_delegatecall(
     Arguments calldata arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -64,7 +64,7 @@ library Trading {
       marketsByBaseAssetSymbol
     );
 
-    _executeOrderBookTradeAfterFunding(
+    _executeTradeAfterFunding(
       arguments,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -77,7 +77,7 @@ library Trading {
     );
   }
 
-  function _executeOrderBookTradeAfterFunding(
+  function _executeTradeAfterFunding(
     Arguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -96,7 +96,7 @@ library Trading {
       partiallyFilledOrderQuantities
     );
 
-    balanceTracking.updateForOrderBookTrade(
+    balanceTracking.updateForTrade(
       arguments.externalArguments,
       arguments.feeWallet,
       market,
@@ -121,7 +121,7 @@ library Trading {
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
   ) private returns (Market memory) {
-    (bytes32 buyHash, bytes32 sellHash, Market memory market) = OrderBookTradeValidations.validateOrderBookTrade(
+    (bytes32 buyHash, bytes32 sellHash, Market memory market) = TradeValidations.validateTrade(
       arguments.externalArguments,
       arguments.delegateKeyExpirationPeriodInMs,
       arguments.exitFundWallet,
@@ -146,7 +146,7 @@ library Trading {
     _updateOrderFilledQuantity(
       arguments.externalArguments.buy,
       buyHash,
-      arguments.externalArguments.orderBookTrade.baseQuantity,
+      arguments.externalArguments.trade.baseQuantity,
       completedOrderHashes,
       partiallyFilledOrderQuantities
     );
@@ -154,7 +154,7 @@ library Trading {
     _updateOrderFilledQuantity(
       arguments.externalArguments.sell,
       sellHash,
-      arguments.externalArguments.orderBookTrade.baseQuantity,
+      arguments.externalArguments.trade.baseQuantity,
       completedOrderHashes,
       partiallyFilledOrderQuantities
     );

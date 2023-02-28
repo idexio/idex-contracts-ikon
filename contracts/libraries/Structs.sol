@@ -35,14 +35,6 @@ struct Balance {
 }
 
 /**
- * @notice Struct for describing cross-chain bridge adapter contracts
- */
-struct CrossChainBridgeAdapter {
-  address adapterContract;
-  string targetChainName;
-}
-
-/**
  * @notice Argument type for `Exchange.deleverageInsuranceFundClosure` and `Exchange.deleverageExitFundClosure`
  */
 struct ClosureDeleverageArguments {
@@ -71,11 +63,11 @@ struct DelegatedKeyAuthorization {
 }
 
 /**
- * @notice Argument type for `executeOrderBookTrade`
+ * @notice Argument type for `executeTrade`
  */
-struct ExecuteOrderBookTradeArguments {
+struct ExecuteTradeArguments {
   // External arguments
-  OrderBookTrade orderBookTrade;
+  Trade trade;
   Order buy;
   Order sell;
 }
@@ -128,28 +120,6 @@ struct Market {
 }
 
 /**
- * @notice Argument type for `Exchange.setMarketOverrides`
- */
-struct OverridableMarketFields {
-  // The margin fraction needed to open a position
-  uint64 initialMarginFraction;
-  // The margin fraction required to prevent liquidation
-  uint64 maintenanceMarginFraction;
-  // The increase of initialMarginFraction for each incrementalPositionSize above the
-  // baselinePositionSize
-  uint64 incrementalInitialMarginFraction;
-  // The max position size in base token before increasing the initial-margin-fraction.
-  uint64 baselinePositionSize;
-  // The step size (in base token) for increasing the initialMarginFraction by
-  // (incrementalInitialMarginFraction per step)
-  uint64 incrementalPositionSize;
-  // The max position size in base token
-  uint64 maximumPositionSize;
-  // The min position size in base token
-  uint64 minimumPositionSize;
-}
-
-/**
  * @notice Struct to track market overrides per wallet
  */
 struct MarketOverrides {
@@ -178,6 +148,28 @@ struct PositionBelowMinimumLiquidationArguments {
 }
 
 /**
+ * @notice Argument type for `Exchange.setMarketOverrides`
+ */
+struct OverridableMarketFields {
+  // The margin fraction needed to open a position
+  uint64 initialMarginFraction;
+  // The margin fraction required to prevent liquidation
+  uint64 maintenanceMarginFraction;
+  // The increase of initialMarginFraction for each incrementalPositionSize above the
+  // baselinePositionSize
+  uint64 incrementalInitialMarginFraction;
+  // The max position size in base token before increasing the initial-margin-fraction.
+  uint64 baselinePositionSize;
+  // The step size (in base token) for increasing the initialMarginFraction by
+  // (incrementalInitialMarginFraction per step)
+  uint64 incrementalPositionSize;
+  // The max position size in base token
+  uint64 maximumPositionSize;
+  // The min position size in base token
+  uint64 minimumPositionSize;
+}
+
+/**
  * @notice Argument type for `Exchange.liquidatePositionInDeactivatedMarket`
  */
 struct PositionInDeactivatedMarketLiquidationArguments {
@@ -189,7 +181,7 @@ struct PositionInDeactivatedMarketLiquidationArguments {
 }
 
 /**
- * @notice Argument type for `Exchange.executeOrderBookTrade` and `Hashing.getOrderWalletHash`
+ * @notice Argument type for `Exchange.executeTrade` and `Hashing.getOrderWalletHash`
  */
 struct Order {
   // Must equal `Constants.SIGNATURE_HASH_VERSION`
@@ -231,9 +223,9 @@ struct Order {
 }
 
 /**
- * @notice Argument type for `Exchange.executeOrderBookTrade` specifying execution parameters for matching orders
+ * @notice Argument type for `Exchange.executeTrade` specifying execution parameters for matching orders
  */
-struct OrderBookTrade {
+struct Trade {
   // Base asset symbol
   string baseAssetSymbol;
   // Quote asset symbol
@@ -293,10 +285,10 @@ struct Withdrawal {
   address wallet;
   // Withdrawal quantity
   uint64 grossQuantity;
-  // Name of target chain to transfer tokens out to
-  string targetChainName;
-  // Cross-chain bridge adapter index corresponding to target chain name
-  uint8 crossChainBridgeAdapterIndex;
+  // Address of target bridge adapter contract. If zero, quote goes to wallet on local chain
+  address bridgeAdapter;
+  // If bridge adapter contract is non-zero, ABI-encoded parameters to supply specific bridge protocol
+  bytes bridgeAdapterPayload;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs
   uint64 gasFee;
   // The ECDSA signature of the withdrawal hash as produced by Hashing.getWithdrawalWalletHash

@@ -8,8 +8,8 @@ import { Constants } from "./libraries/Constants.sol";
 import { Owned } from "./Owned.sol";
 import { String } from "./libraries/String.sol";
 import { Validations } from "./libraries/Validations.sol";
-import { CrossChainBridgeAdapter, OverridableMarketFields } from "./libraries/Structs.sol";
-import { ICustodian, IExchange } from "./libraries/Interfaces.sol";
+import { OverridableMarketFields } from "./libraries/Structs.sol";
+import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
 contract Governance is Owned {
   // State variables //
@@ -20,7 +20,7 @@ contract Governance is Owned {
 
   // State variables - upgrade tracking //
 
-  CrossChainBridgeAdaptersUpgrade public currentCrossChainBridgeAdaptersUpgrade;
+  BridgeAdaptersUpgrade public currentBridgeAdaptersUpgrade;
   ContractUpgrade public currentExchangeUpgrade;
   ContractUpgrade public currentGovernanceUpgrade;
   IndexPriceServiceWalletsUpgrade public currentIndexPriceServiceWalletsUpgrade;
@@ -36,9 +36,9 @@ contract Governance is Owned {
     uint256 blockThreshold;
   }
 
-  struct CrossChainBridgeAdaptersUpgrade {
+  struct BridgeAdaptersUpgrade {
     bool exists;
-    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters;
+    IBridgeAdapter[] newBridgeAdapters;
     uint256 blockThreshold;
   }
 
@@ -61,23 +61,20 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Emitted when admin initiates Cross-chain Bridge Adapter upgrade with
-   * `initiateCrossChainBridgeAdaptersUpgrade`
+   * @notice Emitted when admin initiates Bridge Adapter upgrade with
+   * `initiateBridgeAdaptersUpgrade`
    */
-  event CrossChainBridgeAdaptersUpgradeInitiated(
-    CrossChainBridgeAdapter[] newCrossChainBridgeAdapters,
-    uint256 blockThreshold
-  );
+  event BridgeAdaptersUpgradeInitiated(IBridgeAdapter[] newBridgeAdapters, uint256 blockThreshold);
   /**
-   * @notice Emitted when admin cancels previously started Cross-chain Bridge Adapter upgrade with
-   * `cancelCrossChainBridgeAdaptersUpgrade`
+   * @notice Emitted when admin cancels previously started Bridge Adapter upgrade with
+   * `cancelBridgeAdaptersUpgrade`
    */
-  event CrossChainBridgeAdaptersUpgradeCanceled();
+  event BridgeAdaptersUpgradeCanceled();
   /**
-   * @notice Emitted when admin finalizes Cross-chain Bridge Adapter upgrade with
-   * `finalizeCrossChainBridgeAdaptersUpgrade`
+   * @notice Emitted when admin finalizes Bridge Adapter upgrade with
+   * `finalizeBridgeAdaptersUpgrade`
    */
-  event CrossChainBridgeAdaptersUpgradeFinalized(CrossChainBridgeAdapter[] newCrossChainBridgeAdapters);
+  event BridgeAdaptersUpgradeFinalized(IBridgeAdapter[] newBridgeAdapters);
   /**
    * @notice Emitted when admin initiates upgrade of `Exchange` contract address on `Custodian` via
    * `initiateExchangeUpgrade`
@@ -133,7 +130,12 @@ contract Governance is Owned {
   /**
    * @notice Emitted when admin initiates market override upgrade with `initiateMarketOverridesUpgrade`
    */
-  event MarketOverridesUpgradeInitiated(string baseAssetSymbol, address wallet, uint256 blockThreshold);
+  event MarketOverridesUpgradeInitiated(
+    string baseAssetSymbol,
+    address wallet,
+    OverridableMarketFields overridableFields,
+    uint256 blockThreshold
+  );
   /**
    * @notice Emitted when admin cancels previously started market override upgrade with `cancelMarketOverridesUpgrade`
    */
@@ -141,7 +143,11 @@ contract Governance is Owned {
   /**
    * @notice Emitted when admin finalizes market override upgrade with `finalizeMarketOverridesUpgrade`
    */
-  event MarketOverridesUpgradeFinalized(string baseAssetSymbol, address wallet);
+  event MarketOverridesUpgradeFinalized(
+    string baseAssetSymbol,
+    address wallet,
+    OverridableMarketFields overridableFields
+  );
 
   modifier onlyAdminOrDispatcher() {
     require(
@@ -287,85 +293,61 @@ contract Governance is Owned {
   // Field upgrade governance //
 
   /**
-   * @notice Initiates Cross-chain Bridge Adapter upgrade proccess. Once block delay has passed the process can be
-   * finalized with `finalizeCrossChainBridgeAdaptersUpgrade`
+   * @notice Initiates Bridge Adapter upgrade proccess. Once block delay has passed the process can be
+   * finalized with `finalizeBridgeAdaptersUpgrade`
    *
-   * @param newCrossChainBridgeAdapters The new adapter descriptor structs
+   * @param newBridgeAdapters The new adapter descriptor structs
    */
-  function initiateCrossChainBridgeAdaptersUpgrade(
-    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
-  ) public onlyAdmin {
-    require(!currentCrossChainBridgeAdaptersUpgrade.exists, "IPS wallet upgrade already in progress");
+  function initiateBridgeAdaptersUpgrade(IBridgeAdapter[] memory newBridgeAdapters) public onlyAdmin {
+    require(!currentBridgeAdaptersUpgrade.exists, "IPS wallet upgrade already in progress");
 
-    for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
-      Validations.validateCrossChainBridgeAdapter(newCrossChainBridgeAdapters[i]);
-
-      currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters.push(newCrossChainBridgeAdapters[i]);
+    for (uint8 i = 0; i < newBridgeAdapters.length; i++) {
+      require(Address.isContract(address(newBridgeAdapters[i])), "Invalid adapter address");
     }
 
-    currentCrossChainBridgeAdaptersUpgrade.exists = true;
-    currentCrossChainBridgeAdaptersUpgrade.blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+    currentBridgeAdaptersUpgrade.exists = true;
+    currentBridgeAdaptersUpgrade.newBridgeAdapters = newBridgeAdapters;
+    currentBridgeAdaptersUpgrade.blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
 
-    emit CrossChainBridgeAdaptersUpgradeInitiated(
-      newCrossChainBridgeAdapters,
-      currentCrossChainBridgeAdaptersUpgrade.blockThreshold
-    );
+    emit BridgeAdaptersUpgradeInitiated(newBridgeAdapters, currentBridgeAdaptersUpgrade.blockThreshold);
   }
 
   /**
-   * @notice Cancels an in-flight Cross-chain Bridge Adapter upgrade that has not yet been finalized
+   * @notice Cancels an in-flight Bridge Adapter upgrade that has not yet been finalized
    */
-  function cancelCrossChainBridgeAdaptersUpgrade()
-    public
-    onlyAdmin
-    returns (CrossChainBridgeAdapter[] memory newCrossChainBridgeAdaptersUpgrade)
-  {
-    require(currentIndexPriceServiceWalletsUpgrade.exists, "No adapter upgrade in progress");
+  function cancelBridgeAdaptersUpgrade() public onlyAdmin {
+    require(currentBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
 
-    newCrossChainBridgeAdaptersUpgrade = currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters;
+    delete currentBridgeAdaptersUpgrade;
 
-    delete currentCrossChainBridgeAdaptersUpgrade;
-
-    emit CrossChainBridgeAdaptersUpgradeCanceled();
+    emit BridgeAdaptersUpgradeCanceled();
   }
 
   /**
-   * @notice Finalizes the Cross-chain Bridge Adapter upgrade. The number of blocks specified by
+   * @notice Finalizes the Bridge Adapter upgrade. The number of blocks specified by
    * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateCrossChainBridgeAdaptersUpgrade`
+   * `initiateBridgeAdaptersUpgrade`
    *
-   * @param newCrossChainBridgeAdapters The descriptors for the new Cross-chain Bridge Adapter, passed in as an
+   * @param newBridgeAdapters The descriptors for the new Bridge Adapter, passed in as an
    * additional layer of verification. Must match the order and values of the descriptors provided to
-   * `initiateCrossChainBridgeAdaptersUpgrade`
+   * `initiateBridgeAdaptersUpgrade`
    */
-  function finalizeCrossChainBridgeAdaptersUpgrade(
-    CrossChainBridgeAdapter[] memory newCrossChainBridgeAdapters
-  ) public onlyAdminOrDispatcher {
-    require(currentCrossChainBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
+  function finalizeBridgeAdaptersUpgrade(IBridgeAdapter[] memory newBridgeAdapters) public onlyAdminOrDispatcher {
+    require(currentBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
 
-    require(block.number >= currentCrossChainBridgeAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(block.number >= currentBridgeAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
 
     // Verify provided descriptors match originals
-    for (uint8 i = 0; i < newCrossChainBridgeAdapters.length; i++) {
-      require(
-        currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters[i].adapterContract ==
-          newCrossChainBridgeAdapters[i].adapterContract,
-        "Address mismatch"
-      );
-      require(
-        String.isEqual(
-          currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters[i].targetChainName,
-          newCrossChainBridgeAdapters[i].targetChainName
-        ),
-        "Target chain mismatch"
-      );
+    require(currentBridgeAdaptersUpgrade.newBridgeAdapters.length == newBridgeAdapters.length, "Address mismatch");
+    for (uint8 i = 0; i < newBridgeAdapters.length; i++) {
+      require(currentBridgeAdaptersUpgrade.newBridgeAdapters[i] == newBridgeAdapters[i], "Address mismatch");
     }
 
-    exchange.setCrossChainBridgeAdapters(currentCrossChainBridgeAdaptersUpgrade.newCrossChainBridgeAdapters);
+    exchange.setBridgeAdapters(currentBridgeAdaptersUpgrade.newBridgeAdapters);
 
-    delete currentCrossChainBridgeAdaptersUpgrade;
+    delete currentBridgeAdaptersUpgrade;
 
-    emit CrossChainBridgeAdaptersUpgradeFinalized(newCrossChainBridgeAdapters);
+    emit BridgeAdaptersUpgradeFinalized(newBridgeAdapters);
   }
 
   /**
@@ -396,14 +378,8 @@ contract Governance is Owned {
   /**
    * @notice Cancels an in-flight IPS wallet upgrade that has not yet been finalized
    */
-  function cancelIndexPriceServiceWalletsUpgrade()
-    public
-    onlyAdmin
-    returns (address[] memory newIndexPriceServiceWallets)
-  {
+  function cancelIndexPriceServiceWalletsUpgrade() public onlyAdmin {
     require(currentIndexPriceServiceWalletsUpgrade.exists, "No IPS wallet upgrade in progress");
-
-    newIndexPriceServiceWallets = currentIndexPriceServiceWalletsUpgrade.newIndexPriceServiceWallets;
 
     delete currentIndexPriceServiceWalletsUpgrade;
 
@@ -423,6 +399,10 @@ contract Governance is Owned {
   ) public onlyAdminOrDispatcher {
     require(currentIndexPriceServiceWalletsUpgrade.exists, "No IPS wallet upgrade in progress");
 
+    require(
+      currentIndexPriceServiceWalletsUpgrade.newIndexPriceServiceWallets.length == newIndexPriceServiceWallets.length,
+      "Address mismatch"
+    );
     for (uint8 i = 0; i < newIndexPriceServiceWallets.length; i++) {
       require(
         currentIndexPriceServiceWalletsUpgrade.newIndexPriceServiceWallets[i] == newIndexPriceServiceWallets[i],
@@ -461,10 +441,8 @@ contract Governance is Owned {
   /**
    * @notice Cancels an in-flight IF wallet upgrade that has not yet been finalized
    */
-  function cancelInsuranceFundWalletUpgrade() public onlyAdmin returns (address newInsuranceFundWallet) {
+  function cancelInsuranceFundWalletUpgrade() public onlyAdmin {
     require(currentInsuranceFundWalletUpgrade.exists, "No IF wallet upgrade in progress");
-
-    newInsuranceFundWallet = currentInsuranceFundWalletUpgrade.newInsuranceFundWallet;
 
     delete currentInsuranceFundWalletUpgrade;
 
@@ -499,7 +477,7 @@ contract Governance is Owned {
     string memory baseAssetSymbol,
     OverridableMarketFields memory overridableFields,
     address wallet
-  ) public onlyAdmin returns (uint256 blockThreshold) {
+  ) public onlyAdmin {
     require(
       !currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
       "Market override upgrade already in progress for wallet"
@@ -507,14 +485,14 @@ contract Governance is Owned {
 
     Validations.validateOverridableMarketFields(overridableFields);
 
-    blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+    uint256 blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
     currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverridesUpgrade(
       true,
       overridableFields,
       blockThreshold
     );
 
-    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, blockThreshold);
+    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, overridableFields, blockThreshold);
   }
 
   /**
@@ -538,20 +516,31 @@ contract Governance is Owned {
    */
   function finalizeMarketOverridesUpgrade(
     string memory baseAssetSymbol,
+    OverridableMarketFields memory overridableFields,
     address wallet
-  ) public onlyAdminOrDispatcher returns (OverridableMarketFields memory marketOverrides) {
-    MarketOverridesUpgrade storage upgrade = currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][
+  ) public onlyAdminOrDispatcher {
+    MarketOverridesUpgrade memory upgrade = currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][
       wallet
     ];
     require(upgrade.exists, "No market override upgrade in progress for wallet");
     require(block.number >= upgrade.blockThreshold, "Block threshold not yet reached");
 
-    marketOverrides = upgrade.newMarketOverrides;
+    require(
+      upgrade.newMarketOverrides.initialMarginFraction == overridableFields.initialMarginFraction &&
+        upgrade.newMarketOverrides.maintenanceMarginFraction == overridableFields.maintenanceMarginFraction &&
+        upgrade.newMarketOverrides.incrementalInitialMarginFraction ==
+        overridableFields.incrementalInitialMarginFraction &&
+        upgrade.newMarketOverrides.baselinePositionSize == overridableFields.baselinePositionSize &&
+        upgrade.newMarketOverrides.incrementalPositionSize == overridableFields.incrementalPositionSize &&
+        upgrade.newMarketOverrides.maximumPositionSize == overridableFields.maximumPositionSize &&
+        upgrade.newMarketOverrides.minimumPositionSize == overridableFields.minimumPositionSize,
+      "Overrides mismatch"
+    );
 
-    exchange.setMarketOverrides(baseAssetSymbol, marketOverrides, wallet);
+    exchange.setMarketOverrides(baseAssetSymbol, overridableFields, wallet);
 
     delete (currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet]);
 
-    emit MarketOverridesUpgradeFinalized(baseAssetSymbol, wallet);
+    emit MarketOverridesUpgradeFinalized(baseAssetSymbol, wallet, overridableFields);
   }
 }

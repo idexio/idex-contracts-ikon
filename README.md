@@ -58,7 +58,7 @@ Users must deposit funds into the Ikon contracts before they are available for t
 
 ### Trade
 
-Ikon includes support for order book trades only; unlike its predecessor, Silverton, it does not implement hybrid liquidity trade types. All order management and trade matching happens off-chain while trades are ultimately settled on-chain. A trade is considered settled when the Exchange contract’s wallet asset balances reflect the new values agreed to in the trade. Exchange’s `executeOrderBookTrade` function is responsible for settling trades.
+Ikon includes support for order book trades only; unlike its predecessor, Silverton, it does not implement hybrid liquidity trade types. All order management and trade matching happens off-chain while trades are ultimately settled on-chain. A trade is considered settled when the Exchange contract’s wallet asset balances reflect the new values agreed to in the trade. Exchange’s `executeTrade` function is responsible for settling trades.
 
 - Unlike deposits, trade settlement can only be initiated via a whitelisted dispatch wallet controlled by IDEX. Users do not settle trades directly; only IDEX can submit trades for settlement. Because IDEX alone controls dispatch, IDEX’s off-chain components can guarantee the eventual on-chain trade settlement order and thus allow users to trade in real-time without waiting for dispatch or mining.
 - The primary responsibility of the trade functions is order and trade validation. In the case that IDEX off-chain infrastructure is compromised, the validations ensure that funds can only move in accordance with orders signed by the depositing wallet. Ikon additionally supports orders signed by a [delegated key](#delegated-keys) that is authorized by the depositing wallet.

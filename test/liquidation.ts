@@ -71,23 +71,30 @@ describe('Exchange', function () {
 
   describe('liquidatePositionBelowMinimum', async function () {
     beforeEach(async () => {
-      await governance.connect(ownerWallet).initiateMarketOverridesUpgrade(
-        baseAssetSymbol,
-        {
-          initialMarginFraction: '5000000',
-          maintenanceMarginFraction: '3000000',
-          incrementalInitialMarginFraction: '1000000',
-          baselinePositionSize: '14000000000',
-          incrementalPositionSize: '2800000000',
-          maximumPositionSize: '282000000000',
-          minimumPositionSize: '10000000000',
-        },
-        trader1Wallet.address,
-      );
+      const overrides = {
+        initialMarginFraction: '5000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
       await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
       await governance
         .connect(dispatcherWallet)
-        .finalizeMarketOverridesUpgrade(baseAssetSymbol, trader1Wallet.address);
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
     });
 
     it('should work for valid wallet', async function () {

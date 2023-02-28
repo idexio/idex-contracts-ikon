@@ -9,14 +9,14 @@ import { NonceInvalidations } from "./NonceInvalidations.sol";
 import { String } from "./String.sol";
 import { UUID } from "./UUID.sol";
 import { Validations } from "./Validations.sol";
-import { ExecuteOrderBookTradeArguments, Market, Order, OrderBookTrade, NonceInvalidation } from "./Structs.sol";
+import { ExecuteTradeArguments, Market, Order, Trade, NonceInvalidation } from "./Structs.sol";
 import { OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
 
-library OrderBookTradeValidations {
+library TradeValidations {
   using NonceInvalidations for mapping(address => NonceInvalidation[]);
 
-  function validateOrderBookTrade(
-    ExecuteOrderBookTradeArguments memory arguments,
+  function validateTrade(
+    ExecuteTradeArguments memory arguments,
     uint64 delegateKeyExpirationPeriodInMs,
     address exitFundWallet,
     address insuranceFundWallet,
@@ -26,17 +26,11 @@ library OrderBookTradeValidations {
     require(arguments.buy.wallet != arguments.sell.wallet, "Self-trading not allowed");
 
     // Order book trade validations
-    market = _validateAssetPair(arguments.orderBookTrade, marketsByBaseAssetSymbol);
-    _validateExecutionConditions(
-      arguments.buy,
-      arguments.sell,
-      arguments.orderBookTrade,
-      exitFundWallet,
-      insuranceFundWallet
-    );
+    market = _validateAssetPair(arguments.trade, marketsByBaseAssetSymbol);
+    _validateExecutionConditions(arguments.buy, arguments.sell, arguments.trade, exitFundWallet, insuranceFundWallet);
     _validateNonces(arguments.buy, arguments.sell, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
-    (buyHash, sellHash) = _validateSignatures(arguments.buy, arguments.sell, arguments.orderBookTrade);
-    _validateFees(arguments.orderBookTrade);
+    (buyHash, sellHash) = _validateSignatures(arguments.buy, arguments.sell, arguments.trade);
+    _validateFees(arguments.trade);
   }
 
   function _calculateImpliedQuoteQuantity(uint64 baseQuantity, uint64 limitPrice) private pure returns (uint64) {
@@ -49,7 +43,7 @@ library OrderBookTradeValidations {
   }
 
   function _validateAssetPair(
-    OrderBookTrade memory trade,
+    Trade memory trade,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market) {
     require(!String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol), "Trade assets must be different");
@@ -60,7 +54,7 @@ library OrderBookTradeValidations {
     require(market.exists && market.isActive, "No active market found");
   }
 
-  function _validateFees(OrderBookTrade memory trade) private pure {
+  function _validateFees(Trade memory trade) private pure {
     if (trade.makerFeeQuantity < 0) {
       require(Math.abs(trade.makerFeeQuantity) <= trade.takerFeeQuantity, "Excessive maker rebate");
     } else {
@@ -76,7 +70,7 @@ library OrderBookTradeValidations {
   function _validateExecutionConditions(
     Order memory buy,
     Order memory sell,
-    OrderBookTrade memory trade,
+    Trade memory trade,
     address exitFundWallet,
     address insuranceFundWallet
   ) private pure {
@@ -89,7 +83,7 @@ library OrderBookTradeValidations {
 
   function _validateExecutionConditions(
     Order memory order,
-    OrderBookTrade memory trade,
+    Trade memory trade,
     bool isBuy,
     address exitFundWallet,
     address insuranceFundWallet
@@ -105,7 +99,7 @@ library OrderBookTradeValidations {
     }
   }
 
-  function _validateLimitPrice(Order memory order, OrderBookTrade memory trade, bool isBuy) private pure {
+  function _validateLimitPrice(Order memory order, Trade memory trade, bool isBuy) private pure {
     if (_isLimitOrderType(order.orderType)) {
       require(order.limitPrice > 0, "Invalid limit price");
 
@@ -162,7 +156,7 @@ library OrderBookTradeValidations {
   function _validateSignatures(
     Order memory buy,
     Order memory sell,
-    OrderBookTrade memory trade
+    Trade memory trade
   ) private pure returns (bytes32, bytes32) {
     bytes32 buyOrderHash = _validateSignature(buy, trade.baseAssetSymbol, trade.quoteAssetSymbol);
     bytes32 sellOrderHash = _validateSignature(sell, trade.baseAssetSymbol, trade.quoteAssetSymbol);
@@ -194,7 +188,7 @@ library OrderBookTradeValidations {
     return orderHash;
   }
 
-  function _validateTimeInForce(Order memory order, OrderBookTrade memory trade, bool isBuy) private pure {
+  function _validateTimeInForce(Order memory order, Trade memory trade, bool isBuy) private pure {
     if (order.timeInForce == OrderTimeInForce.gtx) {
       require(
         _isLimitOrderType(order.orderType) && trade.makerSide == (isBuy ? OrderSide.Buy : OrderSide.Sell),
