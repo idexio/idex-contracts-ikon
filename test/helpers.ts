@@ -101,7 +101,6 @@ export async function bootstrapLiquidatedWallet() {
     indexPriceServiceWallet,
     '2150.00000000',
     baseAssetSymbol,
-    2,
   );
 
   await exchange
@@ -133,33 +132,13 @@ const prices = [
 ];
 
 export async function buildIndexPrice(
-  index: SignerWithAddress,
+  indexPriceServiceWallet: SignerWithAddress,
+  baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
-  return (await buildIndexPrices(index, 1))[0];
-}
-
-export async function buildIndexPrices(
-  index: SignerWithAddress,
-  count = 1,
-): Promise<IndexPrice[]> {
-  return Promise.all(
-    Array(count)
-      .fill(null)
-      .map(async (_, i) => {
-        const indexPrice = {
-          signatureHashVersion,
-          baseAssetSymbol,
-          timestampInMs: getNextPeriodInMs(i + 1),
-          price: prices[i % prices.length],
-        };
-        const signature = await index.signMessage(
-          ethers.utils.arrayify(
-            getIndexPriceHash(indexPrice, quoteAssetSymbol),
-          ),
-        );
-
-        return { ...indexPrice, signature };
-      }),
+  return buildIndexPriceWithTimestamp(
+    indexPriceServiceWallet,
+    (await getLatestBlockTimestampInSeconds()) * 1000 + 1000,
+    baseAssetSymbol_,
   );
 }
 
@@ -185,12 +164,11 @@ export async function buildIndexPriceWithValue(
   indexPriceServiceWallet: SignerWithAddress,
   price: string,
   baseAssetSymbol_ = baseAssetSymbol,
-  periodsInFuture = 1,
 ): Promise<IndexPrice> {
   const indexPrice = {
     signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
-    timestampInMs: getNextPeriodInMs(periodsInFuture),
+    timestampInMs: (await getLatestBlockTimestampInSeconds()) * 1000 + 1000,
     price,
   };
   const signature = await indexPriceServiceWallet.signMessage(
@@ -514,12 +492,8 @@ export async function fundWallets(
   );
 }
 
-function getNextPeriodInMs(periodsInFuture = 0) {
-  return new Date(
-    Math.round(
-      new Date().getTime() + periodsInFuture * fundingPeriodLengthInMs,
-    ),
-  ).getTime();
+export async function getLatestBlockTimestampInSeconds(): Promise<number> {
+  return (await ethers.provider.getBlock('latest')).timestamp;
 }
 
 export async function loadFundingMultipliers(

@@ -1,7 +1,11 @@
 import { ethers } from 'hardhat';
 import { v1 as uuidv1 } from 'uuid';
 
-import { deployAndAssociateContracts, expect } from './helpers';
+import {
+  deployAndAssociateContracts,
+  expect,
+  getLatestBlockTimestampInSeconds,
+} from './helpers';
 import { Exchange_v4 } from '../typechain-types';
 import { uuidToHexString } from '../lib';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -38,7 +42,11 @@ describe('Exchange', function () {
       await expect(
         exchange.invalidateOrderNonce(
           uuidToHexString(
-            uuidv1({ msecs: new Date().getTime() + 48 * 60 * 60 * 1000 }), // 2 days, max is 1
+            uuidv1({
+              msecs:
+                (await getLatestBlockTimestampInSeconds()) * 1000 +
+                48 * 60 * 60 * 1000,
+            }), // 2 days, max is 1
           ),
         ),
       ).to.eventually.be.rejectedWith(/nonce timestamp too high/i);

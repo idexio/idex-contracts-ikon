@@ -151,7 +151,6 @@ describe('Exchange', function () {
         indexPriceServiceWallet,
         '2150.00000000',
         baseAssetSymbol,
-        2,
       );
 
       await exchange
