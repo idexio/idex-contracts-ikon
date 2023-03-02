@@ -12,7 +12,6 @@ export const { expect } = chai;
 import {
   decimalToAssetUnits,
   decimalToPips,
-  fundingPeriodLengthInMs,
   getExecuteTradeArguments,
   getIndexPriceHash,
   getOrderHash,
@@ -387,7 +386,7 @@ export async function executeTrade(
   indexPrice: IndexPrice | null,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
-) {
+): Promise<Trade> {
   if (indexPrice) {
     await exchange
       .connect(dispatcherWallet)
@@ -446,6 +445,8 @@ export async function executeTrade(
         ),
       )
   ).wait();
+
+  return trade;
 }
 
 export async function fundWallets(

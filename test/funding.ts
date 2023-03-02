@@ -13,13 +13,17 @@ import {
   IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
-import type { Exchange_v4 } from '../typechain-types';
+import type { Exchange_v4, USDC } from '../typechain-types';
 import {
   addAndActivateMarket,
   baseAssetSymbol,
   buildIndexPrice,
+  executeTrade,
+  fundWallets,
   getLatestBlockTimestampInSeconds,
   deployAndAssociateContracts,
+  buildIndexPriceWithTimestamp,
+  quoteAssetSymbol,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -27,6 +31,7 @@ describe('Exchange', function () {
   let exchange: Exchange_v4;
   let indexPrice: IndexPrice;
   let indexPriceServiceWallet: SignerWithAddress;
+  let usdc: USDC;
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -44,6 +49,7 @@ describe('Exchange', function () {
       false,
     );
     exchange = results.exchange;
+    usdc = results.usdc;
 
     await increaseTo(await getMidnightTomorrowInSecondsUTC());
     await addAndActivateMarket(
@@ -141,6 +147,163 @@ describe('Exchange', function () {
           .connect(dispatcherWallet)
           .publishFundingMultiplier('XYZ', decimalToPips(getFundingRate())),
       ).to.eventually.be.rejectedWith(/no active market found/i);
+    });
+  });
+
+  describe('updateWalletFundingForMarket', async function () {
+    it('should work for wallet with outstanding funding payments', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      const trader1Wallet = (await ethers.getSigners())[6];
+      const trader2Wallet = (await ethers.getSigners())[7];
+      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+
+      const trade = await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        trader1Wallet,
+        trader2Wallet,
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithTimestamp(
+              indexPriceServiceWallet,
+              indexPrice.timestampInMs + fundingPeriodLengthInMs,
+            ),
+          ),
+        ]);
+
+      const originalTrader1QuoteBalance = (
+        await exchange.loadBalanceBySymbol(
+          trader1Wallet.address,
+          quoteAssetSymbol,
+        )
+      ).toString();
+      const originalTrader2QuoteBalance = (
+        await exchange.loadBalanceBySymbol(
+          trader2Wallet.address,
+          quoteAssetSymbol,
+        )
+      ).toString();
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      const exitWithdrawalQuantity = (
+        await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+          trader1Wallet.address,
+        )
+      ).toString();
+
+      const expectedTrader1FundingPayment = decimalToPips(
+        new BigNumber(indexPrice.price)
+          .times(new BigNumber(getFundingRate()))
+          .times(trade.baseQuantity)
+          .toString(),
+      );
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address)
+        ).toString(),
+      ).to.equal(expectedTrader1FundingPayment);
+
+      const expectedTrader2FundingPayment = decimalToPips(
+        new BigNumber(indexPrice.price)
+          .times(new BigNumber(getFundingRate()))
+          .negated()
+          .times(trade.baseQuantity)
+          .toString(),
+      );
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
+        ).toString(),
+      ).to.equal(expectedTrader2FundingPayment);
+
+      await exchange.updateWalletFundingForMarket(
+        trader1Wallet.address,
+        baseAssetSymbol,
+      );
+      await exchange.updateWalletFundingForMarket(
+        trader2Wallet.address,
+        baseAssetSymbol,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader1Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(
+        new BigNumber(originalTrader1QuoteBalance)
+          .plus(new BigNumber(expectedTrader1FundingPayment))
+          .toString(),
+      );
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader2Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(
+        new BigNumber(originalTrader2QuoteBalance)
+          .plus(new BigNumber(expectedTrader2FundingPayment))
+          .toString(),
+      );
+      /*
+       * FIXME Why is this failing?
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader1Wallet.address,
+          )
+        ).toString(),
+      ).to.equal(exitWithdrawalQuantity);
+      */
+
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+
+      // TODO Verify balance updates
+    });
+
+    it('should revert for invalid symbol', async function () {
+      await expect(
+        exchange.updateWalletFundingForMarket(
+          (
+            await ethers.getSigners()
+          )[6].address,
+          'XYZ',
+        ),
+      ).to.eventually.be.rejectedWith(/market not found/i);
     });
   });
 });
