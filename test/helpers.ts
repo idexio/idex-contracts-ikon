@@ -25,13 +25,39 @@ import {
   signatureHashVersion,
   Trade,
 } from '../lib';
-import { Exchange_v4, USDC } from '../typechain-types';
+import { ChainlinkAggregatorMock, Exchange_v4, USDC } from '../typechain-types';
 
 export const quoteAssetDecimals = 6;
 
 export const baseAssetSymbol = 'ETH';
 
 export const quoteAssetSymbol = 'USDC';
+
+export async function addAndActivateMarket(
+  chainlinkAggregator: ChainlinkAggregatorMock,
+  dispatcherWallet: SignerWithAddress,
+  exchange: Exchange_v4,
+) {
+  await exchange.addMarket({
+    exists: true,
+    isActive: false,
+    baseAssetSymbol,
+    chainlinkPriceFeedAddress: chainlinkAggregator.address,
+    indexPriceAtDeactivation: 0,
+    lastIndexPrice: 0,
+    lastIndexPriceTimestampInMs: 0,
+    overridableFields: {
+      initialMarginFraction: '5000000',
+      maintenanceMarginFraction: '3000000',
+      incrementalInitialMarginFraction: '1000000',
+      baselinePositionSize: '14000000000',
+      incrementalPositionSize: '2800000000',
+      maximumPositionSize: '282000000000',
+      minimumPositionSize: '10000000',
+    },
+  });
+  await exchange.connect(dispatcherWallet).activateMarket(baseAssetSymbol);
+}
 
 export async function bootstrapLiquidatedWallet() {
   const [
@@ -98,12 +124,6 @@ export async function bootstrapLiquidatedWallet() {
   };
 }
 
-export async function buildIndexPrice(
-  index: SignerWithAddress,
-): Promise<IndexPrice> {
-  return (await buildIndexPrices(index, 1))[0];
-}
-
 const prices = [
   '2000.00000000',
   '2100.00000000',
@@ -111,6 +131,13 @@ const prices = [
   '1996.79000000',
   '1724.64000000',
 ];
+
+export async function buildIndexPrice(
+  index: SignerWithAddress,
+): Promise<IndexPrice> {
+  return (await buildIndexPrices(index, 1))[0];
+}
+
 export async function buildIndexPrices(
   index: SignerWithAddress,
   count = 1,
@@ -134,6 +161,24 @@ export async function buildIndexPrices(
         return { ...indexPrice, signature };
       }),
   );
+}
+
+export async function buildIndexPriceWithTimestamp(
+  indexPriceServiceWallet: SignerWithAddress,
+  timestampInMs: number,
+  baseAssetSymbol_ = baseAssetSymbol,
+): Promise<IndexPrice> {
+  const indexPrice = {
+    signatureHashVersion,
+    baseAssetSymbol: baseAssetSymbol_,
+    timestampInMs,
+    price: prices[0],
+  };
+  const signature = await indexPriceServiceWallet.signMessage(
+    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+  );
+
+  return { ...indexPrice, signature };
 }
 
 export async function buildIndexPriceWithValue(
@@ -177,19 +222,6 @@ export async function buildLimitOrder(
   );
 
   return { order, signature };
-}
-
-const fundingRates = [
-  '-0.00016100',
-  '0.00026400',
-  '-0.00028200',
-  '-0.00005000',
-  '0.00010400',
-];
-export function buildFundingRates(count = 1): string[] {
-  return Array(count)
-    .fill(null)
-    .map((_, i) => fundingRates[i % 5]);
 }
 
 export async function deployContractsExceptCustodian(
@@ -247,6 +279,7 @@ export async function deployAndAssociateContracts(
   indexPriceServiceWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
   governanceBlockDelay = 0,
+  addDefaultMarket = true,
 ) {
   const { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc } =
     await deployContractsExceptCustodian(
@@ -268,28 +301,11 @@ export async function deployAndAssociateContracts(
     (await exchange.setDepositIndex()).wait(),
     (await exchange.setDispatcher(dispatcher.address)).wait(),
     (await governance.setCustodian(custodian.address)).wait(),
-    (
-      await exchange.addMarket({
-        exists: true,
-        isActive: false,
-        baseAssetSymbol,
-        chainlinkPriceFeedAddress: chainlinkAggregator.address,
-        indexPriceAtDeactivation: 0,
-        lastIndexPrice: 0,
-        lastIndexPriceTimestampInMs: 0,
-        overridableFields: {
-          initialMarginFraction: '5000000',
-          maintenanceMarginFraction: '3000000',
-          incrementalInitialMarginFraction: '1000000',
-          baselinePositionSize: '14000000000',
-          incrementalPositionSize: '2800000000',
-          maximumPositionSize: '282000000000',
-          minimumPositionSize: '10000000',
-        },
-      })
-    ).wait(),
   ]);
-  (await exchange.connect(dispatcher).activateMarket(baseAssetSymbol)).wait();
+
+  if (addDefaultMarket) {
+    await addAndActivateMarket(chainlinkAggregator, dispatcher, exchange);
+  }
 
   return {
     chainlinkAggregator,
