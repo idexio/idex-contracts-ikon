@@ -163,7 +163,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     isDepositEnabled = isEnabled;
   }
 
-  function setMinimumWithdrawQuantityMultiplierEnabled(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
+  function setMinimumWithdrawQuantityMultiplier(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
     minimumWithdrawQuantityMultiplier = newMinimumWithdrawQuantityMultiplier;
   }
 

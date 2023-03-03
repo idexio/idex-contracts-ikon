@@ -199,7 +199,7 @@ describe('Exchange', function () {
     });
   });
 
-  describe.skip('updateWalletFundingForMarket', async function () {
+  describe.skip('applyOutstandingWalletFundingForMarket', async function () {
     it('should work for multiple consecutive periods', async function () {
       const [
         ownerWallet,
@@ -257,7 +257,7 @@ describe('Exchange', function () {
           );
       }
 
-      await exchange.updateWalletFundingForMarket(
+      await exchange.applyOutstandingWalletFundingForMarket(
         trader1Wallet.address,
         baseAssetSymbol,
       );

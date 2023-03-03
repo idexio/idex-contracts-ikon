@@ -44,6 +44,22 @@ library Validations {
     );
   }
 
+  function loadAndValidateInactiveMarket(
+    string memory baseAssetSymbol,
+    address liquidatingWallet,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (Market memory market) {
+    market = marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists && !market.isActive, "No inactive market found");
+
+    require(
+      baseAssetSymbolsWithOpenPositionsByWallet[liquidatingWallet].indexOf(baseAssetSymbol) !=
+        SortedStringSet.NOT_FOUND,
+      "Open position not found for market"
+    );
+  }
+
   // Validate reasonable limits on overridable market fields
   function validateOverridableMarketFields(OverridableMarketFields memory overridableFields) internal pure {
     require(
@@ -60,7 +76,7 @@ library Validations {
     );
     require(
       overridableFields.baselinePositionSize <= overridableFields.maximumPositionSize,
-      "Baseline position size exceeds maximum"
+      "Baseline position size exceeds max"
     );
     require(
       overridableFields.maximumPositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,

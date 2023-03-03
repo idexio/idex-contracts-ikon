@@ -33,7 +33,7 @@ library PositionBelowMinimumLiquidation {
     require(arguments.liquidatingWallet != exitFundWallet, "Cannot liquidate EF");
     require(arguments.liquidatingWallet != insuranceFundWallet, "Cannot liquidate IF");
 
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -41,7 +41,7 @@ library PositionBelowMinimumLiquidation {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       insuranceFundWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -73,7 +73,7 @@ library PositionBelowMinimumLiquidation {
     );
 
     // Validate that the Insurance Fund still meets its initial margin requirements
-    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.validateInitialMarginRequirement(
       insuranceFundWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

@@ -41,7 +41,7 @@ library WalletLiquidation {
       require(arguments.counterpartyWallet == insuranceFundWallet, "Must liquidate to IF");
     }
 
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -49,7 +49,7 @@ library WalletLiquidation {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.counterpartyWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -80,7 +80,7 @@ library WalletLiquidation {
       resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockNumber;
 
       // Validate that the Insurance Fund still meets its initial margin requirements
-      IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      IndexPriceMargin.validateInitialMarginRequirement(
         arguments.counterpartyWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -169,7 +169,7 @@ library WalletLiquidation {
       );
     }
 
-    balanceTracking.updateQuoteForLiquidation(arguments.counterpartyWallet, arguments.liquidatingWallet);
+    balanceTracking.updateQuoteBalanceForLiquidation(arguments.counterpartyWallet, arguments.liquidatingWallet);
   }
 
   function _validateQuoteQuantityAndLiquidatePosition(

@@ -42,7 +42,7 @@ library ClosureDeleveraging {
       require(arguments.liquidatingWallet == insuranceFundWallet, "Liquidating wallet must be IF");
     }
 
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -50,7 +50,7 @@ library ClosureDeleveraging {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -70,6 +70,8 @@ library ClosureDeleveraging {
       marketsByBaseAssetSymbol
     );
 
+    // EF closure deleveraging can potentially change the `exitFundPositionOpenedAtBlockNumber` by setting it to zero,
+    // whereas IF closure cannot
     if (deleverageType == DeleverageType.ExitFundClosure) {
       return
         ExitFund.getExitFundBalanceOpenedAtBlockNumber(
@@ -80,6 +82,7 @@ library ClosureDeleveraging {
         );
     }
 
+    // IF closure never changes `exitFundPositionOpenedAtBlockNumber`
     return exitFundPositionOpenedAtBlockNumber;
   }
 
@@ -149,14 +152,15 @@ library ClosureDeleveraging {
         );
 
       // The provided liquidationBaseQuantity specifies how much of the position to liquidate, so we provide this
-      // quantity as the position size to validateExitFundClosureQuoteQuantity while observing the same signedness
+      // quantity as the position size to `LiquidationValidations.validateExitFundClosureQuoteQuantity` while observing
+      // the same signedness
       LiquidationValidations.validateExitFundClosureQuoteQuantity(
-        balanceStruct.balance < 0
-          ? (-1 * int64(arguments.liquidationBaseQuantity))
-          : int64(arguments.liquidationBaseQuantity),
         market.lastIndexPrice,
         // Use market default values instead of wallet-specific overrides for the EF, since its margin fraction is zero
         market.overridableFields.maintenanceMarginFraction,
+        balanceStruct.balance < 0
+          ? (-1 * int64(arguments.liquidationBaseQuantity))
+          : int64(arguments.liquidationBaseQuantity),
         arguments.liquidationQuoteQuantity,
         totalAccountValue,
         totalMaintenanceMarginRequirement
@@ -176,7 +180,7 @@ library ClosureDeleveraging {
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
-    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.validateInitialMarginRequirement(
       arguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

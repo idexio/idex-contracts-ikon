@@ -7,8 +7,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
-import { Exiting } from "./Exiting.sol";
 import { ICustodian } from "./Interfaces.sol";
+import { WalletExits } from "./WalletExits.sol";
 
 library Depositing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -22,7 +22,7 @@ library Depositing {
     address sourceWallet,
     address destinationWallet,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => Exiting.WalletExit) storage walletExits
+    mapping(address => WalletExits.WalletExit) storage walletExits
   ) public returns (uint64 quantity, int64 newExchangeBalance) {
     // Deposits are disabled until `setDepositIndex` is called successfully
     require(depositIndex != Constants.DEPOSIT_INDEX_NOT_SET, "Deposits disabled");

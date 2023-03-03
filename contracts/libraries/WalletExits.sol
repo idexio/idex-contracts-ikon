@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.18;
 
-library Exiting {
+library WalletExits {
   struct WalletExit {
     bool exists;
     uint256 effectiveBlockNumber;
