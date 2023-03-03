@@ -30,7 +30,7 @@ export const quoteAssetDecimals = 6;
 
 export const baseAssetSymbol = 'ETH';
 
-export const quoteAssetSymbol = 'USDC';
+export const quoteAssetSymbol = 'USD';
 
 export async function addAndActivateMarket(
   chainlinkAggregator: ChainlinkAggregatorMock,
@@ -400,7 +400,7 @@ export async function executeTrade(
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader1.address,
-    market: `${baseAssetSymbol}-USDC`,
+    market: `${baseAssetSymbol}-USD`,
     type: OrderType.Limit,
     side: OrderSide.Sell,
     quantity: '10.00000000',
@@ -414,7 +414,7 @@ export async function executeTrade(
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader2.address,
-    market: `${baseAssetSymbol}-USDC`,
+    market: `${baseAssetSymbol}-USD`,
     type: OrderType.Limit,
     side: OrderSide.Buy,
     quantity: '10.00000000',
@@ -426,7 +426,6 @@ export async function executeTrade(
 
   const trade: Trade = {
     baseAssetSymbol: baseAssetSymbol,
-    quoteAssetSymbol: 'USD',
     baseQuantity: '10.00000000',
     quoteQuantity: '20000.00000000',
     makerFeeQuantity: '20.00000000',

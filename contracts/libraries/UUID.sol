@@ -8,16 +8,12 @@ pragma solidity 0.8.18;
 library UUID {
   /**
    * Extracts the timestamp component of a Version 1 UUID. Used to make time-based assertions
-   * against a wallet-privided nonce
+   * against a wallet-provided nonce
    */
-  function getTimestampInMsFromUuidV1(uint128 uuid)
-    internal
-    pure
-    returns (uint64 msSinceUnixEpoch)
-  {
+  function getTimestampInMsFromUuidV1(uint128 uuid) internal pure returns (uint64 msSinceUnixEpoch) {
     // https://tools.ietf.org/html/rfc4122#section-4.1.2
     uint128 version = (uuid >> 76) & 0x0000000000000000000000000000000F;
-    require(version == 1, 'Must be v1 UUID');
+    require(version == 1, "Must be v1 UUID");
 
     // Time components are in reverse order so shift+mask each to reassemble
     uint128 timeHigh = (uuid >> 16) & 0x00000000000000000FFF000000000000;

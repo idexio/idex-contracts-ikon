@@ -68,7 +68,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) private _partiallyFilledOrderQuantities;
   // Address of ERC20 contract used as collateral and quote for all markets
-  address public immutable quoteAssetAddress;
+  address public immutable quoteTokenAddress;
   // Exits
   mapping(address => Exiting.WalletExit) private _walletExits;
 
@@ -131,7 +131,7 @@ contract Exchange_v4 is IExchange, Owned {
     string quoteAssetSymbol,
     uint64 baseQuantity,
     uint64 quoteQuantity,
-    OrderSide takerSide,
+    OrderSide makerSide,
     int64 makerFeeQuantity,
     uint64 takerFeeQuantity
   );
@@ -206,7 +206,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @param feeWallet_ Address of Fee wallet
    * @param indexPriceServiceWallets_ Addresses of IPS wallets whitelisted to sign index prices
    * @param insuranceFundWallet_ Address of IF wallet
-   * @param quoteAssetAddress_ Address of quote asset ERC20 contract
+   * @param quoteTokenAddress_ Address of quote asset ERC20 contract
    *
    * @dev Sets `owner_` and `admin_` to `msg.sender`
    */
@@ -216,7 +216,7 @@ contract Exchange_v4 is IExchange, Owned {
     address feeWallet_,
     address[] memory indexPriceServiceWallets_,
     address insuranceFundWallet_,
-    address quoteAssetAddress_
+    address quoteTokenAddress_
   ) Owned() {
     require(
       address(balanceMigrationSource) == address(0x0) || Address.isContract(address(balanceMigrationSource)),
@@ -224,8 +224,8 @@ contract Exchange_v4 is IExchange, Owned {
     );
     _balanceTracking.migrationSource = IExchange(balanceMigrationSource);
 
-    require(Address.isContract(address(quoteAssetAddress_)), "Invalid quote asset address");
-    quoteAssetAddress = quoteAssetAddress_;
+    require(Address.isContract(address(quoteTokenAddress_)), "Invalid quote asset address");
+    quoteTokenAddress = quoteTokenAddress_;
 
     setExitFundWallet(exitFundWallet_);
 
@@ -510,7 +510,7 @@ contract Exchange_v4 is IExchange, Owned {
       custodian,
       depositIndex,
       quantityInAssetUnits,
-      quoteAssetAddress,
+      quoteTokenAddress,
       msg.sender,
       destinationWallet_,
       _balanceTracking,
@@ -555,10 +555,10 @@ contract Exchange_v4 is IExchange, Owned {
       tradeArguments.buy.wallet,
       tradeArguments.sell.wallet,
       tradeArguments.trade.baseAssetSymbol,
-      tradeArguments.trade.quoteAssetSymbol,
+      Constants.QUOTE_ASSET_SYMBOL,
       tradeArguments.trade.baseQuantity,
       tradeArguments.trade.quoteQuantity,
-      tradeArguments.trade.makerSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy,
+      tradeArguments.trade.makerSide,
       tradeArguments.trade.makerFeeQuantity,
       tradeArguments.trade.takerFeeQuantity
     );
@@ -798,7 +798,7 @@ contract Exchange_v4 is IExchange, Owned {
     int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
       Withdrawing.WithdrawArguments(
         withdrawal,
-        quoteAssetAddress,
+        quoteTokenAddress,
         custodian,
         exitFundPositionOpenedAtBlockNumber,
         exitFundWallet,
@@ -888,7 +888,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Perps //
 
   /**
-   * @notice Pushes fundingRate × indexPrice to fundingMultipliersByBaseAssetAddress mapping for market. Uses timestamp
+   * @notice Pushes fundingRate × indexPrice to fundingMultipliersByBaseAssetSymbol mapping for market. Uses timestamp
    * component of index price to determine if funding rate is too recent after previously publish funding rate, and to
    * backfill empty values if a funding period was missed
    */
@@ -1070,7 +1070,7 @@ contract Exchange_v4 is IExchange, Owned {
    */
   function withdrawExit(address wallet) public {
     (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
-      Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, quoteAssetAddress),
+      Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, quoteTokenAddress),
       exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,

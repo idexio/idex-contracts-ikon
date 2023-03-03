@@ -32,6 +32,7 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256) {
+    require(arguments.liquidatingWallet != arguments.deleveragingWallet, "Cannot liquidate wallet against itself");
     require(arguments.deleveragingWallet != exitFundWallet, "Cannot deleverage EF");
     require(arguments.deleveragingWallet != insuranceFundWallet, "Cannot deleverage IF");
     if (deleverageType == DeleverageType.ExitFundClosure) {

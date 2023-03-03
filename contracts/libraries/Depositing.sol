@@ -18,7 +18,7 @@ library Depositing {
     ICustodian custodian,
     uint64 depositIndex,
     uint256 quantityInAssetUnits,
-    address quoteAssetAddress,
+    address quoteTokenAddress,
     address sourceWallet,
     address destinationWallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -32,19 +32,20 @@ library Depositing {
     require(!walletExits[sourceWallet].exists, "Source wallet exited");
     require(!walletExits[destinationWallet].exists, "Destination wallet exited");
 
-    quantity = AssetUnitConversions.assetUnitsToPips(quantityInAssetUnits, Constants.QUOTE_ASSET_DECIMALS);
+    quantity = AssetUnitConversions.assetUnitsToPips(quantityInAssetUnits, Constants.QUOTE_TOKEN_DECIMALS);
     require(quantity > 0, "Quantity is too low");
+    require(quantity < uint64(type(int64).max), "Quantity is too large");
 
     // Convert from pips back into asset units to remove any fractional amount that is too small
     // to express in pips. The `Exchange` will call `transferFrom` without this fractional amount
     // and there will be no dust
     uint256 quantityInAssetUnitsWithoutFractionalPips = AssetUnitConversions.pipsToAssetUnits(
       quantity,
-      Constants.QUOTE_ASSET_DECIMALS
+      Constants.QUOTE_TOKEN_DECIMALS
     );
 
     // Forward the funds to the `Custodian`
-    IERC20(quoteAssetAddress).transferFrom(sourceWallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
+    IERC20(quoteTokenAddress).transferFrom(sourceWallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
 
     // Update balance with actual transferred quantity
     newExchangeBalance = balanceTracking.updateForDeposit(destinationWallet, quantity);
