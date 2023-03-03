@@ -116,7 +116,6 @@ export interface DelegatedKeyAuthorization {
 
 export interface Trade {
   baseAssetSymbol: string;
-  quoteAssetSymbol: string;
   baseQuantity: string;
   quoteQuantity: string;
   makerFeeQuantity: string;

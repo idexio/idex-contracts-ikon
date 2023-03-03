@@ -29,7 +29,7 @@ library Withdrawing {
     // External arguments
     Withdrawal withdrawal;
     // Exchange state
-    address quoteAssetAddress;
+    address quoteTokenAddress;
     ICustodian custodian;
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
@@ -42,7 +42,7 @@ library Withdrawing {
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
-    address quoteAssetAddress;
+    address quoteTokenAddress;
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -106,9 +106,9 @@ library Withdrawing {
     // Update wallet balances
     newExchangeBalance = balanceTracking.updateForWithdrawal(arguments.withdrawal, arguments.feeWallet);
 
-    // EF has no margin requirements but may only withdraw to zero
+    // EF has no margin requirements but may not withdraw quote balance below zero
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
-      require(newExchangeBalance >= 0, "EF may only withdraw to zero");
+      require(newExchangeBalance >= 0, "EF may not withdraw to a negative balance");
     } else {
       // Wallet must still maintain initial margin requirement after withdrawal
       IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
@@ -189,8 +189,8 @@ library Withdrawing {
 
     arguments.custodian.withdraw(
       arguments.wallet,
-      arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_ASSET_DECIMALS)
+      arguments.quoteTokenAddress,
+      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_TOKEN_DECIMALS)
     );
 
     return (
@@ -269,12 +269,12 @@ library Withdrawing {
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
       arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
-      Constants.QUOTE_ASSET_DECIMALS
+      Constants.QUOTE_TOKEN_DECIMALS
     );
     if (arguments.withdrawal.bridgeAdapter == address(0x0)) {
       arguments.custodian.withdraw(
         arguments.withdrawal.wallet,
-        arguments.quoteAssetAddress,
+        arguments.quoteTokenAddress,
         netAssetQuantityInAssetUnits
       );
     } else {
@@ -289,7 +289,7 @@ library Withdrawing {
 
       arguments.custodian.withdraw(
         arguments.withdrawal.bridgeAdapter,
-        arguments.quoteAssetAddress,
+        arguments.quoteTokenAddress,
         netAssetQuantityInAssetUnits
       );
       IBridgeAdapter(arguments.withdrawal.bridgeAdapter).withdrawQuoteAsset(

@@ -45,7 +45,7 @@ library MarketAdmin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market = marketsByBaseAssetSymbol[baseAssetSymbol];
-    require(market.exists && !market.isActive, "No deactived market found");
+    require(market.exists && !market.isActive, "No inactive market found");
 
     market.isActive = true;
     market.indexPriceAtDeactivation = 0;

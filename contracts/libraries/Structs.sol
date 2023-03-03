@@ -228,8 +228,6 @@ struct Order {
 struct Trade {
   // Base asset symbol
   string baseAssetSymbol;
-  // Quote asset symbol
-  string quoteAssetSymbol;
   // Amount of base asset executed
   uint64 baseQuantity;
   // Amount of quote asset executed
