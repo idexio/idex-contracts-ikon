@@ -190,7 +190,7 @@ contract Governance is Owned {
   // Exchange upgrade //
 
   /**
-   * @notice Initiates `Exchange` contract upgrade proccess on `Custodian`. Once `blockDelay` has passed
+   * @notice Initiates `Exchange` contract upgrade process on `Custodian`. Once `blockDelay` has passed
    * the process can be finalized with `finalizeExchangeUpgrade`
    *
    * @param newExchange The address of the new `Exchange` contract
