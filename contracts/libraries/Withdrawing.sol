@@ -54,8 +54,8 @@ library Withdrawing {
     mapping(address => Exiting.WalletExit) storage walletExits
   ) external returns (uint256 blockThreshold) {
     require(!walletExits[wallet].exists, "Wallet already exited");
-    require(wallet != insuranceFundWallet, "Cannot exit IF");
     require(wallet != exitFundWallet, "Cannot exit EF");
+    require(wallet != insuranceFundWallet, "Cannot exit IF");
 
     blockThreshold = block.number + chainPropagationPeriodInBlocks;
     walletExits[wallet] = Exiting.WalletExit(true, blockThreshold);

@@ -208,6 +208,7 @@ export async function deployContractsExceptCustodian(
   indexPriceServiceWallet: SignerWithAddress = owner,
   insuranceFund: SignerWithAddress = owner,
   governanceBlockDelay = 0,
+  balanceMigrationSource?: string,
 ) {
   const [
     ChainlinkAggregatorFactory,
@@ -232,7 +233,7 @@ export async function deployContractsExceptCustodian(
   const [exchange, governance] = await Promise.all([
     (
       await ExchangeFactory.connect(owner).deploy(
-        ethers.constants.AddressZero,
+        balanceMigrationSource || ethers.constants.AddressZero,
         exitFundWallet.address,
         feeWallet.address,
         [indexPriceServiceWallet.address],
@@ -257,6 +258,7 @@ export async function deployAndAssociateContracts(
   insuranceFund: SignerWithAddress = owner,
   governanceBlockDelay = 0,
   addDefaultMarket = true,
+  balanceMigrationSource?: string,
 ) {
   const { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc } =
     await deployContractsExceptCustodian(
@@ -266,6 +268,7 @@ export async function deployAndAssociateContracts(
       indexPriceServiceWallet,
       insuranceFund,
       governanceBlockDelay,
+      balanceMigrationSource,
     );
 
   const Custodian = await ethers.getContractFactory('Custodian');
