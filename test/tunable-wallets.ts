@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { deployAndAssociateContracts } from './helpers';
+import { bootstrapExitedWallet, deployAndAssociateContracts } from './helpers';
 import type { Exchange_v4 } from '../typechain-types';
 
 describe('Exchange', function () {
@@ -42,6 +42,14 @@ describe('Exchange', function () {
           .connect((await ethers.getSigners())[1])
           .setExitFundWallet(ownerWallet.address),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert when EF has open balance', async () => {
+      const exitedExchange = await bootstrapExitedWallet();
+
+      await expect(
+        exitedExchange.setExitFundWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/EF cannot have open balance/i);
     });
   });
 

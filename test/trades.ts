@@ -21,6 +21,7 @@ import {
   deployAndAssociateContracts,
   expect,
   fundWallets,
+  quoteAssetDecimals,
   quoteAssetSymbol,
 } from './helpers';
 
@@ -117,6 +118,51 @@ describe('Exchange', function () {
   });
 
   describe('executeTrade', () => {
+    it('should revert when EF has open positions', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      // Deposit additional quote to allow for EF exit withdrawal
+      const depositQuantity = ethers.utils.parseUnits(
+        '100000.0',
+        quoteAssetDecimals,
+      );
+      await usdc
+        .connect(ownerWallet)
+        .approve(exchange.address, depositQuantity);
+      await (
+        await exchange
+          .connect(ownerWallet)
+          .deposit(depositQuantity, ethers.constants.AddressZero)
+      ).wait();
+
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/exit fund has open positions/i);
+    });
+
     it('should revert for self-trade', async function () {
       buyOrder.wallet = trader1Wallet.address;
       buyOrderSignature = await trader2Wallet.signMessage(

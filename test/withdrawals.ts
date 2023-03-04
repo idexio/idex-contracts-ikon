@@ -87,7 +87,7 @@ describe('Exchange', function () {
           .withdraw(
             ...getWithdrawArguments(withdrawal, '0.00000000', signature),
           ),
-      ).to.eventually.be.rejectedWith(/hash already withdrawn/i);
+      ).to.eventually.be.rejectedWith(/duplicate withdrawal/i);
     });
 
     it('should revert on excessive withdrawal fee', async function () {

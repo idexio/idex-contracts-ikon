@@ -232,7 +232,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     setFeeWallet(feeWallet_);
 
-    require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet address");
+    require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet");
     insuranceFundWallet = insuranceFundWallet_;
 
     for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {

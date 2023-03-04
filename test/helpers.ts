@@ -58,6 +58,62 @@ export async function addAndActivateMarket(
   await exchange.connect(dispatcherWallet).activateMarket(baseAssetSymbol);
 }
 
+export async function bootstrapExitedWallet() {
+  const [
+    ownerWallet,
+    dispatcherWallet,
+    exitFundWallet,
+    feeWallet,
+    insuranceWallet,
+    indexPriceServiceWallet,
+    trader1Wallet,
+    trader2Wallet,
+  ] = await ethers.getSigners();
+  const { exchange, usdc } = await deployAndAssociateContracts(
+    ownerWallet,
+    dispatcherWallet,
+    exitFundWallet,
+    feeWallet,
+    indexPriceServiceWallet,
+    insuranceWallet,
+  );
+
+  await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
+
+  await fundWallets(
+    [trader1Wallet, trader2Wallet, insuranceWallet],
+    exchange,
+    usdc,
+  );
+
+  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+
+  await executeTrade(
+    exchange,
+    dispatcherWallet,
+    indexPrice,
+    trader1Wallet,
+    trader2Wallet,
+  );
+
+  // Deposit additional quote to allow for EF exit withdrawal
+  const depositQuantity = ethers.utils.parseUnits(
+    '100000.0',
+    quoteAssetDecimals,
+  );
+  await usdc.connect(ownerWallet).approve(exchange.address, depositQuantity);
+  await (
+    await exchange
+      .connect(ownerWallet)
+      .deposit(depositQuantity, ethers.constants.AddressZero)
+  ).wait();
+
+  await exchange.connect(trader1Wallet).exitWallet();
+  await exchange.withdrawExit(trader1Wallet.address);
+
+  return exchange;
+}
+
 export async function bootstrapLiquidatedWallet() {
   const [
     ownerWallet,

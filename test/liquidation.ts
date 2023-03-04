@@ -134,7 +134,7 @@ describe('Exchange', function () {
           liquidatingWallet: insuranceFundWallet.address,
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
-      ).to.eventually.be.rejectedWith(/cannot liquidate EF/i);
+      ).to.eventually.be.rejectedWith(/cannot liquidate IF/i);
     });
   });
 
@@ -224,10 +224,11 @@ describe('Exchange', function () {
         .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
 
       await exchange.connect(trader2Wallet).exitWallet();
-      await exchange.withdrawExit(trader2Wallet.address);
     });
 
     it('should work for valid wallet', async function () {
+      await exchange.withdrawExit(trader2Wallet.address);
+
       await exchange
         .connect(dispatcherWallet)
         .liquidateWalletInMaintenanceDuringSystemRecovery({
@@ -237,7 +238,21 @@ describe('Exchange', function () {
         });
     });
 
+    it('should revert when EF has no open balances', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .liquidateWalletInMaintenanceDuringSystemRecovery({
+            counterpartyWallet: exitFundWallet.address,
+            liquidatingWallet: exitFundWallet.address,
+            liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+          }),
+      ).to.eventually.be.rejectedWith(/exit fund has no positions/i);
+    });
+
     it('should revert when liquidating EF', async function () {
+      await exchange.withdrawExit(trader2Wallet.address);
+
       await expect(
         exchange
           .connect(dispatcherWallet)
@@ -250,6 +265,8 @@ describe('Exchange', function () {
     });
 
     it('should revert when liquidating IF', async function () {
+      await exchange.withdrawExit(trader2Wallet.address);
+
       await expect(
         exchange
           .connect(dispatcherWallet)

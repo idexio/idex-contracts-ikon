@@ -13,7 +13,7 @@ import type {
   USDC,
 } from '../typechain-types';
 
-describe('Exchange', function () {
+describe('Governance', function () {
   let custodian: Custodian;
   let exchange: Exchange_v4;
   let governance: Governance;
@@ -208,7 +208,7 @@ describe('Exchange', function () {
             governance.initiateIndexPriceServiceWalletsUpgrade([
               ethers.constants.AddressZero,
             ]),
-          ).to.eventually.be.rejectedWith(/invalid IF wallet address/i);
+          ).to.eventually.be.rejectedWith(/invalid IPS wallet address/i);
         });
 
         it('should revert when already in progress', async () => {
