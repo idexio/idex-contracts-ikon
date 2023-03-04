@@ -202,8 +202,8 @@ library AcquisitionDeleveraging {
         // Calculate the cost basis of the base quantity being liquidated while observing signedness
         Math.multiplyPipsByFraction(
           balanceStruct.costBasis,
-          // Base quantity implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
           int64(arguments.liquidationBaseQuantity),
+          // Position size implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
           int64(Math.abs(balanceStruct.balance))
         ),
         arguments.liquidationQuoteQuantity,

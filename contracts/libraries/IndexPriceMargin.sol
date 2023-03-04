@@ -244,7 +244,7 @@ library IndexPriceMargin {
     (
       int64 insuranceFundTotalAccountValue,
       uint64 insuranceFundTotalInitialMarginRequirement,
-      bool isMaximumPositionSizeExceeded
+      bool isInsuranceFundMaximumPositionSizeExceeded
     ) = _loadInsuranceFundTotalAccountValueAndInitialMarginRequirementAfterLiquidationAcquisition(
         arguments,
         balanceTracking,
@@ -253,7 +253,7 @@ library IndexPriceMargin {
 
     // IF cannot acquire if doing so would exceed its max position size or bring it below its initial margin requirement
     require(
-      isMaximumPositionSizeExceeded ||
+      isInsuranceFundMaximumPositionSizeExceeded ||
         insuranceFundTotalAccountValue < int64(insuranceFundTotalInitialMarginRequirement),
       "Insurance fund can acquire"
     );
