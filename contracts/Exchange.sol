@@ -62,7 +62,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Wallet-specific market parameter overrides
   mapping(string => mapping(address => MarketOverrides)) private _marketOverridesByBaseAssetSymbolAndWallet;
   // Mapping of base asset symbol => market struct
-  mapping(string => Market) private _marketsByBaseAssetSymbol;
+  mapping(string => Market) public marketsByBaseAssetSymbol;
   // Mapping of wallet => last invalidated timestamp in milliseconds
   mapping(address => NonceInvalidation[]) public nonceInvalidationsByWallet;
   // Mapping of order hash => filled quantity in pips
@@ -442,7 +442,7 @@ contract Exchange_v4 is IExchange, Owned {
         _baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
     }
   }
@@ -469,7 +469,7 @@ contract Exchange_v4 is IExchange, Owned {
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         _marketOverridesByBaseAssetSymbolAndWallet,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -546,7 +546,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
       nonceInvalidationsByWallet,
       _partiallyFilledOrderQuantities,
       _walletExits
@@ -584,7 +584,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -601,7 +601,7 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -623,7 +623,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -645,7 +645,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -668,7 +668,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -691,7 +691,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -713,7 +713,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -736,7 +736,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -758,7 +758,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -773,7 +773,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
       _walletExits
     );
 
@@ -812,7 +812,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
 
     emit Withdrawn(withdrawal.wallet, withdrawal.grossQuantity, newExchangeBalance);
@@ -830,7 +830,7 @@ contract Exchange_v4 is IExchange, Owned {
       newMarket,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -838,14 +838,14 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Activate a market, which allows positions to be opened and funding payments made
    */
   function activateMarket(string memory baseAssetSymbol) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.activateMarket_delegatecall(baseAssetSymbol, _marketsByBaseAssetSymbol);
+    MarketAdmin.activateMarket_delegatecall(baseAssetSymbol, marketsByBaseAssetSymbol);
   }
 
   /**
    * @notice Deactivate a market
    */
   function deactivateMarket(string memory baseAssetSymbol) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.deactivateMarket_delegatecall(baseAssetSymbol, _marketsByBaseAssetSymbol);
+    MarketAdmin.deactivateMarket_delegatecall(baseAssetSymbol, marketsByBaseAssetSymbol);
   }
 
   /**
@@ -855,7 +855,7 @@ contract Exchange_v4 is IExchange, Owned {
    * closure deleveraging during system recovery
    */
   function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcher {
-    MarketAdmin.publishIndexPrices_delegatecall(indexPrices, indexPriceServiceWallets, _marketsByBaseAssetSymbol);
+    MarketAdmin.publishIndexPrices_delegatecall(indexPrices, indexPriceServiceWallets, marketsByBaseAssetSymbol);
   }
 
   /**
@@ -866,10 +866,10 @@ contract Exchange_v4 is IExchange, Owned {
     OverridableMarketFields memory marketOverrides,
     address wallet
   ) public onlyGovernance {
-    require(_marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
+    require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
 
     if (wallet == address(0x0)) {
-      _marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
+      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
     } else {
       _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
         exists: true,
@@ -902,7 +902,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingRate,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
 
     emit FundingRatePublished(baseAssetSymbol, fundingRate);
@@ -920,7 +920,7 @@ contract Exchange_v4 is IExchange, Owned {
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -935,7 +935,7 @@ contract Exchange_v4 is IExchange, Owned {
         _baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -954,7 +954,7 @@ contract Exchange_v4 is IExchange, Owned {
         _baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -972,7 +972,7 @@ contract Exchange_v4 is IExchange, Owned {
         _baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -990,7 +990,7 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
         _marketOverridesByBaseAssetSymbolAndWallet,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -1007,7 +1007,7 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
         _marketOverridesByBaseAssetSymbolAndWallet,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -1025,7 +1025,7 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
         _marketOverridesByBaseAssetSymbolAndWallet,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -1042,7 +1042,7 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet,
         _marketOverridesByBaseAssetSymbolAndWallet,
-        _marketsByBaseAssetSymbol
+        marketsByBaseAssetSymbol
       );
   }
 
@@ -1078,7 +1078,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      _marketsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol,
       _walletExits
     );
     exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;

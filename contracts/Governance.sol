@@ -299,7 +299,7 @@ contract Governance is Owned {
    * @param newBridgeAdapters The new adapter descriptor structs
    */
   function initiateBridgeAdaptersUpgrade(IBridgeAdapter[] memory newBridgeAdapters) public onlyAdmin {
-    require(!currentBridgeAdaptersUpgrade.exists, "IPS wallet upgrade already in progress");
+    require(!currentBridgeAdaptersUpgrade.exists, "Bridge adapter upgrade already in progress");
 
     for (uint8 i = 0; i < newBridgeAdapters.length; i++) {
       require(Address.isContract(address(newBridgeAdapters[i])), "Invalid adapter address");

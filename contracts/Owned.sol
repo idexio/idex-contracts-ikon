@@ -10,11 +10,11 @@ abstract contract Owned {
   address public adminWallet;
 
   modifier onlyOwner() {
-    require(msg.sender == ownerWallet, "Caller must be owner");
+    require(msg.sender == ownerWallet, "Caller must be Owner wallet");
     _;
   }
   modifier onlyAdmin() {
-    require(msg.sender == adminWallet, "Caller must be admin");
+    require(msg.sender == adminWallet, "Caller must be Admin wallet");
     _;
   }
 

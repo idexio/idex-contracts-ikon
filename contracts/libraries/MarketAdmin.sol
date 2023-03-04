@@ -95,6 +95,6 @@ library MarketAdmin {
     for (uint8 i = 0; i < indexPriceServiceWallets.length; i++) {
       isSignatureValid = isSignatureValid || signer == indexPriceServiceWallets[i];
     }
-    require(isSignatureValid, "Invalid index signature");
+    require(isSignatureValid, "Invalid index price signature");
   }
 }
