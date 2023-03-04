@@ -58,9 +58,9 @@ library LiquidationValidations {
   }
 
   function validateExitFundClosureQuoteQuantity(
-    int64 positionSize,
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
+    int64 positionSize,
     uint64 quoteQuantity,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
@@ -76,7 +76,7 @@ library LiquidationValidations {
         totalMaintenanceMarginRequirement
       );
     } else {
-      // Use index price for positive totalAccountValue
+      // Use index price for positive total account value
       expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
         Math.abs(positionSize),
         indexPrice,
@@ -125,7 +125,7 @@ library LiquidationValidations {
     uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
       Math.abs(costBasis),
       baseQuantity,
-      Math.abs(positionSize)
+      Math.abs(positionSize) // Position size validated non-zero by calling function
     );
 
     // Allow additional pip buffers for integer rounding

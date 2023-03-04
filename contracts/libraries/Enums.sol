@@ -9,10 +9,10 @@ pragma solidity 0.8.18;
 // Automatic Deleveraging (ADL) //
 
 enum DeleverageType {
-  WalletExited,
   ExitFundClosure,
-  WalletInMaintenance,
-  InsuranceFundClosure
+  InsuranceFundClosure,
+  WalletExitAcquisition,
+  WalletInMaintenanceAcquisition
 }
 
 // Liquidations //

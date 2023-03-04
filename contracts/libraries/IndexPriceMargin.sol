@@ -84,21 +84,21 @@ library IndexPriceMargin {
       );
   }
 
-  function loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+  function validateInitialMarginRequirement(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
-    totalAccountValue = loadTotalAccountValue(
+  ) internal view {
+    int64 totalAccountValue = loadTotalAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
 
-    totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
+    uint64 totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

@@ -150,7 +150,7 @@ describe('Exchange', function () {
     });
   });
 
-  describe('updateWalletFundingForMarket', async function () {
+  describe('applyOutstandingWalletFundingForMarket', async function () {
     it('should work for wallet with outstanding funding payments', async function () {
       await exchange
         .connect(dispatcherWallet)
@@ -237,11 +237,11 @@ describe('Exchange', function () {
         ).toString(),
       ).to.equal(expectedTrader2FundingPayment);
 
-      await exchange.updateWalletFundingForMarket(
+      await exchange.applyOutstandingWalletFundingForMarket(
         trader1Wallet.address,
         baseAssetSymbol,
       );
-      await exchange.updateWalletFundingForMarket(
+      await exchange.applyOutstandingWalletFundingForMarket(
         trader2Wallet.address,
         baseAssetSymbol,
       );
@@ -297,7 +297,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid symbol', async function () {
       await expect(
-        exchange.updateWalletFundingForMarket(
+        exchange.applyOutstandingWalletFundingForMarket(
           (
             await ethers.getSigners()
           )[6].address,

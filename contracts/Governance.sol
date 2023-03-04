@@ -240,7 +240,7 @@ contract Governance is Owned {
   // Governance upgrade //
 
   /**
-   * @notice Initiates `Governance` contract upgrade proccess on `Custodian`. Once `blockDelay` has passed
+   * @notice Initiates `Governance` contract upgrade process on `Custodian`. Once `blockDelay` has passed
    * the process can be finalized with `finalizeGovernanceUpgrade`
    *
    * @param newGovernance The address of the new `Governance` contract
@@ -293,7 +293,7 @@ contract Governance is Owned {
   // Field upgrade governance //
 
   /**
-   * @notice Initiates Bridge Adapter upgrade proccess. Once block delay has passed the process can be
+   * @notice Initiates Bridge Adapter upgrade process. Once block delay has passed the process can be
    * finalized with `finalizeBridgeAdaptersUpgrade`
    *
    * @param newBridgeAdapters The new adapter descriptor structs
@@ -351,14 +351,14 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Initiates Index Price Service wallet upgrade proccess. Once block delay has passed the process
+   * @notice Initiates Index Price Service wallet upgrade process. Once block delay has passed the process
    * can be finalized with `finalizeIndexPriceServiceWalletsUpgrade`
    *
    * @param newIndexPriceServiceWallets The IPS wallet addresses
    */
   function initiateIndexPriceServiceWalletsUpgrade(address[] memory newIndexPriceServiceWallets) public onlyAdmin {
     for (uint8 i = 0; i < newIndexPriceServiceWallets.length; i++) {
-      require(newIndexPriceServiceWallets[i] != address(0x0), "Invalid IF wallet address");
+      require(newIndexPriceServiceWallets[i] != address(0x0), "Invalid IPS wallet address");
     }
 
     require(!currentIndexPriceServiceWalletsUpgrade.exists, "IPS wallet upgrade already in progress");
@@ -420,7 +420,7 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Initiates Insurance Fund wallet upgrade proccess. Once block delay has passed
+   * @notice Initiates Insurance Fund wallet upgrade process. Once block delay has passed
    * the process can be finalized with `finalizeInsuranceFundWalletUpgrade`
    *
    * @param newInsuranceFundWallet The IF wallet address
@@ -469,7 +469,7 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Initiates market override upgrade proccess for `wallet`. If `wallet` is zero address, then the overrides
+   * @notice Initiates market override upgrade process for `wallet`. If `wallet` is zero address, then the overrides
    * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
    * process can be finalized with `finalizeMarketOverridesUpgrade`
    */

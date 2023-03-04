@@ -10,7 +10,6 @@ import { ClosureDeleveraging } from "./libraries/ClosureDeleveraging.sol";
 import { Constants } from "./libraries/Constants.sol";
 import { Depositing } from "./libraries/Depositing.sol";
 import { ExitFund } from "./libraries/ExitFund.sol";
-import { Exiting } from "./libraries/Exiting.sol";
 import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
 import { IndexPriceMargin } from "./libraries/IndexPriceMargin.sol";
@@ -24,6 +23,7 @@ import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
+import { WalletExits } from "./libraries/WalletExits.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
 import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
@@ -63,22 +63,23 @@ contract Exchange_v4 is IExchange, Owned {
   mapping(string => mapping(address => MarketOverrides)) private _marketOverridesByBaseAssetSymbolAndWallet;
   // Mapping of base asset symbol => market struct
   mapping(string => Market) public marketsByBaseAssetSymbol;
-  // Mapping of wallet => last invalidated timestampInMs
+  // Mapping of wallet => last invalidated timestamp in milliseconds
   mapping(address => NonceInvalidation[]) public nonceInvalidationsByWallet;
   // Mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) private _partiallyFilledOrderQuantities;
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteTokenAddress;
   // Exits
-  mapping(address => Exiting.WalletExit) private _walletExits;
+  mapping(address => WalletExits.WalletExit) private _walletExits;
 
   // State variables - tunable parameters //
 
   uint256 public chainPropagationPeriodInBlocks;
   uint64 public delegateKeyExpirationPeriodInMs;
+  // Slippage tolerance to account for rounding errors when validating liquidation prices for very small position sizes
   uint64 public positionBelowMinimumLiquidationPriceToleranceMultiplier;
 
-  // State variables - tunable wallets //
+  // State variables - changeable wallets //
 
   address public dispatcherWallet;
   address public exitFundWallet;
@@ -287,7 +288,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Sets a new position below minimum liquidation price tolerance multiplier
    *
    * @param newPositionBelowMinimumLiquidationPriceToleranceMultiplier The new position below minimum liquidation price
-   * tolerance multiplier expressed in decimal pips * 10^8. Must be less than `Constants.MAX_FEE_MULTIPLIER`
+   * tolerance multiplier. Must be less than `Constants.MAX_FEE_MULTIPLIER`
    */
   function setPositionBelowMinimumLiquidationPriceToleranceMultiplier(
     uint64 newPositionBelowMinimumLiquidationPriceToleranceMultiplier
@@ -354,7 +355,7 @@ contract Exchange_v4 is IExchange, Owned {
     require(newExitFundWallet != exitFundWallet, "Must be different from current");
 
     require(
-      !ExitFund.isExitFundPositionOrQuoteOpen(
+      !ExitFund.doesWalletHaveOpenPositionsOrQuoteBalance(
         exitFundWallet,
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet
@@ -456,7 +457,7 @@ contract Exchange_v4 is IExchange, Owned {
    * positions and quote balance. The available quote for exit can validly be negative for the EF wallet, in which case
    * this function will return 0 since no withdrawal is possible. For all other wallets, the exit quote calculations are
    * designed such that the result quantity to withdraw is never negative; however the return type is still signed to
-   * provide visibility into unforseen bugs or rounding errors
+   * provide visibility into unforeseen bugs or rounding errors
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) public view returns (int64) {
     return
@@ -682,7 +683,7 @@ contract Exchange_v4 is IExchange, Owned {
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     AcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletInMaintenance,
+      DeleverageType.WalletInMaintenanceAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -727,7 +728,7 @@ contract Exchange_v4 is IExchange, Owned {
 
     AcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletExited,
+      DeleverageType.WalletExitAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -793,7 +794,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @param withdrawal A `Withdrawal` struct encoding the parameters of the withdrawal
    */
   function withdraw(Withdrawal memory withdrawal) public onlyDispatcherWhenExitFundHasNoPositions {
-    require(!Exiting.isWalletExitFinalized(withdrawal.wallet, _walletExits), "Wallet exited");
+    require(!WalletExits.isWalletExitFinalized(withdrawal.wallet, _walletExits), "Wallet exited");
 
     int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
       Withdrawing.WithdrawArguments(
@@ -911,8 +912,8 @@ contract Exchange_v4 is IExchange, Owned {
    * @notice Updates quote balance with historical funding payments for a market by walking funding multipliers
    * published since last position update up to max allowable by gas constraints
    */
-  function updateWalletFundingForMarket(address wallet, string memory baseAssetSymbol) public {
-    Funding.updateWalletFundingForMarket_delegatecall(
+  function applyOutstandingWalletFundingForMarket(address wallet, string memory baseAssetSymbol) public {
+    Funding.applyOutstandingWalletFundingForMarket_delegatecall(
       baseAssetSymbol,
       wallet,
       _balanceTracking,
@@ -1090,7 +1091,7 @@ contract Exchange_v4 is IExchange, Owned {
    * by sending wallet
    */
   function clearWalletExit() public {
-    require(Exiting.isWalletExitFinalized(msg.sender, _walletExits), "Wallet exit not finalized");
+    require(WalletExits.isWalletExitFinalized(msg.sender, _walletExits), "Wallet exit not finalized");
 
     delete _walletExits[msg.sender];
 

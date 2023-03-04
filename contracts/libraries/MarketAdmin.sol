@@ -73,25 +73,15 @@ library MarketAdmin {
 
     for (uint8 i = 0; i < indexPrices.length; i++) {
       market = marketsByBaseAssetSymbol[indexPrices[i].baseAssetSymbol];
-      require(market.exists && market.isActive, "Active market not found");
 
-      _validateIndexPrice(indexPrices[i], indexPriceServiceWallets, market);
+      require(market.exists && market.isActive, "Active market not found");
+      require(market.lastIndexPriceTimestampInMs < indexPrices[i].timestampInMs, "Outdated index price");
+      require(indexPrices[i].timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
+      _validateIndexPriceSignature(indexPrices[i], indexPriceServiceWallets);
 
       market.lastIndexPrice = indexPrices[i].price;
       market.lastIndexPriceTimestampInMs = indexPrices[i].timestampInMs;
     }
-  }
-
-  function _validateIndexPrice(
-    IndexPrice memory indexPrice,
-    address[] memory indexPriceServiceWallets,
-    Market memory market
-  ) private view {
-    require(market.lastIndexPriceTimestampInMs < indexPrice.timestampInMs, "Outdated index price");
-
-    require(indexPrice.timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
-
-    _validateIndexPriceSignature(indexPrice, indexPriceServiceWallets);
   }
 
   function _validateIndexPriceSignature(

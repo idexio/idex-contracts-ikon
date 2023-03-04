@@ -131,7 +131,7 @@ library TradeValidations {
     uint64 lastInvalidatedTimestamp = nonceInvalidationsByWallet.loadLastInvalidatedTimestamp(order.wallet);
     require(
       orderTimestampInMs > lastInvalidatedTimestamp,
-      order.side == OrderSide.Buy ? "Buy order nonce timestamp too low" : "Sell order nonce timestamp too low"
+      order.side == OrderSide.Buy ? "Buy order nonce timestamp invalidated" : "Sell order nonce timestamp invalidated"
     );
 
     if (order.isSignedByDelegatedKey) {
@@ -170,7 +170,7 @@ library TradeValidations {
 
     bool isSignatureValid = order.isSignedByDelegatedKey
       ? (Hashing.isSignatureValid(
-        Hashing.getDelegatedKeyMessage(order.delegatedKeyAuthorization),
+        Hashing.getDelegatedKeySignatureMessage(order.delegatedKeyAuthorization),
         order.delegatedKeyAuthorization.signature,
         order.wallet
       ) &&
