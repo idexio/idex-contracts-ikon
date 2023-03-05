@@ -9,32 +9,23 @@ library LiquidationValidations {
   function calculateExitQuoteQuantity(
     int64 costBasis,
     uint64 indexPrice,
-    int64 positionSize
-  ) internal pure returns (uint64 quoteQuantity) {
-    quoteQuantity = Math.multiplyPipsByFraction(Math.abs(positionSize), indexPrice, Constants.PIP_PRICE_MULTIPLIER);
-
-    // Quote value is the worse of the index price or entry price. For long positions, quote is positive so at a worse
-    // price quote is closer to zero (receive less); for short positions, quote is negative so at a worse price is
-    // further from zero (give more)
-    quoteQuantity = positionSize < 0
-      ? Math.max(quoteQuantity, Math.abs(costBasis))
-      : Math.min(quoteQuantity, Math.abs(costBasis));
-  }
-
-  function calculateExitQuoteQuantity(
-    int64 costBasis,
-    uint64 indexPrice,
     uint64 maintenanceMarginFraction,
     int64 positionSize,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure returns (uint64 quoteQuantity) {
-    // Quote value is the worse of the index price or entry price...
-    quoteQuantity = calculateExitQuoteQuantity(costBasis, indexPrice, positionSize);
+    // Calculate quote quantity at index price
+    quoteQuantity = Math.multiplyPipsByFraction(Math.abs(positionSize), indexPrice, Constants.PIP_PRICE_MULTIPLIER);
+    // Quote quantity is the worse of the index price or entry price. For long positions, quote is positive so at a
+    // worse price quote is closer to zero (receive less); for short positions, quote is negative so at a worse price
+    // is further from zero (give more)
+    quoteQuantity = positionSize < 0
+      ? Math.max(quoteQuantity, Math.abs(costBasis))
+      : Math.min(quoteQuantity, Math.abs(costBasis));
 
-    // ...but never worse than the bankruptcy price. For long positions, quote is positive so at a better price quote
-    // is further from zero (receive more); for short positions, quote is negative so at a better price is closer to
-    // zero (give less)
+    // However, quote quantity should never be never worse than the bankruptcy price. For long positions, quote is
+    // positive so at a better price quote is further from zero (receive more); for short positions, quote is negative
+    // so at a better price is closer to zero (give less)
     uint64 quoteQuantityToLiquidate = _calculateLiquidationQuoteQuantityToClosePositions(
       indexPrice,
       maintenanceMarginFraction,
@@ -59,6 +50,7 @@ library LiquidationValidations {
       Constants.PIP_PRICE_MULTIPLIER
     );
 
+    // Allow additional pip buffers for integer rounding
     require(
       expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
@@ -66,9 +58,9 @@ library LiquidationValidations {
   }
 
   function validateExitFundClosureQuoteQuantity(
-    int64 positionSize,
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
+    int64 positionSize,
     uint64 quoteQuantity,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
@@ -84,7 +76,7 @@ library LiquidationValidations {
         totalMaintenanceMarginRequirement
       );
     } else {
-      // Use index price for positive totalAccountValue
+      // Use index price for positive total account value
       expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
         Math.abs(positionSize),
         indexPrice,
@@ -92,6 +84,7 @@ library LiquidationValidations {
       );
     }
 
+    // Allow additional pip buffers for integer rounding
     require(
       expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
@@ -115,6 +108,8 @@ library LiquidationValidations {
       totalAccountValue,
       totalMaintenanceMarginRequirement
     );
+
+    // Allow additional pip buffers for integer rounding
     require(
       expectedExitQuoteQuantity - 1 <= exitQuoteQuantity && expectedExitQuoteQuantity + 1 >= exitQuoteQuantity,
       "Invalid exit quote quantity"
@@ -130,9 +125,10 @@ library LiquidationValidations {
     uint64 expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
       Math.abs(costBasis),
       baseQuantity,
-      Math.abs(positionSize)
+      Math.abs(positionSize) // Position size validated non-zero by calling function
     );
 
+    // Allow additional pip buffers for integer rounding
     require(
       expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
@@ -154,6 +150,8 @@ library LiquidationValidations {
       totalAccountValue,
       totalMaintenanceMarginRequirement
     );
+
+    // Allow additional pip buffers for integer rounding
     require(
       expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,

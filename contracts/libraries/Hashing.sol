@@ -25,7 +25,7 @@ library Hashing {
     return getSigner(hash, signature) == signer;
   }
 
-  function getDelegatedKeyMessage(
+  function getDelegatedKeySignatureMessage(
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
   ) internal pure returns (bytes memory) {
     require(
@@ -79,17 +79,13 @@ library Hashing {
             string(abi.encodePacked(baseSymbol, "-", quoteSymbol)),
             uint8(order.orderType),
             uint8(order.side),
-            // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal
-            // values
             _pipToDecimal(order.quantity)
           ),
           abi.encodePacked(
-            order.limitPrice > 0 ? _pipToDecimal(order.limitPrice) : Constants.EMPTY_DECIMAL_STRING,
-            order.triggerPrice > 0 ? _pipToDecimal(order.triggerPrice) : Constants.EMPTY_DECIMAL_STRING,
+            _pipToDecimal(order.limitPrice),
+            _pipToDecimal(order.triggerPrice),
             order.triggerType,
-            order.orderType == OrderType.TrailingStop
-              ? _pipToDecimal(order.callbackRate)
-              : Constants.EMPTY_DECIMAL_STRING,
+            _pipToDecimal(order.callbackRate),
             order.conditionalOrderId,
             order.isReduceOnly,
             uint8(order.timeInForce),
@@ -137,6 +133,10 @@ library Hashing {
    * originally signed by the wallet. For example, 1234567890 becomes '12.34567890'
    */
   function _pipToDecimal(uint256 pips) private pure returns (string memory) {
+    if (pips == 0) {
+      return Constants.EMPTY_DECIMAL_STRING;
+    }
+
     // Inspired by https://github.com/provable-things/ethereum-api/blob/831f4123816f7a3e57ebea171a3cdcf3b528e475/oraclizeAPI_0.5.sol#L1045-L1062
     uint256 copy = pips;
     uint256 length;

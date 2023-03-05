@@ -46,9 +46,7 @@ library TradeValidations {
     Trade memory trade,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market) {
-    require(!String.isEqual(trade.baseAssetSymbol, trade.quoteAssetSymbol), "Trade assets must be different");
-
-    require(String.isEqual(trade.quoteAssetSymbol, Constants.QUOTE_ASSET_SYMBOL), "Quote symbol mismatch");
+    require(!String.isEqual(trade.baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL), "Trade assets must be different");
 
     market = marketsByBaseAssetSymbol[trade.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
@@ -77,11 +75,11 @@ library TradeValidations {
     require(trade.baseQuantity > 0, "Base quantity must be greater than zero");
     require(trade.quoteQuantity > 0, "Quote quantity must be greater than zero");
 
-    _validateExecutionConditions(buy, trade, true, exitFundWallet, insuranceFundWallet);
-    _validateExecutionConditions(sell, trade, false, exitFundWallet, insuranceFundWallet);
+    _validateExecutionConditionsForOrder(buy, trade, true, exitFundWallet, insuranceFundWallet);
+    _validateExecutionConditionsForOrder(sell, trade, false, exitFundWallet, insuranceFundWallet);
   }
 
-  function _validateExecutionConditions(
+  function _validateExecutionConditionsForOrder(
     Order memory order,
     Trade memory trade,
     bool isBuy,
@@ -119,11 +117,11 @@ library TradeValidations {
     uint64 delegateKeyExpirationPeriodInMs,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet
   ) private view {
-    _validateNonce(buy, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
-    _validateNonce(sell, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
+    _validateNonceForOrder(buy, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
+    _validateNonceForOrder(sell, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
   }
 
-  function _validateNonce(
+  function _validateNonceForOrder(
     Order memory order,
     uint64 delegateKeyExpirationPeriodInMs,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet
@@ -133,7 +131,7 @@ library TradeValidations {
     uint64 lastInvalidatedTimestamp = nonceInvalidationsByWallet.loadLastInvalidatedTimestamp(order.wallet);
     require(
       orderTimestampInMs > lastInvalidatedTimestamp,
-      order.side == OrderSide.Buy ? "Buy order nonce timestamp too low" : "Sell order nonce timestamp too low"
+      order.side == OrderSide.Buy ? "Buy order nonce timestamp invalidated" : "Sell order nonce timestamp invalidated"
     );
 
     if (order.isSignedByDelegatedKey) {
@@ -158,22 +156,21 @@ library TradeValidations {
     Order memory sell,
     Trade memory trade
   ) private pure returns (bytes32, bytes32) {
-    bytes32 buyOrderHash = _validateSignature(buy, trade.baseAssetSymbol, trade.quoteAssetSymbol);
-    bytes32 sellOrderHash = _validateSignature(sell, trade.baseAssetSymbol, trade.quoteAssetSymbol);
+    bytes32 buyOrderHash = _validateSignatureForOrder(buy, trade.baseAssetSymbol);
+    bytes32 sellOrderHash = _validateSignatureForOrder(sell, trade.baseAssetSymbol);
 
     return (buyOrderHash, sellOrderHash);
   }
 
-  function _validateSignature(
+  function _validateSignatureForOrder(
     Order memory order,
-    string memory baseAssetSymbol,
-    string memory quoteAssetSymbol
+    string memory baseAssetSymbol
   ) private pure returns (bytes32) {
-    bytes32 orderHash = Hashing.getOrderHash(order, baseAssetSymbol, quoteAssetSymbol);
+    bytes32 orderHash = Hashing.getOrderHash(order, baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL);
 
     bool isSignatureValid = order.isSignedByDelegatedKey
       ? (Hashing.isSignatureValid(
-        Hashing.getDelegatedKeyMessage(order.delegatedKeyAuthorization),
+        Hashing.getDelegatedKeySignatureMessage(order.delegatedKeyAuthorization),
         order.delegatedKeyAuthorization.signature,
         order.wallet
       ) &&

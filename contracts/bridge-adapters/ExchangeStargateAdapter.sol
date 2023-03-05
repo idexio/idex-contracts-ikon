@@ -60,6 +60,19 @@ interface IStargateRouter {
 }
 
 contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
+  struct RouterSwapArguments {
+    uint256 fee;
+    uint16 _dstChainId;
+    uint256 _srcPoolId;
+    uint256 _dstPoolId;
+    address payable _refundAddress;
+    uint256 _amountLD;
+    uint256 _minAmountLD;
+    IStargateRouter.lzTxObj _lzTxParams;
+    bytes _to;
+    bytes _payload;
+  }
+
   // Address of Custodian contract
   ICustodian public immutable custodian;
   // Must be true or `sgReceive` will revert
@@ -100,9 +113,9 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   }
 
   /**
-   * @notice Allow Admin wallet to fund contract with native asset for gas fees
+   * @notice Allow incoming native asset to fund contract for gas fees, as well as incoming gas fee refunds
    */
-  receive() external payable onlyAdmin {}
+  receive() external payable {}
 
   /**
    *  @param token The token contract on the local chain
@@ -130,7 +143,10 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
     require(isWithdrawEnabled, "Withdraw disabled");
 
-    (uint16 targetChainId, uint16 sourcePoolId, uint256 targetPoolId) = abi.decode(payload, (uint16, uint16, uint256));
+    (uint16 targetChainId, uint256 sourcePoolId, uint256 targetPoolId) = abi.decode(
+      payload,
+      (uint16, uint256, uint256)
+    );
 
     (uint256 fee, ) = router.quoteLayerZeroFee(
       targetChainId,
@@ -140,18 +156,32 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
       IStargateRouter.lzTxObj(0, 0, "0x")
     );
 
+    // Package arguments into struct to avoid stack too deep error
+    RouterSwapArguments memory arguments = RouterSwapArguments(
+      fee,
+      targetChainId,
+      sourcePoolId,
+      targetPoolId,
+      payable(this),
+      quantity,
+      (quantity * minimumWithdrawQuantityMultiplier) / Constants.PIP_PRICE_MULTIPLIER,
+      IStargateRouter.lzTxObj(0, 0, "0x"),
+      abi.encodePacked(destinationWallet),
+      bytes("")
+    );
+
     try
       // Perform a Stargate swap()
-      router.swap{ value: fee }(
-        targetChainId,
-        sourcePoolId,
-        targetPoolId,
-        payable(this), // Refund adddress. extra gas (if any) is returned to this address
-        quantity,
-        (quantity * minimumWithdrawQuantityMultiplier) / Constants.PIP_PRICE_MULTIPLIER,
-        IStargateRouter.lzTxObj(0, 0, "0x"), // 0 additional gasLimit increase, 0 airdrop, at 0x address
-        abi.encodePacked(msg.sender), // Destination wallet
-        bytes("") // No payload, will not perform contract call on target chain
+      router.swap{ value: arguments.fee }(
+        arguments._dstChainId,
+        arguments._srcPoolId,
+        arguments._dstPoolId,
+        arguments._refundAddress,
+        arguments._amountLD,
+        arguments._minAmountLD,
+        arguments._lzTxParams,
+        arguments._to,
+        arguments._payload
       )
     {} catch (bytes memory errorData) {
       quoteAsset.transfer(destinationWallet, quantity);
@@ -163,7 +193,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     isDepositEnabled = isEnabled;
   }
 
-  function setMinimumWithdrawQuantityMultiplierEnabled(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
+  function setMinimumWithdrawQuantityMultiplier(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
     minimumWithdrawQuantityMultiplier = newMinimumWithdrawQuantityMultiplier;
   }
 

@@ -39,12 +39,6 @@ export const pipsDecimals = 8;
 
 export const signatureHashVersion = 105;
 
-export enum LiquidationType {
-  WalletExited,
-  WalletInMaintenance,
-  WalletDuringSystemRecovery,
-}
-
 export enum OrderSelfTradePrevention {
   DecreaseAndCancel,
   CancelOldest,
@@ -116,7 +110,6 @@ export interface DelegatedKeyAuthorization {
 
 export interface Trade {
   baseAssetSymbol: string;
-  quoteAssetSymbol: string;
   baseQuantity: string;
   quoteQuantity: string;
   makerFeeQuantity: string;

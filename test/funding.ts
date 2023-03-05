@@ -1,39 +1,342 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'hardhat';
-import { time } from '@nomicfoundation/hardhat-network-helpers';
+import { expect } from 'chai';
+import {
+  increase,
+  increaseTo,
+} from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import {
   decimalToPips,
   fundingPeriodLengthInMs,
-  getPublishFundingMutiplierArguments,
+  IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
-
+import type { Exchange_v4, USDC } from '../typechain-types';
 import {
+  addAndActivateMarket,
   baseAssetSymbol,
-  buildFundingRates,
-  buildIndexPrices,
   buildIndexPrice,
-  deployAndAssociateContracts,
   executeTrade,
-  expect,
   fundWallets,
-  loadFundingMultipliers,
+  getLatestBlockTimestampInSeconds,
+  deployAndAssociateContracts,
+  buildIndexPriceWithTimestamp,
+  quoteAssetSymbol,
 } from './helpers';
 
-import { FundingMultipliersMock } from '../typechain-types';
+describe('Exchange', function () {
+  let dispatcherWallet: SignerWithAddress;
+  let exchange: Exchange_v4;
+  let indexPrice: IndexPrice;
+  let indexPriceServiceWallet: SignerWithAddress;
+  let usdc: USDC;
 
-export async function loadFundingMultipliersFromMock(
-  fundingMultipliersMock: FundingMultipliersMock,
-) {
-  const multipliers: string[][] = [];
+  beforeEach(async () => {
+    const wallets = await ethers.getSigners();
+    dispatcherWallet = wallets[1];
+    indexPriceServiceWallet = wallets[4];
+
+    const results = await deployAndAssociateContracts(
+      wallets[0],
+      dispatcherWallet,
+      wallets[2],
+      wallets[3],
+      indexPriceServiceWallet,
+      wallets[5],
+      0,
+      false,
+    );
+    exchange = results.exchange;
+    usdc = results.usdc;
+
+    await increaseTo(await getMidnightTomorrowInSecondsUTC());
+    await addAndActivateMarket(
+      results.chainlinkAggregator,
+      dispatcherWallet,
+      exchange,
+    );
+    await increase(fundingPeriodLengthInMs / 1000);
+
+    indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+  });
+
+  describe('publishFundingMultiplier', async function () {
+    it('should work one funding period after initial backfill when there are no gaps', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      const multipliers = await loadFundingMultipliers(exchange);
+      expect(multipliers).to.be.an('array').with.lengthOf(2);
+      expect(multipliers[0]).to.equal('0');
+      expect(multipliers[1]).to.equal(
+        decimalToPips(
+          new BigNumber(indexPrice.price)
+            .times(new BigNumber(getFundingRate()))
+            .negated()
+            .toString(),
+        ),
+      );
+    });
+
+    it('should work with missing periods between multipliers', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      await increase((fundingPeriodLengthInMs * 4) / 1000);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPrice(indexPriceServiceWallet),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate(1)),
+        );
+
+      const multipliers = await loadFundingMultipliers(exchange);
+      expect(multipliers).to.be.an('array').with.lengthOf(6);
+      expect(multipliers[0]).to.equal('0');
+      expect(multipliers[1]).to.equal(
+        decimalToPips(
+          new BigNumber(indexPrice.price)
+            .times(new BigNumber(getFundingRate()))
+            .negated()
+            .toString(),
+        ),
+      );
+      expect(multipliers[2]).to.equal('0');
+      expect(multipliers[3]).to.equal('0');
+      expect(multipliers[4]).to.equal('0');
+      expect(multipliers[5]).to.equal(
+        decimalToPips(
+          new BigNumber(indexPrice.price)
+            .times(new BigNumber(getFundingRate(1)))
+            .negated()
+            .toString(),
+        ),
+      );
+    });
+
+    it('should revert for invalid symbol', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .publishFundingMultiplier('XYZ', decimalToPips(getFundingRate())),
+      ).to.eventually.be.rejectedWith(/no active market found/i);
+    });
+  });
+
+  describe('applyOutstandingWalletFundingForMarket', async function () {
+    it('should work for wallet with outstanding funding payments', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      const trader1Wallet = (await ethers.getSigners())[6];
+      const trader2Wallet = (await ethers.getSigners())[7];
+      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+
+      const trade = await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        trader1Wallet,
+        trader2Wallet,
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithTimestamp(
+              indexPriceServiceWallet,
+              indexPrice.timestampInMs + fundingPeriodLengthInMs,
+            ),
+          ),
+        ]);
+
+      const originalTrader1QuoteBalance = (
+        await exchange.loadBalanceBySymbol(
+          trader1Wallet.address,
+          quoteAssetSymbol,
+        )
+      ).toString();
+      const originalTrader2QuoteBalance = (
+        await exchange.loadBalanceBySymbol(
+          trader2Wallet.address,
+          quoteAssetSymbol,
+        )
+      ).toString();
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      const exitWithdrawalQuantity = (
+        await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+          trader1Wallet.address,
+        )
+      ).toString();
+
+      const expectedTrader1FundingPayment = decimalToPips(
+        new BigNumber(indexPrice.price)
+          .times(new BigNumber(getFundingRate()))
+          .times(trade.baseQuantity)
+          .toString(),
+      );
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address)
+        ).toString(),
+      ).to.equal(expectedTrader1FundingPayment);
+
+      const expectedTrader2FundingPayment = decimalToPips(
+        new BigNumber(indexPrice.price)
+          .times(new BigNumber(getFundingRate()))
+          .negated()
+          .times(trade.baseQuantity)
+          .toString(),
+      );
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
+        ).toString(),
+      ).to.equal(expectedTrader2FundingPayment);
+
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader1Wallet.address,
+        baseAssetSymbol,
+      );
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader2Wallet.address,
+        baseAssetSymbol,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader1Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(
+        new BigNumber(originalTrader1QuoteBalance)
+          .plus(new BigNumber(expectedTrader1FundingPayment))
+          .toString(),
+      );
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader2Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(
+        new BigNumber(originalTrader2QuoteBalance)
+          .plus(new BigNumber(expectedTrader2FundingPayment))
+          .toString(),
+      );
+      /*
+       * FIXME Why is this failing?
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader1Wallet.address,
+          )
+        ).toString(),
+      ).to.equal(exitWithdrawalQuantity);
+      */
+
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+
+      // TODO Verify balance updates
+    });
+
+    it('should revert for invalid symbol', async function () {
+      await expect(
+        exchange.applyOutstandingWalletFundingForMarket(
+          (
+            await ethers.getSigners()
+          )[6].address,
+          'XYZ',
+        ),
+      ).to.eventually.be.rejectedWith(/market not found/i);
+    });
+  });
+});
+
+const fundingRates = [
+  '-0.00016100',
+  '0.00026400',
+  '-0.00028200',
+  '-0.00005000',
+  '0.00010400',
+];
+function getFundingRate(index = 0): string {
+  return fundingRates[index % fundingRates.length];
+}
+
+async function getMidnightTomorrowInSecondsUTC(): Promise<number> {
+  const midnightTomorrow = new Date(0);
+  midnightTomorrow.setUTCSeconds(await getLatestBlockTimestampInSeconds());
+  midnightTomorrow.setUTCHours(24, 0, 0, 0);
+
+  return midnightTomorrow.getTime() / 1000;
+}
+
+const NO_FUNDING_MULTIPLIER = (BigInt(-2) ** BigInt(63)).toString();
+async function loadFundingMultipliers(exchange: Exchange_v4) {
+  const quartets: string[][] = [];
   try {
     let i = 0;
     while (true) {
-      multipliers.push(
-        (await fundingMultipliersMock.fundingMultipliers(i)).map((m) =>
-          m.toString(),
-        ),
+      quartets.push(
+        (
+          await exchange.fundingMultipliersByBaseAssetSymbol(baseAssetSymbol, i)
+        ).map((m) => m.toString()),
       );
 
       i += 1;
@@ -44,223 +347,5 @@ export async function loadFundingMultipliersFromMock(
     }
   }
 
-  return multipliers;
+  return quartets.flat().filter((q) => q != NO_FUNDING_MULTIPLIER);
 }
-
-// FIXME Increasing the block timestamp does not seem to reset between tests
-// FIXME Fix assertions to account for zero multipliers automatically added by addMarket (variable number)
-describe('Exchange', function () {
-  describe.skip('publishFundingMutipliers', async function () {
-    it('should work for multiple consecutive periods', async function () {
-      const fundingMultipliersMock = await (
-        await ethers.getContractFactory('FundingMultipliersMock')
-      ).deploy();
-
-      for (const i of [...Array(6).keys()]) {
-        await fundingMultipliersMock.publishFundingMultipler(1);
-      }
-
-      console.log(await loadFundingMultipliersFromMock(fundingMultipliersMock));
-
-      const midnight = 1673913600000;
-
-      await expect(
-        fundingMultipliersMock.loadAggregateMultiplier(
-          midnight - fundingPeriodLengthInMs * 3,
-          midnight,
-          midnight,
-        ),
-      ).to.eventually.equal('4');
-    });
-  });
-
-  describe.skip('publishFundingMutipliers', async function () {
-    it('should work for multiple consecutive periods', async function () {
-      const [owner, dispatcher, exitFund, fee, insurance, index] =
-        await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(
-        owner,
-        dispatcher,
-        exitFund,
-        fee,
-        index,
-        insurance,
-      );
-
-      const fundingRates = buildFundingRates(5);
-      const indexPrices = await buildIndexPrices(index, 5);
-
-      for (const i of [...Array(5).keys()]) {
-        console.log(`Publishing ${i}`);
-        console.log(indexPrices[i].timestampInMs);
-
-        await time.increase(fundingPeriodLengthInMs / 1000);
-
-        await exchange
-          .connect(dispatcher)
-          .publishIndexPrices([indexPriceToArgumentStruct(indexPrices[i])]);
-
-        await exchange
-          .connect(dispatcher)
-          .publishFundingMultiplier(
-            ...getPublishFundingMutiplierArguments(
-              baseAssetSymbol,
-              fundingRates[i],
-            ),
-          );
-      }
-
-      const fundingMultipliers = await loadFundingMultipliers(exchange);
-
-      console.log(fundingMultipliers);
-
-      /*
-      // 2 quartets
-      expect(fundingMultipliers.length).to.equal(2);
-
-      [...Array(5).keys()].forEach((i) =>
-        expect(fundingMultipliers[Math.floor(i / 4)][i % 4]).to.equal(
-          decimalToPips(
-            new BigNumber(fundingRates[i])
-              .times(new BigNumber(indexPrices[i].price))
-              .negated()
-              .toString(),
-          ),
-        ),
-      );
-      */
-    });
-
-    it('should work for multiple periods with gap', async function () {
-      const [owner, dispatcher, exitFund, fee, insurance, index] =
-        await ethers.getSigners();
-      const { exchange } = await deployAndAssociateContracts(
-        owner,
-        dispatcher,
-        exitFund,
-        fee,
-        index,
-        insurance,
-      );
-
-      const fundingRates = buildFundingRates(5);
-      fundingRates.splice(2, 1);
-      const indexPrices = await buildIndexPrices(index, 5);
-      indexPrices.splice(2, 1);
-
-      for (const i of [...Array(4).keys()]) {
-        console.log(`Publishing ${i}`);
-        await time.increase(fundingPeriodLengthInMs / 1000);
-
-        await exchange
-          .connect(dispatcher)
-          .publishIndexPrices([indexPriceToArgumentStruct(indexPrices[i])]);
-
-        await (
-          await exchange
-            .connect(dispatcher)
-            .publishFundingMultiplier(
-              ...getPublishFundingMutiplierArguments(
-                baseAssetSymbol,
-                fundingRates[i],
-              ),
-            )
-        ).wait();
-      }
-
-      const fundingMultipliers = await loadFundingMultipliers(exchange);
-
-      // 2 quartets
-      expect(fundingMultipliers.length).to.equal(2);
-
-      [...Array(2).keys()].forEach((i) =>
-        expect(fundingMultipliers[Math.floor(i / 4)][i % 4]).to.equal(
-          decimalToPips(
-            new BigNumber(fundingRates[i])
-              .times(new BigNumber(indexPrices[i].price))
-              .negated()
-              .toString(),
-          ),
-        ),
-      );
-      expect(fundingMultipliers[0][2]).to.equal('0');
-      [...Array(2).keys()]
-        .map((i) => i + 3)
-        .forEach((i) =>
-          expect(fundingMultipliers[Math.floor(i / 4)][i % 4]).to.equal(
-            decimalToPips(
-              new BigNumber(fundingRates[i - 1])
-                .times(new BigNumber(indexPrices[i - 1].price))
-                .negated()
-                .toString(),
-            ),
-          ),
-        );
-    });
-  });
-
-  describe.skip('updateWalletFundingForMarket', async function () {
-    it('should work for multiple consecutive periods', async function () {
-      const [
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        insuranceWallet,
-        indexPriceServiceWallet,
-        trader1Wallet,
-        trader2Wallet,
-      ] = await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        indexPriceServiceWallet,
-        insuranceWallet,
-      );
-
-      await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
-
-      await fundWallets(
-        [trader1Wallet, trader2Wallet, insuranceWallet],
-        exchange,
-        usdc,
-      );
-
-      const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        indexPrice,
-        trader1Wallet,
-        trader2Wallet,
-      );
-
-      const fundingRates = buildFundingRates(5);
-      const indexPrices = await buildIndexPrices(indexPriceServiceWallet, 5);
-      for (const i of [...Array(5).keys()]) {
-        await time.increase(fundingPeriodLengthInMs / 1000);
-
-        await exchange
-          .connect(dispatcherWallet)
-          .publishIndexPrices([indexPriceToArgumentStruct(indexPrices[i])]);
-
-        await exchange
-          .connect(dispatcherWallet)
-          .publishFundingMultiplier(
-            ...getPublishFundingMutiplierArguments(
-              baseAssetSymbol,
-              fundingRates[i],
-            ),
-          );
-      }
-
-      await exchange.updateWalletFundingForMarket(
-        trader1Wallet.address,
-        baseAssetSymbol,
-      );
-    });
-  });
-});

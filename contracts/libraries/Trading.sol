@@ -3,10 +3,10 @@
 pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
-import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { TradeValidations } from "./TradeValidations.sol";
+import { WalletExits } from "./WalletExits.sol";
 import { ExecuteTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation } from "./Structs.sol";
 
 library Trading {
@@ -34,20 +34,20 @@ library Trading {
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities,
-    mapping(address => Exiting.WalletExit) storage walletExits
+    mapping(address => WalletExits.WalletExit) storage walletExits
   ) public {
     require(
-      !Exiting.isWalletExitFinalized(arguments.externalArguments.buy.wallet, walletExits),
+      !WalletExits.isWalletExitFinalized(arguments.externalArguments.buy.wallet, walletExits),
       "Buy wallet exit finalized"
     );
     require(
-      !Exiting.isWalletExitFinalized(arguments.externalArguments.sell.wallet, walletExits),
+      !WalletExits.isWalletExitFinalized(arguments.externalArguments.sell.wallet, walletExits),
       "Sell wallet exit finalized"
     );
 
     // Funding payments must be made prior to updating any position to ensure that the funding is calculated
-    // against the position size at the time of each historic multipler
-    Funding.updateWalletFunding(
+    // against the position size at the time of each historic multiplier
+    Funding.applyOutstandingWalletFunding(
       arguments.externalArguments.buy.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -55,7 +55,7 @@ library Trading {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.externalArguments.sell.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -173,7 +173,7 @@ library Trading {
     // Total quantity of above filled as a result of all trade executions, including this one
     uint64 newFilledQuantity;
 
-    // Ttrack partially filled quantities in base terms
+    // Track partially filled quantities in base terms
     newFilledQuantity = grossBaseQuantity + partiallyFilledOrderQuantities[orderHash];
 
     uint64 quantity = order.quantity;
@@ -196,14 +196,14 @@ library Trading {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view {
-    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.validateInitialMarginRequirement(
       arguments.externalArguments.buy.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.validateInitialMarginRequirement(
       arguments.externalArguments.sell.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

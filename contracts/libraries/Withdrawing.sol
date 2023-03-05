@@ -8,7 +8,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
-import { Exiting } from "./Exiting.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Hashing } from "./Hashing.sol";
 import { Funding } from "./Funding.sol";
@@ -18,6 +17,7 @@ import { Math } from "./Math.sol";
 import { OraclePriceMargin } from "./OraclePriceMargin.sol";
 import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
+import { WalletExits } from "./WalletExits.sol";
 import { IBridgeAdapter, ICustodian } from "./Interfaces.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
 
@@ -29,7 +29,7 @@ library Withdrawing {
     // External arguments
     Withdrawal withdrawal;
     // Exchange state
-    address quoteAssetAddress;
+    address quoteTokenAddress;
     ICustodian custodian;
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
@@ -42,7 +42,7 @@ library Withdrawing {
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
-    address quoteAssetAddress;
+    address quoteTokenAddress;
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -51,14 +51,14 @@ library Withdrawing {
     address exitFundWallet,
     address insuranceFundWallet,
     address wallet,
-    mapping(address => Exiting.WalletExit) storage walletExits
+    mapping(address => WalletExits.WalletExit) storage walletExits
   ) external returns (uint256 blockThreshold) {
     require(!walletExits[wallet].exists, "Wallet already exited");
-    require(wallet != insuranceFundWallet, "Cannot exit IF");
     require(wallet != exitFundWallet, "Cannot exit EF");
+    require(wallet != insuranceFundWallet, "Cannot exit IF");
 
     blockThreshold = block.number + chainPropagationPeriodInBlocks;
-    walletExits[wallet] = Exiting.WalletExit(true, blockThreshold);
+    walletExits[wallet] = WalletExits.WalletExit(true, blockThreshold);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -92,9 +92,9 @@ library Withdrawing {
       "Excessive withdrawal fee"
     );
     bytes32 withdrawalHash = _validateWithdrawalSignature(arguments.withdrawal);
-    require(!completedWithdrawalHashes[withdrawalHash], "Hash already withdrawn");
+    require(!completedWithdrawalHashes[withdrawalHash], "Duplicate withdrawal");
 
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.withdrawal.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -106,12 +106,12 @@ library Withdrawing {
     // Update wallet balances
     newExchangeBalance = balanceTracking.updateForWithdrawal(arguments.withdrawal, arguments.feeWallet);
 
-    // EF has no margin requirements but may only withdraw to zero
+    // EF has no margin requirements but may not withdraw quote balance below zero
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
-      require(newExchangeBalance >= 0, "EF may only withdraw to zero");
+      require(newExchangeBalance >= 0, "EF may not withdraw to a negative balance");
     } else {
       // Wallet must still maintain initial margin requirement after withdrawal
-      IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+      IndexPriceMargin.validateInitialMarginRequirement(
         arguments.withdrawal.wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -136,15 +136,9 @@ library Withdrawing {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => Exiting.WalletExit) storage walletExits
+    mapping(address => WalletExits.WalletExit) storage walletExits
   ) public returns (uint256, uint64) {
-    // Do not require prior exit for EF as it is already subject to a specific withdrawal delay
-    require(
-      arguments.wallet == arguments.exitFundWallet || Exiting.isWalletExitFinalized(arguments.wallet, walletExits),
-      "Wallet exit not finalized"
-    );
-
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -156,11 +150,14 @@ library Withdrawing {
     int64 walletQuoteQuantityToWithdraw;
 
     if (arguments.wallet == arguments.exitFundWallet) {
+      // Do not require prior exit for EF as it is already subject to a specific EF withdrawal delay
       _validateExitFundWithdrawDelayElapsed(exitFundPositionOpenedAtBlockNumber);
 
-      // The EF wallet can withdraw any positive quote balance
+      // The EF wallet can withdraw its positive quote balance
       walletQuoteQuantityToWithdraw = balanceTracking.updateExitFundWalletForExit(arguments.exitFundWallet);
     } else {
+      require(WalletExits.isWalletExitFinalized(arguments.wallet, walletExits), "Wallet exit not finalized");
+
       walletQuoteQuantityToWithdraw = _updatePositionsForWalletExit(
         arguments,
         balanceTracking,
@@ -182,15 +179,15 @@ library Withdrawing {
 
     // The available quote for exit can validly be negative for the EF wallet. For all other wallets, the exit quote
     // calculations are designed such that the result quantity to withdraw is never negative; however we still perform
-    // this check in case of unforseen bugs or rounding errors. In either case we should revert on negative
+    // this check in case of unforeseen bugs or rounding errors. In either case we should revert on negative
     // A zero available quantity would not transfer out any quote but would still close all positions and quote
     // balance, so we do not revert on zero
     require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
 
     arguments.custodian.withdraw(
       arguments.wallet,
-      arguments.quoteAssetAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_ASSET_DECIMALS)
+      arguments.quoteTokenAddress,
+      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_TOKEN_DECIMALS)
     );
 
     return (
@@ -230,7 +227,7 @@ library Withdrawing {
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       // Sum EF quote quantity change needed to close each wallet position
       exitFundQuoteQuantityChange += balanceTracking.updatePositionForExit(
-        BalanceTracking.UpdateForExitArguments(
+        BalanceTracking.UpdatePositionForExitArguments(
           arguments.exitFundWallet,
           marketsByBaseAssetSymbol[baseAssetSymbols[i]],
           marketsByBaseAssetSymbol[baseAssetSymbols[i]]
@@ -269,12 +266,12 @@ library Withdrawing {
     // Transfer funds from Custodian to wallet
     uint256 netAssetQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
       arguments.withdrawal.grossQuantity - arguments.withdrawal.gasFee,
-      Constants.QUOTE_ASSET_DECIMALS
+      Constants.QUOTE_TOKEN_DECIMALS
     );
     if (arguments.withdrawal.bridgeAdapter == address(0x0)) {
       arguments.custodian.withdraw(
         arguments.withdrawal.wallet,
-        arguments.quoteAssetAddress,
+        arguments.quoteTokenAddress,
         netAssetQuantityInAssetUnits
       );
     } else {
@@ -289,7 +286,7 @@ library Withdrawing {
 
       arguments.custodian.withdraw(
         arguments.withdrawal.bridgeAdapter,
-        arguments.quoteAssetAddress,
+        arguments.quoteTokenAddress,
         netAssetQuantityInAssetUnits
       );
       IBridgeAdapter(arguments.withdrawal.bridgeAdapter).withdrawQuoteAsset(

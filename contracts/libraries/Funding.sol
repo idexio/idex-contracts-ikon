@@ -16,6 +16,40 @@ library Funding {
   using SortedStringSet for string[];
 
   // solhint-disable-next-line func-name-mixedcase
+  function applyOutstandingWalletFundingForMarket_delegatecall(
+    string memory baseAssetSymbol,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public {
+    Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists, "Market not found");
+    require(
+      baseAssetSymbolsWithOpenPositionsByWallet[wallet].indexOf(market.baseAssetSymbol) != SortedStringSet.NOT_FOUND,
+      "No open position in market"
+    );
+
+    Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
+    (int64 funding, uint64 toTimestampInMs) = _loadWalletFundingForMarket(
+      basePosition,
+      true,
+      market,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+    );
+    basePosition.lastUpdateTimestampInMs = toTimestampInMs;
+
+    Balance storage quoteBalance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    quoteBalance.balance += funding;
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
   function loadOutstandingWalletFunding_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -46,35 +80,28 @@ library Funding {
     Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
+    // The last publish timestamp will always be non-zero as set during market creation by `backfillFundingMultipliersForMarket`
     uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
+    // Previous funding rate exists, next publish timestamp is exactly one period length from previous period start
+    uint64 nextPublishTimestampInMs = lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS;
 
-    uint64 nextPublishTimestampInMs;
-    if (lastPublishTimestampInMs == 0) {
-      // No funding rates published yet, use closest period starting before index price timestamp
-      nextPublishTimestampInMs =
-        market.lastIndexPriceTimestampInMs -
-        (market.lastIndexPriceTimestampInMs % Constants.FUNDING_PERIOD_IN_MS);
-    } else {
-      // Previous funding rate exists, next publish timestamp is exactly one period length from previous period start
-      nextPublishTimestampInMs = lastPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS;
-
-      if (market.lastIndexPriceTimestampInMs < nextPublishTimestampInMs) {
-        // Validate index price is not stale for next period
-        require(
-          nextPublishTimestampInMs - market.lastIndexPriceTimestampInMs < Constants.FUNDING_PERIOD_IN_MS / 2,
-          "Index price too far before next period"
-        );
-      } else if (nextPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS / 2 < market.lastIndexPriceTimestampInMs) {
-        // Backfill missing periods with a multiplier of 0 (no funding payments made)
-        uint64 periodsToBackfill = Math.divideRoundNearest(
-          market.lastIndexPriceTimestampInMs - nextPublishTimestampInMs,
-          Constants.FUNDING_PERIOD_IN_MS
-        );
-        for (uint64 i = 0; i < periodsToBackfill; i++) {
-          fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultipler(0);
-        }
-        nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
+    // Use the timestamp of the last index price for the market to determine if any funding periods were skipped
+    if (market.lastIndexPriceTimestampInMs < nextPublishTimestampInMs) {
+      // No missing periods, validate index price is not stale for next period
+      require(
+        nextPublishTimestampInMs - market.lastIndexPriceTimestampInMs < Constants.FUNDING_PERIOD_IN_MS / 2,
+        "Index price too far before next period"
+      );
+    } else if (market.lastIndexPriceTimestampInMs > nextPublishTimestampInMs + Constants.FUNDING_PERIOD_IN_MS / 2) {
+      // Backfill missing periods with a multiplier of 0 (no funding payments made)
+      uint64 periodsToBackfill = Math.divideRoundNearest(
+        market.lastIndexPriceTimestampInMs - nextPublishTimestampInMs,
+        Constants.FUNDING_PERIOD_IN_MS
+      );
+      for (uint64 i = 0; i < periodsToBackfill; i++) {
+        fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultipler(0);
       }
+      nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
     }
 
     int64 newFundingMultiplier = Math.multiplyPipsByFraction(
@@ -91,32 +118,36 @@ library Funding {
     lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol] = nextPublishTimestampInMs;
   }
 
-  // solhint-disable-next-line func-name-mixedcase
-  function updateWalletFundingForMarket_delegatecall(
-    string memory baseAssetSymbol,
+  function applyOutstandingWalletFunding(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public {
-    Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
-    require(market.exists, "Market not found");
-    require(
-      baseAssetSymbolsWithOpenPositionsByWallet[wallet].indexOf(market.baseAssetSymbol) != SortedStringSet.NOT_FOUND,
-      "No open position in market"
-    );
+  ) internal {
+    int64 funding;
+    int64 marketFunding;
+    uint64 lastFundingMultiplierTimestampInMs;
 
-    Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(wallet, market.baseAssetSymbol);
-    (int64 funding, uint64 toTimestampInMs) = _loadWalletFundingForMarket(
-      basePosition,
-      true,
-      market,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-    );
-    basePosition.lastUpdateTimestampInMs = toTimestampInMs;
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+        wallet,
+        market.baseAssetSymbol
+      );
+
+      (marketFunding, lastFundingMultiplierTimestampInMs) = _loadWalletFundingForMarket(
+        basePosition,
+        false,
+        market,
+        fundingMultipliersByBaseAssetSymbol,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
+      );
+      funding += marketFunding;
+      basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
+    }
 
     Balance storage quoteBalance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       wallet,
@@ -169,44 +200,6 @@ library Funding {
       );
       funding += marketFunding;
     }
-  }
-
-  function updateWalletFunding(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal {
-    int64 funding;
-    int64 marketFunding;
-    uint64 lastFundingMultiplierTimestampInMs;
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      Balance storage basePosition = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
-        wallet,
-        market.baseAssetSymbol
-      );
-
-      (marketFunding, lastFundingMultiplierTimestampInMs) = _loadWalletFundingForMarket(
-        basePosition,
-        false,
-        market,
-        fundingMultipliersByBaseAssetSymbol,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-      );
-      funding += marketFunding;
-      basePosition.lastUpdateTimestampInMs = lastFundingMultiplierTimestampInMs;
-    }
-
-    Balance storage quoteBalance = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
-      wallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
-    quoteBalance.balance += funding;
   }
 
   function _loadWalletFundingForMarket(

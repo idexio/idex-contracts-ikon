@@ -6,13 +6,12 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { ICustodian } from "./libraries/Interfaces.sol";
-import { Owned } from "./Owned.sol";
 
 /**
  * @notice The Custodian contract. Holds custody of all deposited funds for whitelisted Exchange
  * contract with minimal additional logic
  */
-contract Custodian is ICustodian, Owned {
+contract Custodian is ICustodian {
   // Events //
 
   /**
@@ -45,9 +44,9 @@ contract Custodian is ICustodian, Owned {
    * itself
    *
    * @param exchange_ Address of deployed Exchange contract to whitelist
-   * @param governance_ ddress of deployed Governance contract to whitelist
+   * @param governance_ Address of deployed Governance contract to whitelist
    */
-  constructor(address exchange_, address governance_) Owned() {
+  constructor(address exchange_, address governance_) {
     require(Address.isContract(exchange_), "Invalid exchange contract address");
     require(Address.isContract(governance_), "Invalid governance contract address");
 

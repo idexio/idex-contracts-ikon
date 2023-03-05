@@ -3,11 +3,11 @@
 pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
-import { Exiting } from "./Exiting.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { Validations } from "./Validations.sol";
+import { WalletExits } from "./WalletExits.sol";
 import { FundingMultiplierQuartet, Market, MarketOverrides, Transfer } from "./Structs.sol";
 
 library Transferring {
@@ -32,9 +32,9 @@ library Transferring {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => Exiting.WalletExit) storage walletExits
+    mapping(address => WalletExits.WalletExit) storage walletExits
   ) public returns (int64 newSourceWalletExchangeBalance) {
-    require(!Exiting.isWalletExitFinalized(arguments.transfer.sourceWallet, walletExits), "Wallet exited");
+    require(!WalletExits.isWalletExitFinalized(arguments.transfer.sourceWallet, walletExits), "Wallet exited");
 
     require(arguments.transfer.sourceWallet != arguments.exitFundWallet, "Cannot transfer from EF");
     require(arguments.transfer.sourceWallet != arguments.insuranceFundWallet, "Cannot transfer from IF");
@@ -44,12 +44,12 @@ library Transferring {
 
     require(
       Validations.isFeeQuantityValid(arguments.transfer.gasFee, arguments.transfer.grossQuantity),
-      "Excessive withdrawal fee"
+      "Excessive transfer fee"
     );
     bytes32 transferHash = _validateTransferSignature(arguments.transfer);
-    require(!completedTransferHashes[transferHash], "Hash already transferred");
+    require(!completedTransferHashes[transferHash], "Duplicate transfer");
 
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.transfer.sourceWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -57,7 +57,7 @@ library Transferring {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.transfer.destinationWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -70,7 +70,7 @@ library Transferring {
     newSourceWalletExchangeBalance = balanceTracking.updateForTransfer(arguments.transfer, arguments.feeWallet);
 
     // Wallet must still maintain initial margin requirement after withdrawal
-    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.validateInitialMarginRequirement(
       arguments.transfer.sourceWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

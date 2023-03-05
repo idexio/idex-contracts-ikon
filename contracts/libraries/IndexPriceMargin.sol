@@ -84,21 +84,21 @@ library IndexPriceMargin {
       );
   }
 
-  function loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+  function validateInitialMarginRequirement(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 totalAccountValue, uint64 totalInitialMarginRequirement) {
-    totalAccountValue = loadTotalAccountValue(
+  ) internal view {
+    int64 totalAccountValue = loadTotalAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
 
-    totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
+    uint64 totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -244,7 +244,7 @@ library IndexPriceMargin {
     (
       int64 insuranceFundTotalAccountValue,
       uint64 insuranceFundTotalInitialMarginRequirement,
-      bool isMaximumPositionSizeExceeded
+      bool isInsuranceFundMaximumPositionSizeExceeded
     ) = _loadInsuranceFundTotalAccountValueAndInitialMarginRequirementAfterLiquidationAcquisition(
         arguments,
         balanceTracking,
@@ -253,7 +253,7 @@ library IndexPriceMargin {
 
     // IF cannot acquire if doing so would exceed its max position size or bring it below its initial margin requirement
     require(
-      isMaximumPositionSizeExceeded ||
+      isInsuranceFundMaximumPositionSizeExceeded ||
         insuranceFundTotalAccountValue < int64(insuranceFundTotalInitialMarginRequirement),
       "Insurance fund can acquire"
     );
@@ -268,8 +268,8 @@ library IndexPriceMargin {
     view
     returns (
       int64 insuranceFundTotalAccountValue,
-      uint64 totalInitialMarginRequirement,
-      bool isMaximumPositionSizeExceeded
+      uint64 insuranceFundTotalInitialMarginRequirement,
+      bool isInsuranceFundMaximumPositionSizeExceeded
     )
   {
     insuranceFundTotalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
@@ -306,7 +306,7 @@ library IndexPriceMargin {
 
       // If acquiring this position exceeds the IF's maximum position size for the market, then it cannot acquire
       // and we can stop here
-      isMaximumPositionSizeExceeded =
+      isInsuranceFundMaximumPositionSizeExceeded =
         insuranceFundPositionSizeAfterAcquisition > type(int64).max ||
         insuranceFundPositionSizeAfterAcquisition < type(int64).min ||
         Math.abs(int64(insuranceFundPositionSizeAfterAcquisition)) >
@@ -315,7 +315,8 @@ library IndexPriceMargin {
           .loadMarketWithOverridesForWallet(arguments.insuranceFundWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maximumPositionSize;
-      if (isMaximumPositionSizeExceeded) {
+      if (isInsuranceFundMaximumPositionSizeExceeded) {
+        // IF cannot acquire position, break here without completing IF margin calculations
         break;
       }
 
@@ -328,7 +329,7 @@ library IndexPriceMargin {
           int64(Constants.PIP_PRICE_MULTIPLIER)
         );
         // Accumulate margin requirement
-        totalInitialMarginRequirement += Math.abs(
+        insuranceFundTotalInitialMarginRequirement += Math.abs(
           Math.multiplyPipsByFraction(
             Math.multiplyPipsByFraction(
               int64(insuranceFundPositionSizeAfterAcquisition),

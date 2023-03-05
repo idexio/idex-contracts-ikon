@@ -1,68 +1,71 @@
 import { ethers } from 'hardhat';
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 
-import type { Exchange_v4, USDC } from '../typechain-types';
 import {
   decimalToPips,
   getWithdrawArguments,
   getWithdrawalHash,
-  IndexPrice,
   signatureHashVersion,
+  Withdrawal,
 } from '../lib';
+import { Exchange_v4 } from '../typechain-types';
 import {
-  buildIndexPrice,
   deployAndAssociateContracts,
-  executeTrade,
   expect,
-  fundWallets,
   quoteAssetDecimals,
 } from './helpers';
 
 describe('Exchange', function () {
   describe('withdraw', function () {
-    it('should work', async function () {
-      const [owner, dispatcher, trader, exitFund, fee, insurance, index] =
-        await ethers.getSigners();
-      const { exchange, usdc } = await deployAndAssociateContracts(
-        owner,
-        dispatcher,
-        exitFund,
-        fee,
-        index,
-        insurance,
+    let dispatcherWallet: SignerWithAddress;
+    let exchange: Exchange_v4;
+    let signature: string;
+    let withdrawal: Withdrawal;
+
+    beforeEach(async () => {
+      const wallets = await ethers.getSigners();
+      dispatcherWallet = wallets[0];
+      const traderWallet = wallets[7];
+      const results = await deployAndAssociateContracts(
+        wallets[1],
+        dispatcherWallet,
+        wallets[3],
+        wallets[4],
+        wallets[5],
+        wallets[6],
       );
+      exchange = results.exchange;
 
       const depositQuantity = ethers.utils.parseUnits(
         '5.0',
         quoteAssetDecimals,
       );
-      await usdc.transfer(trader.address, depositQuantity);
-      await usdc.connect(trader).approve(exchange.address, depositQuantity);
+      await results.usdc.transfer(traderWallet.address, depositQuantity);
+      await results.usdc
+        .connect(traderWallet)
+        .approve(exchange.address, depositQuantity);
       await (
         await exchange
-          .connect(trader)
+          .connect(traderWallet)
           .deposit(depositQuantity, ethers.constants.AddressZero)
       ).wait();
 
-      const withdrawal = {
+      withdrawal = {
         signatureHashVersion,
         nonce: uuidv1(),
-        wallet: trader.address,
+        wallet: traderWallet.address,
         quantity: '1.00000000',
-        targetChainName: 'matic',
       };
-      const signature = await trader.signMessage(
+      signature = await traderWallet.signMessage(
         ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
       );
-      await (
-        await exchange
-          .connect(dispatcher)
-          .withdraw(
-            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
-          )
-      ).wait();
+    });
+
+    it('should work', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       const withdrawnEvents = await exchange.queryFilter(
         exchange.filters.Withdrawn(),
@@ -72,85 +75,29 @@ describe('Exchange', function () {
         decimalToPips('1.00000000'),
       );
     });
-  });
 
-  describe('withdrawExit', function () {
-    let dispatcherWallet: SignerWithAddress;
-    let exchange: Exchange_v4;
-    let exitFundWallet: SignerWithAddress;
-    let indexPrice: IndexPrice;
-    let indexPriceServiceWallet: SignerWithAddress;
-    let insuranceFundWallet: SignerWithAddress;
-    let ownerWallet: SignerWithAddress;
-    let trader1Wallet: SignerWithAddress;
-    let trader2Wallet: SignerWithAddress;
-    let usdc: USDC;
+    it('should revert when replayed', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
-    beforeEach(async () => {
-      const wallets = await ethers.getSigners();
-
-      const [feeWallet] = wallets;
-      [
-        ,
-        dispatcherWallet,
-        exitFundWallet,
-        indexPriceServiceWallet,
-        insuranceFundWallet,
-        ownerWallet,
-        trader1Wallet,
-        trader2Wallet,
-      ] = wallets;
-      const results = await deployAndAssociateContracts(
-        ownerWallet,
-        dispatcherWallet,
-        exitFundWallet,
-        feeWallet,
-        indexPriceServiceWallet,
-        insuranceFundWallet,
-      );
-      exchange = results.exchange;
-      usdc = results.usdc;
-
-      await usdc.faucet(dispatcherWallet.address);
-
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
-
-      indexPrice = await buildIndexPrice(indexPriceServiceWallet);
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        indexPrice,
-        trader1Wallet,
-        trader2Wallet,
-      );
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/duplicate withdrawal/i);
     });
 
-    it('should work for exited wallet', async function () {
-      // Deposit additional quote to allow for EF exit withdrawal
-      const depositQuantity = ethers.utils.parseUnits(
-        '100000.0',
-        quoteAssetDecimals,
-      );
-      await usdc
-        .connect(ownerWallet)
-        .approve(exchange.address, depositQuantity);
-      await (
-        await exchange
-          .connect(ownerWallet)
-          .deposit(depositQuantity, ethers.constants.AddressZero)
-      ).wait();
-
-      await exchange.connect(trader1Wallet).exitWallet();
-      await exchange.withdrawExit(trader1Wallet.address);
-      // Subsequent calls to withdraw exit perform a zero transfer
-      await exchange.withdrawExit(trader1Wallet.address);
-
-      await mine(300000, { interval: 0 });
-
-      await exchange.withdrawExit(exitFundWallet.address);
-      // Subsequent calls to withdraw exit perform a zero transfer
-      await exchange.withdrawExit(exitFundWallet.address);
+    it('should revert on excessive withdrawal fee', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '1.00000000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/excessive withdrawal fee/i);
     });
   });
 });

@@ -31,12 +31,13 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
+    require(arguments.liquidatingWallet != arguments.deleveragingWallet, "Cannot liquidate wallet against itself");
     require(arguments.liquidatingWallet != exitFundWallet, "Cannot liquidate EF");
     require(arguments.liquidatingWallet != insuranceFundWallet, "Cannot liquidate IF");
     require(arguments.deleveragingWallet != exitFundWallet, "Cannot deleverage EF");
     require(arguments.deleveragingWallet != insuranceFundWallet, "Cannot deleverage IF");
 
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -44,7 +45,7 @@ library AcquisitionDeleveraging {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
-    Funding.updateWalletFunding(
+    Funding.applyOutstandingWalletFunding(
       arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -94,7 +95,7 @@ library AcquisitionDeleveraging {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-    if (deleverageType == DeleverageType.WalletInMaintenance) {
+    if (deleverageType == DeleverageType.WalletInMaintenanceAcquisition) {
       require(
         liquidatingWalletTotalAccountValue < int64(liquidatingWalletTotalMaintenanceMarginRequirement),
         "Maintenance margin requirement met"
@@ -152,7 +153,7 @@ library AcquisitionDeleveraging {
     );
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
-    IndexPriceMargin.loadAndValidateTotalAccountValueAndInitialMarginRequirement(
+    IndexPriceMargin.validateInitialMarginRequirement(
       arguments.deleveragingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -183,7 +184,7 @@ library AcquisitionDeleveraging {
       market.baseAssetSymbol
     );
 
-    if (deleverageType == DeleverageType.WalletInMaintenance) {
+    if (deleverageType == DeleverageType.WalletInMaintenanceAcquisition) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.liquidationQuoteQuantity,
         market
@@ -196,12 +197,13 @@ library AcquisitionDeleveraging {
         totalMaintenanceMarginRequirement
       );
     } else {
-      // DeleverageType.WalletExited
+      // DeleverageType.WalletExitAcquisition
       LiquidationValidations.validateExitQuoteQuantity(
         // Calculate the cost basis of the base quantity being liquidated while observing signedness
         Math.multiplyPipsByFraction(
           balanceStruct.costBasis,
           int64(arguments.liquidationBaseQuantity),
+          // Position size implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
           int64(Math.abs(balanceStruct.balance))
         ),
         arguments.liquidationQuoteQuantity,
@@ -316,7 +318,7 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
     // Validate provided liquidation quote quantity
-    if (deleverageType == DeleverageType.WalletInMaintenance) {
+    if (deleverageType == DeleverageType.WalletInMaintenanceAcquisition) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
         arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
         loadArguments
@@ -333,7 +335,7 @@ library AcquisitionDeleveraging {
         liquidatingWalletTotalMaintenanceMarginRequirement
       );
     } else {
-      // DeleverageType.WalletExited
+      // DeleverageType.WalletExitAcquisition
       Balance storage balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
         arguments.liquidatingWallet,
         baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[index]

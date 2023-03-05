@@ -102,9 +102,24 @@ describe('Exchange', function () {
           ownerWallet.address,
           [ethers.constants.AddressZero],
           ownerWallet.address,
-          ownerWallet.address,
+          usdc.address,
         ),
-      ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
+      ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
+    });
+
+    it('should revert for zero IF wallet', async () => {
+      const [ownerWallet] = await ethers.getSigners();
+
+      await expect(
+        ExchangeFactory.deploy(
+          ethers.constants.AddressZero,
+          ownerWallet.address,
+          ownerWallet.address,
+          [ownerWallet.address],
+          ethers.constants.AddressZero,
+          usdc.address,
+        ),
+      ).to.eventually.be.rejectedWith(/invalid IF wallet/i);
     });
   });
 
@@ -167,6 +182,30 @@ describe('Exchange', function () {
           .connect((await ethers.getSigners())[1])
           .setCustodian(governance.address, []),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert for non-contract adapter address', async () => {
+      const [ownerWallet] = await ethers.getSigners();
+      const newExchange = await ExchangeFactory.deploy(
+        ethers.constants.AddressZero,
+        ownerWallet.address,
+        ownerWallet.address,
+        [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
+      );
+
+      const CustodianFactory = await ethers.getContractFactory('Custodian');
+      const custodian = await CustodianFactory.deploy(
+        newExchange.address,
+        newExchange.address,
+      );
+
+      await expect(
+        newExchange.setCustodian(custodian.address, [
+          ethers.constants.AddressZero,
+        ]),
+      ).to.eventually.be.rejectedWith(/invalid adapter address/i);
     });
   });
 });

@@ -8,6 +8,8 @@ pragma solidity 0.8.18;
 library ExitFund {
   using BalanceTracking for BalanceTracking.Storage;
 
+  // Returns the block number at which a position or quote balance initially opened; zero if EF has no open positions or
+  // quote balance
   function getExitFundBalanceOpenedAtBlockNumber(
     uint256 currentExitFundBalanceOpenedAtBlockNumber,
     address exitFundWallet,
@@ -35,7 +37,7 @@ library ExitFund {
     return currentExitFundBalanceOpenedAtBlockNumber;
   }
 
-  function isExitFundPositionOrQuoteOpen(
+  function doesWalletHaveOpenPositionsOrQuoteBalance(
     address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet

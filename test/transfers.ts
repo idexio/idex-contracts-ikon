@@ -50,12 +50,6 @@ describe('Exchange', function () {
           .deposit(depositQuantity, ethers.constants.AddressZero)
       ).wait();
 
-      await exchange
-        .connect(dispatcher)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(await buildIndexPrice(index)),
-        ]);
-
       const transfer = {
         signatureHashVersion,
         nonce: uuidv1(),

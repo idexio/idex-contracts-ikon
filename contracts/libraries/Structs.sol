@@ -40,7 +40,7 @@ struct Balance {
 struct ClosureDeleverageArguments {
   string baseAssetSymbol;
   address deleveragingWallet;
-  // IF or EF depending on delerageType
+  // IF or EF depending on deleverageType
   address liquidatingWallet;
   // Base quantity to decrease position being liquidated
   uint64 liquidationBaseQuantity;
@@ -91,7 +91,7 @@ struct IndexPrice {
   string baseAssetSymbol;
   // Milliseconds since epoch
   uint64 timestampInMs;
-  // Price of base asset in decimal pips * 10^8 in quote terms
+  // Price of base asset in quote terms
   uint64 price;
   // Signature from index price service wallet
   bytes signature;
@@ -155,13 +155,12 @@ struct OverridableMarketFields {
   uint64 initialMarginFraction;
   // The margin fraction required to prevent liquidation
   uint64 maintenanceMarginFraction;
-  // The increase of initialMarginFraction for each incrementalPositionSize above the
-  // baselinePositionSize
+  // The increase of initialMarginFraction for each incrementalPositionSize above baselinePositionSize
   uint64 incrementalInitialMarginFraction;
-  // The max position size in base token before increasing the initial-margin-fraction.
+  // The max position size in base token before increasing initialMarginFraction
   uint64 baselinePositionSize;
-  // The step size (in base token) for increasing the initialMarginFraction by
-  // (incrementalInitialMarginFraction per step)
+  // The step size (in base token) for increasing the initialMarginFraction by (incrementalInitialMarginFraction
+  // per step)
   uint64 incrementalPositionSize;
   // The max position size in base token
   uint64 maximumPositionSize;
@@ -196,9 +195,9 @@ struct Order {
   OrderSide side;
   // Order quantity in base asset terms
   uint64 quantity;
-  // For limit orders, price in decimal pips * 10^8 in quote terms
+  // For limit orders, price in quote terms
   uint64 limitPrice;
-  // For stop orders, stop loss or take profit price in decimal pips * 10^8 in quote terms
+  // For stop orders, stop loss or take profit price in quote terms
   uint64 triggerPrice;
   // Type of trigger condition
   OrderTriggerType triggerType;
@@ -228,8 +227,6 @@ struct Order {
 struct Trade {
   // Base asset symbol
   string baseAssetSymbol;
-  // Quote asset symbol
-  string quoteAssetSymbol;
   // Amount of base asset executed
   uint64 baseQuantity;
   // Amount of quote asset executed
@@ -238,7 +235,7 @@ struct Trade {
   int64 makerFeeQuantity;
   // Fee paid by liquidity taker in quote (collateral) asset
   uint64 takerFeeQuantity;
-  // Execution price of trade in decimal pips * 10^8 in quote terms
+  // Execution price of trade in quote terms
   uint64 price;
   // Which side of the order (buy or sell) the liquidity maker was on
   OrderSide makerSide;
@@ -291,6 +288,6 @@ struct Withdrawal {
   bytes bridgeAdapterPayload;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs
   uint64 gasFee;
-  // The ECDSA signature of the withdrawal hash as produced by Hashing.getWithdrawalWalletHash
+  // The ECDSA signature of the withdrawal hash as produced by `Hashing.getWithdrawalWalletHash`
   bytes walletSignature;
 }

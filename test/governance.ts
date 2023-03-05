@@ -58,6 +58,39 @@ describe('Governance', function () {
     });
   });
 
+  describe('setOwner', () => {
+    let governance: Governance;
+
+    beforeEach(async () => {
+      governance = await GovernanceFactory.deploy(0);
+    });
+
+    it('should work for valid wallet', async () => {
+      await governance.setOwner((await ethers.getSigners())[1].address);
+    });
+
+    it('should revert for zero address', async () => {
+      await expect(
+        governance.setOwner(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/invalid wallet address/i);
+    });
+
+    it('should revert for same wallet already set', async () => {
+      await expect(
+        governance.setOwner(await governance.ownerWallet()),
+      ).to.eventually.be.rejectedWith(/must be different from current owner/i);
+    });
+
+    it('should revert when not called by owner', async () => {
+      const nonOwnerWallet = (await ethers.getSigners())[1];
+
+      const governance = await GovernanceFactory.deploy(0);
+      await expect(
+        governance.connect(nonOwnerWallet).setOwner(nonOwnerWallet.address),
+      ).to.eventually.be.rejectedWith(/caller must be owner/i);
+    });
+  });
+
   describe('removeAdmin', async function () {
     it('should work', async () => {
       const governance = await GovernanceFactory.deploy(0);

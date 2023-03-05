@@ -22,9 +22,6 @@ library Constants {
   // 1 day at 3s/block
   uint256 public constant FIELD_UPGRADE_DELAY_IN_BLOCKS = (1 * 24 * 60 * 60) / 3;
 
-  // The name of the local block chain, for use when specifying a target chain for withdrawals
-  string public constant LOCAL_CHAIN_NAME = "matic";
-
   // 1 week at 3s/block
   uint256 public constant MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
 
@@ -47,9 +44,9 @@ library Constants {
   // 8 hours
   uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
 
-  string public constant QUOTE_ASSET_SYMBOL = "USDC";
+  string public constant QUOTE_ASSET_SYMBOL = "USD";
 
-  uint8 public constant QUOTE_ASSET_DECIMALS = 6;
+  uint8 public constant QUOTE_TOKEN_DECIMALS = 6;
 
   uint8 public constant SIGNATURE_HASH_VERSION = 105;
 

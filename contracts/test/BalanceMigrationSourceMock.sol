@@ -5,19 +5,19 @@ pragma solidity 0.8.18;
 import { Balance } from "../libraries/Structs.sol";
 
 contract BalanceMigrationSourceMock {
-  mapping(address => mapping(string => int64)) public balancesInPips;
+  mapping(address => mapping(string => int64)) public balances;
   uint64 public depositIndex;
 
   constructor(uint64 depositIndex_) {
     depositIndex = depositIndex_;
   }
 
-  function setBalanceInPipsByAddress(address wallet, string calldata assetSymbol, int64 balanceInPips) external {
-    balancesInPips[wallet][assetSymbol] = balanceInPips;
+  function setBalanceBySymbol(address wallet, string calldata assetSymbol, int64 newBalance) external {
+    balances[wallet][assetSymbol] = newBalance;
   }
 
   function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64) {
-    return balancesInPips[wallet][assetSymbol];
+    return balances[wallet][assetSymbol];
   }
 
   function loadBalanceStructBySymbol(
@@ -25,11 +25,6 @@ contract BalanceMigrationSourceMock {
     string calldata assetSymbol
   ) external view returns (Balance memory) {
     return
-      Balance({
-        isMigrated: true,
-        balance: balancesInPips[wallet][assetSymbol],
-        lastUpdateTimestampInMs: 0,
-        costBasis: 0
-      });
+      Balance({ isMigrated: true, balance: balances[wallet][assetSymbol], lastUpdateTimestampInMs: 0, costBasis: 0 });
   }
 }
