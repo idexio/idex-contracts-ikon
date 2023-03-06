@@ -123,6 +123,40 @@ describe('Exchange', function () {
     });
   });
 
+  describe('field upgrade governance setters', () => {
+    let exchange: Exchange_v4;
+
+    beforeEach(async () => {
+      const [owner] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(owner);
+      exchange = results.exchange;
+    });
+
+    describe('setBridgeAdapters', async function () {
+      it('should revert when not called by Governance', async () => {
+        await expect(
+          exchange.setBridgeAdapters([]),
+        ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
+      });
+    });
+
+    describe('setIndexPriceServiceWallets', async function () {
+      it('should revert when not called by Governance', async () => {
+        await expect(
+          exchange.setIndexPriceServiceWallets([]),
+        ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
+      });
+    });
+
+    describe('setInsuranceFundWallet', async function () {
+      it('should revert when not called by Governance', async () => {
+        await expect(
+          exchange.setInsuranceFundWallet(ethers.constants.AddressZero),
+        ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
+      });
+    });
+  });
+
   describe('setCustodian', async function () {
     let exchange: Exchange_v4;
     let ExchangeFactory: Exchange_v4__factory;
@@ -136,6 +170,30 @@ describe('Exchange', function () {
       ExchangeFactory = results.ExchangeFactory;
       governance = results.governance;
       usdc = results.usdc;
+    });
+
+    it('should work for valid Custodian and bridge adapters', async () => {
+      const [ownerWallet] = await ethers.getSigners();
+      const newExchange = await ExchangeFactory.deploy(
+        ethers.constants.AddressZero,
+        ownerWallet.address,
+        ownerWallet.address,
+        [usdc.address],
+        ownerWallet.address,
+        usdc.address,
+      );
+
+      const CustodianFactory = await ethers.getContractFactory('Custodian');
+      const custodian = await CustodianFactory.deploy(
+        newExchange.address,
+        newExchange.address,
+      );
+
+      await expect(
+        newExchange.setCustodian(custodian.address, [
+          ethers.constants.AddressZero,
+        ]),
+      ).to.eventually.be.rejectedWith(/invalid adapter address/i);
     });
 
     it('should revert for zero address', async () => {
@@ -206,6 +264,45 @@ describe('Exchange', function () {
           ethers.constants.AddressZero,
         ]),
       ).to.eventually.be.rejectedWith(/invalid adapter address/i);
+    });
+  });
+
+  describe('removeDispatcher', async function () {
+    let exchange: Exchange_v4;
+
+    beforeEach(async () => {
+      const [owner] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(owner);
+      exchange = results.exchange;
+    });
+
+    it('should work', async () => {
+      await exchange.removeDispatcher();
+      await expect(exchange.dispatcherWallet()).to.eventually.equal(
+        ethers.constants.AddressZero,
+      );
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange.connect((await ethers.getSigners())[1]).removeDispatcher(),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('setDepositIndex', () => {
+    let exchange: Exchange_v4;
+
+    beforeEach(async () => {
+      const [owner] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(owner);
+      exchange = results.exchange;
+    });
+
+    it('should revert when called more than once', async () => {
+      await expect(exchange.setDepositIndex()).to.eventually.be.rejectedWith(
+        /can only be set once/i,
+      );
     });
   });
 });

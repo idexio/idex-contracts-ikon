@@ -10,6 +10,7 @@ import {
   buildIndexPriceWithValue,
   deployAndAssociateContracts,
   executeTrade,
+  expect,
   fundWallets,
 } from './helpers';
 
@@ -74,43 +75,138 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
 
-      await (
-        await exchange
-          .connect(dispatcherWallet)
-          .deleverageInMaintenanceAcquisition({
-            baseAssetSymbol,
-            deleveragingWallet: trader2Wallet.address,
-            liquidatingWallet: trader1Wallet.address,
-            validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-              '21980.00000000',
-            ].map(decimalToPips),
-            liquidationBaseQuantity: decimalToPips('10.00000000'),
-            liquidationQuoteQuantity: decimalToPips('21980.00000000'),
-          })
-      ).wait();
+      await exchange
+        .connect(dispatcherWallet)
+        .deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '21980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        });
+    });
+
+    it('should revert when not sent by dispatcher', async function () {
+      await expect(
+        exchange.deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '21980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/caller must be dispatcher/i);
+    });
+
+    it('should revert when not in maintenance', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '21980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
     });
   });
 
   describe('deleverageInsuranceFundClosure', async function () {
-    it('should work for valid wallet', async function () {
-      const {
-        dispatcherWallet,
-        exchange,
-        insuranceWallet,
-        counterpartyWallet,
-      } = await bootstrapLiquidatedWallet();
+    let counterpartyWallet: SignerWithAddress;
+    let insuranceWallet: SignerWithAddress;
 
-      await (
-        await exchange
-          .connect(dispatcherWallet)
-          .deleverageInsuranceFundClosure({
-            baseAssetSymbol,
-            deleveragingWallet: counterpartyWallet.address,
-            liquidatingWallet: insuranceWallet.address,
-            liquidationBaseQuantity: decimalToPips('10.00000000'),
-            liquidationQuoteQuantity: decimalToPips('21980.00000000'),
-          })
-      ).wait();
+    beforeEach(async () => {
+      const results = await bootstrapLiquidatedWallet();
+      counterpartyWallet = results.counterpartyWallet;
+      exchange = results.exchange;
+      insuranceWallet = results.insuranceWallet;
+    });
+
+    it('should work for valid wallet', async function () {
+      await exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+        baseAssetSymbol,
+        deleveragingWallet: counterpartyWallet.address,
+        liquidatingWallet: insuranceWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+      });
+    });
+
+    it('should revert when not sent by dispatcher', async function () {
+      await expect(
+        exchange.deleverageInsuranceFundClosure({
+          baseAssetSymbol,
+          deleveragingWallet: counterpartyWallet.address,
+          liquidatingWallet: insuranceWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/caller must be dispatcher/i);
+    });
+
+    it('should revert when wallet is deleveraged against itself', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+          baseAssetSymbol,
+          deleveragingWallet: counterpartyWallet.address,
+          liquidatingWallet: counterpartyWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(
+        /cannot liquidate wallet against itself/i,
+      );
+    });
+
+    it('should revert when EF is deleveraged', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+          baseAssetSymbol,
+          deleveragingWallet: exitFundWallet.address,
+          liquidatingWallet: counterpartyWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/cannot deleverage EF/i);
+    });
+
+    it('should revert when IF is deleveraged', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+          baseAssetSymbol,
+          deleveragingWallet: insuranceFundWallet.address,
+          liquidatingWallet: counterpartyWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/cannot deleverage IF/i);
+    });
+
+    it('should revert when IF is not liquidated', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+          baseAssetSymbol,
+          deleveragingWallet: counterpartyWallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/liquidating wallet must be IF/i);
     });
   });
 
@@ -118,8 +214,23 @@ describe('Exchange', function () {
     it('should work for valid wallet', async function () {
       await exchange.connect(trader2Wallet).exitWallet();
 
-      await (
-        await exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+      await exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+        baseAssetSymbol,
+        deleveragingWallet: trader1Wallet.address,
+        liquidatingWallet: trader2Wallet.address,
+        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+          '20000.00000000',
+        ].map(decimalToPips),
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+    });
+
+    it('should revert when not sent by dispatcher', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+
+      await expect(
+        exchange.deleverageExitAcquisition({
           baseAssetSymbol,
           deleveragingWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
@@ -128,8 +239,93 @@ describe('Exchange', function () {
           ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-        })
-      ).wait();
+        }),
+      ).to.eventually.be.rejectedWith(/caller must be dispatcher/i);
+    });
+
+    it('should revert when wallet not exited', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: trader1Wallet.address,
+          liquidatingWallet: trader2Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '20000.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/wallet not exited/i);
+    });
+
+    it('should revert when wallet is deleveraged against itself', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: trader1Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '20000.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(
+        /cannot liquidate wallet against itself/i,
+      );
+    });
+
+    it('should revert when EF is deleveraged', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: exitFundWallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '20000.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/cannot deleverage EF/i);
+    });
+
+    it('should revert when IF is deleveraged', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol,
+          deleveragingWallet: insuranceFundWallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '20000.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/cannot deleverage IF/i);
+    });
+
+    it('should revert when wallet does not have open position in market', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol: 'XYZ',
+          deleveragingWallet: trader1Wallet.address,
+          liquidatingWallet: trader2Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '20000.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/no open position in market/i);
     });
   });
 
@@ -138,15 +334,40 @@ describe('Exchange', function () {
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);
 
-      await (
-        await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        deleveragingWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+    });
+
+    it('should revert when not sent by dispatcher', async function () {
+      await expect(
+        exchange.deleverageExitFundClosure({
           baseAssetSymbol,
           deleveragingWallet: trader2Wallet.address,
           liquidatingWallet: exitFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-        })
-      ).wait();
+        }),
+      ).to.eventually.be.rejectedWith(/caller must be dispatcher/i);
+    });
+
+    it('should revert when EF is not liquidated', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+          baseAssetSymbol,
+          deleveragingWallet: trader2Wallet.address,
+          liquidatingWallet: insuranceFundWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/liquidating wallet must be EF/i);
     });
   });
 });

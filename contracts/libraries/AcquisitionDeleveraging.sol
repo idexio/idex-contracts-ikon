@@ -32,10 +32,10 @@ library AcquisitionDeleveraging {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(arguments.liquidatingWallet != arguments.deleveragingWallet, "Cannot liquidate wallet against itself");
-    require(arguments.liquidatingWallet != exitFundWallet, "Cannot liquidate EF");
-    require(arguments.liquidatingWallet != insuranceFundWallet, "Cannot liquidate IF");
     require(arguments.deleveragingWallet != exitFundWallet, "Cannot deleverage EF");
     require(arguments.deleveragingWallet != insuranceFundWallet, "Cannot deleverage IF");
+    // The EF and IF wallet cannot be exited, so will fail validation before reaching here if either are provided as
+    // the liquidating wallet
 
     Funding.applyOutstandingWalletFunding(
       arguments.deleveragingWallet,

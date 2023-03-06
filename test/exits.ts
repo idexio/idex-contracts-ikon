@@ -72,7 +72,6 @@ describe('Exchange', function () {
       const exitEvents = await exchange.queryFilter(
         exchange.filters.WalletExited(),
       );
-
       expect(exitEvents).to.have.lengthOf(1);
       expect(exitEvents[0].args?.wallet).to.equal(trader1Wallet.address);
     });
@@ -123,6 +122,19 @@ describe('Exchange', function () {
       await exchange.withdrawExit(exitFundWallet.address);
       // Subsequent calls to withdraw exit perform a zero transfer
       await exchange.withdrawExit(exitFundWallet.address);
+    });
+  });
+
+  describe('clearExit', function () {
+    it('should work for exited wallet', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.connect(trader1Wallet).clearWalletExit();
+
+      const exitEvents = await exchange.queryFilter(
+        exchange.filters.WalletExitCleared(),
+      );
+      expect(exitEvents).to.have.lengthOf(1);
+      expect(exitEvents[0].args?.wallet).to.equal(trader1Wallet.address);
     });
   });
 });

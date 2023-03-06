@@ -35,8 +35,8 @@ library Hashing {
 
     return
       abi.encodePacked(
-        delegatedKeyAuthorization.signatureHashVersion,
         Constants.ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE,
+        Strings.toString(delegatedKeyAuthorization.signatureHashVersion),
         Strings.toString(uint160(delegatedKeyAuthorization.delegatedPublicKey)),
         Strings.toString(delegatedKeyAuthorization.nonce)
       );
