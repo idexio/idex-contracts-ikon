@@ -4,6 +4,7 @@ import { v1 as uuidv1 } from 'uuid';
 
 import type { Exchange_v4, USDC } from '../typechain-types';
 import {
+  getDelegatedKeyAuthorizationMessage,
   getExecuteTradeArguments,
   getOrderHash,
   indexPriceToArgumentStruct,
@@ -14,11 +15,13 @@ import {
   OrderType,
   signatureHashVersion,
   Trade,
+  uuidToHexString,
 } from '../lib';
 import {
   baseAssetSymbol,
   buildIndexPrice,
   deployAndAssociateContracts,
+  executeTrade,
   expect,
   fundWallets,
   quoteAssetDecimals,
@@ -118,6 +121,90 @@ describe('Exchange', function () {
   });
 
   describe('executeTrade', () => {
+    it('should work for limit orders with maker sell', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+    });
+
+    it('should work for buy order signed by DK', async function () {
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const buyDelegatedKeyAuthorizationFields = {
+        signatureHashVersion,
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const buyDelegatedKeyAuthorization = {
+        ...buyDelegatedKeyAuthorizationFields,
+        signature: await trader2Wallet.signMessage(
+          getDelegatedKeyAuthorizationMessage(
+            buyDelegatedKeyAuthorizationFields,
+          ),
+        ),
+      };
+
+      buyOrder.nonce = uuidv1();
+      buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      buyOrderSignature = await delegatedKeyWallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+            buyDelegatedKeyAuthorization,
+          ),
+        );
+    });
+
+    it('should work for limit orders with maker buy', async function () {
+      trade.makerSide = OrderSide.Buy;
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+    });
+
+    it('should work for partial fill', async function () {
+      trade.baseQuantity = '5.00000000';
+      trade.quoteQuantity = '10000.00000000';
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+    });
+
     it('should revert when EF has open positions', async function () {
       await exchange
         .connect(dispatcherWallet)
@@ -182,6 +269,56 @@ describe('Exchange', function () {
             ),
           ),
       ).to.eventually.be.rejectedWith(/self-trading not allowed/i);
+    });
+
+    it('should revert for reduce-only sell that open position', async function () {
+      buyOrder.isReduceOnly = true;
+      buyOrderSignature = await trader2Wallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/position must be non-zero/i);
+    });
+
+    it('should revert for reduce-only sell that increases position', async function () {
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        trader1Wallet,
+        trader2Wallet,
+      );
+
+      buyOrder.isReduceOnly = true;
+      buyOrderSignature = await trader2Wallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/position must move toward zero/i);
     });
 
     it('should revert for same assets', async function () {
@@ -431,6 +568,131 @@ describe('Exchange', function () {
       );
     });
 
+    it('should revert for invalidated buy nonce', async function () {
+      await exchange
+        .connect(trader2Wallet)
+        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/buy order nonce timestamp invalidated/i);
+    });
+
+    it('should revert for invalidated sell nonce', async function () {
+      await exchange
+        .connect(trader1Wallet)
+        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /sell order nonce timestamp invalidated/i,
+      );
+    });
+
+    it('should revert for exited buy wallet', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/buy wallet exit finalized/i);
+    });
+
+    it('should revert for exited sell wallet', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/sell wallet exit finalized/i);
+    });
+
+    it('should revert for double fill', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/order double filled/i);
+    });
+
+    it('should revert for overfill', async function () {
+      trade.baseQuantity = '20.00000000';
+      trade.quoteQuantity = '40000.00000000';
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/order overfilled/i);
+    });
+
     it('should revert for non-taker ioc order', async function () {
       sellOrder.timeInForce = OrderTimeInForce.IOC;
       sellOrderSignature = await trader1Wallet.signMessage(
@@ -599,6 +861,27 @@ describe('Exchange', function () {
             ),
           ),
       ).to.eventually.be.rejectedWith(/invalid trigger type/i);
+    });
+
+    it('should revert for invalid signature hash version', async function () {
+      sellOrder.signatureHashVersion = 177;
+      sellOrderSignature = await trader1Wallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
     });
   });
 });

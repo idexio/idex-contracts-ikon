@@ -305,6 +305,17 @@ describe('Exchange', function () {
         ),
       ).to.eventually.be.rejectedWith(/market not found/i);
     });
+
+    it('should revert when wallet has no open positions', async function () {
+      await expect(
+        exchange.applyOutstandingWalletFundingForMarket(
+          (
+            await ethers.getSigners()
+          )[10].address,
+          baseAssetSymbol,
+        ),
+      ).to.eventually.be.rejectedWith(/no open position in market/i);
+    });
   });
 });
 

@@ -1,4 +1,3 @@
-import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
@@ -10,6 +9,8 @@ import type {
 } from '../typechain-types';
 import {
   deployAndAssociateContracts,
+  deployLibraryContracts,
+  expect,
   quoteAssetDecimals,
   quoteAssetSymbol,
 } from './helpers';
@@ -116,7 +117,7 @@ describe('Exchange', function () {
       ).to.equal(expectedQuantity);
     });
 
-    it('should fail for exited source wallet', async function () {
+    it('should revert for exited source wallet', async function () {
       await exchange.connect(traderWallet).exitWallet();
       await expect(
         exchange
@@ -125,11 +126,29 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/source wallet exited/i);
     });
 
-    it('should fail for exited destination wallet', async function () {
+    it('should revert for exited destination wallet', async function () {
       await exchange.connect(ownerWallet).exitWallet();
       await expect(
         exchange.connect(traderWallet).deposit('10000000', ownerWallet.address),
       ).to.eventually.be.rejectedWith(/destination wallet exited/i);
+    });
+
+    it('should revert when deposit index is unset', async function () {
+      const ExchangeFactory = await deployLibraryContracts();
+      const newExchange = await ExchangeFactory.deploy(
+        ethers.constants.AddressZero,
+        ownerWallet.address,
+        ownerWallet.address,
+        [ownerWallet.address],
+        ownerWallet.address,
+        usdc.address,
+      );
+
+      await expect(
+        newExchange
+          .connect(traderWallet)
+          .deposit('10000000', ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/deposits disabled/i);
     });
   });
 });

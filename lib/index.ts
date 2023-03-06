@@ -131,6 +131,8 @@ export interface Withdrawal {
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
+  bridgeAdapter: string;
+  bridgeAdapterPayload: string;
 }
 
 export const compareMarketSymbols = (a: string, b: string): number =>
@@ -202,9 +204,9 @@ export const getDelegatedKeyAuthorizationMessage = (
   delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
 ): string => {
   const delegateKeyFragment = delegatedKeyAuthorization
-    ? `delegated ${addressToUintString(
-        delegatedKeyAuthorization.delegatedPublicKey,
-      )}`
+    ? `delegated ${
+        delegatedKeyAuthorization.signatureHashVersion
+      }${addressToUintString(delegatedKeyAuthorization.delegatedPublicKey)}`
     : '';
   const message = `Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.
 
@@ -230,8 +232,8 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
     ['uint128', uuidToUint8Array(withdrawal.nonce)],
     ['address', withdrawal.wallet],
     ['string', withdrawal.quantity],
-    ['address', ethers.constants.AddressZero], // No bridge adapter
-    ['bytes', Buffer.alloc(0)], // No bridge adapter
+    ['address', withdrawal.bridgeAdapter],
+    ['bytes', withdrawal.bridgeAdapterPayload],
   ]);
 };
 
@@ -297,8 +299,8 @@ export const getWithdrawArguments = (
       nonce: uuidToHexString(withdrawal.nonce),
       wallet: withdrawal.wallet,
       grossQuantity: decimalToPips(withdrawal.quantity),
-      bridgeAdapter: ethers.constants.AddressZero,
-      bridgeAdapterPayload: Buffer.alloc(0),
+      bridgeAdapter: withdrawal.bridgeAdapter,
+      bridgeAdapterPayload: withdrawal.bridgeAdapterPayload,
       gasFee: decimalToPips(gasFee),
       walletSignature,
     },
@@ -376,7 +378,7 @@ type TypeValuePair =
   | ['uint128' | 'uint256', string | Uint8Array]
   | ['uint8' | 'uint32' | 'uint64', number]
   | ['bool', boolean]
-  | ['bytes', Buffer];
+  | ['bytes', string];
 
 const solidityHashOfParams = (params: TypeValuePair[]): string => {
   const fields = params.map((param) => param[0]);
