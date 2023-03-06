@@ -571,7 +571,7 @@ describe('Exchange', function () {
     it('should revert for invalidated buy nonce', async function () {
       await exchange
         .connect(trader2Wallet)
-        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+        .invalidateNonce(uuidToHexString(uuidv1()));
 
       await expect(
         exchange
@@ -591,7 +591,7 @@ describe('Exchange', function () {
     it('should revert for invalidated sell nonce', async function () {
       await exchange
         .connect(trader1Wallet)
-        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+        .invalidateNonce(uuidToHexString(uuidv1()));
 
       await expect(
         exchange

@@ -33,7 +33,7 @@
     "build:clean": "rm -rf build && rm -rf artifacts && rm -rf typechain-types",
     "build:sol": "hardhat compile",
     "build:ts": "tsc -p .",
-    "coverage": "hardhat coverage",
+    "test:coverage": "hardhat coverage --matrix && node bin/get-badges.js",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "setup:git:hooks": "git config --local core.hooksPath .githooks || echo 'Not a git repository, did not set up git hooks'",
     "test": "hardhat test"

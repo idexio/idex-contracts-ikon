@@ -312,6 +312,8 @@ describe('Exchange', function () {
 
   describe('liquidateWalletExited', async function () {
     it('should work for valid wallet', async function () {
+      await fundWallets([insuranceFundWallet], exchange, usdc);
+
       await exchange.connect(trader1Wallet).exitWallet();
 
       await exchange.connect(dispatcherWallet).liquidateWalletExited({

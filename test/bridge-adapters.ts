@@ -18,6 +18,7 @@ import {
   getWithdrawArguments,
   getWithdrawalHash,
   signatureHashVersion,
+  Withdrawal,
 } from '../lib';
 import {
   deployAndAssociateContracts,
@@ -26,7 +27,6 @@ import {
 } from './helpers';
 
 describe('ExchangeStargateAdapter', function () {
-  let bridgeAdapter: ExchangeStargateAdapter;
   let custodian: Custodian;
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
@@ -199,6 +199,8 @@ describe('ExchangeStargateAdapter', function () {
 
   describe('withdrawQuoteAsset', async function () {
     let adapter: ExchangeStargateAdapter;
+    let signature: string;
+    let withdrawal: Withdrawal;
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
@@ -207,9 +209,7 @@ describe('ExchangeStargateAdapter', function () {
         stargateRouterMock.address,
         usdc.address,
       );
-    });
 
-    it('should work for valid arguments', async () => {
       await governance.initiateBridgeAdaptersUpgrade([adapter.address]);
       await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
       await governance.finalizeBridgeAdaptersUpgrade([adapter.address]);
@@ -230,7 +230,7 @@ describe('ExchangeStargateAdapter', function () {
           .deposit(depositQuantity, ethers.constants.AddressZero)
       ).wait();
 
-      const withdrawal = {
+      withdrawal = {
         signatureHashVersion,
         nonce: uuidv1(),
         wallet: traderWallet.address,
@@ -241,10 +241,23 @@ describe('ExchangeStargateAdapter', function () {
           [1, 1, 1],
         ),
       };
-      const signature = await traderWallet.signMessage(
+      signature = await traderWallet.signMessage(
         ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
       );
+    });
 
+    it('should work for valid arguments when adapter is funded', async () => {
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: routerFee,
+      });
+
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
+    });
+
+    it('should work with fallback for valid arguments when adapter is not funded', async () => {
       await exchange
         .connect(dispatcherWallet)
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));

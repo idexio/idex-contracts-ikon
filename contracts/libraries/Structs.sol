@@ -13,7 +13,7 @@ import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType
  */
 struct AcquisitionDeleverageArguments {
   string baseAssetSymbol;
-  address deleveragingWallet;
+  address counterpartyWallet;
   address liquidatingWallet;
   // Liquidation quote quantities for union of liquidating and IF wallet positions
   uint64[] validateInsuranceFundCannotLiquidateWalletQuoteQuantities;
@@ -39,7 +39,7 @@ struct Balance {
  */
 struct ClosureDeleverageArguments {
   string baseAssetSymbol;
-  address deleveragingWallet;
+  address counterpartyWallet;
   // IF or EF depending on deleverageType
   address liquidatingWallet;
   // Base quantity to decrease position being liquidated
@@ -130,7 +130,7 @@ struct MarketOverrides {
 }
 
 /**
- * @notice Struct capturing wallet order nonce invalidations created via `invalidateOrderNonce`
+ * @notice Struct capturing wallet order nonce invalidations created via `invalidateNonce`
  */
 struct NonceInvalidation {
   uint64 timestampInMs;

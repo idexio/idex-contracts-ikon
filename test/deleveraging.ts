@@ -79,7 +79,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .deleverageInMaintenanceAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: trader2Wallet.address,
+          counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '21980.00000000',
@@ -93,7 +93,7 @@ describe('Exchange', function () {
       await expect(
         exchange.deleverageInMaintenanceAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: trader2Wallet.address,
+          counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '21980.00000000',
@@ -108,7 +108,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: trader2Wallet.address,
+          counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '21980.00000000',
@@ -134,7 +134,7 @@ describe('Exchange', function () {
     it('should work for valid wallet', async function () {
       await exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
         baseAssetSymbol,
-        deleveragingWallet: counterpartyWallet.address,
+        counterpartyWallet: counterpartyWallet.address,
         liquidatingWallet: insuranceWallet.address,
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('21980.00000000'),
@@ -145,7 +145,7 @@ describe('Exchange', function () {
       await expect(
         exchange.deleverageInsuranceFundClosure({
           baseAssetSymbol,
-          deleveragingWallet: counterpartyWallet.address,
+          counterpartyWallet: counterpartyWallet.address,
           liquidatingWallet: insuranceWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
@@ -159,7 +159,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
           baseAssetSymbol,
-          deleveragingWallet: counterpartyWallet.address,
+          counterpartyWallet: counterpartyWallet.address,
           liquidatingWallet: counterpartyWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
@@ -175,7 +175,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
           baseAssetSymbol,
-          deleveragingWallet: exitFundWallet.address,
+          counterpartyWallet: exitFundWallet.address,
           liquidatingWallet: counterpartyWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
@@ -189,7 +189,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
           baseAssetSymbol,
-          deleveragingWallet: insuranceFundWallet.address,
+          counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: counterpartyWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
@@ -201,7 +201,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
           baseAssetSymbol,
-          deleveragingWallet: counterpartyWallet.address,
+          counterpartyWallet: counterpartyWallet.address,
           liquidatingWallet: trader1Wallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
@@ -216,7 +216,7 @@ describe('Exchange', function () {
 
       await exchange.connect(dispatcherWallet).deleverageExitAcquisition({
         baseAssetSymbol,
-        deleveragingWallet: trader1Wallet.address,
+        counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
         validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
           '20000.00000000',
@@ -232,7 +232,7 @@ describe('Exchange', function () {
       await expect(
         exchange.deleverageExitAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: trader1Wallet.address,
+          counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '20000.00000000',
@@ -247,7 +247,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageExitAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: trader1Wallet.address,
+          counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '20000.00000000',
@@ -264,7 +264,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageExitAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: trader1Wallet.address,
+          counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '20000.00000000',
@@ -283,7 +283,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageExitAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: exitFundWallet.address,
+          counterpartyWallet: exitFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '20000.00000000',
@@ -300,7 +300,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageExitAcquisition({
           baseAssetSymbol,
-          deleveragingWallet: insuranceFundWallet.address,
+          counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '20000.00000000',
@@ -317,7 +317,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageExitAcquisition({
           baseAssetSymbol: 'XYZ',
-          deleveragingWallet: trader1Wallet.address,
+          counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
             '20000.00000000',
@@ -336,7 +336,7 @@ describe('Exchange', function () {
 
       await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
         baseAssetSymbol,
-        deleveragingWallet: trader2Wallet.address,
+        counterpartyWallet: trader2Wallet.address,
         liquidatingWallet: exitFundWallet.address,
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
@@ -347,7 +347,7 @@ describe('Exchange', function () {
       await expect(
         exchange.deleverageExitFundClosure({
           baseAssetSymbol,
-          deleveragingWallet: trader2Wallet.address,
+          counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: exitFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
@@ -362,7 +362,7 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageExitFundClosure({
           baseAssetSymbol,
-          deleveragingWallet: trader2Wallet.address,
+          counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: insuranceFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
