@@ -14,6 +14,7 @@ import {
   fundWallets,
 } from './helpers';
 
+// TODO Partial deleveraging
 describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
@@ -117,6 +118,36 @@ describe('Exchange', function () {
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
+    });
+
+    it('should revert when liquidating EF', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: exitFundWallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '21980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/cannot liquidate EF/i);
+    });
+
+    it('should revert when liquidating IF', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: insuranceFundWallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '21980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/cannot liquidate IF/i);
     });
   });
 

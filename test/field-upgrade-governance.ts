@@ -605,6 +605,48 @@ describe('Governance', function () {
           .with.lengthOf(1);
       });
 
+      it('should work when wallet is zero', async () => {
+        await governance.initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          ethers.constants.AddressZero,
+        );
+
+        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+
+        await governance.finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          ethers.constants.AddressZero,
+        );
+
+        expect(
+          governance.queryFilter(
+            governance.filters.MarketOverridesUpgradeFinalized(),
+          ),
+        )
+          .to.eventually.be.an('array')
+          .with.lengthOf(1);
+      });
+
+      it('should revert for invalid market ', async () => {
+        await governance.initiateMarketOverridesUpgrade(
+          'XYZ',
+          marketOverrides,
+          ethers.constants.AddressZero,
+        );
+
+        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+
+        await expect(
+          governance.finalizeMarketOverridesUpgrade(
+            'XYZ',
+            marketOverrides,
+            ethers.constants.AddressZero,
+          ),
+        ).to.eventually.be.rejectedWith(/invalid market/i);
+      });
+
       it('should revert when not in progress', async () => {
         await expect(
           governance.finalizeMarketOverridesUpgrade(

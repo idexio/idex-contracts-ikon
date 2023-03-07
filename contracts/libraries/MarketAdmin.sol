@@ -24,7 +24,10 @@ library MarketAdmin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
-    require(!String.isEqual(newMarket.baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL), "Trade assets must be different");
+    require(
+      !String.isEqual(newMarket.baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL),
+      "Base asset symbol cannot be same as quote"
+    );
     require(Address.isContract(address(newMarket.chainlinkPriceFeedAddress)), "Invalid Chainlink price feed");
     Validations.validateOverridableMarketFields(newMarket.overridableFields);
 

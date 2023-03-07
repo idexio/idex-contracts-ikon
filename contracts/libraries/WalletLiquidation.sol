@@ -170,9 +170,9 @@ library WalletLiquidation {
     }
 
     // After closing all the positions for a wallet in maintenance, a small amount of quote asset may be left over
-    // due to rounding errors. Sweep any the remaining amount into the counterparty wallet to fully zero out the
-    // liquidating wallet. Not we do not do this when liquidating an exited wallet because any quote remaining after
-    // closing positions is available for withdrawal
+    // due to rounding errors - sweep this remaining amount into the counterparty wallet to fully zero out the
+    // liquidating wallet. Note that we do not do this when liquidating an exited wallet because any quote remaining
+    // after closing positions becomes available for withdrawal
     if (liquidationType != LiquidationType.WalletExited) {
       balanceTracking.updateRemainingQuoteBalanceAfterWalletLiquidation(
         arguments.counterpartyWallet,
