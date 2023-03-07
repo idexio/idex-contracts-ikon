@@ -203,6 +203,26 @@ describe('Exchange', function () {
       });
     });
 
+    it('should revert wallet is not in maintenance', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+          counterpartyWallet: insuranceFundWallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+        }),
+      ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
+    });
+
+    it('should revert when not liquidating IF', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+          counterpartyWallet: insuranceFundWallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+        }),
+      ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
+    });
+
     it('should revert when not sent by dispatcher', async function () {
       await expect(
         exchange.liquidateWalletInMaintenance({
@@ -275,7 +295,7 @@ describe('Exchange', function () {
           .connect(dispatcherWallet)
           .liquidateWalletInMaintenanceDuringSystemRecovery({
             counterpartyWallet: exitFundWallet.address,
-            liquidatingWallet: exitFundWallet.address,
+            liquidatingWallet: trader1Wallet.address,
             liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
           }),
       ).to.eventually.be.rejectedWith(/exit fund has no positions/i);
@@ -307,6 +327,20 @@ describe('Exchange', function () {
             liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
           }),
       ).to.eventually.be.rejectedWith(/cannot liquidate IF/i);
+    });
+
+    it('should revert when counterparty is not EF', async function () {
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .liquidateWalletInMaintenanceDuringSystemRecovery({
+            counterpartyWallet: trader2Wallet.address,
+            liquidatingWallet: trader1Wallet.address,
+            liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+          }),
+      ).to.eventually.be.rejectedWith(/must liquidate to EF/i);
     });
   });
 

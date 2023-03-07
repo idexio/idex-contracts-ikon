@@ -123,6 +123,14 @@ describe('Exchange', function () {
       // Subsequent calls to withdraw exit perform a zero transfer
       await exchange.withdrawExit(exitFundWallet.address);
     });
+
+    it('should revert for exited wallet before finalized', async function () {
+      await exchange.setChainPropagationPeriod(10000);
+      await exchange.connect(trader1Wallet).exitWallet();
+      await expect(
+        exchange.withdrawExit(trader1Wallet.address),
+      ).to.eventually.be.rejectedWith(/wallet exit not finalized/i);
+    });
   });
 
   describe('clearWalletExit', function () {

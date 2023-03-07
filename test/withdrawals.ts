@@ -84,6 +84,12 @@ describe('Exchange', function () {
         exchange.connect(dispatcherWallet).skim(usdc.address),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
+
+    it('should revert for invalid token address', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).skim(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
   });
 
   describe('withdraw', function () {
@@ -173,6 +179,35 @@ describe('Exchange', function () {
             ...getWithdrawArguments(withdrawal, '0.00000000', signature),
           ),
       ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
+    });
+
+    it('should revert for invalid signature', async function () {
+      signature = await dispatcherWallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/invalid wallet signature/i);
+    });
+
+    it('should revert for invalid bridge adapter', async function () {
+      withdrawal.bridgeAdapter = dispatcherWallet.address;
+      signature = await traderWallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/invalid bridge adapter/i);
     });
   });
 });

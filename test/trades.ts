@@ -296,6 +296,95 @@ describe('Exchange', function () {
         );
     });
 
+    it('should revert for invalidated buy order DK', async function () {
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const buyDelegatedKeyAuthorizationFields = {
+        signatureHashVersion,
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const buyDelegatedKeyAuthorization = {
+        ...buyDelegatedKeyAuthorizationFields,
+        signature: await trader2Wallet.signMessage(
+          getDelegatedKeyAuthorizationMessage(
+            buyDelegatedKeyAuthorizationFields,
+          ),
+        ),
+      };
+      await exchange
+        .connect(trader2Wallet)
+        .invalidateNonce(
+          uuidToHexString(buyDelegatedKeyAuthorizationFields.nonce),
+        );
+
+      buyOrder.nonce = uuidv1();
+      buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      buyOrderSignature = await delegatedKeyWallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              buyDelegatedKeyAuthorization,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/buy order delegated key invalidated/i);
+    });
+
+    it('should revert for invalidated sell order DK', async function () {
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const sellDelegatedKeyAuthorizationFields = {
+        signatureHashVersion,
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const sellDelegatedKeyAuthorization = {
+        ...sellDelegatedKeyAuthorizationFields,
+        signature: await trader2Wallet.signMessage(
+          getDelegatedKeyAuthorizationMessage(
+            sellDelegatedKeyAuthorizationFields,
+          ),
+        ),
+      };
+      await exchange
+        .connect(trader1Wallet)
+        .invalidateNonce(
+          uuidToHexString(sellDelegatedKeyAuthorizationFields.nonce),
+        );
+
+      sellOrder.nonce = uuidv1();
+      sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      sellOrderSignature = await delegatedKeyWallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              undefined,
+              sellDelegatedKeyAuthorization,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/sell order delegated key invalidated/i);
+    });
+
     it('should revert for expired buy order DK', async function () {
       await exchange.setDelegateKeyExpirationPeriod(0);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
