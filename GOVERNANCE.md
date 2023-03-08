@@ -54,11 +54,11 @@ The Exchange contract implements the majority of exchange functionality, includi
 - Exchange has a single owner, and the owner can be changed with no delay by the owner.
 - Exchange has a single admin, and the admin can be changed with no delay by the owner.
 - The admin can change the Chain Propagation Period with no delay, subject to the Minimum Chain Propagation Period and Maximum Chain Propagation Period limits.
-- The admin can change the Delegate Key Expiration Period with no delay, subject to the Minimum Delegate Key Expiration Period and Maximum Delegate Key Expiration Period limits.
+- The admin can change the Delegated Key Expiration Period with no delay, subject to the Minimum Delegated Key Expiration Period and Maximum Delegated Key Expiration Period limits.
 - The admin can change the Position Below Minimum Liquidation Price Tolerance Multiplier with no delay to a non-negative value less than or equal to the Maximum Fee Rate.
 - Exchange tracks a single exit fund wallet address, and the exit fund wallet can be changed with no delay by the admin, provided that the existing wallet has no open positions or quote balance.
 - Exchange tracks a single fee wallet address, and the fee wallet can be changed with no delay by the admin.
-- The admin can add or remove addresses as dispatcher wallets with no delay. Dispatcher wallets are authorized to call operator-only contract functions: `executeTrade`, `liquidatePositionBelowMinimum`, `liquidatePositionInDeactivatedMarket`, `liquidateWalletInMaintenance`, `liquidateWalletInMaintenanceDuringSystemRecovery`, `liquidateWalletExited`, `deleverageInMaintenanceAcquisition`, `deleverageInsuranceFundClosure`, `deleverageExitAcquisition`, `deleverageExitFundClosure`, `transfer`, `withdraw`, `activateMarket`, `deactivateMarket`, `publishIndexPrices`, and `publishFundingMultiplier`.
+- The admin can change or remove an addresses as the dispatcher wallet with no delay. The dispatcher wallet is authorized to call operator-only contract functions: `executeTrade`, `liquidatePositionBelowMinimum`, `liquidatePositionInDeactivatedMarket`, `liquidateWalletInMaintenance`, `liquidateWalletInMaintenanceDuringSystemRecovery`, `liquidateWalletExited`, `deleverageInMaintenanceAcquisition`, `deleverageInsuranceFundClosure`, `deleverageExitAcquisition`, `deleverageExitFundClosure`, `transfer`, `withdraw`, `activateMarket`, `deactivateMarket`, `publishIndexPrices`, and `publishFundingMultiplier`.
 - The admin can add new markets with no delay, with new market fields subject to limits. The dispatcher wallet can activate and deactivate markets.
 - The admin can skim any tokens mistakenly sent to the Exchange contract rather than deposited.
 - Wallet exits are user-initiated, and 1) prevent the target wallet from deposits, trades, normal withdrawals, and transfers and 2) subsequently allow the user to close all open positions and withdraw any positive quote balance.
@@ -94,12 +94,12 @@ These settings have been pre-determined and may be hard-coded or implicit in the
 - Minimum Chain Propagation Period: 0
 - Maximum Chain Propagation Period: 1 week
 - Chain Propagation Change Period: immediate
-- Minimum Delegate Key Expiration Period: 0
-- Maximum Delegate Key Expiration Period: 1 year
-- Delegate Key Expiration Change Period: immediate
+- Minimum Delegated Key Expiration Period: 0
+- Maximum Delegated Key Expiration Period: 1 year
+- Delegated Key Expiration Change Period: immediate
 - Exit Fund Wallet Change Period: immediate
 - Fee Wallet Change Period: immediate
-- Dispatch Wallet Change Period: immediate
+- Dispatcher Wallet Change Period: immediate
 - Market Override Field Limits <a id="market-override-fixed-parameter-settings"></a>
   - Minimum Initial Margin Fraction: 0.005
   - Minimum Maintenance Margin Fraction: 0.003
@@ -114,7 +114,7 @@ These settings have been pre-determined and may be hard-coded or implicit in the
 These settings have the initial values below but are changeable in the contract according to the above specs.
 
 - Chain Propagation Period: 1 hour
-- Delegate Key Expiration Period: 35 days
+- Delegated Key Expiration Period: 35 days
 
 ## Bridge Adapter Contracts
 
@@ -128,7 +128,7 @@ The Exchange contract integrates with an extensible set of bridge adapter contra
 - The admin can withdraw the native asset, used by some protocols for additional fee settlement, with no delay.
 - Some BACs implement a configurable slippage multiplier, which the admin can change to any non-negative value with no delay.
 
-## Fixed Parameter Settings
+### Fixed Parameter Settings
 
 These settings have been pre-determined and may be hard-coded or implicit in the contract logic.
 

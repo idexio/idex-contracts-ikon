@@ -39,7 +39,7 @@ The Ikon on-chain infrastructure includes three main contracts and a host of sup
 - Governance: implements [upgrade logic](#upgradability) while enforcing [governance constraints](#controls-and-governance).
 - Exchange: implements the majority of exchange functionality, including storage for wallet balance tracking.
 
-Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. AcquisitionDeleveraging, ClosureDeleveraging, Depositing, Funding, IndexPriceMargin, MarketAdmin, OraclePriceMargin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletLiquidation, and WIthdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
+Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. AcquisitionDeleveraging, ClosureDeleveraging, Depositing, Funding, IndexPriceMargin, MarketAdmin, OraclePriceMargin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletLiquidation, and Withdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
 
 An extensible set of [bridge protocol adapter contracts](#cross-chain-bridge-protocol-support) implements support for cross-chain [deposits](#deposit) and [withdrawals](#withdraw).
 
@@ -73,9 +73,9 @@ Ikon includes support for order book trades only; unlike its predecessor, Silver
 
 ### Withdraw
 
-Similar to trade settlement, withdrawals are initiated by users via IDEX’s off-chain components, but calls to the Exchange contract’s `withdraw` function are restricted to whitelisted dispatcher wallets. `withdraw` calls are limited to the dispatcher wallet in order to guarantee the balance update sequence and thus support trading ahead of settlement. There is also a [wallet exit](#wallet-exits) mechanism to prevent withdrawal censorship by IDEX. [Only USDC may be withdrawn.](#quote-asset-and-quote-token)
+Similar to trade settlement, withdrawals are initiated by users via IDEX’s off-chain components, but calls to the Exchange contract’s `withdraw` function are restricted to a whitelisted dispatcher wallet. `withdraw` calls are limited to a dispatcher wallet in order to guarantee the balance update sequence and thus support trading ahead of settlement. There is also a [wallet exit](#wallet-exits) mechanism to prevent withdrawal censorship by IDEX. [Only USDC may be withdrawn.](#quote-asset-and-quote-token)
 
-- Users may withdraw USDC collateral up to the [margin requirements](#margin) of the wallet without first liquidating positions.
+- Users may withdraw USDC collateral up to the [initial margin requirements](#margin) of the wallet without first liquidating positions.
 - Ikon supports seamless cross-chain withdrawals via [bridge adapter contracts](#cross-chain-bridge-protocol-support).
 - IDEX collects fees on withdrawals in order to cover the gas costs of the `withdraw` function call. Because only an IDEX-controlled dispatcher wallet can make the `withdraw` call, IDEX is the immediate gas payer for user withdrawals. IDEX passes along the estimated gas costs to users by collecting a fee out of the withdrawn amount.
 - Like all actions that change wallet balances, withdrawals apply outstanding funding payments to the withdrawing wallet.
@@ -87,7 +87,7 @@ In addition to withdrawals, Ikon includes the ability for wallets to transfer qu
 
 ## Liquidation
 
-In some situations, Ikon proactively liquidates wallets or balances to ensure the solvency of the system. Only the IDEX-controlled dispatcher wallet is authorized to perform liquidations, and liquidation actions validate the conditions under which they may proceed. Two special wallets, the insurance fund and the exit fund, acquire balances during most liquidations.
+In some situations, Ikon proactively liquidates wallets or balances to ensure the solvency of the system. Only an IDEX-controlled dispatcher wallet is authorized to perform liquidations, and liquidation actions validate the conditions under which they may proceed. Two special wallets, the insurance fund and the exit fund, acquire balances during most liquidations.
 
 - [Index prices](#index-pricing) rather than order book prices determine margin requirements and thus liquidation conditions.
 - Like all actions that change wallet balances, liquidations apply outstanding [funding payments](#funding-payments) to the participating wallet.
@@ -133,7 +133,7 @@ Conditions: Liquidation of an [exited wallet](#wallet-exits). Ikon’s off-chain
 
 ## Automatic Deleveraging
 
-In some situations, Ikon closes open positions directly against select counterparty positions in a process called automatic deleveraging (ADL). ADL provides a backstop of system solvency when liquidation is not an option. Only the IDEX-controlled dispatcher wallet is authorized to perform ADL, and ADL actions validate the conditions under which they may proceed.
+In some situations, Ikon closes open positions directly against select counterparty positions in a process called automatic deleveraging (ADL). ADL provides a backstop of system solvency when liquidation is not an option. Only an IDEX-controlled dispatcher wallet is authorized to perform ADL, and ADL actions validate the conditions under which they may proceed.
 
 - ADL actions fall into two categories: acquisition and closure. Acquisition ADL applies when the insurance fund is unable to acquire a position due to its [margin requirements](#margin) or position size maximums. Closure ADL applies when order book liquidity is insufficient or unavailable to close a position acquired by the insurance or exit funds.
 - Unlike liquidation, ADL actions apply to a single position and counterparty for each settlement. One position may require several ADL settlements to completely close as the selected counterparty positions may be smaller than the target position.
@@ -201,7 +201,7 @@ Index prices are frequently updated in Ikon’s off-chain infrastructure and laz
 
 ## Oracle Pricing
 
-Some operations, such as [exited wallet](#wallet-exits) withdrawals require up-to-date asset prices without access to Ikon’s real time [index prices](#index-pricing). For these use cases, Ikon contracts also include seamless access to [ChainLink](https://chain.link/) oracle pricing. The Ikon contract codebase refers to pricing sourced from on-chain from ChainLink as oracle pricing.
+Some operations, such as [exited wallet](#wallet-exits) withdrawals, require up-to-date asset prices without access to Ikon’s real time [index prices](#index-pricing). For these use cases, Ikon contracts also include seamless access to [ChainLink](https://chain.link/) oracle pricing. The Ikon contract codebase refers to pricing sourced from on-chain from ChainLink as oracle pricing.
 
 - Exchange includes on-chain accessors that use oracle pricing instead of index pricing, such as `loadTotalAccountValueFromOraclePrices` and other `*FromOraclePrices` functions, for convenient on-chain analysis. **Due to the difference in methodology between oracle price collection and index price collection, these functions may return different values than the index-price equivalents, even when index prices are up to date.**
 
