@@ -137,7 +137,7 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 takerFeeQuantity
   );
   /**
-   * @notice Emitted when a user invalidates an order nonce with `invalidateOrderNonce`
+   * @notice Emitted when a user invalidates an order nonce with `invalidateNonce`
    */
   event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockNumber);
   /**
@@ -1107,8 +1107,8 @@ contract Exchange_v4 is IExchange, Owned {
    * `executeTrade` will reject order nonces from this wallet with a timestampInMs component lower than the one
    * provided
    */
-  function invalidateOrderNonce(uint128 nonce) public {
-    (uint64 timestampInMs, uint256 effectiveBlockNumber) = nonceInvalidationsByWallet.invalidateOrderNonce(
+  function invalidateNonce(uint128 nonce) public {
+    (uint64 timestampInMs, uint256 effectiveBlockNumber) = nonceInvalidationsByWallet.invalidateNonce(
       nonce,
       chainPropagationPeriodInBlocks
     );

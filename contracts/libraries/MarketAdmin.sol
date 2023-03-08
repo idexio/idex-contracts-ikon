@@ -4,9 +4,11 @@ pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
+import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
 import { Hashing } from "./Hashing.sol";
 import { MarketHelper } from "./MarketHelper.sol";
+import { String } from "./String.sol";
 import { Time } from "./Time.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
@@ -22,6 +24,10 @@ library MarketAdmin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
+    require(
+      !String.isEqual(newMarket.baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL),
+      "Base asset symbol cannot be same as quote"
+    );
     require(Address.isContract(address(newMarket.chainlinkPriceFeedAddress)), "Invalid Chainlink price feed");
     Validations.validateOverridableMarketFields(newMarket.overridableFields);
 

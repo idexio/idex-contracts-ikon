@@ -31,14 +31,14 @@ library AcquisitionDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
-    require(arguments.liquidatingWallet != arguments.deleveragingWallet, "Cannot liquidate wallet against itself");
+    require(arguments.liquidatingWallet != arguments.counterpartyWallet, "Cannot liquidate wallet against itself");
     require(arguments.liquidatingWallet != exitFundWallet, "Cannot liquidate EF");
     require(arguments.liquidatingWallet != insuranceFundWallet, "Cannot liquidate IF");
-    require(arguments.deleveragingWallet != exitFundWallet, "Cannot deleverage EF");
-    require(arguments.deleveragingWallet != insuranceFundWallet, "Cannot deleverage IF");
+    require(arguments.counterpartyWallet != exitFundWallet, "Cannot deleverage EF");
+    require(arguments.counterpartyWallet != insuranceFundWallet, "Cannot deleverage IF");
 
     Funding.applyOutstandingWalletFunding(
-      arguments.deleveragingWallet,
+      arguments.counterpartyWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -142,7 +142,7 @@ library AcquisitionDeleveraging {
   ) private {
     balanceTracking.updatePositionsForDeleverage(
       arguments.liquidationBaseQuantity,
-      arguments.deleveragingWallet,
+      arguments.counterpartyWallet,
       exitFundWallet,
       arguments.liquidatingWallet,
       market,
@@ -154,7 +154,7 @@ library AcquisitionDeleveraging {
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
     IndexPriceMargin.validateInitialMarginRequirement(
-      arguments.deleveragingWallet,
+      arguments.counterpartyWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -192,7 +192,9 @@ library AcquisitionDeleveraging {
           .overridableFields
           .maintenanceMarginFraction,
         market.lastIndexPrice,
-        balanceStruct.balance,
+        balanceStruct.balance < 0
+          ? (-1 * int64(arguments.liquidationBaseQuantity))
+          : int64(arguments.liquidationBaseQuantity),
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
@@ -212,7 +214,9 @@ library AcquisitionDeleveraging {
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maintenanceMarginFraction,
-        balanceStruct.balance,
+        balanceStruct.balance < 0
+          ? (-1 * int64(arguments.liquidationBaseQuantity))
+          : int64(arguments.liquidationBaseQuantity),
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );

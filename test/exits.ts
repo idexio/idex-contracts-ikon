@@ -123,9 +123,17 @@ describe('Exchange', function () {
       // Subsequent calls to withdraw exit perform a zero transfer
       await exchange.withdrawExit(exitFundWallet.address);
     });
+
+    it('should revert for exited wallet before finalized', async function () {
+      await exchange.setChainPropagationPeriod(10000);
+      await exchange.connect(trader1Wallet).exitWallet();
+      await expect(
+        exchange.withdrawExit(trader1Wallet.address),
+      ).to.eventually.be.rejectedWith(/wallet exit not finalized/i);
+    });
   });
 
-  describe('clearExit', function () {
+  describe('clearWalletExit', function () {
     it('should work for exited wallet', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.connect(trader1Wallet).clearWalletExit();
@@ -135,6 +143,12 @@ describe('Exchange', function () {
       );
       expect(exitEvents).to.have.lengthOf(1);
       expect(exitEvents[0].args?.wallet).to.equal(trader1Wallet.address);
+    });
+
+    it('should revert for walled not exited', async function () {
+      await expect(
+        exchange.connect(trader1Wallet).clearWalletExit(),
+      ).to.eventually.be.rejectedWith(/wallet exit not finalized/i);
     });
   });
 });

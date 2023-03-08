@@ -132,7 +132,7 @@ library BalanceTracking {
     balanceStruct.balance += int64(feeQuantity);
   }
 
-  function updateQuoteBalanceForLiquidation(
+  function updateRemainingQuoteBalanceAfterWalletLiquidation(
     Storage storage self,
     address counterpartyWallet,
     address liquidatingWallet

@@ -8,6 +8,7 @@ import {
   USDC,
 } from '../typechain-types';
 import {
+  baseAssetSymbol,
   deployAndAssociateContracts,
   deployLibraryContracts,
   expect,
@@ -152,6 +153,26 @@ describe('Exchange', function () {
       it('should revert when not called by Governance', async () => {
         await expect(
           exchange.setInsuranceFundWallet(ethers.constants.AddressZero),
+        ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
+      });
+    });
+
+    describe('setMarketOverrides', async function () {
+      it('should revert when not called by Governance', async () => {
+        await expect(
+          exchange.setMarketOverrides(
+            baseAssetSymbol,
+            {
+              initialMarginFraction: '3000000',
+              maintenanceMarginFraction: '1000000',
+              incrementalInitialMarginFraction: '1000000',
+              baselinePositionSize: '14000000000',
+              incrementalPositionSize: '2800000000',
+              maximumPositionSize: '1000000000000',
+              minimumPositionSize: '10000000',
+            },
+            ethers.constants.AddressZero,
+          ),
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
     });

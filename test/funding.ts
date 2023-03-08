@@ -148,6 +148,15 @@ describe('Exchange', function () {
           .publishFundingMultiplier('XYZ', decimalToPips(getFundingRate())),
       ).to.eventually.be.rejectedWith(/no active market found/i);
     });
+
+    it('should revert when not called by dispatcher', async function () {
+      await expect(
+        exchange.publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        ),
+      ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
+    });
   });
 
   describe('applyOutstandingWalletFundingForMarket', async function () {

@@ -78,6 +78,7 @@ library Validations {
       overridableFields.baselinePositionSize <= overridableFields.maximumPositionSize,
       "Baseline position size exceeds max"
     );
+    require(overridableFields.incrementalPositionSize > 0, "Incremental position size cannot be zero");
     require(
       overridableFields.maximumPositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,
       "Maximum position size exceeds max"

@@ -8,6 +8,7 @@ import {
   baseAssetSymbol,
   buildIndexPrice,
   deployAndAssociateContracts,
+  quoteAssetSymbol,
 } from './helpers';
 import { indexPriceToArgumentStruct } from '../lib';
 
@@ -42,6 +43,22 @@ describe('Exchange', function () {
     };
   });
 
+  describe('activateMarket', async function () {
+    it('should revert when not called by dispatcher wallet', async () => {
+      await expect(
+        exchange
+          .connect((await ethers.getSigners())[1])
+          .activateMarket(marketStruct.baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
+    });
+
+    it('should revert when market already active', async () => {
+      await expect(
+        exchange.activateMarket(marketStruct.baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/no inactive market found/i);
+    });
+  });
+
   describe('addMarket', async function () {
     it('should revert when not called by admin', async () => {
       await expect(
@@ -55,6 +72,17 @@ describe('Exchange', function () {
       await expect(
         exchange.addMarket(marketStruct),
       ).to.eventually.be.rejectedWith(/market already exists/i);
+    });
+
+    it('should revert when using quote asset symbol as base asset symbol', async () => {
+      await expect(
+        exchange.addMarket({
+          ...marketStruct,
+          baseAssetSymbol: quoteAssetSymbol,
+        }),
+      ).to.eventually.be.rejectedWith(
+        /base asset symbol cannot be same as quote/i,
+      );
     });
 
     it('should revert for invalid chainlink aggregator address', async () => {
