@@ -980,9 +980,49 @@ describe('Exchange', function () {
             ),
           ),
       ).to.eventually.be.rejectedWith(/buy order nonce timestamp invalidated/i);
+
+      await exchange.setChainPropagationPeriod(100);
+      await exchange
+        .connect(trader2Wallet)
+        .invalidateNonce(uuidToHexString(uuidv1()));
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/buy order nonce timestamp invalidated/i);
     });
 
     it('should revert for invalidated sell nonce', async function () {
+      await exchange
+        .connect(trader1Wallet)
+        .invalidateNonce(uuidToHexString(uuidv1()));
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /sell order nonce timestamp invalidated/i,
+      );
+
+      await exchange.setChainPropagationPeriod(100);
       await exchange
         .connect(trader1Wallet)
         .invalidateNonce(uuidToHexString(uuidv1()));

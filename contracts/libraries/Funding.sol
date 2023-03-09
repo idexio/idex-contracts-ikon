@@ -99,7 +99,7 @@ library Funding {
         Constants.FUNDING_PERIOD_IN_MS
       );
       for (uint64 i = 0; i < periodsToBackfill; i++) {
-        fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultipler(0);
+        fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultiplier(0);
       }
       nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
     }
@@ -113,7 +113,7 @@ library Funding {
       int64(Constants.PIP_PRICE_MULTIPLIER)
     );
 
-    fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
+    fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultiplier(newFundingMultiplier);
 
     lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol] = nextPublishTimestampInMs;
   }
@@ -164,7 +164,7 @@ library Funding {
     // Always backfill 1 period for midnight, and an additional period for every period boundary crossed since then
     uint64 periodsToBackfill = 1 + (Time.getMsSinceMidnight() / Constants.FUNDING_PERIOD_IN_MS);
     for (uint64 i = 0; i < periodsToBackfill; i++) {
-      fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].publishFundingMultipler(0);
+      fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].publishFundingMultiplier(0);
     }
 
     lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol] =
