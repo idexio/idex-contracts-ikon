@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -91,6 +92,63 @@ describe('Exchange', function () {
       await expect(
         exchange.addMarket(marketStruct),
       ).to.eventually.be.rejectedWith(/invalid Chainlink price feed/i);
+    });
+
+    it('should revert for invalid initial margin fraction', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      marketStruct.overridableFields.initialMarginFraction = '1';
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(/initial margin fraction below min/i);
+    });
+
+    it('should revert for invalid maintenance margin fraction', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      marketStruct.overridableFields.maintenanceMarginFraction = '1';
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(/maintenance margin fraction below min/i);
+    });
+
+    it('should revert for invalid incremental initial margin fraction', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      marketStruct.overridableFields.incrementalInitialMarginFraction = '1';
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(
+        /incremental initial margin fraction below min/i,
+      );
+    });
+
+    it('should revert for invalid incremental position size', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      marketStruct.overridableFields.incrementalPositionSize = '0';
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(
+        /incremental position size cannot be zero/i,
+      );
+    });
+
+    it('should revert for invalid maximum position size', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      marketStruct.overridableFields.maximumPositionSize = new BigNumber(2)
+        .pow(63)
+        .toString();
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(/maximum position size exceeds max/i);
+    });
+
+    it('should revert for invalid minimum position size', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      marketStruct.overridableFields.minimumPositionSize = new BigNumber(2)
+        .pow(63)
+        .minus(1)
+        .toString();
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(/minimum position size exceeds max/i);
     });
   });
 

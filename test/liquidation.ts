@@ -178,6 +178,25 @@ describe('Exchange', function () {
         }),
       ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
     });
+
+    it('should revert for invalid quote quantity', async function () {
+      await (
+        await exchange
+          .connect(dispatcherWallet)
+          .deactivateMarket(baseAssetSymbol)
+      ).wait();
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .liquidatePositionInDeactivatedMarket({
+            baseAssetSymbol,
+            feeQuantity: decimalToPips('20.00000000'),
+            liquidatingWallet: trader1Wallet.address,
+            liquidationQuoteQuantity: decimalToPips('10000.00000000'),
+          }),
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
+    });
   });
 
   describe('liquidateWalletInMaintenance', async function () {
@@ -203,7 +222,7 @@ describe('Exchange', function () {
       });
     });
 
-    it('should revert wallet is not in maintenance', async function () {
+    it('should revert when wallet is not in maintenance', async function () {
       await expect(
         exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
           counterpartyWallet: insuranceFundWallet.address,

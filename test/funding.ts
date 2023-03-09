@@ -13,7 +13,11 @@ import {
   IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
-import type { Exchange_v4, USDC } from '../typechain-types';
+import type {
+  Exchange_v4,
+  FundingMultiplierMock,
+  USDC,
+} from '../typechain-types';
 import {
   addAndActivateMarket,
   baseAssetSymbol,
@@ -324,6 +328,109 @@ describe('Exchange', function () {
           baseAssetSymbol,
         ),
       ).to.eventually.be.rejectedWith(/no open position in market/i);
+    });
+  });
+
+  describe('loadAggregateMultiplier', async function () {
+    let fundingMultiplierMock: FundingMultiplierMock;
+
+    before(async () => {
+      const FundingMultiplierMock = await ethers.getContractFactory(
+        'FundingMultiplierMock',
+      );
+      fundingMultiplierMock = await FundingMultiplierMock.deploy();
+    });
+
+    it('should work for single quartet', async function () {
+      const earliestTimestampInMs =
+        (await getMidnightTomorrowInSecondsUTC()) * 1000;
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(0)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs,
+          earliestTimestampInMs,
+        ),
+      ).to.eventually.equal(decimalToPips(getFundingRate(0)));
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(1)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(
+          new BigNumber(getFundingRate(0))
+            .plus(new BigNumber(getFundingRate(1)))
+            .toString(),
+        ),
+      );
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(2)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 2,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 2,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(
+          new BigNumber(getFundingRate(0))
+            .plus(new BigNumber(getFundingRate(1)))
+            .plus(new BigNumber(getFundingRate(2)))
+            .toString(),
+        ),
+      );
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(3)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs + fundingPeriodLengthInMs * 3,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 3,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 3,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(new BigNumber(getFundingRate(3)).toString()),
+      );
+    });
+
+    it('should work for multiple quartets', async function () {
+      const earliestTimestampInMs =
+        (await getMidnightTomorrowInSecondsUTC()) * 1000;
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(0)),
+      );
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(1)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 4,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 4,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(
+          new BigNumber(getFundingRate(0))
+            .plus(new BigNumber(getFundingRate(1)))
+            .toString(),
+        ),
+      );
     });
   });
 });

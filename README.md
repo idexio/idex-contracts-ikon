@@ -23,8 +23,7 @@ yarn && yarn build
 To run the test suite and generate a coverage report:
 
 ```console
-yarn test
-yarn coverage
+yarn test:coverage
 ```
 
 ## Background

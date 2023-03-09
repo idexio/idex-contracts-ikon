@@ -15,7 +15,7 @@ library FundingMultiplierQuartetHelper {
   /**
    * @dev Adds a new funding multiplier to an array of quartets
    */
-  function publishFundingMultipler(FundingMultiplierQuartet[] storage self, int64 newFundingMultiplier) internal {
+  function publishFundingMultiplier(FundingMultiplierQuartet[] storage self, int64 newFundingMultiplier) internal {
     if (self.length > 0) {
       FundingMultiplierQuartet storage fundingMultiplierQuartet = self[self.length - 1];
       if (fundingMultiplierQuartet.fundingMultiplier3 != _EMPTY) {

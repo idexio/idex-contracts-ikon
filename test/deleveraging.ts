@@ -184,6 +184,18 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/caller must be dispatcher/i);
     });
 
+    it('should revert for invalid market', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+          baseAssetSymbol: 'XYZ',
+          counterpartyWallet: counterpartyWallet.address,
+          liquidatingWallet: insuranceWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/no active market found/i);
+    });
+
     it('should revert when wallet is deleveraged against itself', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
 
@@ -361,13 +373,26 @@ describe('Exchange', function () {
   });
 
   describe('deleverageExitFundClosure', async function () {
-    it('should work for open position', async function () {
+    it('should work for open long position', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);
 
       await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
         baseAssetSymbol,
         counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+    });
+
+    it('should work for open short position', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: exitFundWallet.address,
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
@@ -384,6 +409,21 @@ describe('Exchange', function () {
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/caller must be dispatcher/i);
+    });
+
+    it('should revert for invalid quote quantity', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: exitFundWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('10000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when EF is not liquidated', async function () {
