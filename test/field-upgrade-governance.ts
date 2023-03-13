@@ -3,7 +3,11 @@ import { expect } from 'chai';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-import { baseAssetSymbol, deployAndAssociateContracts } from './helpers';
+import {
+  baseAssetSymbol,
+  deployAndAssociateContracts,
+  fieldUpgradeDelayInBlocks,
+} from './helpers';
 import type {
   Custodian,
   Exchange_v4,
@@ -133,7 +137,7 @@ describe('Governance', function () {
       it('should work after block delay when upgrade was initiated', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]);
         expect(
@@ -162,7 +166,7 @@ describe('Governance', function () {
       it('should revert on address length mismatch', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([
@@ -175,7 +179,7 @@ describe('Governance', function () {
       it('should revert on address  mismatch', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([ownerWallet.address]),
@@ -270,7 +274,7 @@ describe('Governance', function () {
             newIndexPriceServiceWallets,
           );
 
-          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await governance.finalizeIndexPriceServiceWalletsUpgrade(
             newIndexPriceServiceWallets,
@@ -309,7 +313,7 @@ describe('Governance', function () {
             newIndexPriceServiceWallets,
           );
 
-          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await expect(
             governance.finalizeIndexPriceServiceWalletsUpgrade([
@@ -324,7 +328,7 @@ describe('Governance', function () {
             newIndexPriceServiceWallets,
           );
 
-          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await expect(
             governance.finalizeIndexPriceServiceWalletsUpgrade([
@@ -465,7 +469,7 @@ describe('Governance', function () {
           newInsuranceFundWallet.address,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeInsuranceFundWalletUpgrade(ownerWallet.address),
@@ -588,7 +592,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
@@ -612,7 +616,7 @@ describe('Governance', function () {
           ethers.constants.AddressZero,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
@@ -636,7 +640,7 @@ describe('Governance', function () {
           ethers.constants.AddressZero,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeMarketOverridesUpgrade(
@@ -682,7 +686,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeMarketOverridesUpgrade(

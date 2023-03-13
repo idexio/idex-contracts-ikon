@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
@@ -115,6 +116,25 @@ describe('Exchange', function () {
           )
         ).toString(),
       ).to.equal(expectedQuantity);
+    });
+
+    it('should revert for zero quantity', async function () {
+      await expect(
+        exchange
+          .connect(traderWallet)
+          .deposit('0', ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/quantity is too low/i);
+    });
+
+    it('should revert for too large quantity', async function () {
+      await expect(
+        exchange
+          .connect(traderWallet)
+          .deposit(
+            new BigNumber(2).pow(63 - quoteAssetDecimals).toString(),
+            ethers.constants.AddressZero,
+          ),
+      ).to.eventually.be.rejectedWith(/quantity is too large/i);
     });
 
     it('should revert for exited source wallet', async function () {

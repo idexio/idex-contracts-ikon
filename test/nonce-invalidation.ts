@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat';
-import { v1 as uuidv1 } from 'uuid';
+import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 
 import {
   deployAndAssociateContracts,
@@ -36,6 +36,12 @@ describe('Exchange', function () {
       await exchange
         .connect(traderWallet)
         .invalidateNonce(uuidToHexString(uuidv1()));
+    });
+
+    it('should revert for wrong UUID version', async function () {
+      await expect(
+        exchange.invalidateNonce(uuidToHexString(uuidv4())),
+      ).to.eventually.be.rejectedWith(/must be v1 uuid/i);
     });
 
     it('should revert for timestamp too far in the future', async function () {

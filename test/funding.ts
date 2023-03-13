@@ -67,7 +67,7 @@ describe('Exchange', function () {
   });
 
   describe('publishFundingMultiplier', async function () {
-    it('should work one funding period after initial backfill when there are no gaps', async function () {
+    it('should work for funding periods after initial backfill when there are no gaps', async function () {
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
@@ -79,13 +79,38 @@ describe('Exchange', function () {
           decimalToPips(getFundingRate()),
         );
 
+      await increase(fundingPeriodLengthInMs / 1000);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPrice(indexPriceServiceWallet),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate(1)),
+        );
+
       const multipliers = await loadFundingMultipliers(exchange);
-      expect(multipliers).to.be.an('array').with.lengthOf(2);
+      expect(multipliers).to.be.an('array').with.lengthOf(3);
       expect(multipliers[0]).to.equal('0');
       expect(multipliers[1]).to.equal(
         decimalToPips(
           new BigNumber(indexPrice.price)
             .times(new BigNumber(getFundingRate()))
+            .negated()
+            .toString(),
+        ),
+      );
+      expect(multipliers[2]).to.equal(
+        decimalToPips(
+          new BigNumber(indexPrice.price)
+            .times(new BigNumber(getFundingRate(1)))
             .negated()
             .toString(),
         ),
@@ -145,12 +170,48 @@ describe('Exchange', function () {
       );
     });
 
+    it('should work for outdated but not yet stale index price', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
+      exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      await increase(fundingPeriodLengthInMs / 2 / 1000);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPrice(indexPriceServiceWallet),
+          ),
+        ]);
+    });
+
     it('should revert for invalid symbol', async function () {
       await expect(
         exchange
           .connect(dispatcherWallet)
           .publishFundingMultiplier('XYZ', decimalToPips(getFundingRate())),
       ).to.eventually.be.rejectedWith(/no active market found/i);
+    });
+
+    it('should revert for stale index price', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .publishFundingMultiplier(
+            baseAssetSymbol,
+            decimalToPips(getFundingRate()),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /index price too far before next period/i,
+      );
     });
 
     it('should revert when not called by dispatcher', async function () {
@@ -186,6 +247,27 @@ describe('Exchange', function () {
         await buildIndexPrice(indexPriceServiceWallet),
         trader1Wallet,
         trader2Wallet,
+      );
+
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+
+      // Calls should do nothing
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader1Wallet.address,
+        baseAssetSymbol,
+      );
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader2Wallet.address,
+        baseAssetSymbol,
       );
 
       await exchange
@@ -283,8 +365,6 @@ describe('Exchange', function () {
           .plus(new BigNumber(expectedTrader2FundingPayment))
           .toString(),
       );
-      /*
-       * FIXME Why is this failing?
       expect(
         (
           await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
@@ -292,7 +372,6 @@ describe('Exchange', function () {
           )
         ).toString(),
       ).to.equal(exitWithdrawalQuantity);
-      */
 
       expect(
         (
@@ -304,6 +383,16 @@ describe('Exchange', function () {
           await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
         ).toString(),
       ).to.equal('0');
+
+      // Subsequent calls should do nothing
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader1Wallet.address,
+        baseAssetSymbol,
+      );
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader2Wallet.address,
+        baseAssetSymbol,
+      );
 
       // TODO Verify balance updates
     });

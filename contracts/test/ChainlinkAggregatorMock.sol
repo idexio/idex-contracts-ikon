@@ -12,8 +12,6 @@ contract ChainlinkAggregatorMock is IChainlinkAggregator, Owned {
   constructor() Owned() {}
 
   function setPrice(int256 newPrice) external onlyAdmin {
-    require(newPrice > 0, "Price cannot be zero");
-    require(newPrice <= int256(uint256(type(uint64).max)), "Price overflows uint64");
     price = newPrice;
   }
 

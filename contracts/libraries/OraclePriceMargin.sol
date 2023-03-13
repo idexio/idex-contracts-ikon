@@ -121,7 +121,7 @@ library OraclePriceMargin {
     int64 quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
       wallet,
       Constants.QUOTE_ASSET_SYMBOL
-    );
+    ) + outstandingWalletFunding;
 
     if (wallet == exitFundWallet) {
       // The EF wallet can withdraw any positive quote balance
