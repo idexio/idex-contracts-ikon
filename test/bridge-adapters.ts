@@ -1,7 +1,7 @@
-import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
+import { ethers, network } from 'hardhat';
 
 import type {
   Custodian,
@@ -37,6 +37,10 @@ describe('ExchangeStargateAdapter', function () {
   let stargateRouterMock: StargateRouterMock;
   let traderWallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -257,10 +261,56 @@ describe('ExchangeStargateAdapter', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
     });
 
+    it('should work for when multiple adapters are whitelisted', async () => {
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: routerFee,
+      });
+
+      ExchangeStargateAdapterFactory = await ethers.getContractFactory(
+        'ExchangeStargateAdapter',
+      );
+      const adapter2 = await (
+        await ethers.getContractFactory('StargateRouterMock')
+      ).deploy(routerFee, usdc.address);
+
+      await governance.initiateBridgeAdaptersUpgrade([
+        adapter2.address,
+        adapter.address,
+      ]);
+      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await governance.finalizeBridgeAdaptersUpgrade([
+        adapter2.address,
+        adapter.address,
+      ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
+    });
+
     it('should work with fallback for valid arguments when adapter is not funded', async () => {
       await exchange
         .connect(dispatcherWallet)
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
+    });
+
+    it('should revert if not called by Exchange', async () => {
+      await expect(
+        adapter.withdrawQuoteAsset(ownerWallet.address, 1000, '0x'),
+      ).to.eventually.be.rejectedWith(/caller must be exchange/i);
+    });
+
+    it('should revert if withdrawals are disabled', async () => {
+      await adapter.setWithdrawEnabled(false);
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/withdraw disabled/i);
     });
   });
 

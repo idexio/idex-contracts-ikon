@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js';
-import { ethers } from 'hardhat';
+import { ethers, network } from 'hardhat';
 
 import { expect } from './helpers';
 import type { MathMock } from '../typechain-types';
@@ -8,6 +8,8 @@ describe('Math', function () {
   let mathMock: MathMock;
 
   before(async () => {
+    await network.provider.send('hardhat_reset');
+
     const MathMockFactory = await ethers.getContractFactory('MathMock');
     mathMock = await MathMockFactory.deploy();
   });

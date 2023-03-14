@@ -27,7 +27,6 @@ contract StargateRouterMock is IStargateRouter {
     bytes calldata /*_to */,
     bytes calldata /*_payload */
   ) public payable {
-    require(msg.value >= fee, "Stargate: insufficient value");
     IERC20(quoteTokenAddress).transferFrom(msg.sender, address(this), _amountLD);
   }
 

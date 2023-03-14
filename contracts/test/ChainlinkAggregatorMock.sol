@@ -11,7 +11,7 @@ contract ChainlinkAggregatorMock is IChainlinkAggregator, Owned {
 
   constructor() Owned() {}
 
-  function setPrice(int256 newPrice) external onlyAdmin {
+  function setPrice(int256 newPrice) external {
     price = newPrice;
   }
 

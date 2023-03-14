@@ -1,9 +1,19 @@
-import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
+import { ethers, network } from 'hardhat';
 
-import type { Exchange_v4, Governance, USDC } from '../typechain-types';
+import {
+  baseAssetSymbol,
+  buildIndexPrice,
+  buildIndexPriceWithValue,
+  deployAndAssociateContracts,
+  executeTrade,
+  expect,
+  fundWallets,
+  quoteAssetDecimals,
+  quoteAssetSymbol,
+} from './helpers';
 import {
   decimalToPips,
   getDelegatedKeyAuthorizationMessage,
@@ -19,17 +29,8 @@ import {
   Trade,
   uuidToHexString,
 } from '../lib';
-import {
-  baseAssetSymbol,
-  buildIndexPrice,
-  buildIndexPriceWithValue,
-  deployAndAssociateContracts,
-  executeTrade,
-  expect,
-  fundWallets,
-  quoteAssetDecimals,
-  quoteAssetSymbol,
-} from './helpers';
+
+import type { Exchange_v4, Governance, USDC } from '../typechain-types';
 
 describe('Exchange', function () {
   let buyOrder: Order;
@@ -47,6 +48,10 @@ describe('Exchange', function () {
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -156,6 +161,158 @@ describe('Exchange', function () {
           )
         ).balance.toString(),
       ).to.equal(decimalToPips('-10.00000000'));
+    });
+
+    it('should work when increasing position sizes', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        trader1Wallet,
+        trader2Wallet,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader2Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('20.00000000'));
+
+      expect(
+        (
+          await exchange.loadBalanceStructBySymbol(
+            trader1Wallet.address,
+            baseAssetSymbol,
+          )
+        ).balance.toString(),
+      ).to.equal(decimalToPips('-20.00000000'));
+    });
+
+    it('should work when reducing position sizes', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        trader2Wallet,
+        trader1Wallet,
+        baseAssetSymbol,
+        '2000.00000000',
+        '5.00000000',
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader2Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('5.00000000'));
+
+      expect(
+        (
+          await exchange.loadBalanceStructBySymbol(
+            trader1Wallet.address,
+            baseAssetSymbol,
+          )
+        ).balance.toString(),
+      ).to.equal(decimalToPips('-5.00000000'));
+    });
+
+    it('should work when flipping position signs', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        trader2Wallet,
+        trader1Wallet,
+        baseAssetSymbol,
+        '2000.00000000',
+        '15.00000000',
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader2Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('-5.00000000'));
+
+      expect(
+        (
+          await exchange.loadBalanceStructBySymbol(
+            trader1Wallet.address,
+            baseAssetSymbol,
+          )
+        ).balance.toString(),
+      ).to.equal(decimalToPips('5.00000000'));
+    });
+
+    it('should work for for order with invalidation pending', async function () {
+      await exchange.setChainPropagationPeriod(100);
+
+      await exchange
+        .connect(trader2Wallet)
+        .invalidateNonce(uuidToHexString(uuidv1()));
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
     });
 
     it('should work for limit orders with maker rebate', async function () {
@@ -874,6 +1031,46 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/sell order predates delegated key/i);
     });
 
+    it('should revert for invalid DK signature version', async function () {
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const sellDelegatedKeyAuthorizationFields = {
+        signatureHashVersion: 123,
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const sellDelegatedKeyAuthorization = {
+        ...sellDelegatedKeyAuthorizationFields,
+        signature: await trader2Wallet.signMessage(
+          getDelegatedKeyAuthorizationMessage(
+            sellDelegatedKeyAuthorizationFields,
+          ),
+        ),
+      };
+
+      sellOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
+      sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      sellOrderSignature = await delegatedKeyWallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              undefined,
+              sellDelegatedKeyAuthorization,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
+    });
+
     it('should revert when EF has open positions', async function () {
       await exchange
         .connect(dispatcherWallet)
@@ -1545,8 +1742,30 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/missing trigger price/i);
     });
 
-    it('should revert for missing trigger price for take profit market sell', async function () {
+    it('should revert for missing trigger price for take profit limit sell', async function () {
       sellOrder.type = OrderType.TakeProfitLimit;
+      sellOrderSignature = await trader1Wallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/missing trigger price/i);
+    });
+
+    it('should revert for missing trigger price for take profit market sell', async function () {
+      sellOrder.type = OrderType.TakeProfitMarket;
+      sellOrder.price = '0.00000000';
       sellOrderSignature = await trader1Wallet.signMessage(
         ethers.utils.arrayify(getOrderHash(sellOrder)),
       );

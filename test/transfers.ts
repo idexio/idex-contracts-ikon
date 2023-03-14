@@ -1,5 +1,5 @@
-import { ethers } from 'hardhat';
 import { v1 as uuidv1 } from 'uuid';
+import { ethers, network } from 'hardhat';
 
 import { Exchange_v4, USDC } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -29,6 +29,10 @@ describe('Exchange', function () {
   let trader2Wallet: SignerWithAddress;
   let transfer: Transfer;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -124,6 +128,14 @@ describe('Exchange', function () {
           )
         ).toString(),
       ).to.equal(decimalToPips('0.99900000'));
+    });
+
+    it('should revert for excessive fee', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .transfer(...getTransferArguments(transfer, '0.50000000', signature)),
+      ).to.eventually.be.rejectedWith(/excessive transfer fee/i);
     });
 
     it('should revert when not sent by dispatcher', async function () {

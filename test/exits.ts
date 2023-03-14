@@ -1,6 +1,6 @@
-import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
 import type { Exchange_v4, USDC } from '../typechain-types';
 import { IndexPrice } from '../lib';
@@ -10,7 +10,6 @@ import {
   executeTrade,
   expect,
   fundWallets,
-  quoteAssetDecimals,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -24,6 +23,10 @@ describe('Exchange', function () {
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();

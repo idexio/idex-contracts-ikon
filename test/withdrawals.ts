@@ -1,5 +1,5 @@
-import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { ethers, network } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 
@@ -33,6 +33,10 @@ describe('Exchange', function () {
   let traderWallet: SignerWithAddress;
   let usdc: USDC;
   let withdrawal: Withdrawal;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -186,6 +190,49 @@ describe('Exchange', function () {
       expect(withdrawnEvents).to.have.lengthOf(1);
       expect(withdrawnEvents[0].args?.quantity).to.equal(
         decimalToPips('1.00000000'),
+      );
+    });
+
+    it('should revert if EF balance would be negative', async function () {
+      const trader2Wallet = (await ethers.getSigners())[10];
+      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        traderWallet,
+        trader2Wallet,
+      );
+
+      await exchange.connect(traderWallet).exitWallet();
+      await exchange.withdrawExit(traderWallet.address);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+
+      // Expire EF withdraw delay
+      await mine(300000, { interval: 0 });
+
+      withdrawal.wallet = exitFundWallet.address;
+      withdrawal.quantity = '1000.00000000';
+      signature = await exitFundWallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00100000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /EF may not withdraw to a negative balance/i,
       );
     });
 

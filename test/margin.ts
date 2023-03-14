@@ -1,13 +1,8 @@
-import { ethers } from 'hardhat';
-import { IndexPrice } from '../lib';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
-
-import type {
-  ChainlinkAggregatorMock,
-  Exchange_v4,
-  Governance,
-} from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
+
+import { IndexPrice } from '../lib';
 import {
   baseAssetSymbol,
   buildIndexPrice,
@@ -16,6 +11,11 @@ import {
   expect,
   fundWallets,
 } from './helpers';
+import type {
+  ChainlinkAggregatorMock,
+  Exchange_v4,
+  Governance,
+} from '../typechain-types';
 
 describe('Exchange', function () {
   let chainlinkAggregator: ChainlinkAggregatorMock;
@@ -29,6 +29,10 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();

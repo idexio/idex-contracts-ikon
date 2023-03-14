@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
-import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
 import type { Exchange_v4 } from '../typechain-types';
 import type { MarketStruct } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
@@ -18,6 +18,10 @@ describe('Exchange', function () {
   let indexPriceServiceWallet: SignerWithAddress;
   let marketStruct: MarketStruct;
   let ownerWallet: SignerWithAddress;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     [ownerWallet] = await ethers.getSigners();

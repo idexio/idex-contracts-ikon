@@ -55,6 +55,8 @@ describe('Exchange', function () {
 
   describe('deposit', function () {
     it('should work', async function () {
+      await expect(usdc.decimals()).to.eventually.equal(quoteAssetDecimals);
+
       const depositQuantity = ethers.utils.parseUnits(
         '5.0',
         quoteAssetDecimals,

@@ -1,7 +1,7 @@
-import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
 import {
   baseAssetSymbol,
@@ -23,6 +23,10 @@ describe('Governance', function () {
   let governance: Governance;
   let ownerWallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -185,6 +189,18 @@ describe('Governance', function () {
           governance.finalizeBridgeAdaptersUpgrade([ownerWallet.address]),
         ).to.eventually.be.rejectedWith(/address mismatch/i);
       });
+
+      it('should revert when not called by admin or dispatcher', async () => {
+        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]),
+        ).to.eventually.be.rejectedWith(
+          /caller must be admin or dispatcher wallet/i,
+        );
+      });
     });
 
     describe('IPS wallet upgrade', () => {
@@ -335,6 +351,22 @@ describe('Governance', function () {
               ownerWallet.address,
             ]),
           ).to.eventually.be.rejectedWith(/address mismatch/i);
+        });
+
+        it('should revert when not called by admin or dispatcher', async () => {
+          await governance.initiateIndexPriceServiceWalletsUpgrade(
+            newIndexPriceServiceWallets,
+          );
+
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+          await expect(
+            governance
+              .connect((await ethers.getSigners())[10])
+              .finalizeIndexPriceServiceWalletsUpgrade([ownerWallet.address]),
+          ).to.eventually.be.rejectedWith(
+            /caller must be admin or dispatcher wallet/i,
+          );
         });
       });
     });
@@ -487,6 +519,16 @@ describe('Governance', function () {
           ),
         ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
       });
+
+      it('should revert when not called by admin or dispatcher', async () => {
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .finalizeInsuranceFundWalletUpgrade(newInsuranceFundWallet.address),
+        ).to.eventually.be.rejectedWith(
+          /caller must be admin or dispatcher wallet/i,
+        );
+      });
     });
   });
 
@@ -581,6 +623,14 @@ describe('Governance', function () {
         ).to.eventually.be.rejectedWith(
           /no market override upgrade in progress/i,
         );
+      });
+
+      it('should revert when not called by admin', async () => {
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .cancelMarketOverridesUpgrade(baseAssetSymbol, walletToOverride),
+        ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
       });
     });
 
@@ -695,6 +745,20 @@ describe('Governance', function () {
             walletToOverride,
           ),
         ).to.eventually.be.rejectedWith(/overrides mismatch/i);
+      });
+
+      it('should revert when not called by admin or dispatcher', async () => {
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .finalizeMarketOverridesUpgrade(
+              baseAssetSymbol,
+              marketOverrides,
+              walletToOverride,
+            ),
+        ).to.eventually.be.rejectedWith(
+          /caller must be admin or dispatcher wallet/i,
+        );
       });
     });
   });

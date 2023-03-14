@@ -1,15 +1,16 @@
 import BigNumber from 'bignumber.js';
-import { ethers } from 'hardhat';
 import { expect } from 'chai';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 import {
   increase,
   increaseTo,
 } from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import {
   decimalToPips,
   fundingPeriodLengthInMs,
+  getIndexPriceHash,
   IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
@@ -36,6 +37,10 @@ describe('Exchange', function () {
   let indexPrice: IndexPrice;
   let indexPriceServiceWallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -171,6 +176,11 @@ describe('Exchange', function () {
     });
 
     it('should work for outdated but not yet stale index price', async function () {
+      indexPrice.timestampInMs -= fundingPeriodLengthInMs / 4;
+      indexPrice.signature = await indexPriceServiceWallet.signMessage(
+        ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+      );
+
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
@@ -181,8 +191,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           decimalToPips(getFundingRate()),
         );
-
-      await increase(fundingPeriodLengthInMs / 2 / 1000);
 
       await exchange
         .connect(dispatcherWallet)

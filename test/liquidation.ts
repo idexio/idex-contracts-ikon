@@ -1,6 +1,6 @@
-import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
 import type { Exchange_v4, Governance, USDC } from '../typechain-types';
 import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
@@ -26,6 +26,10 @@ describe('Exchange', function () {
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -239,41 +243,72 @@ describe('Exchange', function () {
 
   describe('liquidatePositionInDeactivatedMarket', async function () {
     it('should work for valid long wallet position and market', async function () {
-      await (
-        await exchange
-          .connect(dispatcherWallet)
-          .deactivateMarket(baseAssetSymbol)
-      ).wait();
+      await exchange
+        .connect(dispatcherWallet)
+        .deactivateMarket(baseAssetSymbol);
 
-      await (
-        await exchange
-          .connect(dispatcherWallet)
-          .liquidatePositionInDeactivatedMarket({
-            baseAssetSymbol,
-            feeQuantity: decimalToPips('20.00000000'),
-            liquidatingWallet: trader2Wallet.address,
-            liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-          })
-      ).wait();
+      await exchange
+        .connect(dispatcherWallet)
+        .liquidatePositionInDeactivatedMarket({
+          baseAssetSymbol,
+          feeQuantity: decimalToPips('20.00000000'),
+          liquidatingWallet: trader2Wallet.address,
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        });
     });
 
     it('should work for valid short wallet position and market', async function () {
-      await (
-        await exchange
-          .connect(dispatcherWallet)
-          .deactivateMarket(baseAssetSymbol)
-      ).wait();
+      await exchange
+        .connect(dispatcherWallet)
+        .deactivateMarket(baseAssetSymbol);
 
-      await (
-        await exchange
+      await exchange
+        .connect(dispatcherWallet)
+        .liquidatePositionInDeactivatedMarket({
+          baseAssetSymbol,
+          feeQuantity: decimalToPips('20.00000000'),
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        });
+    });
+
+    it('should revert for invalid market', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .liquidatePositionInDeactivatedMarket({
+            baseAssetSymbol: 'XYZ',
+            feeQuantity: decimalToPips('20.00000000'),
+            liquidatingWallet: trader1Wallet.address,
+            liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+          }),
+      ).to.eventually.be.rejectedWith(/no inactive market found/i);
+    });
+
+    it('should when wallet has no open position', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .deactivateMarket(baseAssetSymbol);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .liquidatePositionInDeactivatedMarket({
+          baseAssetSymbol,
+          feeQuantity: decimalToPips('20.00000000'),
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        });
+
+      await expect(
+        exchange
           .connect(dispatcherWallet)
           .liquidatePositionInDeactivatedMarket({
             baseAssetSymbol,
             feeQuantity: decimalToPips('20.00000000'),
             liquidatingWallet: trader1Wallet.address,
             liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-          })
-      ).wait();
+          }),
+      ).to.eventually.be.rejectedWith(/open position not found for market/i);
     });
 
     it('should revert when not sent by dispatcher', async function () {
@@ -379,6 +414,16 @@ describe('Exchange', function () {
           liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
         }),
       ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
+    });
+
+    it('should revert when counterparty is not IF', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+        }),
+      ).to.eventually.be.rejectedWith(/must liquidate to IF/i);
     });
 
     it('should revert for invalid quote quantity', async function () {

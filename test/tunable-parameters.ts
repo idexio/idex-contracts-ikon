@@ -1,5 +1,5 @@
-import { ethers } from 'hardhat';
 import { expect } from 'chai';
+import { ethers, network } from 'hardhat';
 
 import { deployAndAssociateContracts } from './helpers';
 import type { Exchange_v4 } from '../typechain-types';
@@ -8,6 +8,10 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 describe('Exchange', function () {
   let exchange: Exchange_v4;
   let ownerWallet: SignerWithAddress;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     [ownerWallet] = await ethers.getSigners();

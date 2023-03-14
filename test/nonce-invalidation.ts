@@ -1,16 +1,20 @@
-import { ethers } from 'hardhat';
+import { ethers, network } from 'hardhat';
 import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 
+import { Exchange_v4 } from '../typechain-types';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { uuidToHexString } from '../lib';
 import {
   deployAndAssociateContracts,
   expect,
   getLatestBlockTimestampInSeconds,
 } from './helpers';
-import { Exchange_v4 } from '../typechain-types';
-import { uuidToHexString } from '../lib';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 describe('Exchange', function () {
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
+
   describe('invalidateNonce', async function () {
     let exchange: Exchange_v4;
     let traderWallet: SignerWithAddress;
