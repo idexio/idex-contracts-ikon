@@ -5,6 +5,7 @@ import { ethers, network } from 'hardhat';
 
 import {
   baseAssetSymbol,
+  bootstrapLiquidatedWallet,
   deployAndAssociateContracts,
   fieldUpgradeDelayInBlocks,
 } from './helpers';
@@ -19,7 +20,10 @@ import type {
 
 describe('Governance', function () {
   let custodian: Custodian;
+  let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
+  let indexPriceServiceWallet: SignerWithAddress;
+  let insuranceFundWallet: SignerWithAddress;
   let governance: Governance;
   let ownerWallet: SignerWithAddress;
   let usdc: USDC;
@@ -31,14 +35,10 @@ describe('Governance', function () {
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
     ownerWallet = wallets[0];
-    const [
-      ,
-      dispatcherWallet,
-      exitFundWallet,
-      feeWallet,
-      indexPriceServiceWallet,
-      insuranceFundWallet,
-    ] = wallets;
+    dispatcherWallet = wallets[1];
+    indexPriceServiceWallet = wallets[4];
+    insuranceFundWallet = wallets[5];
+    const [, , exitFundWallet, feeWallet] = wallets;
 
     const results = await deployAndAssociateContracts(
       ownerWallet,
@@ -459,9 +459,13 @@ describe('Governance', function () {
     });
 
     describe('finalizeInsuranceFundWalletUpgrade', () => {
+      let trader1Wallet: SignerWithAddress;
+      let trader2Wallet: SignerWithAddress;
       let newInsuranceFundWallet: SignerWithAddress;
 
       before(async () => {
+        trader1Wallet = (await ethers.getSigners())[8];
+        trader2Wallet = (await ethers.getSigners())[9];
         newInsuranceFundWallet = (await ethers.getSigners())[10];
       });
 
@@ -518,6 +522,24 @@ describe('Governance', function () {
             newInsuranceFundWallet.address,
           ),
         ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
+      });
+
+      it('should revert when current IF has open position', async () => {
+        const results = await bootstrapLiquidatedWallet();
+
+        await results.governance.initiateInsuranceFundWalletUpgrade(
+          newInsuranceFundWallet.address,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await expect(
+          results.governance.finalizeInsuranceFundWalletUpgrade(
+            newInsuranceFundWallet.address,
+          ),
+        ).to.eventually.be.rejectedWith(
+          /current IF cannot have open positions/i,
+        );
       });
 
       it('should revert when not called by admin or dispatcher', async () => {

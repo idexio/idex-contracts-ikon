@@ -360,7 +360,16 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet
       ),
-      "EF cannot have open balance"
+      "Current EF cannot have open balance"
+    );
+
+    require(
+      !ExitFund.doesWalletHaveOpenPositionsOrQuoteBalance(
+        newExitFundWallet,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet
+      ),
+      "New EF cannot have open balance"
     );
 
     address oldExitFundWallet = exitFundWallet;
@@ -448,6 +457,19 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
+   * @notice Loads a list of all currently open positions for a wallet
+   *
+   * @param wallet The wallet address to load open positions for for. Can be different from `msg.sender`
+   *
+   * @return A list of base asset symbols corresponding to markets in which the wallet currently has an open position
+   */
+  function loadBaseAssetSymbolsWithOpenPositionsByWallet(
+    address wallet
+  ) public view override returns (string[] memory) {
+    return _baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+  }
+
+  /**
    * @notice Load the balance of quote asset the wallet can withdraw after exiting, in pips
    *
    * @param wallet The wallet address to load the exit quote balance for. Can be different from `msg.sender`
@@ -510,10 +532,11 @@ contract Exchange_v4 is IExchange, Owned {
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
       custodian,
       depositIndex,
+      destinationWallet_,
+      exitFundWallet,
       quantityInAssetUnits,
       quoteTokenAddress,
       msg.sender,
-      destinationWallet_,
       _balanceTracking,
       _walletExits
     );

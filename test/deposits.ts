@@ -19,6 +19,7 @@ import {
 describe('Exchange', function () {
   let balanceMigrationSource: BalanceMigrationSourceMock;
   let exchange: Exchange_v4;
+  let exitFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
   let traderWallet: SignerWithAddress;
   let usdc: USDC;
@@ -32,11 +33,12 @@ describe('Exchange', function () {
     balanceMigrationSource = await BalanceMigrationSourceMockFactory.deploy(0);
 
     ownerWallet = wallets[0];
+    exitFundWallet = wallets[2];
     traderWallet = wallets[6];
     const results = await deployAndAssociateContracts(
       ownerWallet,
       wallets[1],
-      wallets[2],
+      exitFundWallet,
       wallets[3],
       wallets[4],
       wallets[5],
@@ -118,6 +120,14 @@ describe('Exchange', function () {
           )
         ).toString(),
       ).to.equal(expectedQuantity);
+    });
+
+    it('should revert depositing to EF', async function () {
+      await expect(
+        exchange
+          .connect(traderWallet)
+          .deposit('1000000', exitFundWallet.address),
+      ).to.eventually.be.rejectedWith(/cannot deposit to EF/i);
     });
 
     it('should revert for zero quantity', async function () {

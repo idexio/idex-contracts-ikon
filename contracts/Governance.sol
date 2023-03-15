@@ -427,6 +427,8 @@ contract Governance is Owned {
    */
   function initiateInsuranceFundWalletUpgrade(address newInsuranceFundWallet) public onlyAdmin {
     require(newInsuranceFundWallet != address(0x0), "Invalid IF wallet address");
+    require(newInsuranceFundWallet != exchange.insuranceFundWallet(), "Must be different from current");
+
     require(!currentInsuranceFundWalletUpgrade.exists, "IF wallet upgrade already in progress");
 
     currentInsuranceFundWalletUpgrade = InsuranceFundWalletUpgrade(
@@ -461,8 +463,16 @@ contract Governance is Owned {
     require(currentInsuranceFundWalletUpgrade.newInsuranceFundWallet == newInsuranceFundWallet, "Address mismatch");
     require(block.number >= currentInsuranceFundWalletUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    exchange.setInsuranceFundWallet(newInsuranceFundWallet);
+    require(
+      exchange.loadBaseAssetSymbolsWithOpenPositionsByWallet(exchange.insuranceFundWallet()).length == 0,
+      "Current IF cannot have open positions"
+    );
+    require(
+      exchange.loadBaseAssetSymbolsWithOpenPositionsByWallet(newInsuranceFundWallet).length == 0,
+      "Current IF cannot have open positions"
+    );
 
+    exchange.setInsuranceFundWallet(newInsuranceFundWallet);
     delete (currentInsuranceFundWalletUpgrade);
 
     emit InsuranceFundWalletUpgradeFinalized(newInsuranceFundWallet);
