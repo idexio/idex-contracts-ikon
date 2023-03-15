@@ -1,4 +1,5 @@
-import { ethers } from 'hardhat';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { ethers, network } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 
@@ -6,36 +7,50 @@ import {
   decimalToPips,
   getWithdrawArguments,
   getWithdrawalHash,
+  indexPriceToArgumentStruct,
   signatureHashVersion,
   Withdrawal,
 } from '../lib';
 import { Exchange_v4, USDC } from '../typechain-types';
 import {
+  baseAssetSymbol,
+  buildIndexPrice,
+  buildIndexPriceWithValue,
   deployAndAssociateContracts,
   expect,
+  executeTrade,
+  fundWallets,
   quoteAssetDecimals,
 } from './helpers';
 
 describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
+  let exitFundWallet: SignerWithAddress;
   let feeWallet: SignerWithAddress;
+  let indexPriceServiceWallet: SignerWithAddress;
   let signature: string;
   let traderWallet: SignerWithAddress;
   let usdc: USDC;
   let withdrawal: Withdrawal;
 
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
+
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
     dispatcherWallet = wallets[0];
+    exitFundWallet = wallets[3];
     feeWallet = wallets[4];
+    indexPriceServiceWallet = wallets[5];
     traderWallet = wallets[7];
     const results = await deployAndAssociateContracts(
       wallets[1],
       dispatcherWallet,
-      wallets[3],
+      exitFundWallet,
       feeWallet,
-      wallets[5],
+      indexPriceServiceWallet,
       wallets[6],
     );
     exchange = results.exchange;
@@ -87,8 +102,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid token address', async function () {
       await expect(
-        exchange.connect(dispatcherWallet).skim(ethers.constants.AddressZero),
-      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+        exchange.skim(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/invalid token address/i);
     });
   });
 
@@ -119,6 +134,156 @@ describe('Exchange', function () {
       expect(withdrawnEvents[0].args?.quantity).to.equal(
         decimalToPips('1.00000000'),
       );
+    });
+
+    it('should work for EF after block delay', async function () {
+      const trader2Wallet = (await ethers.getSigners())[10];
+      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        traderWallet,
+        trader2Wallet,
+      );
+
+      await exchange.connect(traderWallet).exitWallet();
+      await exchange.withdrawExit(traderWallet.address);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '1900.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('19000.00000000'),
+      });
+
+      // Expire EF withdraw delay
+      await mine(300000, { interval: 0 });
+
+      withdrawal.wallet = exitFundWallet.address;
+      withdrawal.quantity = '1.00000000';
+      signature = await exitFundWallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00100000', signature));
+
+      const withdrawnEvents = await exchange.queryFilter(
+        exchange.filters.Withdrawn(),
+      );
+      expect(withdrawnEvents).to.have.lengthOf(1);
+      expect(withdrawnEvents[0].args?.quantity).to.equal(
+        decimalToPips('1.00000000'),
+      );
+    });
+
+    it('should revert if EF balance would be negative', async function () {
+      const trader2Wallet = (await ethers.getSigners())[10];
+      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        traderWallet,
+        trader2Wallet,
+      );
+
+      await exchange.connect(traderWallet).exitWallet();
+      await exchange.withdrawExit(traderWallet.address);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+
+      // Expire EF withdraw delay
+      await mine(300000, { interval: 0 });
+
+      withdrawal.wallet = exitFundWallet.address;
+      withdrawal.quantity = '1000.00000000';
+      signature = await exitFundWallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00100000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /EF may not withdraw to a negative balance/i,
+      );
+    });
+
+    it('should revert for EF before block delay', async function () {
+      const trader2Wallet = (await ethers.getSigners())[10];
+      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        traderWallet,
+        trader2Wallet,
+      );
+
+      await exchange.connect(traderWallet).exitWallet();
+      await exchange.withdrawExit(traderWallet.address);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '1900.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('19000.00000000'),
+      });
+
+      withdrawal.wallet = exitFundWallet.address;
+      withdrawal.quantity = '1.00000000';
+      signature = await exitFundWallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00100000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/EF position opened too recently/i);
     });
 
     it('should revert when replayed', async function () {

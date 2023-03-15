@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat';
+import { ethers, network } from 'hardhat';
 
 import { deployAndAssociateContracts, expect } from './helpers';
 import {
@@ -11,6 +11,10 @@ import {
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 describe('Governance', function () {
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
+
   let GovernanceFactory: Governance__factory;
 
   beforeEach(async () => {

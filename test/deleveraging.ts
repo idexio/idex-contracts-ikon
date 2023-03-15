@@ -1,9 +1,16 @@
-import { ethers } from 'hardhat';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { ethers, network } from 'hardhat';
 import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
 
-import type { Exchange_v4 } from '../typechain-types';
+import type {
+  ChainlinkAggregatorMock,
+  Exchange_v4,
+  Governance,
+  USDC,
+} from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import {
+  addAndActivateMarket,
   baseAssetSymbol,
   bootstrapLiquidatedWallet,
   buildIndexPrice,
@@ -11,13 +18,17 @@ import {
   deployAndAssociateContracts,
   executeTrade,
   expect,
+  fieldUpgradeDelayInBlocks,
   fundWallets,
+  quoteAssetSymbol,
 } from './helpers';
 
 // TODO Partial deleveraging
 describe('Exchange', function () {
+  let chainlinkAggregator: ChainlinkAggregatorMock;
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
+  let governance: Governance;
   let indexPrice: IndexPrice;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
@@ -25,6 +36,11 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
+  let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -48,7 +64,10 @@ describe('Exchange', function () {
       indexPriceServiceWallet,
       insuranceFundWallet,
     );
+    chainlinkAggregator = results.chainlinkAggregator;
     exchange = results.exchange;
+    governance = results.governance;
+    usdc = results.usdc;
 
     await results.usdc.faucet(dispatcherWallet.address);
 
@@ -66,15 +85,178 @@ describe('Exchange', function () {
   });
 
   describe('deleverageInMaintenanceAcquisition', async function () {
-    it('should work for valid wallet', async function () {
-      const newIndexPrice = await buildIndexPriceWithValue(
-        indexPriceServiceWallet,
-        '2150.00000000',
+    it('should work for valid wallet when IF cannot acquire within margin limits', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '2150.00000000',
+            ),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '21980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        });
+    });
+
+    it('should work for valid wallet when IF has open position and cannot acquire within margin limits', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPrice(indexPriceServiceWallet),
+        trader3Wallet,
+        trader4Wallet,
+      );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '1850.00000000',
+            ),
+          ),
+        ]);
+      await fundWallets([insuranceFundWallet], exchange, usdc, '902.00000000');
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader4Wallet.address,
+        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
+      });
+
+      const overrides = {
+        initialMarginFraction: '100000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          insuranceFundWallet.address,
+        );
+      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          insuranceFundWallet.address,
+        );
+
+      await addAndActivateMarket(
+        chainlinkAggregator,
+        dispatcherWallet,
+        exchange,
+        'BTC',
+      );
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        exchange,
+        usdc,
+        '51000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPriceWithValue(
+          indexPriceServiceWallet,
+          '24000.00000000',
+          'BTC',
+        ),
+        trader1Wallet,
+        trader2Wallet,
+        'BTC',
+        '24000.00000000',
       );
 
       await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '29000.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '18767.45542949',
+            '294192.54457050',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('18767.45542949'),
+        });
+    });
+
+    it('should work for valid wallet when IF cannot acquire within maximum position size', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '2150.00000000',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '22000.00000000',
+      );
+      const marketOverrides = {
+        initialMarginFraction: '3000000',
+        maintenanceMarginFraction: '1000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '100000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance.initiateMarketOverridesUpgrade(
+        baseAssetSymbol,
+        marketOverrides,
+        insuranceFundWallet.address,
+      );
+      await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+      await governance.finalizeMarketOverridesUpgrade(
+        baseAssetSymbol,
+        marketOverrides,
+        insuranceFundWallet.address,
+      );
 
       await exchange
         .connect(dispatcherWallet)
@@ -118,6 +300,39 @@ describe('Exchange', function () {
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
+    });
+
+    it('should revert when IF can acquire', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '2150.00000000',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '22000.00000000',
+      );
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '21980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/insurance fund can acquire/i);
     });
 
     it('should revert when liquidating EF', async function () {
@@ -196,6 +411,25 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/no active market found/i);
     });
 
+    it('should revert when wallet has no open position', async function () {
+      await exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: counterpartyWallet.address,
+        liquidatingWallet: insuranceWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+      }),
+        await expect(
+          exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+            baseAssetSymbol,
+            counterpartyWallet: counterpartyWallet.address,
+            liquidatingWallet: insuranceWallet.address,
+            liquidationBaseQuantity: decimalToPips('10.00000000'),
+            liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+          }),
+        ).to.eventually.be.rejectedWith(/open position not found for market/i);
+    });
+
     it('should revert when wallet is deleveraged against itself', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
 
@@ -250,6 +484,18 @@ describe('Exchange', function () {
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/liquidating wallet must be IF/i);
+    });
+
+    it('should revert for invalid quote quantity', async function () {
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+          baseAssetSymbol,
+          counterpartyWallet: counterpartyWallet.address,
+          liquidatingWallet: insuranceWallet.address,
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('20080.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
   });
 
@@ -396,6 +642,81 @@ describe('Exchange', function () {
         liquidatingWallet: exitFundWallet.address,
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+    });
+
+    it('should work for open short position and negative total account value', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '1850.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader1Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+    });
+
+    it('should zero out after closing all open positions', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      await exchange.connect(trader2Wallet).exitWallet();
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            exitFundWallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            exitFundWallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should work for open short position and negative account value', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '2150.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader1Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('21500.00000000'),
       });
     });
 

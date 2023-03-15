@@ -46,10 +46,7 @@ library PositionInDeactivatedMarketLiquidation {
       arguments.liquidationQuoteQuantity
     );
 
-    require(
-      Validations.isFeeQuantityValid(arguments.feeQuantity, arguments.liquidationQuoteQuantity),
-      "Excessive maker fee"
-    );
+    require(Validations.isFeeQuantityValid(arguments.feeQuantity, arguments.liquidationQuoteQuantity), "Excessive fee");
 
     balanceTracking.updatePositionForDeactivatedMarketLiquidation(
       market.baseAssetSymbol,

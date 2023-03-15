@@ -210,6 +210,26 @@ describe('Exchange', function () {
         newExchange.address,
       );
 
+      await newExchange.setCustodian(custodian.address, [usdc.address]);
+    });
+
+    it('should revert for invalid bridge adapter', async () => {
+      const [ownerWallet] = await ethers.getSigners();
+      const newExchange = await ExchangeFactory.deploy(
+        ethers.constants.AddressZero,
+        ownerWallet.address,
+        ownerWallet.address,
+        [usdc.address],
+        ownerWallet.address,
+        usdc.address,
+      );
+
+      const CustodianFactory = await ethers.getContractFactory('Custodian');
+      const custodian = await CustodianFactory.deploy(
+        newExchange.address,
+        newExchange.address,
+      );
+
       await expect(
         newExchange.setCustodian(custodian.address, [
           ethers.constants.AddressZero,
@@ -324,6 +344,12 @@ describe('Exchange', function () {
       await expect(exchange.setDepositIndex()).to.eventually.be.rejectedWith(
         /can only be set once/i,
       );
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange.connect((await ethers.getSigners())[10]).setDepositIndex(),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 });

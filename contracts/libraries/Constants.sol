@@ -31,7 +31,7 @@ library Constants {
   // 20%
   uint64 public constant MAX_FEE_MULTIPLIER = 20 * 10 ** 6;
 
-  // 1 year
+  // 1 year - value must be evenly divisible by `FUNDING_PERIOD_IN_MS`
   uint64 public constant MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS = 365 * 24 * 60 * 60 * 1000;
 
   // Max int64

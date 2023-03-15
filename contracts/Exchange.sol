@@ -182,13 +182,13 @@ contract Exchange_v4 is IExchange, Owned {
 
   modifier onlyDispatcherWhenExitFundHasNoPositions() {
     _onlyDispatcher();
-    require(exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
+    require(_baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length == 0, "Exit Fund has open positions");
     _;
   }
 
   modifier onlyDispatcherWhenExitFundHasOpenPositions() {
     _onlyDispatcher();
-    require(exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
+    require(_baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0, "Exit Fund has no positions");
     _;
   }
 

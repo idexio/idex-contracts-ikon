@@ -1,11 +1,15 @@
 import BigNumber from 'bignumber.js';
-import { ethers } from 'hardhat';
+import { ethers, network } from 'hardhat';
 
 import type { AssetUnitConversionsMock } from '../typechain-types';
 import { expect } from './helpers';
 
 describe('AssetsUnitConversions', () => {
   let assetsUnitConversionsMock: AssetUnitConversionsMock;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   before(async () => {
     const AssetUnitConversionsMockFactory = await ethers.getContractFactory(

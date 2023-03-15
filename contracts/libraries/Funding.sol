@@ -10,6 +10,8 @@ import { SortedStringSet } from "./SortedStringSet.sol";
 import { Time } from "./Time.sol";
 import { Balance, FundingMultiplierQuartet, Market } from "./Structs.sol";
 
+import "hardhat/console.sol";
+
 library Funding {
   using BalanceTracking for BalanceTracking.Storage;
   using FundingMultiplierQuartetHelper for FundingMultiplierQuartet[];
@@ -233,18 +235,19 @@ library Funding {
       } else {
         toTimestampInMs = lastFundingRatePublishTimestampInMs;
       }
-
-      int64 aggregateFundingMultiplier = fromTimestampInMs <= toTimestampInMs
-        ? fundingMultipliersForMarket.loadAggregateMultiplier(
-          fromTimestampInMs,
-          toTimestampInMs,
-          lastFundingRatePublishTimestampInMs
-        )
-        : int64(0);
+      // There is no possibility of `fromTimestampInMs` being greater than `toTimestampInMs` - the maximum value
+      // `fromTimestampInMs` can be initialized to is `lastFundingRatePublishTimestampInMs`, and `toTimestampInMs`
+      // is either itself `lastFundingRatePublishTimestampInMs` OR `fromTimestampInMs` is at least
+      // `MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS` behind `lastFundingRatePublishTimestampInMs`
 
       int64 funding = Math.multiplyPipsByFraction(
         basePosition.balance,
-        aggregateFundingMultiplier,
+        // Load aggregate funding multiplier over specified from and to timestamps
+        fundingMultipliersForMarket.loadAggregateMultiplier(
+          fromTimestampInMs,
+          toTimestampInMs,
+          lastFundingRatePublishTimestampInMs
+        ),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
 

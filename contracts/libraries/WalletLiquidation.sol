@@ -70,7 +70,7 @@ library WalletLiquidation {
     );
 
     if (liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
-      resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+      resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundPositionOpenedAtBlockNumber(
         currentExitFundPositionOpenedAtBlockNumber,
         exitFundWallet,
         balanceTracking,

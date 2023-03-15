@@ -26,6 +26,8 @@ import {
 } from '../lib';
 import { ChainlinkAggregatorMock, Exchange_v4, USDC } from '../typechain-types';
 
+export const fieldUpgradeDelayInBlocks = (1 * 24 * 60 * 60) / 3;
+
 export const quoteAssetDecimals = 6;
 
 export const baseAssetSymbol = 'ETH';
@@ -36,11 +38,12 @@ export async function addAndActivateMarket(
   chainlinkAggregator: ChainlinkAggregatorMock,
   dispatcherWallet: SignerWithAddress,
   exchange: Exchange_v4,
+  baseAssetSymbol_ = baseAssetSymbol,
 ) {
   await exchange.addMarket({
     exists: true,
     isActive: false,
-    baseAssetSymbol,
+    baseAssetSymbol: baseAssetSymbol_,
     chainlinkPriceFeedAddress: chainlinkAggregator.address,
     indexPriceAtDeactivation: 0,
     lastIndexPrice: 0,
@@ -55,63 +58,7 @@ export async function addAndActivateMarket(
       minimumPositionSize: '10000000',
     },
   });
-  await exchange.connect(dispatcherWallet).activateMarket(baseAssetSymbol);
-}
-
-export async function bootstrapExitedWallet() {
-  const [
-    ownerWallet,
-    dispatcherWallet,
-    exitFundWallet,
-    feeWallet,
-    insuranceWallet,
-    indexPriceServiceWallet,
-    trader1Wallet,
-    trader2Wallet,
-  ] = await ethers.getSigners();
-  const { exchange, usdc } = await deployAndAssociateContracts(
-    ownerWallet,
-    dispatcherWallet,
-    exitFundWallet,
-    feeWallet,
-    indexPriceServiceWallet,
-    insuranceWallet,
-  );
-
-  await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
-
-  await fundWallets(
-    [trader1Wallet, trader2Wallet, insuranceWallet],
-    exchange,
-    usdc,
-  );
-
-  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
-
-  await executeTrade(
-    exchange,
-    dispatcherWallet,
-    indexPrice,
-    trader1Wallet,
-    trader2Wallet,
-  );
-
-  // Deposit additional quote to allow for EF exit withdrawal
-  const depositQuantity = ethers.utils.parseUnits(
-    '100000.0',
-    quoteAssetDecimals,
-  );
-  await usdc.connect(ownerWallet).approve(exchange.address, depositQuantity);
-  await (
-    await exchange
-      .connect(ownerWallet)
-      .deposit(depositQuantity, ethers.constants.AddressZero)
-  ).wait();
-
-  await exchange.connect(trader1Wallet).exitWallet();
-  await exchange.withdrawExit(trader1Wallet.address);
-
-  return exchange;
+  await exchange.connect(dispatcherWallet).activateMarket(baseAssetSymbol_);
 }
 
 export async function bootstrapLiquidatedWallet() {
@@ -445,6 +392,9 @@ export async function executeTrade(
   indexPrice: IndexPrice | null,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
+  baseAssetSymbol_ = baseAssetSymbol,
+  price = '2000.00000000',
+  quantity = '10.00000000',
 ): Promise<Trade> {
   if (indexPrice) {
     await exchange
@@ -456,11 +406,11 @@ export async function executeTrade(
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader1.address,
-    market: `${baseAssetSymbol}-USD`,
+    market: `${baseAssetSymbol_}-USD`,
     type: OrderType.Limit,
     side: OrderSide.Sell,
-    quantity: '10.00000000',
-    price: '2000.00000000',
+    quantity,
+    price,
   };
   const sellOrderSignature = await trader1.signMessage(
     ethers.utils.arrayify(getOrderHash(sellOrder)),
@@ -470,11 +420,11 @@ export async function executeTrade(
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader2.address,
-    market: `${baseAssetSymbol}-USD`,
+    market: `${baseAssetSymbol_}-USD`,
     type: OrderType.Limit,
     side: OrderSide.Buy,
-    quantity: '10.00000000',
-    price: '2000.00000000',
+    quantity,
+    price,
   };
   const buyOrderSignature = await trader2.signMessage(
     ethers.utils.arrayify(getOrderHash(buyOrder)),
@@ -482,11 +432,13 @@ export async function executeTrade(
 
   const trade: Trade = {
     baseAssetSymbol: baseAssetSymbol,
-    baseQuantity: '10.00000000',
-    quoteQuantity: '20000.00000000',
+    baseQuantity: quantity,
+    quoteQuantity: new BigNumber(quantity)
+      .times(new BigNumber(price))
+      .toFixed(8),
     makerFeeQuantity: '20.00000000',
     takerFeeQuantity: '40.00000000',
-    price: '2000.00000000',
+    price,
     makerSide: OrderSide.Sell,
   };
 
@@ -589,8 +541,8 @@ export async function logWalletBalances(
   indexPrices: IndexPrice[],
 ) {
   console.log(
-    `USDC balance: ${pipToDecimal(
-      await exchange.loadBalanceBySymbol(wallet, 'USDC'),
+    `USD balance: ${pipToDecimal(
+      await exchange.loadBalanceBySymbol(wallet, 'USD'),
     )}`,
   );
 
@@ -614,10 +566,7 @@ export async function logWalletBalances(
 
   console.log(
     `Total account value: ${pipToDecimal(
-      await exchange.loadTotalAccountValue(
-        wallet,
-        indexPrices.map(indexPriceToArgumentStruct),
-      ),
+      await exchange.loadTotalAccountValueFromIndexPrices(wallet),
     )}`,
   );
   console.log(
@@ -627,17 +576,13 @@ export async function logWalletBalances(
   );
   console.log(
     `Initial margin requirement: ${pipToDecimal(
-      await exchange.loadTotalInitialMarginRequirement(
-        wallet,
-        indexPrices.map(indexPriceToArgumentStruct),
-      ),
+      await exchange.loadTotalInitialMarginRequirementFromIndexPrices(wallet),
     )}`,
   );
   console.log(
     `Maintenance margin requirement: ${pipToDecimal(
-      await exchange.loadTotalMaintenanceMarginRequirement(
+      await exchange.loadTotalMaintenanceMarginRequirementFromIndexPrices(
         wallet,
-        indexPrices.map(indexPriceToArgumentStruct),
       ),
     )}`,
   );

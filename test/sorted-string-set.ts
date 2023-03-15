@@ -1,14 +1,16 @@
 import BigNumber from 'bignumber.js';
-import { ethers } from 'hardhat';
+import { ethers, network } from 'hardhat';
 
+import { compareMarketSymbols } from '../lib';
 import { expect } from './helpers';
 import type { SortedStringSetMock } from '../typechain-types';
-import { compareMarketSymbols } from '../lib';
 
 describe('SortedStringSet', function () {
   let sortedStringSetMock: SortedStringSetMock;
 
   before(async () => {
+    await network.provider.send('hardhat_reset');
+
     const SortedStringSetMockFactory = await ethers.getContractFactory(
       'SortedStringSetMock',
     );

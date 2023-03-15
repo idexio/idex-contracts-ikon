@@ -1,6 +1,6 @@
-import { ethers } from 'hardhat';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
 import type { Exchange_v4, USDC } from '../typechain-types';
 import { IndexPrice } from '../lib';
@@ -10,7 +10,6 @@ import {
   executeTrade,
   expect,
   fundWallets,
-  quoteAssetDecimals,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -24,6 +23,10 @@ describe('Exchange', function () {
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -98,28 +101,77 @@ describe('Exchange', function () {
 
   describe('withdrawExit', function () {
     it('should work for exited wallet', async function () {
-      // Deposit additional quote to allow for EF exit withdrawal
-      const depositQuantity = ethers.utils.parseUnits(
-        '100000.0',
-        quoteAssetDecimals,
-      );
-      await usdc
-        .connect(ownerWallet)
-        .approve(exchange.address, depositQuantity);
-      await (
-        await exchange
-          .connect(ownerWallet)
-          .deposit(depositQuantity, ethers.constants.AddressZero)
-      ).wait();
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader1Wallet.address,
+          )
+        ).toString(),
+      ).to.not.equal('0');
 
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);
+
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader1Wallet.address,
+          )
+        ).toString(),
+      ).to.equal('0');
+
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader2Wallet.address,
+          )
+        ).toString(),
+      ).to.not.equal('0');
+
+      await exchange.connect(trader2Wallet).exitWallet();
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader2Wallet.address,
+          )
+        ).toString(),
+      ).to.equal('0');
+
       // Subsequent calls to withdraw exit perform a zero transfer
       await exchange.withdrawExit(trader1Wallet.address);
+      await exchange.withdrawExit(trader2Wallet.address);
+    });
 
+    it('should work for exited wallet', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      // Expire EF withdraw delay
       await mine(300000, { interval: 0 });
 
+      // Deposit additional quote to allow for EF exit withdrawal
+      await fundWallets([ownerWallet], exchange, usdc, '100000.0');
+
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            exitFundWallet.address,
+          )
+        ).toString(),
+      ).to.not.equal('0');
+
       await exchange.withdrawExit(exitFundWallet.address);
+
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            exitFundWallet.address,
+          )
+        ).toString(),
+      ).to.equal('0');
+
       // Subsequent calls to withdraw exit perform a zero transfer
       await exchange.withdrawExit(exitFundWallet.address);
     });

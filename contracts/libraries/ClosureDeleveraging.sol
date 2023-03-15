@@ -74,7 +74,7 @@ library ClosureDeleveraging {
     // whereas IF closure cannot
     if (deleverageType == DeleverageType.ExitFundClosure) {
       return
-        ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+        ExitFund.getExitFundPositionOpenedAtBlockNumber(
           exitFundPositionOpenedAtBlockNumber,
           exitFundWallet,
           balanceTracking,
