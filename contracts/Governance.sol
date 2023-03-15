@@ -469,7 +469,7 @@ contract Governance is Owned {
     );
     require(
       exchange.loadBaseAssetSymbolsWithOpenPositionsByWallet(newInsuranceFundWallet).length == 0,
-      "Current IF cannot have open positions"
+      "New IF cannot have open positions"
     );
 
     exchange.setInsuranceFundWallet(newInsuranceFundWallet);

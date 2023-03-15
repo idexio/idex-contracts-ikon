@@ -515,16 +515,25 @@ describe('Exchange', function () {
       await fundingMultiplierMock.publishFundingMultiplier(
         decimalToPips(getFundingRate(1)),
       );
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(2)),
+      );
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+
       await expect(
         fundingMultiplierMock.loadAggregateMultiplier(
           earliestTimestampInMs,
-          earliestTimestampInMs + fundingPeriodLengthInMs * 4,
-          earliestTimestampInMs + fundingPeriodLengthInMs * 4,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 9,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 9,
         ),
       ).to.eventually.equal(
         decimalToPips(
           new BigNumber(getFundingRate(0))
             .plus(new BigNumber(getFundingRate(1)))
+            .plus(new BigNumber(getFundingRate(2)))
             .toString(),
         ),
       );
