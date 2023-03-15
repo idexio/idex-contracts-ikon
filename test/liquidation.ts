@@ -1,8 +1,14 @@
+import BigNumber from 'bignumber.js';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
-import type { Exchange_v4, Governance, USDC } from '../typechain-types';
+import type {
+  Exchange_v4,
+  Governance,
+  LiquidationValidationsMock,
+  USDC,
+} from '../typechain-types';
 import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
 import {
   baseAssetSymbol,
@@ -70,6 +76,40 @@ describe('Exchange', function () {
       trader1Wallet,
       trader2Wallet,
     );
+  });
+
+  describe('calculateLiquidationQuoteQuantityToClosePositions', async function () {
+    let liquidationValidationsMock: LiquidationValidationsMock;
+
+    beforeEach(async () => {
+      liquidationValidationsMock = await (
+        await ethers.getContractFactory('LiquidationValidationsMock')
+      ).deploy();
+    });
+
+    it('should revert if result overflows int64', async function () {
+      await expect(
+        liquidationValidationsMock.calculateLiquidationQuoteQuantityToClosePositions(
+          new BigNumber(2).pow(63).minus(1).toString(),
+          '3000000',
+          new BigNumber(2).pow(63).minus(1).toString(),
+          '10000000',
+          '3000000',
+        ),
+      ).to.eventually.be.rejectedWith(/pip quantity overflows int64/i);
+    });
+
+    it('should revert if result underflows int64', async function () {
+      await expect(
+        liquidationValidationsMock.calculateLiquidationQuoteQuantityToClosePositions(
+          new BigNumber(2).pow(63).minus(1).toString(),
+          '3000000',
+          new BigNumber(2).pow(63).negated().toString(),
+          '10000000',
+          '3000000',
+        ),
+      ).to.eventually.be.rejectedWith(/pip quantity underflows int64/i);
+    });
   });
 
   describe('liquidatePositionBelowMinimum', async function () {

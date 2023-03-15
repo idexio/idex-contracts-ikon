@@ -26,7 +26,7 @@ library LiquidationValidations {
     // However, quote quantity should never be never worse than the bankruptcy price. For long positions, quote is
     // positive so at a better price quote is further from zero (receive more); for short positions, quote is negative
     // so at a better price is closer to zero (give less)
-    uint64 quoteQuantityToLiquidate = _calculateLiquidationQuoteQuantityToClosePositions(
+    uint64 quoteQuantityToLiquidate = calculateLiquidationQuoteQuantityToClosePositions(
       indexPrice,
       maintenanceMarginFraction,
       positionSize,
@@ -37,6 +37,33 @@ library LiquidationValidations {
     quoteQuantity = positionSize < 0
       ? Math.min(quoteQuantity, quoteQuantityToLiquidate)
       : Math.max(quoteQuantity, quoteQuantityToLiquidate);
+  }
+
+  /**
+   * @dev Calculates quote quantity needed to close position at bankruptcy price
+   */
+  function calculateLiquidationQuoteQuantityToClosePositions(
+    uint64 indexPrice,
+    uint64 maintenanceMarginFraction,
+    int64 positionSize,
+    int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement
+  ) internal pure returns (uint64) {
+    int256 quoteQuantityInDoublePips = int256(positionSize) * int64(indexPrice);
+
+    int256 quotePenaltyInDoublePips = ((positionSize < 0 ? int256(1) : int256(-1)) *
+      quoteQuantityInDoublePips *
+      int64(maintenanceMarginFraction) *
+      totalAccountValue) /
+      int64(totalMaintenanceMarginRequirement) /
+      int64(Constants.PIP_PRICE_MULTIPLIER);
+
+    int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
+      (int64(Constants.PIP_PRICE_MULTIPLIER));
+    require(quoteQuantity <= type(int64).max, "Pip quantity overflows int64");
+    require(quoteQuantity >= type(int64).min, "Pip quantity underflows int64");
+
+    return Math.abs(int64(quoteQuantity));
   }
 
   function validateDeactivatedMarketLiquidationQuoteQuantity(
@@ -68,7 +95,7 @@ library LiquidationValidations {
     uint64 expectedLiquidationQuoteQuantity;
     if (totalAccountValue < 0) {
       // Use bankruptcy price for negative total account value
-      expectedLiquidationQuoteQuantity = _calculateLiquidationQuoteQuantityToClosePositions(
+      expectedLiquidationQuoteQuantity = calculateLiquidationQuoteQuantityToClosePositions(
         indexPrice,
         maintenanceMarginFraction,
         positionSize,
@@ -143,7 +170,7 @@ library LiquidationValidations {
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
-    uint64 expectedLiquidationQuoteQuantity = _calculateLiquidationQuoteQuantityToClosePositions(
+    uint64 expectedLiquidationQuoteQuantity = calculateLiquidationQuoteQuantityToClosePositions(
       indexPrice,
       maintenanceMarginFraction,
       positionSize,
@@ -157,34 +184,5 @@ library LiquidationValidations {
         expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
       "Invalid liquidation quote quantity"
     );
-  }
-
-  // Private //
-
-  /**
-   * @dev Calculates quote quantity needed to close position at bankruptcy price
-   */
-  function _calculateLiquidationQuoteQuantityToClosePositions(
-    uint64 indexPrice,
-    uint64 maintenanceMarginFraction,
-    int64 positionSize,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
-  ) private pure returns (uint64) {
-    int256 quoteQuantityInDoublePips = int256(positionSize) * int64(indexPrice);
-
-    int256 quotePenaltyInDoublePips = ((positionSize < 0 ? int256(1) : int256(-1)) *
-      quoteQuantityInDoublePips *
-      int64(maintenanceMarginFraction) *
-      totalAccountValue) /
-      int64(totalMaintenanceMarginRequirement) /
-      int64(Constants.PIP_PRICE_MULTIPLIER);
-
-    int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
-      (int64(Constants.PIP_PRICE_MULTIPLIER));
-    require(quoteQuantity <= type(int64).max, "Pip quantity overflows int64");
-    require(quoteQuantity >= type(int64).min, "Pip quantity underflows int64");
-
-    return Math.abs(int64(quoteQuantity));
   }
 }

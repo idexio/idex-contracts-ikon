@@ -5,8 +5,12 @@ import { ethers, network } from 'hardhat';
 
 import {
   baseAssetSymbol,
+  bootstrapLiquidatedWallet,
+  buildIndexPrice,
   deployAndAssociateContracts,
+  executeTrade,
   fieldUpgradeDelayInBlocks,
+  fundWallets,
 } from './helpers';
 import type {
   Custodian,
@@ -19,7 +23,10 @@ import type {
 
 describe('Governance', function () {
   let custodian: Custodian;
+  let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
+  let indexPriceServiceWallet: SignerWithAddress;
+  let insuranceFundWallet: SignerWithAddress;
   let governance: Governance;
   let ownerWallet: SignerWithAddress;
   let usdc: USDC;
@@ -31,14 +38,10 @@ describe('Governance', function () {
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
     ownerWallet = wallets[0];
-    const [
-      ,
-      dispatcherWallet,
-      exitFundWallet,
-      feeWallet,
-      indexPriceServiceWallet,
-      insuranceFundWallet,
-    ] = wallets;
+    dispatcherWallet = wallets[1];
+    indexPriceServiceWallet = wallets[4];
+    insuranceFundWallet = wallets[5];
+    const [, , exitFundWallet, feeWallet] = wallets;
 
     const results = await deployAndAssociateContracts(
       ownerWallet,
@@ -402,6 +405,14 @@ describe('Governance', function () {
         ).to.eventually.be.rejectedWith(/invalid IF wallet address/i);
       });
 
+      it('should revert if new IF is same as current', async () => {
+        await expect(
+          governance.initiateInsuranceFundWalletUpgrade(
+            insuranceFundWallet.address,
+          ),
+        ).to.eventually.be.rejectedWith(/must be different from current/i);
+      });
+
       it('should revert when upgrade already in progress', async () => {
         await governance.initiateInsuranceFundWalletUpgrade(
           newInsuranceFundWallet.address,
@@ -459,9 +470,13 @@ describe('Governance', function () {
     });
 
     describe('finalizeInsuranceFundWalletUpgrade', () => {
+      let trader1Wallet: SignerWithAddress;
+      let trader2Wallet: SignerWithAddress;
       let newInsuranceFundWallet: SignerWithAddress;
 
       before(async () => {
+        trader1Wallet = (await ethers.getSigners())[8];
+        trader2Wallet = (await ethers.getSigners())[9];
         newInsuranceFundWallet = (await ethers.getSigners())[10];
       });
 
@@ -518,6 +533,47 @@ describe('Governance', function () {
             newInsuranceFundWallet.address,
           ),
         ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
+      });
+
+      it('should revert when current IF has open position', async () => {
+        const results = await bootstrapLiquidatedWallet();
+
+        await results.governance.initiateInsuranceFundWalletUpgrade(
+          newInsuranceFundWallet.address,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await expect(
+          results.governance.finalizeInsuranceFundWalletUpgrade(
+            newInsuranceFundWallet.address,
+          ),
+        ).to.eventually.be.rejectedWith(
+          /current IF cannot have open positions/i,
+        );
+      });
+
+      it('should revert when new IF has open position', async () => {
+        const trader1Wallet = (await ethers.getSigners())[6];
+        const trader2Wallet = (await ethers.getSigners())[7];
+        await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+        await executeTrade(
+          exchange,
+          dispatcherWallet,
+          await buildIndexPrice(indexPriceServiceWallet),
+          trader1Wallet,
+          trader2Wallet,
+        );
+
+        await governance.initiateInsuranceFundWalletUpgrade(
+          trader1Wallet.address,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await expect(
+          governance.finalizeInsuranceFundWalletUpgrade(trader1Wallet.address),
+        ).to.eventually.be.rejectedWith(/new IF cannot have open positions/i);
       });
 
       it('should revert when not called by admin or dispatcher', async () => {

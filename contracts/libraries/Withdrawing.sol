@@ -166,23 +166,9 @@ library Withdrawing {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-
-      // Rounding errors can lead to a slightly negative result instead of zero - within the tolerance, coerce to zero
-      // in these cases to allow wallet positions to be closed out
-      if (
-        walletQuoteQuantityToWithdraw < 0 &&
-        Math.abs(walletQuoteQuantityToWithdraw) <= Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
-      ) {
-        walletQuoteQuantityToWithdraw = 0;
-      }
     }
 
-    // The available quote for exit can validly be negative for the EF wallet. For all other wallets, the exit quote
-    // calculations are designed such that the result quantity to withdraw is never negative; however we still perform
-    // this check in case of unforeseen bugs or rounding errors. In either case we should revert on negative
-    // A zero available quantity would not transfer out any quote but would still close all positions and quote
-    // balance, so we do not revert on zero
-    require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
+    walletQuoteQuantityToWithdraw = validateExitQuoteQuantityAndCoerceIfNeeded(walletQuoteQuantityToWithdraw);
 
     arguments.custodian.withdraw(
       arguments.wallet,
@@ -200,6 +186,28 @@ library Withdrawing {
       // Quote quantity will never be negative per design of exit quote calculations
       uint64(walletQuoteQuantityToWithdraw)
     );
+  }
+
+  function validateExitQuoteQuantityAndCoerceIfNeeded(
+    int64 walletQuoteQuantityToWithdraw
+  ) internal pure returns (int64) {
+    // Rounding errors can lead to a slightly negative result instead of zero - within the tolerance, coerce to zero
+    // in these cases to allow wallet positions to be closed out
+    if (
+      walletQuoteQuantityToWithdraw < 0 &&
+      Math.abs(walletQuoteQuantityToWithdraw) <= Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
+    ) {
+      return 0;
+    }
+
+    // The available quote for exit can validly be negative for the EF wallet. For all other wallets, the exit quote
+    // calculations are designed such that the result quantity to withdraw is never negative; however we still perform
+    // this check in case of unforeseen bugs or rounding errors. In either case we should revert on negative
+    // A zero available quantity would not transfer out any quote but would still close all positions and quote
+    // balance, so we do not revert on zero
+    require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
+
+    return walletQuoteQuantityToWithdraw;
   }
 
   function _updatePositionsForWalletExit(

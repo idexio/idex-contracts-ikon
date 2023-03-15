@@ -67,24 +67,24 @@ export async function bootstrapLiquidatedWallet() {
     dispatcherWallet,
     exitFundWallet,
     feeWallet,
-    insuranceWallet,
+    insuranceFundWallet,
     indexPriceServiceWallet,
     trader1Wallet,
     trader2Wallet,
   ] = await ethers.getSigners();
-  const { exchange, usdc } = await deployAndAssociateContracts(
+  const { exchange, governance, usdc } = await deployAndAssociateContracts(
     ownerWallet,
     dispatcherWallet,
     exitFundWallet,
     feeWallet,
     indexPriceServiceWallet,
-    insuranceWallet,
+    insuranceFundWallet,
   );
 
   await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
 
   await fundWallets(
-    [trader1Wallet, trader2Wallet, insuranceWallet],
+    [trader1Wallet, trader2Wallet, insuranceFundWallet],
     exchange,
     usdc,
   );
@@ -110,7 +110,7 @@ export async function bootstrapLiquidatedWallet() {
     .publishIndexPrices([indexPriceToArgumentStruct(liquidationIndexPrice)]);
 
   await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-    counterpartyWallet: insuranceWallet.address,
+    counterpartyWallet: insuranceFundWallet.address,
     liquidatingWallet: trader1Wallet.address,
     liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
   });
@@ -118,7 +118,9 @@ export async function bootstrapLiquidatedWallet() {
   return {
     dispatcherWallet,
     exchange,
-    insuranceWallet,
+    governance,
+    indexPriceServiceWallet,
+    insuranceFundWallet,
     liquidationIndexPrice,
     liquidatedWallet: trader1Wallet,
     counterpartyWallet: trader2Wallet,
@@ -538,7 +540,7 @@ export async function loadFundingMultipliers(
 export async function logWalletBalances(
   wallet: string,
   exchange: Contract,
-  indexPrices: IndexPrice[],
+  baseAssetSymbols: string[],
 ) {
   console.log(
     `USD balance: ${pipToDecimal(
@@ -546,20 +548,16 @@ export async function logWalletBalances(
     )}`,
   );
 
-  for (const indexPrice of indexPrices) {
+  for (const baseAssetSymbol of baseAssetSymbols) {
     console.log(
-      `${indexPrice.baseAssetSymbol} balance:  ${pipToDecimal(
-        await exchange.loadBalanceBySymbol(wallet, indexPrice.baseAssetSymbol),
+      `${baseAssetSymbol} balance:  ${pipToDecimal(
+        await exchange.loadBalanceBySymbol(wallet, baseAssetSymbol),
       )}`,
     );
     console.log(
-      `${indexPrice.baseAssetSymbol} cost basis: ${pipToDecimal(
-        (
-          await exchange.loadBalanceStructBySymbol(
-            wallet,
-            indexPrice.baseAssetSymbol,
-          )
-        ).costBasis,
+      `${baseAssetSymbol} cost basis: ${pipToDecimal(
+        (await exchange.loadBalanceStructBySymbol(wallet, baseAssetSymbol))
+          .costBasis,
       )}`,
     );
   }

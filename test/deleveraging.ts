@@ -156,7 +156,7 @@ describe('Exchange', function () {
           overrides,
           insuranceFundWallet.address,
         );
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(
@@ -368,20 +368,20 @@ describe('Exchange', function () {
 
   describe('deleverageInsuranceFundClosure', async function () {
     let counterpartyWallet: SignerWithAddress;
-    let insuranceWallet: SignerWithAddress;
+    let insuranceFundWallet: SignerWithAddress;
 
     beforeEach(async () => {
       const results = await bootstrapLiquidatedWallet();
       counterpartyWallet = results.counterpartyWallet;
       exchange = results.exchange;
-      insuranceWallet = results.insuranceWallet;
+      insuranceFundWallet = results.insuranceFundWallet;
     });
 
     it('should work for valid wallet', async function () {
       await exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
         baseAssetSymbol,
         counterpartyWallet: counterpartyWallet.address,
-        liquidatingWallet: insuranceWallet.address,
+        liquidatingWallet: insuranceFundWallet.address,
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('21980.00000000'),
       });
@@ -392,7 +392,7 @@ describe('Exchange', function () {
         exchange.deleverageInsuranceFundClosure({
           baseAssetSymbol,
           counterpartyWallet: counterpartyWallet.address,
-          liquidatingWallet: insuranceWallet.address,
+          liquidatingWallet: insuranceFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -404,7 +404,7 @@ describe('Exchange', function () {
         exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
           baseAssetSymbol: 'XYZ',
           counterpartyWallet: counterpartyWallet.address,
-          liquidatingWallet: insuranceWallet.address,
+          liquidatingWallet: insuranceFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -415,7 +415,7 @@ describe('Exchange', function () {
       await exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
         baseAssetSymbol,
         counterpartyWallet: counterpartyWallet.address,
-        liquidatingWallet: insuranceWallet.address,
+        liquidatingWallet: insuranceFundWallet.address,
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('21980.00000000'),
       }),
@@ -423,7 +423,7 @@ describe('Exchange', function () {
           exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
             baseAssetSymbol,
             counterpartyWallet: counterpartyWallet.address,
-            liquidatingWallet: insuranceWallet.address,
+            liquidatingWallet: insuranceFundWallet.address,
             liquidationBaseQuantity: decimalToPips('10.00000000'),
             liquidationQuoteQuantity: decimalToPips('21980.00000000'),
           }),
@@ -491,7 +491,7 @@ describe('Exchange', function () {
         exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
           baseAssetSymbol,
           counterpartyWallet: counterpartyWallet.address,
-          liquidatingWallet: insuranceWallet.address,
+          liquidatingWallet: insuranceFundWallet.address,
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20080.00000000'),
         }),

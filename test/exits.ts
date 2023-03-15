@@ -2,7 +2,11 @@ import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
-import type { Exchange_v4, USDC } from '../typechain-types';
+import type {
+  Exchange_v4,
+  USDC,
+  WithdrawExitValidationsMock,
+} from '../typechain-types';
 import { IndexPrice } from '../lib';
 import {
   buildIndexPrice,
@@ -182,6 +186,58 @@ describe('Exchange', function () {
       await expect(
         exchange.withdrawExit(trader1Wallet.address),
       ).to.eventually.be.rejectedWith(/wallet exit not finalized/i);
+    });
+
+    describe('validateExitQuoteQuantityAndCoerceIfNeeded', async function () {
+      let withdrawExitValidationsMock: WithdrawExitValidationsMock;
+
+      beforeEach(async () => {
+        withdrawExitValidationsMock = await (
+          await ethers.getContractFactory('WithdrawExitValidationsMock')
+        ).deploy();
+      });
+
+      it('should coerce negative values within tolerance', async function () {
+        expect(
+          (
+            await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              -5,
+            )
+          ).toString(),
+        ).to.equal('0');
+        expect(
+          (
+            await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              -9999,
+            )
+          ).toString(),
+        ).to.equal('0');
+      });
+
+      it('should not coerce positive values', async function () {
+        expect(
+          (
+            await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              5,
+            )
+          ).toString(),
+        ).to.equal('5');
+        expect(
+          (
+            await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              1000000,
+            )
+          ).toString(),
+        ).to.equal('1000000');
+      });
+
+      it('should revert for negative values outside tolerance', async function () {
+        await expect(
+          withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+            -1000000,
+          ),
+        ).to.eventually.be.rejectedWith(/negative quote after exit/i);
+      });
     });
   });
 

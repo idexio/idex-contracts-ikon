@@ -58,6 +58,7 @@ interface ICustodian {
  *
  * @dev Used for lazy balance migrations from old to new Exchange after upgrade
  */
+// TODO Add natspec for all functions
 interface IExchange {
   /**
    * @notice Load a wallet's balance by asset address, in pips
@@ -76,6 +77,8 @@ interface IExchange {
     address wallet,
     string calldata assetSymbol
   ) external view returns (Balance memory);
+
+  function loadBaseAssetSymbolsWithOpenPositionsByWallet(address wallet) external view returns (string[] memory);
 
   /**
    * @notice Load the address of the Custodian contract
@@ -103,6 +106,8 @@ interface IExchange {
   function depositIndex() external view returns (uint64);
 
   function dispatcherWallet() external view returns (address);
+
+  function insuranceFundWallet() external view returns (address);
 
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) external;
 
