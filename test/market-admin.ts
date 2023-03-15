@@ -134,6 +134,16 @@ describe('Exchange', function () {
       );
     });
 
+    it('should revert for invalid baseline position size', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      marketStruct.overridableFields.baselinePositionSize = new BigNumber(2)
+        .pow(63)
+        .toString();
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(/baseline position size exceeds max/i);
+    });
+
     it('should revert for invalid maximum position size', async () => {
       marketStruct.baseAssetSymbol = 'XYZ';
       marketStruct.overridableFields.maximumPositionSize = new BigNumber(2)

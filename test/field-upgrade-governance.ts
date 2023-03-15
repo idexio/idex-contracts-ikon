@@ -470,13 +470,9 @@ describe('Governance', function () {
     });
 
     describe('finalizeInsuranceFundWalletUpgrade', () => {
-      let trader1Wallet: SignerWithAddress;
-      let trader2Wallet: SignerWithAddress;
       let newInsuranceFundWallet: SignerWithAddress;
 
       before(async () => {
-        trader1Wallet = (await ethers.getSigners())[8];
-        trader2Wallet = (await ethers.getSigners())[9];
         newInsuranceFundWallet = (await ethers.getSigners())[10];
       });
 

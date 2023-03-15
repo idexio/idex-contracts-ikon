@@ -29,7 +29,6 @@ import {
   Trade,
   uuidToHexString,
 } from '../lib';
-
 import type { Exchange_v4, Governance, USDC } from '../typechain-types';
 
 describe('Exchange', function () {
@@ -91,23 +90,9 @@ describe('Exchange', function () {
         ),
       ]);
 
-    sellOrder = {
-      signatureHashVersion,
-      nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
-      wallet: trader1Wallet.address,
-      market: `${baseAssetSymbol}-USD`,
-      type: OrderType.Limit,
-      side: OrderSide.Sell,
-      quantity: '10.00000000',
-      price: '2000.00000000',
-    };
-    sellOrderSignature = await trader1Wallet.signMessage(
-      ethers.utils.arrayify(getOrderHash(sellOrder)),
-    );
-
     buyOrder = {
       signatureHashVersion,
-      nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
+      nonce: uuidv1(),
       wallet: trader2Wallet.address,
       market: `${baseAssetSymbol}-USD`,
       type: OrderType.Limit,
@@ -117,6 +102,20 @@ describe('Exchange', function () {
     };
     buyOrderSignature = await trader2Wallet.signMessage(
       ethers.utils.arrayify(getOrderHash(buyOrder)),
+    );
+
+    sellOrder = {
+      signatureHashVersion,
+      nonce: uuidv1(),
+      wallet: trader1Wallet.address,
+      market: `${baseAssetSymbol}-USD`,
+      type: OrderType.Limit,
+      side: OrderSide.Sell,
+      quantity: '10.00000000',
+      price: '2000.00000000',
+    };
+    sellOrderSignature = await trader1Wallet.signMessage(
+      ethers.utils.arrayify(getOrderHash(sellOrder)),
     );
 
     trade = {

@@ -74,6 +74,10 @@ library Validations {
       overridableFields.incrementalInitialMarginFraction >= _MIN_INCREMENTAL_INITIAL_MARGIN_FRACTION,
       "Incremental initial margin fraction below min"
     );
+    require(
+      overridableFields.baselinePositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,
+      "Baseline position size exceeds max"
+    );
     require(overridableFields.incrementalPositionSize > 0, "Incremental position size cannot be zero");
     require(
       overridableFields.maximumPositionSize <= Constants.MAX_MAXIMUM_POSITION_SIZE,
