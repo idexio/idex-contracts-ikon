@@ -10,8 +10,6 @@ import { SortedStringSet } from "./SortedStringSet.sol";
 import { Time } from "./Time.sol";
 import { Balance, FundingMultiplierQuartet, Market } from "./Structs.sol";
 
-import "hardhat/console.sol";
-
 library Funding {
   using BalanceTracking for BalanceTracking.Storage;
   using FundingMultiplierQuartetHelper for FundingMultiplierQuartet[];

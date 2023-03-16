@@ -44,6 +44,9 @@ const config: HardhatUserConfig = {
       // viaIR: true,
     },
   },
+  mocha: {
+    timeout: 100000000,
+  },
   networks: {
     ropsten: {
       url: process.env.ROPSTEN_URL || '',

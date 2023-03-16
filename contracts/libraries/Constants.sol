@@ -7,14 +7,14 @@ pragma solidity 0.8.18;
  */
 
 library Constants {
+  uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
+
+  string public constant EMPTY_DECIMAL_STRING = "0.00000000";
+
   bytes public constant ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE =
     abi.encodePacked(
       "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
     );
-
-  uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
-
-  string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
   // 1 week at 3s/block
   uint256 public constant EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;

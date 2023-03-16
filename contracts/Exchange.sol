@@ -397,6 +397,8 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets bridge adapter contract addresses whitelisted for withdrawals
+   *
+   * @param newBridgeAdapters An array of bridge adapter contract addresses
    */
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) public onlyGovernance {
     bridgeAdapters = newBridgeAdapters;
@@ -404,6 +406,8 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets IPS wallet addresses whitelisted to sign Index Price payloads
+   *
+   * @param newIndexPriceServiceWallets An array of IPS wallet addresses
    */
   function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) public onlyGovernance {
     indexPriceServiceWallets = newIndexPriceServiceWallets;
@@ -411,25 +415,11 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets IF wallet address
+   *
+   * @param newInsuranceFundWallet The new IF wallet address
    */
   function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
     insuranceFundWallet = newInsuranceFundWallet;
-  }
-
-  /**
-   * @notice Load a wallet's balance-tracking struct by asset symbol
-   *
-   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
-   * @param assetSymbol The asset symbol to load the wallet's balance for
-   *
-   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently in an open position for or
-   * deposited by `wallet`
-   */
-  function loadBalanceStructBySymbol(
-    address wallet,
-    string memory assetSymbol
-  ) public view override returns (Balance memory) {
-    return _balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, assetSymbol);
   }
 
   /**
@@ -454,6 +444,22 @@ contract Exchange_v4 is IExchange, Owned {
         marketsByBaseAssetSymbol
       );
     }
+  }
+
+  /**
+   * @notice Load a wallet's balance-tracking struct by asset symbol
+   *
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetSymbol The asset symbol to load the wallet's balance for
+   *
+   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently in an open position for or
+   * deposited by `wallet`
+   */
+  function loadBalanceStructBySymbol(
+    address wallet,
+    string memory assetSymbol
+  ) public view override returns (Balance memory) {
+    return _balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, assetSymbol);
   }
 
   /**
@@ -883,20 +889,24 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Set overridable market parameters for a specific wallet or as new market defaults
+   *
+   * @param baseAssetSymbol The base asset symbol for the market
+   * @param overridableFields New values for overridable fields
+   * @param wallet The wallet to apply overrides to. If zero, overrides apply to entire market
    */
   function setMarketOverrides(
     string memory baseAssetSymbol,
-    OverridableMarketFields memory marketOverrides,
+    OverridableMarketFields memory overridableFields,
     address wallet
   ) public onlyGovernance {
     require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
 
     if (wallet == address(0x0)) {
-      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
+      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = overridableFields;
     } else {
       _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
         exists: true,
-        overridableFields: marketOverrides
+        overridableFields: overridableFields
       });
     }
   }

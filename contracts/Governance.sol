@@ -482,6 +482,10 @@ contract Governance is Owned {
    * @notice Initiates market override upgrade process for `wallet`. If `wallet` is zero address, then the overrides
    * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
    * process can be finalized with `finalizeMarketOverridesUpgrade`
+   *
+   * @param baseAssetSymbol The base asset symbol for the market
+   * @param overridableFields New values for overridable fields
+   * @param wallet The wallet to apply overrides to. If zero, overrides apply to entire market
    */
   function initiateMarketOverridesUpgrade(
     string memory baseAssetSymbol,

@@ -201,6 +201,7 @@ describe('Exchange', function () {
         expect(
           (
             await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              false,
               -5,
             )
           ).toString(),
@@ -208,6 +209,7 @@ describe('Exchange', function () {
         expect(
           (
             await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              false,
               -9999,
             )
           ).toString(),
@@ -218,6 +220,7 @@ describe('Exchange', function () {
         expect(
           (
             await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              false,
               5,
             )
           ).toString(),
@@ -225,6 +228,7 @@ describe('Exchange', function () {
         expect(
           (
             await withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+              false,
               1000000,
             )
           ).toString(),
@@ -234,7 +238,17 @@ describe('Exchange', function () {
       it('should revert for negative values outside tolerance', async function () {
         await expect(
           withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+            false,
             -1000000,
+          ),
+        ).to.eventually.be.rejectedWith(/negative quote after exit/i);
+      });
+
+      it('should revert for negative values inside tolerance for EF', async function () {
+        await expect(
+          withdrawExitValidationsMock.validateExitQuoteQuantityAndCoerceIfNeeded(
+            true,
+            -1,
           ),
         ).to.eventually.be.rejectedWith(/negative quote after exit/i);
       });

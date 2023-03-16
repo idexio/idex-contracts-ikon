@@ -147,9 +147,10 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    int64 walletQuoteQuantityToWithdraw;
+    bool isExitFundWallet = arguments.wallet == arguments.exitFundWallet;
 
-    if (arguments.wallet == arguments.exitFundWallet) {
+    int64 walletQuoteQuantityToWithdraw;
+    if (isExitFundWallet) {
       // Do not require prior exit for EF as it is already subject to a specific EF withdrawal delay
       _validateExitFundWithdrawDelayElapsed(exitFundPositionOpenedAtBlockNumber);
 
@@ -168,7 +169,10 @@ library Withdrawing {
       );
     }
 
-    walletQuoteQuantityToWithdraw = validateExitQuoteQuantityAndCoerceIfNeeded(walletQuoteQuantityToWithdraw);
+    walletQuoteQuantityToWithdraw = validateExitQuoteQuantityAndCoerceIfNeeded(
+      isExitFundWallet,
+      walletQuoteQuantityToWithdraw
+    );
 
     arguments.custodian.withdraw(
       arguments.wallet,
@@ -189,11 +193,13 @@ library Withdrawing {
   }
 
   function validateExitQuoteQuantityAndCoerceIfNeeded(
+    bool isExitFundWallet,
     int64 walletQuoteQuantityToWithdraw
   ) internal pure returns (int64) {
     // Rounding errors can lead to a slightly negative result instead of zero - within the tolerance, coerce to zero
     // in these cases to allow wallet positions to be closed out
     if (
+      !isExitFundWallet &&
       walletQuoteQuantityToWithdraw < 0 &&
       Math.abs(walletQuoteQuantityToWithdraw) <= Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
     ) {

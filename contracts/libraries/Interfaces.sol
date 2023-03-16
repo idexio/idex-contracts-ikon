@@ -55,29 +55,40 @@ interface ICustodian {
 
 /**
  * @notice Interface to Exchange contract
- *
- * @dev Used for lazy balance migrations from old to new Exchange after upgrade
  */
-// TODO Add natspec for all functions
 interface IExchange {
   /**
-   * @notice Load a wallet's balance by asset address, in pips
+   * @notice Load a wallet's balance-tracking struct by asset symbol
    *
    * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
    * @param assetSymbol The asset symbol to load the wallet's balance for
    *
-   * @return The quantity denominated in pips of asset at `assetSymbol` currently deposited by `wallet`
+   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently in an open position for or
+   * deposited by `wallet`
    */
   function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
 
   /**
-   * @notice Load a wallet's balance-tracking struct by asset symbol
+   * @notice Load a wallet's balance by asset symbol, in pips
+   *
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetSymbol The asset symbol to load the wallet's balance for
+   *
+   * @return balance The quantity denominated in pips of asset at `assetSymbol` currently in an open position or
+   * quote balance by `wallet` if base or quote respectively. Result may be negative
    */
   function loadBalanceStructBySymbol(
     address wallet,
     string calldata assetSymbol
   ) external view returns (Balance memory);
 
+  /**
+   * @notice Loads a list of all currently open positions for a wallet
+   *
+   * @param wallet The wallet address to load open positions for for. Can be different from `msg.sender`
+   *
+   * @return A list of base asset symbols corresponding to markets in which the wallet currently has an open position
+   */
   function loadBaseAssetSymbolsWithOpenPositionsByWallet(address wallet) external view returns (string[] memory);
 
   /**
@@ -94,30 +105,55 @@ interface IExchange {
    * the token contract for at least this quantity
    * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
    */
-
   function deposit(uint256 quantityInAssetUnits, address destinationWallet) external;
 
   /**
-   * @notice Load the number of deposits made to the contract, for use when upgrading to a new
-   * Exchange via Governance
+   * @notice Load the number of deposits made to the contract, for use when upgrading to a new Exchange via Governance
    *
    * @return The number of deposits successfully made to the Exchange
    */
   function depositIndex() external view returns (uint64);
 
+  /**
+   * @notice Load the address of the currently whitelisted Dispatcher wallet
+   *
+   * @return The address of the Custodian contract
+   */
   function dispatcherWallet() external view returns (address);
 
   function insuranceFundWallet() external view returns (address);
 
+  /**
+   * @notice Sets bridge adapter contract addresses whitelisted for withdrawals
+   *
+   * @param newBridgeAdapters An array of bridge adapter contract addresses
+   */
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) external;
 
+  /**
+   * @notice Sets IPS wallet addresses whitelisted to sign Index Price payloads
+   *
+   * @param newIndexPriceServiceWallets An array of IPS wallet addresses
+   */
   function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) external;
 
+  /**
+   * @notice Sets IF wallet address
+   *
+   * @param newInsuranceFundWallet The new IF wallet address
+   */
   function setInsuranceFundWallet(address newInsuranceFundWallet) external;
 
+  /**
+   * @notice Set overridable market parameters for a specific wallet or as new market defaults
+   *
+   * @param baseAssetSymbol The base asset symbol for the market
+   * @param overridableFields New values for overridable fields
+   * @param wallet The wallet to apply overrides to. If zero, overrides apply to entire market
+   */
   function setMarketOverrides(
     string memory baseAssetSymbol,
-    OverridableMarketFields memory marketOverrides,
+    OverridableMarketFields memory overridableFields,
     address wallet
   ) external;
 }

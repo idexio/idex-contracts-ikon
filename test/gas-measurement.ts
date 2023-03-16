@@ -22,7 +22,7 @@ import {
   signatureHashVersion,
   Trade,
 } from '../lib';
-import type { Exchange_v4, Governance, USDC } from '../typechain-types';
+import type { Exchange_v4, USDC } from '../typechain-types';
 import { increaseTo } from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time';
 
 describe.skip('Gas measurement', function () {
@@ -76,7 +76,7 @@ describe.skip('Gas measurement', function () {
       [trader1Wallet, trader2Wallet],
       exchange,
       results.usdc,
-      '10000.00000000',
+      '100000.00000000',
     );
 
     await exchange
@@ -149,7 +149,28 @@ describe.skip('Gas measurement', function () {
   });
 
   describe('trades', async function () {
-    it('with no outstanding funding payments', async () => {
+    it('with no outstanding funding payments (limit-market)', async () => {
+      buyOrder.type = OrderType.Market;
+      buyOrder.price = '0.00000000';
+      buyOrderSignature = await trader2Wallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      );
+
+      const result = await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+      console.log((await result.wait()).gasUsed.toString());
+    });
+
+    it('with no outstanding funding payments (limit-limit)', async () => {
       const result = await exchange
         .connect(dispatcherWallet)
         .executeTrade(
@@ -236,6 +257,28 @@ describe.skip('Gas measurement', function () {
         dispatcherWallet,
         indexPriceServiceWallet,
         1000,
+      );
+
+      const result = await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+      console.log((await result.wait()).gasUsed.toString());
+    });
+
+    it('with 6000 outstanding funding payments', async () => {
+      await publishFundingRates(
+        exchange,
+        dispatcherWallet,
+        indexPriceServiceWallet,
+        6000,
       );
 
       const result = await exchange
