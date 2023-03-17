@@ -54,19 +54,19 @@ const solidity = process.env.COVERAGE
           settings: {
             optimizer: {
               enabled: true,
-              runs: 200,
+              runs: 1000000,
             },
             viaIR: true,
           },
         },
       ],
       overrides: {
-        'contracts/libraries/Withdrawing.sol': {
+        'contracts/Exchange.sol': {
           version: SOLC_VERSION,
           settings: {
             optimizer: {
               enabled: true,
-              runs: 1000000,
+              runs: 200,
             },
             viaIR: true,
           },

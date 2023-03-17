@@ -1,6 +1,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
+import { mine, time } from '@nomicfoundation/hardhat-network-helpers';
 
 import {
   baseAssetSymbol,
@@ -27,8 +28,7 @@ import {
   signatureHashVersion,
   Trade,
 } from '../lib';
-import type { Exchange_v4, USDC } from '../typechain-types';
-import { increaseTo } from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time';
+import type { Exchange_v4, Governance, USDC } from '../typechain-types';
 import { MarketStruct } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
 
 describe.skip('Gas measurement', function () {
@@ -37,6 +37,7 @@ describe.skip('Gas measurement', function () {
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
+  let governance: Governance;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let marketStruct: MarketStruct;
@@ -75,6 +76,7 @@ describe.skip('Gas measurement', function () {
       insuranceFundWallet,
     );
     exchange = results.exchange;
+    governance = results.governance;
     usdc = results.usdc;
 
     marketStruct = {
@@ -280,7 +282,55 @@ describe.skip('Gas measurement', function () {
     });
   });
 
-  describe('liquidate in maintenance', function () {
+  describe('Liquidate below minimum', function () {
+    beforeEach(async () => {
+      const overrides = {
+        initialMarginFraction: '5000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+    });
+
+    it('for a single market', async function () {
+      await fundWallets([insuranceFundWallet], exchange, usdc);
+
+      await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
+        baseAssetSymbol,
+        liquidatingWallet: trader1Wallet.address,
+        liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+      });
+
+      const result = await exchange
+        .connect(dispatcherWallet)
+        .liquidatePositionBelowMinimum({
+          baseAssetSymbol,
+          liquidatingWallet: trader2Wallet.address,
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+        });
+      console.log((await result.wait()).gasUsed.toString());
+    });
+  });
+
+  describe('Liquidate in maintenance', function () {
     it('for a single market', async function () {
       await exchange
         .connect(dispatcherWallet)
@@ -386,7 +436,7 @@ describe.skip('Gas measurement', function () {
     });
   });
 
-  describe('withdraw', function () {
+  describe('Withdraw', function () {
     it('investigation 2', async function () {
       const baseAssetSymbols: string[] = ['XYZ1', 'XYZ2'];
       await Promise.all(
@@ -721,8 +771,8 @@ describe.skip('Gas measurement', function () {
     });
   });
 
-  describe.only('Trade', async function () {
-    it.skip('investigation', async () => {
+  describe('Trade', async function () {
+    it('investigation', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
         exchange,
@@ -801,7 +851,7 @@ describe.skip('Gas measurement', function () {
       console.log((await result!.wait()).gasUsed.toString());
     });
 
-    it.only('with no outstanding funding payments and 5 open positions (limit-limit)', async () => {
+    it('with no outstanding funding payments and 5 open positions (limit-limit)', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
         exchange,
@@ -1057,7 +1107,7 @@ async function publishFundingRates(
     const nextFundingTimestampInMs =
       startTimestampInMs + i * fundingPeriodLengthInMs;
 
-    await increaseTo(nextFundingTimestampInMs / 1000);
+    await time.increaseTo(nextFundingTimestampInMs / 1000);
 
     await exchange
       .connect(dispatcherWallet)
