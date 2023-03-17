@@ -1,4 +1,3 @@
-import type { ContractTransaction } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
@@ -388,6 +387,128 @@ describe.skip('Gas measurement', function () {
   });
 
   describe('withdraw', function () {
+    it('investigation 2', async function () {
+      const baseAssetSymbols: string[] = ['XYZ1', 'XYZ2'];
+      await Promise.all(
+        baseAssetSymbols.map((symbol) =>
+          addMarket(symbol, dispatcherWallet, exchange, marketStruct),
+        ),
+      );
+
+      for (const symbol of baseAssetSymbols) {
+        buyOrder.nonce = uuidv1();
+        buyOrder.market = `${symbol}-USD`;
+        buyOrderSignature = await trader2Wallet.signMessage(
+          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        );
+
+        sellOrder.nonce = uuidv1();
+        sellOrder.market = `${symbol}-USD`;
+        sellOrderSignature = await trader1Wallet.signMessage(
+          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        );
+
+        await exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          );
+      }
+
+      const withdrawal = {
+        signatureHashVersion,
+        nonce: uuidv1(),
+        wallet: trader1Wallet.address,
+        quantity: '1.00000000',
+        bridgeAdapter: ethers.constants.AddressZero,
+        bridgeAdapterPayload: '0x',
+      };
+      let signature = await trader1Wallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
+
+      withdrawal.nonce = uuidv1();
+      signature = await trader1Wallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      const result = await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
+      console.log((await result.wait()).gasUsed.toString());
+    });
+
+    it('investigation 1', async function () {
+      const baseAssetSymbols: string[] = ['XYZ1'];
+      await Promise.all(
+        baseAssetSymbols.map((symbol) =>
+          addMarket(symbol, dispatcherWallet, exchange, marketStruct),
+        ),
+      );
+
+      for (const symbol of baseAssetSymbols) {
+        buyOrder.nonce = uuidv1();
+        buyOrder.market = `${symbol}-USD`;
+        buyOrderSignature = await trader2Wallet.signMessage(
+          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        );
+
+        sellOrder.nonce = uuidv1();
+        sellOrder.market = `${symbol}-USD`;
+        sellOrderSignature = await trader1Wallet.signMessage(
+          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        );
+
+        await exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          );
+      }
+
+      const withdrawal = {
+        signatureHashVersion,
+        nonce: uuidv1(),
+        wallet: trader1Wallet.address,
+        quantity: '1.00000000',
+        bridgeAdapter: ethers.constants.AddressZero,
+        bridgeAdapterPayload: '0x',
+      };
+      let signature = await trader1Wallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
+
+      withdrawal.nonce = uuidv1();
+      signature = await trader1Wallet.signMessage(
+        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      );
+
+      const result = await exchange
+        .connect(dispatcherWallet)
+        .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
+      console.log((await result.wait()).gasUsed.toString());
+    });
+
     it('with no outstanding funding payments', async function () {
       const withdrawal = {
         signatureHashVersion,
@@ -417,7 +538,7 @@ describe.skip('Gas measurement', function () {
     });
   });
 
-  describe('transfer', function () {
+  describe('Transfer', function () {
     it('with no outstanding funding payments', async function () {
       const transfer = {
         signatureHashVersion,
@@ -600,8 +721,87 @@ describe.skip('Gas measurement', function () {
     });
   });
 
-  describe('trades', async function () {
-    it('with no outstanding funding payments and 5 open positions (limit-limit)', async () => {
+  describe.only('Trade', async function () {
+    it.skip('investigation', async () => {
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        exchange,
+        usdc,
+        '8500.00000000',
+      );
+
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+
+      const baseAssetSymbols = ['XYZ1'];
+      await Promise.all(
+        baseAssetSymbols.map((symbol) =>
+          addMarket(symbol, dispatcherWallet, exchange, marketStruct),
+        ),
+      );
+
+      for (const symbol of baseAssetSymbols) {
+        buyOrder.nonce = uuidv1();
+        buyOrder.market = `${symbol}-USD`;
+        buyOrderSignature = await trader2Wallet.signMessage(
+          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        );
+
+        sellOrder.nonce = uuidv1();
+        sellOrder.market = `${symbol}-USD`;
+        sellOrderSignature = await trader1Wallet.signMessage(
+          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        );
+
+        await exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          );
+      }
+
+      const trader3Wallet = (await ethers.getSigners())[10];
+      await fundWallets([trader3Wallet], exchange, usdc);
+
+      buyOrder.nonce = uuidv1();
+      buyOrder.market = `${baseAssetSymbol}-USD`;
+      buyOrder.wallet = trader3Wallet.address;
+      buyOrderSignature = await trader3Wallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      );
+
+      sellOrder.nonce = uuidv1();
+      sellOrder.market = `${baseAssetSymbol}-USD`;
+      sellOrderSignature = await trader1Wallet.signMessage(
+        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      );
+
+      const result = await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      console.log((await result!.wait()).gasUsed.toString());
+    });
+
+    it.only('with no outstanding funding payments and 5 open positions (limit-limit)', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
         exchange,
