@@ -210,9 +210,6 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) private view returns (int64, uint64) {
     // Load funding rates and index
-    FundingMultiplierQuartet[] storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
-      market.baseAssetSymbol
-    ];
     uint64 lastFundingRatePublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
       market.baseAssetSymbol
     ];
@@ -241,7 +238,7 @@ library Funding {
       int64 funding = Math.multiplyPipsByFraction(
         basePosition.balance,
         // Load aggregate funding multiplier over specified from and to timestamps
-        fundingMultipliersForMarket.loadAggregateMultiplier(
+        fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].loadAggregateMultiplier(
           fromTimestampInMs,
           toTimestampInMs,
           lastFundingRatePublishTimestampInMs
