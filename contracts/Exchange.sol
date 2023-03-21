@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.18;
 
-import { AcquisitionDeleveraging } from "./libraries/AcquisitionDeleveraging.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { AssetUnitConversions } from "./libraries/AssetUnitConversions.sol";
 import { BalanceTracking } from "./libraries/BalanceTracking.sol";
@@ -23,7 +22,9 @@ import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
+import { WalletExitAcquisitionDeleveraging } from "./libraries/WalletExitAcquisitionDeleveraging.sol";
 import { WalletExits } from "./libraries/WalletExits.sol";
+import { WalletInMaintenanceAcquisitionDeleveraging } from "./libraries/WalletInMaintenanceAcquisitionDeleveraging.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
 import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
@@ -710,9 +711,8 @@ contract Exchange_v4 is IExchange, Owned {
   function deleverageInMaintenanceAcquisition(
     AcquisitionDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    AcquisitionDeleveraging.deleverage_delegatecall(
+    WalletInMaintenanceAcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletInMaintenanceAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -720,8 +720,7 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol,
-      _walletExits
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -756,9 +755,8 @@ contract Exchange_v4 is IExchange, Owned {
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[deleverageArguments.liquidatingWallet].exists, "Wallet not exited");
 
-    AcquisitionDeleveraging.deleverage_delegatecall(
+    WalletExitAcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletExitAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,

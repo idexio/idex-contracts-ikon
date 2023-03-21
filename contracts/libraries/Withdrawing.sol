@@ -226,8 +226,8 @@ library Withdrawing {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
     // Outstanding funding payments already applied in withdrawExit_delegatecall
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OraclePriceMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+    (int64 exitAccountValue, uint64 totalMaintenanceMarginRequirement) = OraclePriceMargin
+      .loadExitAccountValueAndMaintenanceMarginRequirement(
         0,
         arguments.wallet,
         balanceTracking,
@@ -243,13 +243,13 @@ library Withdrawing {
       // Sum EF quote quantity change needed to close each wallet position
       exitFundQuoteQuantityChange += balanceTracking.updatePositionForExit(
         BalanceTracking.UpdatePositionForExitArguments(
+          exitAccountValue,
           arguments.exitFundWallet,
           marketsByBaseAssetSymbol[baseAssetSymbols[i]],
           marketsByBaseAssetSymbol[baseAssetSymbols[i]]
             .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
             .overridableFields
             .maintenanceMarginFraction,
-          totalAccountValue,
           totalMaintenanceMarginRequirement,
           arguments.wallet
         ),

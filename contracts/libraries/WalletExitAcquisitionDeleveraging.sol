@@ -13,15 +13,24 @@ import { Validations } from "./Validations.sol";
 import { AcquisitionDeleverageArguments, Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletExit } from "./Structs.sol";
 import { DeleverageType, WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
 
-library AcquisitionDeleveraging {
+library WalletExitAcquisitionDeleveraging {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  struct ValidateExitQuoteQuantityArguments {
+    WalletExitAcquisitionDeleveragePriceStrategy deleveragePriceStrategy;
+    int64 exitAccountValue;
+    uint64 indexPrice;
+    uint64 liquidationBaseQuantity;
+    uint64 liquidationQuoteQuantity;
+    uint64 maintenanceMarginFraction;
+    uint64 totalMaintenanceMarginRequirement;
+  }
+
   // solhint-disable-next-line func-name-mixedcase
   function deleverage_delegatecall(
     AcquisitionDeleverageArguments memory arguments,
-    DeleverageType deleverageType,
     address exitFundWallet,
     address insuranceFundWallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -57,7 +66,6 @@ library AcquisitionDeleveraging {
 
     _validateArgumentsAndDeleverage(
       arguments,
-      deleverageType,
       exitFundWallet,
       insuranceFundWallet,
       balanceTracking,
@@ -71,7 +79,6 @@ library AcquisitionDeleveraging {
 
   function _validateArgumentsAndDeleverage(
     AcquisitionDeleverageArguments memory arguments,
-    DeleverageType deleverageType,
     address exitFundWallet,
     address insuranceFundWallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -87,43 +94,38 @@ library AcquisitionDeleveraging {
       "No open position in market"
     );
 
-    // Validate that the liquidating account has fallen below margin requirements
-    (
-      int64 liquidatingWalletTotalAccountValue,
-      uint64 liquidatingWalletTotalMaintenanceMarginRequirement
-    ) = IndexPriceMargin.loadTotalAccountValueAndMaintenanceMarginRequirement(
-        arguments.liquidatingWallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    if (deleverageType == DeleverageType.WalletInMaintenanceAcquisition) {
-      require(
-        liquidatingWalletTotalAccountValue < int64(liquidatingWalletTotalMaintenanceMarginRequirement),
-        "Maintenance margin requirement met"
-      );
-    }
-
-    // Do not proceed with deleverage if the Insurance Fund can acquire the wallet's positions
-    _validateInsuranceFundCannotLiquidateWallet(
-      arguments,
-      deleverageType,
-      insuranceFundWallet,
-      liquidatingWalletTotalAccountValue,
-      liquidatingWalletTotalMaintenanceMarginRequirement,
+    int64 exitAccountValue = IndexPriceMargin.loadExitAccountValue(
+      arguments.liquidatingWallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+    uint64 liquidatingWalletTotalMaintenanceMarginRequirement = IndexPriceMargin.loadTotalMaintenanceMarginRequirement(
+      arguments.liquidatingWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
 
+    // Do not proceed with deleverage if the Insurance Fund can acquire the wallet's positions
+    _validateInsuranceFundCannotLiquidateWallet(
+      arguments,
+      exitAccountValue,
+      insuranceFundWallet,
+      liquidatingWalletTotalMaintenanceMarginRequirement,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol,
+      walletExits
+    );
+
     // Liquidate specified position by deleveraging a counterparty position
     _validateDeleverageQuoteQuantityAndUpdatePositions(
       arguments,
-      deleverageType,
+      exitAccountValue,
       exitFundWallet,
-      liquidatingWalletTotalAccountValue,
       liquidatingWalletTotalMaintenanceMarginRequirement,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -168,9 +170,8 @@ library AcquisitionDeleveraging {
 
   function _validateDeleverageQuoteQuantityAndUpdatePositions(
     AcquisitionDeleverageArguments memory arguments,
-    DeleverageType deleverageType,
+    int64 exitAccountValue,
     address exitFundWallet,
-    int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -179,25 +180,16 @@ library AcquisitionDeleveraging {
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => WalletExit) storage walletExits
   ) private {
-    Market memory market = deleverageType == DeleverageType.WalletInMaintenanceAcquisition
-      ? _validateWalletInMaintenanceDeleverageQuoteQuantity(
-        arguments,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      )
-      : _validateWalletExitDeleverageQuoteQuantity(
-        arguments,
-        totalMaintenanceMarginRequirement,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol,
-        walletExits
-      );
+    Market memory market = _validateWalletExitDeleverageQuoteQuantity(
+      arguments,
+      exitAccountValue,
+      totalMaintenanceMarginRequirement,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol,
+      walletExits
+    );
 
     _updatePositionsForDeleverage(
       arguments,
@@ -211,44 +203,9 @@ library AcquisitionDeleveraging {
     );
   }
 
-  function _validateWalletInMaintenanceDeleverageQuoteQuantity(
-    AcquisitionDeleverageArguments memory arguments,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private returns (Market memory market) {
-    market = Validations.loadAndValidateActiveMarket(
-      arguments.baseAssetSymbol,
-      arguments.liquidatingWallet,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    Balance memory balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
-      arguments.liquidatingWallet,
-      market.baseAssetSymbol
-    );
-
-    LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
-      market.lastIndexPrice,
-      arguments.liquidationQuoteQuantity,
-      market
-        .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maintenanceMarginFraction,
-      balanceStruct.balance < 0
-        ? (-1 * int64(arguments.liquidationBaseQuantity))
-        : int64(arguments.liquidationBaseQuantity),
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
-    );
-  }
-
   function _validateWalletExitDeleverageQuoteQuantity(
     AcquisitionDeleverageArguments memory arguments,
+    int64 exitAccountValue,
     uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -269,66 +226,35 @@ library AcquisitionDeleveraging {
     );
 
     WalletExit storage walletExit = walletExits[arguments.liquidatingWallet];
-
-    int64 exitAccountValue = IndexPriceMargin.loadExitAccountValue(
-      arguments.liquidatingWallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
+    walletExit.deleveragePriceStrategy = _determineDeleveragePriceStrategy(
+      walletExit.deleveragePriceStrategy,
+      exitAccountValue
     );
 
-    if (exitAccountValue < 0) {
-      // Wallets with negative total account value must use the bankruptcy price for the remainder of exit deleveraging
-      walletExit.deleveragePriceStrategy = WalletExitAcquisitionDeleveragePriceStrategy.LiquidationPrice;
-    } else if (walletExit.deleveragePriceStrategy == WalletExitAcquisitionDeleveragePriceStrategy.None) {
-      // Wallets with a positive total account value should use the exit price (worse of entry price or current entry
-      // price) until deleveraging a position moves the total account value negative, at which point the bankruptcy
-      // price will be used for the remainder of exit deleveraging
-      walletExit.deleveragePriceStrategy = WalletExitAcquisitionDeleveragePriceStrategy.ExitPrice;
-    }
-
-    if (walletExit.deleveragePriceStrategy == WalletExitAcquisitionDeleveragePriceStrategy.ExitPrice) {
-      LiquidationValidations.validateExitQuoteQuantityByExitPrice(
-        // Calculate the cost basis of the base quantity being liquidated while observing signedness
-        Math.multiplyPipsByFraction(
-          balanceStruct.costBasis,
-          int64(arguments.liquidationBaseQuantity),
-          // Position size implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
-          int64(Math.abs(balanceStruct.balance))
-        ),
-        arguments.liquidationQuoteQuantity,
-        market.lastIndexPrice,
-        balanceStruct.balance < 0
-          ? (-1 * int64(arguments.liquidationBaseQuantity))
-          : int64(arguments.liquidationBaseQuantity)
-      );
-    } else {
-      LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
-        market.lastIndexPrice,
-        arguments.liquidationQuoteQuantity,
-        market
-          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        balanceStruct.balance < 0
-          ? (-1 * int64(arguments.liquidationBaseQuantity))
-          : int64(arguments.liquidationBaseQuantity),
-        exitAccountValue,
-        totalMaintenanceMarginRequirement
-      );
-    }
+    ValidateExitQuoteQuantityArguments memory validateExitQuoteQuantityArguments;
+    validateExitQuoteQuantityArguments.deleveragePriceStrategy = walletExit.deleveragePriceStrategy;
+    validateExitQuoteQuantityArguments.exitAccountValue = exitAccountValue;
+    validateExitQuoteQuantityArguments.indexPrice = market.lastIndexPrice;
+    validateExitQuoteQuantityArguments.liquidationBaseQuantity = arguments.liquidationBaseQuantity;
+    validateExitQuoteQuantityArguments.liquidationQuoteQuantity = arguments.liquidationQuoteQuantity;
+    validateExitQuoteQuantityArguments.maintenanceMarginFraction = market
+      .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+      .overridableFields
+      .maintenanceMarginFraction;
+    validateExitQuoteQuantityArguments.totalMaintenanceMarginRequirement = totalMaintenanceMarginRequirement;
+    _validateExitQuoteQuantity(balanceStruct, validateExitQuoteQuantityArguments);
   }
 
   function _validateInsuranceFundCannotLiquidateWallet(
     AcquisitionDeleverageArguments memory arguments,
-    DeleverageType deleverageType,
+    int64 exitAccountValue,
     address insuranceFundWallet,
-    int64 liquidatingWalletTotalAccountValue,
     uint64 liquidatingWalletTotalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => WalletExit) storage walletExits
   ) private {
     // Build array of union of open position base asset symbols for both liquidating and IF wallets. Result of merge
     // will already be de-duped and sorted
@@ -337,87 +263,111 @@ library AcquisitionDeleveraging {
     ].merge(baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet]);
 
     // Allocate struct to hold arguments needed to perform validation against IF liquidation of wallet
-    IndexPriceMargin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments = IndexPriceMargin
-      .ValidateInsuranceFundCannotLiquidateWalletArguments(
-        insuranceFundWallet,
-        arguments.liquidatingWallet,
-        arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities,
-        new Market[](baseAssetSymbolsForInsuranceFundAndLiquidatingWallet.length)
-      );
+    IndexPriceMargin.ValidateInsuranceFundCannotLiquidateWalletArguments
+      memory validateInsuranceFundCannotLiquidateWalletArguments = IndexPriceMargin
+        .ValidateInsuranceFundCannotLiquidateWalletArguments(
+          insuranceFundWallet,
+          arguments.liquidatingWallet,
+          arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities,
+          new Market[](baseAssetSymbolsForInsuranceFundAndLiquidatingWallet.length)
+        );
+
+    ValidateExitQuoteQuantityArguments memory validateExitQuoteQuantityArguments;
+    validateExitQuoteQuantityArguments.deleveragePriceStrategy = _determineDeleveragePriceStrategy(
+      walletExits[arguments.liquidatingWallet].deleveragePriceStrategy,
+      exitAccountValue
+    );
+    validateExitQuoteQuantityArguments.exitAccountValue = exitAccountValue;
+    validateExitQuoteQuantityArguments
+      .totalMaintenanceMarginRequirement = liquidatingWalletTotalMaintenanceMarginRequirement;
 
     // Loop through open position union and populate argument struct fields
     for (uint8 i = 0; i < baseAssetSymbolsForInsuranceFundAndLiquidatingWallet.length; i++) {
       // Load market
-      loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]];
+      validateInsuranceFundCannotLiquidateWalletArguments.markets[i] = marketsByBaseAssetSymbol[
+        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]
+      ];
 
-      _validateInsuranceFundLiquidationQuoteQuantityForPosition(
-        arguments,
-        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet,
-        deleverageType,
-        i,
-        liquidatingWalletTotalAccountValue,
-        liquidatingWalletTotalMaintenanceMarginRequirement,
-        loadArguments,
-        balanceTracking,
-        marketOverridesByBaseAssetSymbolAndWallet
+      validateExitQuoteQuantityArguments.indexPrice = marketsByBaseAssetSymbol[
+        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]
+      ].lastIndexPrice;
+      validateExitQuoteQuantityArguments.liquidationQuoteQuantity = arguments
+        .validateInsuranceFundCannotLiquidateWalletQuoteQuantities[i];
+      validateExitQuoteQuantityArguments.maintenanceMarginFraction = validateInsuranceFundCannotLiquidateWalletArguments
+        .markets[i]
+        .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
+        .maintenanceMarginFraction;
+
+      _validateExitQuoteQuantity(
+        balanceTracking.loadBalanceStructAndMigrateIfNeeded(
+          arguments.liquidatingWallet,
+          baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]
+        ),
+        validateExitQuoteQuantityArguments
       );
     }
 
     // Argument struct is populated with validated field values, pass through to margin validation
     IndexPriceMargin.validateInsuranceFundCannotLiquidateWallet(
-      loadArguments,
+      validateInsuranceFundCannotLiquidateWalletArguments,
       balanceTracking,
       marketOverridesByBaseAssetSymbolAndWallet
     );
   }
 
-  function _validateInsuranceFundLiquidationQuoteQuantityForPosition(
-    AcquisitionDeleverageArguments memory arguments,
-    string[] memory baseAssetSymbolsForInsuranceFundAndLiquidatingWallet,
-    DeleverageType deleverageType,
-    uint8 index,
-    int64 liquidatingWalletTotalAccountValue,
-    uint64 liquidatingWalletTotalMaintenanceMarginRequirement,
-    IndexPriceMargin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
-  ) private {
-    // Validate provided liquidation quote quantity
-    if (deleverageType == DeleverageType.WalletInMaintenanceAcquisition) {
-      LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
-        loadArguments.markets[index].lastIndexPrice,
-        arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
-        loadArguments
-          .markets[index]
-          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        balanceTracking.loadBalanceAndMigrateIfNeeded(
-          arguments.liquidatingWallet,
-          baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[index]
+  function _validateExitQuoteQuantity(
+    Balance memory balanceStruct,
+    ValidateExitQuoteQuantityArguments memory arguments
+  ) private pure {
+    int64 liquidationBaseQuantity;
+    if (arguments.liquidationBaseQuantity == 0) {
+      liquidationBaseQuantity = balanceStruct.balance;
+    } else {
+      liquidationBaseQuantity = balanceStruct.balance < 0
+        ? (-1 * int64(arguments.liquidationBaseQuantity))
+        : int64(arguments.liquidationBaseQuantity);
+    }
+
+    if (arguments.deleveragePriceStrategy == WalletExitAcquisitionDeleveragePriceStrategy.ExitPrice) {
+      LiquidationValidations.validateExitQuoteQuantityByExitPrice(
+        // Calculate the cost basis of the base quantity being liquidated while observing signedness
+        Math.multiplyPipsByFraction(
+          balanceStruct.costBasis,
+          liquidationBaseQuantity,
+          // Position size implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
+          int64(Math.abs(balanceStruct.balance))
         ),
-        liquidatingWalletTotalAccountValue,
-        liquidatingWalletTotalMaintenanceMarginRequirement
+        arguments.liquidationQuoteQuantity,
+        arguments.indexPrice,
+        liquidationBaseQuantity
       );
     } else {
-      // DeleverageType.WalletExitAcquisition
-      Balance storage balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
-        arguments.liquidatingWallet,
-        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[index]
-      );
-      LiquidationValidations.validateExitQuoteQuantity(
-        balanceStruct.costBasis,
-        arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
-        loadArguments.markets[index].lastIndexPrice,
-        loadArguments
-          .markets[index]
-          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        balanceStruct.balance,
-        liquidatingWalletTotalAccountValue,
-        liquidatingWalletTotalMaintenanceMarginRequirement
+      LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
+        arguments.indexPrice,
+        arguments.liquidationQuoteQuantity,
+        arguments.maintenanceMarginFraction,
+        liquidationBaseQuantity,
+        arguments.exitAccountValue,
+        arguments.totalMaintenanceMarginRequirement
       );
     }
+  }
+
+  function _determineDeleveragePriceStrategy(
+    WalletExitAcquisitionDeleveragePriceStrategy savedStrategy,
+    int64 exitAccountValue
+  ) private pure returns (WalletExitAcquisitionDeleveragePriceStrategy) {
+    if (exitAccountValue < 0) {
+      // Wallets with negative total account value must use the bankruptcy price for the remainder of exit deleveraging
+      return WalletExitAcquisitionDeleveragePriceStrategy.LiquidationPrice;
+    } else if (savedStrategy == WalletExitAcquisitionDeleveragePriceStrategy.None) {
+      // Wallets with a positive total account value should use the exit price (worse of entry price or current entry
+      // price) until deleveraging a position moves the total account value negative, at which point the bankruptcy
+      // price will be used for the remainder of exit deleveraging
+      return WalletExitAcquisitionDeleveragePriceStrategy.ExitPrice;
+    }
+
+    return savedStrategy;
   }
 }

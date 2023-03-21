@@ -21,33 +21,6 @@ library LiquidationValidations {
       : Math.min(quoteQuantity, Math.abs(costBasis));
   }
 
-  function calculateExitQuoteQuantity(
-    int64 costBasis,
-    uint64 indexPrice,
-    uint64 maintenanceMarginFraction,
-    int64 positionSize,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
-  ) internal pure returns (uint64 quoteQuantity) {
-    // Quote quantity is the worse of the index price or entry price
-    quoteQuantity = calculateExitQuoteQuantityByExitPrice(costBasis, indexPrice, positionSize);
-
-    // However, quote quantity should never be never worse than the bankruptcy price. For long positions, quote is
-    // positive so at a better price quote is further from zero (receive more); for short positions, quote is negative
-    // so at a better price is closer to zero (give less)
-    uint64 quoteQuantityToLiquidate = calculateLiquidationQuoteQuantityToClosePositions(
-      indexPrice,
-      maintenanceMarginFraction,
-      positionSize,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
-    );
-
-    quoteQuantity = positionSize < 0
-      ? Math.min(quoteQuantity, quoteQuantityToLiquidate)
-      : Math.max(quoteQuantity, quoteQuantityToLiquidate);
-  }
-
   /**
    * @dev Calculates quote quantity needed to close position at bankruptcy price
    */
@@ -124,31 +97,6 @@ library LiquidationValidations {
     require(
       expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
-    );
-  }
-
-  function validateExitQuoteQuantity(
-    int64 costBasis,
-    uint64 exitQuoteQuantity,
-    uint64 indexPrice,
-    uint64 maintenanceMarginFraction,
-    int64 positionSize,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
-  ) internal pure {
-    uint64 expectedExitQuoteQuantity = calculateExitQuoteQuantity(
-      costBasis,
-      indexPrice,
-      maintenanceMarginFraction,
-      positionSize,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
-    );
-
-    // Allow additional pip buffers for integer rounding
-    require(
-      expectedExitQuoteQuantity - 1 <= exitQuoteQuantity && expectedExitQuoteQuantity + 1 >= exitQuoteQuantity,
-      "Invalid exit quote quantity"
     );
   }
 

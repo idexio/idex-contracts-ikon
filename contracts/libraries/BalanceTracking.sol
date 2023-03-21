@@ -22,10 +22,10 @@ library BalanceTracking {
   }
 
   struct UpdatePositionForExitArguments {
+    int64 exitAccountValue;
     address exitFundWallet;
     Market market;
     uint64 maintenanceMarginFraction;
-    int64 totalAccountValue;
     uint64 totalMaintenanceMarginRequirement;
     address wallet;
   }
@@ -184,14 +184,19 @@ library BalanceTracking {
     );
     int64 positionSize = balanceStruct.balance;
     // Calculate amount of quote to close position
-    uint64 quoteQuantity = LiquidationValidations.calculateExitQuoteQuantity(
-      balanceStruct.costBasis,
-      arguments.market.loadOraclePrice(),
-      arguments.maintenanceMarginFraction,
-      positionSize,
-      arguments.totalAccountValue,
-      arguments.totalMaintenanceMarginRequirement
-    );
+    uint64 quoteQuantity = arguments.exitAccountValue < 0
+      ? LiquidationValidations.calculateLiquidationQuoteQuantityToClosePositions(
+        arguments.market.loadOraclePrice(),
+        arguments.maintenanceMarginFraction,
+        positionSize,
+        arguments.exitAccountValue,
+        arguments.totalMaintenanceMarginRequirement
+      )
+      : LiquidationValidations.calculateExitQuoteQuantityByExitPrice(
+        balanceStruct.costBasis,
+        arguments.market.loadOraclePrice(),
+        positionSize
+      );
 
     // Zero out wallet position for market
     _resetPositionToZero(balanceStruct);

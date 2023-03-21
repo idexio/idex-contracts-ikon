@@ -249,17 +249,25 @@ library WalletLiquidation {
       market.baseAssetSymbol
     );
 
-    LiquidationValidations.validateExitQuoteQuantity(
-      balanceStruct.costBasis,
-      arguments.liquidationQuoteQuantities[index],
-      market.lastIndexPrice,
-      market
-        .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maintenanceMarginFraction,
-      balanceStruct.balance,
-      exitAccountValue,
-      totalMaintenanceMarginRequirement
-    );
+    if (exitAccountValue < 0) {
+      LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
+        market.lastIndexPrice,
+        arguments.liquidationQuoteQuantities[index],
+        market
+          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        balanceStruct.balance,
+        exitAccountValue,
+        totalMaintenanceMarginRequirement
+      );
+    } else {
+      LiquidationValidations.validateExitQuoteQuantityByExitPrice(
+        balanceStruct.costBasis,
+        arguments.liquidationQuoteQuantities[index],
+        market.lastIndexPrice,
+        balanceStruct.balance
+      );
+    }
   }
 }

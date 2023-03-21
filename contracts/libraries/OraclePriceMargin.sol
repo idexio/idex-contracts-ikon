@@ -46,6 +46,34 @@ library OraclePriceMargin {
   }
 
   // solhint-disable-next-line func-name-mixedcase
+  function loadExitAccountValueIncludingOutstandingWalletFunding_delegatecall(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public view returns (int64) {
+    int64 outstandingWalletFunding = Funding.loadOutstandingWalletFunding(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    return
+      _loadExitAccountValue(
+        outstandingWalletFunding,
+        wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
   function loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -129,9 +157,9 @@ library OraclePriceMargin {
     }
 
     (
-      int64 totalAccountValue,
+      int64 exitAccountValue,
       uint64 totalMaintenanceMarginRequirement
-    ) = loadTotalAccountValueAndMaintenanceMarginRequirement(
+    ) = loadExitAccountValueAndMaintenanceMarginRequirement(
         outstandingWalletFunding,
         wallet,
         balanceTracking,
@@ -144,7 +172,7 @@ library OraclePriceMargin {
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       quoteQuantityAvailableForExitWithdrawal += _loadQuoteQuantityForPositionExit(
         baseAssetSymbols[i],
-        totalAccountValue,
+        exitAccountValue,
         totalMaintenanceMarginRequirement,
         wallet,
         balanceTracking,
@@ -156,15 +184,15 @@ library OraclePriceMargin {
     return quoteQuantityAvailableForExitWithdrawal;
   }
 
-  function loadTotalAccountValueAndMaintenanceMarginRequirement(
+  function loadExitAccountValueAndMaintenanceMarginRequirement(
     int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 totalAccountValue, uint64 maintenanceMarginRequirement) {
-    totalAccountValue = _loadTotalAccountValue(
+  ) internal view returns (int64 exitAccountValue, uint64 maintenanceMarginRequirement) {
+    exitAccountValue = _loadExitAccountValue(
       outstandingWalletFunding,
       wallet,
       balanceTracking,
@@ -227,6 +255,42 @@ library OraclePriceMargin {
     }
   }
 
+  function _loadExitAccountValue(
+    int64 outstandingWalletFunding,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (int64 exitAccountValue) {
+    exitAccountValue =
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
+      outstandingWalletFunding;
+
+    Balance memory balanceStruct;
+    Market memory market;
+    uint64 quoteQuantityForPosition;
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+
+      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityByExitPrice(
+        balanceStruct.costBasis,
+        market.loadOraclePrice(),
+        balanceStruct.balance
+      );
+
+      if (balanceStruct.balance < 0) {
+        // Short positions have negative value
+        exitAccountValue -= int64(quoteQuantityForPosition);
+      } else {
+        // Long positions have positive value
+        exitAccountValue += int64(quoteQuantityForPosition);
+      }
+    }
+  }
+
   function _loadMarginRequirement(
     uint64 marginFraction,
     Market memory market,
@@ -249,7 +313,7 @@ library OraclePriceMargin {
 
   function _loadQuoteQuantityForPositionExit(
     string memory baseAssetSymbol,
-    int64 totalAccountValue,
+    int64 exitAccountValue,
     uint64 totalMaintenanceMarginRequirement,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -262,17 +326,22 @@ library OraclePriceMargin {
     );
     Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
 
-    uint64 quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantity(
-      balanceStruct.costBasis,
-      market.loadOraclePrice(),
-      market
-        .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maintenanceMarginFraction,
-      balanceStruct.balance,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
-    );
+    uint64 quoteQuantityForPosition = exitAccountValue < 0
+      ? LiquidationValidations.calculateLiquidationQuoteQuantityToClosePositions(
+        market.loadOraclePrice(),
+        market
+          .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        balanceStruct.balance,
+        exitAccountValue,
+        totalMaintenanceMarginRequirement
+      )
+      : LiquidationValidations.calculateExitQuoteQuantityByExitPrice(
+        balanceStruct.costBasis,
+        market.loadOraclePrice(),
+        balanceStruct.balance
+      );
 
     // For short positions, the wallet gives quote to close the position so subtract. For long positions, the wallet
     // receives quote to close so add
