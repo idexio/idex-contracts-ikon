@@ -137,7 +137,7 @@ library IndexPriceMargin {
       balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
 
-      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
+      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityByExitPrice(
         balanceStruct.costBasis,
         market.lastIndexPrice,
         balanceStruct.balance

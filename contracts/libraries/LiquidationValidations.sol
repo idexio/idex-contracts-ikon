@@ -6,7 +6,7 @@ import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 
 library LiquidationValidations {
-  function calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
+  function calculateExitQuoteQuantityByExitPrice(
     int64 costBasis,
     uint64 indexPrice,
     int64 positionSize
@@ -30,7 +30,7 @@ library LiquidationValidations {
     uint64 totalMaintenanceMarginRequirement
   ) internal pure returns (uint64 quoteQuantity) {
     // Quote quantity is the worse of the index price or entry price
-    quoteQuantity = calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(costBasis, indexPrice, positionSize);
+    quoteQuantity = calculateExitQuoteQuantityByExitPrice(costBasis, indexPrice, positionSize);
 
     // However, quote quantity should never be never worse than the bankruptcy price. For long positions, quote is
     // positive so at a better price quote is further from zero (receive more); for short positions, quote is negative
@@ -152,17 +152,13 @@ library LiquidationValidations {
     );
   }
 
-  function validateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
+  function validateExitQuoteQuantityByExitPrice(
     int64 costBasis,
     uint64 exitQuoteQuantity,
     uint64 indexPrice,
     int64 positionSize
   ) internal pure {
-    uint64 expectedExitQuoteQuantity = calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
-      costBasis,
-      indexPrice,
-      positionSize
-    );
+    uint64 expectedExitQuoteQuantity = calculateExitQuoteQuantityByExitPrice(costBasis, indexPrice, positionSize);
 
     // Allow additional pip buffers for integer rounding
     require(

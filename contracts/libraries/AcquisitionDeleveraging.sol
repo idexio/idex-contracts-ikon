@@ -279,16 +279,16 @@ library AcquisitionDeleveraging {
 
     if (exitAccountValue < 0) {
       // Wallets with negative total account value must use the bankruptcy price for the remainder of exit deleveraging
-      walletExit.deleveragePriceStrategy = WalletExitAcquisitionDeleveragePriceStrategy.PriceToClosePositions;
+      walletExit.deleveragePriceStrategy = WalletExitAcquisitionDeleveragePriceStrategy.LiquidationPrice;
     } else if (walletExit.deleveragePriceStrategy == WalletExitAcquisitionDeleveragePriceStrategy.None) {
       // Wallets with a positive total account value should use the exit price (worse of entry price or current entry
       // price) until deleveraging a position moves the total account value negative, at which point the bankruptcy
       // price will be used for the remainder of exit deleveraging
-      walletExit.deleveragePriceStrategy = WalletExitAcquisitionDeleveragePriceStrategy.WorseOfEntryOrCurrentPrice;
+      walletExit.deleveragePriceStrategy = WalletExitAcquisitionDeleveragePriceStrategy.ExitPrice;
     }
 
-    if (walletExit.deleveragePriceStrategy == WalletExitAcquisitionDeleveragePriceStrategy.WorseOfEntryOrCurrentPrice) {
-      LiquidationValidations.validateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
+    if (walletExit.deleveragePriceStrategy == WalletExitAcquisitionDeleveragePriceStrategy.ExitPrice) {
+      LiquidationValidations.validateExitQuoteQuantityByExitPrice(
         // Calculate the cost basis of the base quantity being liquidated while observing signedness
         Math.multiplyPipsByFraction(
           balanceStruct.costBasis,
