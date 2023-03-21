@@ -5,9 +5,10 @@ pragma solidity 0.8.18;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
+import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
 
 library IndexPriceMargin {
   using BalanceTracking for BalanceTracking.Storage;
@@ -117,6 +118,39 @@ library IndexPriceMargin {
     }
 
     require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
+  }
+
+  function loadExitAccountValue(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int64 exitAccountValue) {
+    exitAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL);
+
+    Balance memory balanceStruct;
+    Market memory market;
+    uint64 quoteQuantityForPosition;
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+
+      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
+        balanceStruct.costBasis,
+        market.lastIndexPrice,
+        balanceStruct.balance
+      );
+
+      if (balanceStruct.balance < 0) {
+        // Short positions have negative value
+        exitAccountValue -= int64(quoteQuantityForPosition);
+      } else {
+        // Long positions have positive value
+        exitAccountValue += int64(quoteQuantityForPosition);
+      }
+    }
   }
 
   function loadTotalAccountValue(

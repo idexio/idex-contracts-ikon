@@ -129,33 +129,65 @@ library WalletLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
-        arguments.liquidatingWallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
+    uint64 totalMaintenanceMarginRequirement = IndexPriceMargin.loadTotalMaintenanceMarginRequirement(
+      arguments.liquidatingWallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    int64 totalAccountValue;
     if (
       liquidationType == LiquidationType.WalletInMaintenance ||
       liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
+      totalAccountValue = IndexPriceMargin.loadTotalAccountValue(
+        arguments.liquidatingWallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
       require(totalAccountValue < int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement met");
+    } else {
+      totalAccountValue = IndexPriceMargin.loadExitAccountValue(
+        arguments.liquidatingWallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
     }
 
+    Market memory market;
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      _validateQuoteQuantityAndLiquidatePosition(
-        arguments,
-        i,
-        liquidationType,
-        marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
-        balanceTracking,
-        marketOverridesByBaseAssetSymbolAndWallet
-      );
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      require(market.isActive, "Cannot liquidate position in inactive market");
+
+      if (
+        liquidationType == LiquidationType.WalletInMaintenance ||
+        liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
+      ) {
+        _validateWalletInMaintenanceLiquidationQuoteQuantity(
+          arguments,
+          i,
+          market,
+          totalAccountValue,
+          totalMaintenanceMarginRequirement,
+          balanceTracking,
+          marketOverridesByBaseAssetSymbolAndWallet
+        );
+      } else {
+        _validateWalletExitedLiquidationQuoteQuantity(
+          arguments,
+          totalAccountValue,
+          i,
+          market,
+          totalMaintenanceMarginRequirement,
+          balanceTracking,
+          marketOverridesByBaseAssetSymbolAndWallet
+        );
+      }
 
       _updatePositionForLiquidation(
         arguments,
@@ -181,53 +213,53 @@ library WalletLiquidation {
     }
   }
 
-  function _validateQuoteQuantityAndLiquidatePosition(
+  function _validateWalletInMaintenanceLiquidationQuoteQuantity(
     WalletLiquidationArguments memory arguments,
     uint8 index,
-    LiquidationType liquidationType,
     Market memory market,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    require(market.isActive, "Cannot liquidate position in inactive market");
+    LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
+      market.lastIndexPrice,
+      arguments.liquidationQuoteQuantities[index],
+      market
+        .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
+        .maintenanceMarginFraction,
+      balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
+      totalAccountValue,
+      totalMaintenanceMarginRequirement
+    );
+  }
 
+  function _validateWalletExitedLiquidationQuoteQuantity(
+    WalletLiquidationArguments memory arguments,
+    int64 exitAccountValue,
+    uint8 index,
+    Market memory market,
+    uint64 totalMaintenanceMarginRequirement,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private {
     Balance memory balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
       arguments.liquidatingWallet,
       market.baseAssetSymbol
     );
 
-    // Validate quote quantity
-    if (
-      liquidationType == LiquidationType.WalletInMaintenance ||
-      liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
-    ) {
-      LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
-        market.lastIndexPrice,
-        arguments.liquidationQuoteQuantities[index],
-        market
-          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        balanceStruct.balance,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
-      );
-    } else {
-      // LiquidationType.WalletExited
-      LiquidationValidations.validateExitQuoteQuantity(
-        balanceStruct.costBasis,
-        arguments.liquidationQuoteQuantities[index],
-        market.lastIndexPrice,
-        market
-          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-          .overridableFields
-          .maintenanceMarginFraction,
-        balanceStruct.balance,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
-      );
-    }
+    LiquidationValidations.validateExitQuoteQuantity(
+      balanceStruct.costBasis,
+      arguments.liquidationQuoteQuantities[index],
+      market.lastIndexPrice,
+      market
+        .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
+        .maintenanceMarginFraction,
+      balanceStruct.balance,
+      exitAccountValue,
+      totalMaintenanceMarginRequirement
+    );
   }
 }
