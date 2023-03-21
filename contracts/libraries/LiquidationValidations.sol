@@ -6,13 +6,10 @@ import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 
 library LiquidationValidations {
-  function calculateExitQuoteQuantity(
+  function calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
     int64 costBasis,
     uint64 indexPrice,
-    uint64 maintenanceMarginFraction,
-    int64 positionSize,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
+    int64 positionSize
   ) internal pure returns (uint64 quoteQuantity) {
     // Calculate quote quantity at index price
     quoteQuantity = Math.multiplyPipsByFraction(Math.abs(positionSize), indexPrice, Constants.PIP_PRICE_MULTIPLIER);
@@ -22,6 +19,18 @@ library LiquidationValidations {
     quoteQuantity = positionSize < 0
       ? Math.max(quoteQuantity, Math.abs(costBasis))
       : Math.min(quoteQuantity, Math.abs(costBasis));
+  }
+
+  function calculateExitQuoteQuantity(
+    int64 costBasis,
+    uint64 indexPrice,
+    uint64 maintenanceMarginFraction,
+    int64 positionSize,
+    int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement
+  ) internal pure returns (uint64 quoteQuantity) {
+    // Quote quantity is the worse of the index price or entry price
+    quoteQuantity = calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(costBasis, indexPrice, positionSize);
 
     // However, quote quantity should never be never worse than the bankruptcy price. For long positions, quote is
     // positive so at a better price quote is further from zero (receive more); for short positions, quote is negative
@@ -143,6 +152,25 @@ library LiquidationValidations {
     );
   }
 
+  function validateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
+    int64 costBasis,
+    uint64 exitQuoteQuantity,
+    uint64 indexPrice,
+    int64 positionSize
+  ) internal pure {
+    uint64 expectedExitQuoteQuantity = calculateExitQuoteQuantityByWorseOfEntryOrCurrentPrice(
+      costBasis,
+      indexPrice,
+      positionSize
+    );
+
+    // Allow additional pip buffers for integer rounding
+    require(
+      expectedExitQuoteQuantity - 1 <= exitQuoteQuantity && expectedExitQuoteQuantity + 1 >= exitQuoteQuantity,
+      "Invalid exit quote quantity"
+    );
+  }
+
   function validateInsuranceFundClosureQuoteQuantity(
     uint64 baseQuantity,
     int64 costBasis,
@@ -163,9 +191,9 @@ library LiquidationValidations {
   }
 
   function validateLiquidationQuoteQuantityToClosePositions(
+    uint64 indexPrice,
     uint64 liquidationQuoteQuantity,
     uint64 maintenanceMarginFraction,
-    uint64 indexPrice,
     int64 positionSize,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement

@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
+import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType, WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
 
 // This file contains definitions for externally-facing structs used as argument or return types for Exchange functions
 
@@ -256,6 +256,13 @@ struct Transfer {
   uint64 gasFee;
   // The ECDSA signature of the transfer hash as produced by Hashing.getTransferWalletHash
   bytes walletSignature;
+}
+
+struct WalletExit {
+  bool exists;
+  // We can safely downcast here as 2^64 blocks would take billions of years to exceed
+  uint64 effectiveBlockNumber;
+  WalletExitAcquisitionDeleveragePriceStrategy deleveragePriceStrategy;
 }
 
 /**

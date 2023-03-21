@@ -37,7 +37,7 @@
     "test:coverage:badges": "COVERAGE=1  hardhat coverage --matrix && node bin/get-badges.js && git add assets/",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "setup:git:hooks": "git config --local core.hooksPath .githooks || echo 'Not a git repository, did not set up git hooks'",
-    "test": "hardhat test"
+    "test": "COVERAGE=1 hardhat test"
   },
   "dependencies": {
     "ethers": "5.7.2",

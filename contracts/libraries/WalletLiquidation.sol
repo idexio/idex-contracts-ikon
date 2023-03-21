@@ -204,12 +204,12 @@ library WalletLiquidation {
       liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery
     ) {
       LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
+        market.lastIndexPrice,
         arguments.liquidationQuoteQuantities[index],
         market
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maintenanceMarginFraction,
-        market.lastIndexPrice,
         balanceStruct.balance,
         totalAccountValue,
         totalMaintenanceMarginRequirement

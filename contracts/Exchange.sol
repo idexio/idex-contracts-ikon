@@ -26,7 +26,7 @@ import { Validations } from "./libraries/Validations.sol";
 import { WalletExits } from "./libraries/WalletExits.sol";
 import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -70,7 +70,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteTokenAddress;
   // Exits
-  mapping(address => WalletExits.WalletExit) private _walletExits;
+  mapping(address => WalletExit) private _walletExits;
 
   // State variables - tunable parameters //
 
@@ -720,7 +720,8 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol,
+      _walletExits
     );
   }
 
@@ -765,7 +766,8 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol,
+      _walletExits
     );
   }
 
