@@ -26,6 +26,7 @@ library BalanceTracking {
     address exitFundWallet;
     Market market;
     uint64 maintenanceMarginFraction;
+    int64 totalAccountValue;
     uint64 totalMaintenanceMarginRequirement;
     address wallet;
   }
@@ -184,12 +185,12 @@ library BalanceTracking {
     );
     int64 positionSize = balanceStruct.balance;
     // Calculate amount of quote to close position
-    uint64 quoteQuantity = arguments.exitAccountValue < 0
+    uint64 quoteQuantity = arguments.exitAccountValue <= 0
       ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
         arguments.market.loadOraclePrice(),
         arguments.maintenanceMarginFraction,
         positionSize,
-        arguments.exitAccountValue,
+        arguments.totalAccountValue,
         arguments.totalMaintenanceMarginRequirement
       )
       : LiquidationValidations.calculateQuoteQuantityAtExitPrice(

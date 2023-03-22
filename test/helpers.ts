@@ -316,8 +316,9 @@ export async function deployLibraryContracts() {
     Trading,
     Transferring,
     WalletExitAcquisitionDeleveraging,
+    WalletExitLiquidation,
     WalletInMaintenanceAcquisitionDeleveraging,
-    WalletLiquidation,
+    WalletInMaintenanceLiquidation,
     Withdrawing,
   ] = await Promise.all([
     ethers.getContractFactory('ClosureDeleveraging'),
@@ -332,8 +333,9 @@ export async function deployLibraryContracts() {
     ethers.getContractFactory('Trading'),
     ethers.getContractFactory('Transferring'),
     ethers.getContractFactory('WalletExitAcquisitionDeleveraging'),
+    ethers.getContractFactory('WalletExitLiquidation'),
     ethers.getContractFactory('WalletInMaintenanceAcquisitionDeleveraging'),
-    ethers.getContractFactory('WalletLiquidation'),
+    ethers.getContractFactory('WalletInMaintenanceLiquidation'),
     ethers.getContractFactory('Withdrawing'),
   ]);
 
@@ -350,8 +352,9 @@ export async function deployLibraryContracts() {
     trading,
     transferring,
     walletExitAcquisitionDeleveraging,
+    walletExitLiquidation,
     walletInMaintenanceAcquisitionDeleveraging,
-    walletLiquidation,
+    walletInMaintenanceLiquidation,
     withdrawing,
   ] = await Promise.all([
     (await ClosureDeleveraging.deploy()).deployed(),
@@ -366,8 +369,9 @@ export async function deployLibraryContracts() {
     (await Trading.deploy()).deployed(),
     (await Transferring.deploy()).deployed(),
     (await WalletExitAcquisitionDeleveraging.deploy()).deployed(),
+    (await WalletExitLiquidation.deploy()).deployed(),
     (await WalletInMaintenanceAcquisitionDeleveraging.deploy()).deployed(),
-    (await WalletLiquidation.deploy()).deployed(),
+    (await WalletInMaintenanceLiquidation.deploy()).deployed(),
     (await Withdrawing.deploy()).deployed(),
   ]);
 
@@ -387,9 +391,10 @@ export async function deployLibraryContracts() {
       Transferring: transferring.address,
       WalletExitAcquisitionDeleveraging:
         walletExitAcquisitionDeleveraging.address,
+      WalletExitLiquidation: walletExitLiquidation.address,
       WalletInMaintenanceAcquisitionDeleveraging:
         walletInMaintenanceAcquisitionDeleveraging.address,
-      WalletLiquidation: walletLiquidation.address,
+      WalletInMaintenanceLiquidation: walletInMaintenanceLiquidation.address,
       Withdrawing: withdrawing.address,
     },
   });

@@ -23,9 +23,10 @@ import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
 import { WalletExitAcquisitionDeleveraging } from "./libraries/WalletExitAcquisitionDeleveraging.sol";
+import { WalletExitLiquidation } from "./libraries/WalletExitLiquidation.sol";
 import { WalletExits } from "./libraries/WalletExits.sol";
 import { WalletInMaintenanceAcquisitionDeleveraging } from "./libraries/WalletInMaintenanceAcquisitionDeleveraging.sol";
-import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
+import { WalletInMaintenanceLiquidation } from "./libraries/WalletInMaintenanceLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
 import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
@@ -642,7 +643,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletInMaintenance(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    WalletLiquidation.liquidate_delegatecall(
+    WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
       exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
@@ -664,7 +665,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
-    exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate_delegatecall(
+    exitFundPositionOpenedAtBlockNumber = WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
       exitFundPositionOpenedAtBlockNumber,
       exitFundWallet,
@@ -682,17 +683,15 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Liquidates all positions of an exited wallet to the Insurance Fund at each position's exit price
    */
-  function liquidateWalletExited(
+  function liquidateWalletExit(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[liquidationArguments.liquidatingWallet].exists, "Wallet not exited");
 
-    WalletLiquidation.liquidate_delegatecall(
+    WalletExitLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
-      LiquidationType.WalletExited,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,

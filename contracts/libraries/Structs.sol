@@ -267,7 +267,7 @@ struct WalletExit {
 
 /**
  * @notice Argument type for `Exchange.liquidateWalletInMaintenance`,
- * `Exchange.liquidateWalletInMaintenanceDuringSystemRecovery`, and `Exchange.liquidateWalletExited`
+ * `Exchange.liquidateWalletInMaintenanceDuringSystemRecovery`, and `Exchange.liquidateWalletExit`
  */
 struct WalletLiquidationArguments {
   // Insurance Fund or Exit Fund

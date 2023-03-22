@@ -32,8 +32,9 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       trading: string;
       transferring: string;
       walletExitAcquisitionDeleveraging: string;
+      walletExitLiquidation: string;
       walletInMaintenanceAcquisitionDeleveraging: string;
-      walletLiquidation: string;
+      walletInMaintenanceLiquidation: string;
       withdrawing: string;
     },
     ownerWalletPrivateKey: string,
@@ -63,10 +64,12 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
         libraryAddresses.transferring,
       ['contracts/libraries/WalletExitAcquisitionDeleveraging.sol:WalletExitAcquisitionDeleveraging']:
         libraryAddresses.walletExitAcquisitionDeleveraging,
+      ['contracts/libraries/WalletExitLiquidation.sol:WalletExitLiquidation']:
+        libraryAddresses.walletExitLiquidation,
       ['contracts/libraries/WalletInMaintenanceAcquisitionDeleveraging.sol:WalletInMaintenanceAcquisitionDeleveraging']:
         libraryAddresses.walletInMaintenanceAcquisitionDeleveraging,
-      ['contracts/libraries/WalletLiquidation.sol:WalletLiquidation']:
-        libraryAddresses.walletLiquidation,
+      ['contracts/libraries/WalletInMaintenanceLiquidation.sol:WalletInMaintenanceLiquidation']:
+        libraryAddresses.walletInMaintenanceLiquidation,
       ['contracts/libraries/Withdrawing.sol:Withdrawing']:
         libraryAddresses.withdrawing,
     };
