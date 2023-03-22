@@ -6,7 +6,7 @@ import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 
 library LiquidationValidations {
-  function calculateExitQuoteQuantityByExitPrice(
+  function calculateExitQuoteQuantityAtExitPrice(
     int64 costBasis,
     uint64 indexPrice,
     int64 positionSize
@@ -24,7 +24,7 @@ library LiquidationValidations {
   /**
    * @dev Calculates quote quantity needed to close position at bankruptcy price
    */
-  function calculateLiquidationQuoteQuantityToClosePositions(
+  function calculateQuoteQuantityAtBankruptcyPrice(
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
     int64 positionSize,
@@ -77,7 +77,7 @@ library LiquidationValidations {
     uint64 expectedLiquidationQuoteQuantity;
     if (totalAccountValue < 0) {
       // Use bankruptcy price for negative total account value
-      expectedLiquidationQuoteQuantity = calculateLiquidationQuoteQuantityToClosePositions(
+      expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
         indexPrice,
         maintenanceMarginFraction,
         positionSize,
@@ -100,13 +100,13 @@ library LiquidationValidations {
     );
   }
 
-  function validateExitQuoteQuantityByExitPrice(
+  function validateQuoteQuantityAtExitPrice(
     int64 costBasis,
     uint64 exitQuoteQuantity,
     uint64 indexPrice,
     int64 positionSize
   ) internal pure {
-    uint64 expectedExitQuoteQuantity = calculateExitQuoteQuantityByExitPrice(costBasis, indexPrice, positionSize);
+    uint64 expectedExitQuoteQuantity = calculateExitQuoteQuantityAtExitPrice(costBasis, indexPrice, positionSize);
 
     // Allow additional pip buffers for integer rounding
     require(
@@ -134,7 +134,7 @@ library LiquidationValidations {
     );
   }
 
-  function validateLiquidationQuoteQuantityToClosePositions(
+  function validateQuoteQuantityAtBankruptcyPrice(
     uint64 indexPrice,
     uint64 liquidationQuoteQuantity,
     uint64 maintenanceMarginFraction,
@@ -142,7 +142,7 @@ library LiquidationValidations {
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
-    uint64 expectedLiquidationQuoteQuantity = calculateLiquidationQuoteQuantityToClosePositions(
+    uint64 expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
       indexPrice,
       maintenanceMarginFraction,
       positionSize,

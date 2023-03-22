@@ -11,6 +11,7 @@ pragma solidity 0.8.18;
 enum DeleverageType {
   ExitFundClosure,
   InsuranceFundClosure,
+  // The following two values are unused but included for completeness
   WalletExitAcquisition,
   WalletInMaintenanceAcquisition
 }

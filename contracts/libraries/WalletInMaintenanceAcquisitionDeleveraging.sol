@@ -155,40 +155,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     );
   }
 
-  function _validateDeleverageQuoteQuantityAndUpdatePositions(
-    AcquisitionDeleverageArguments memory arguments,
-    address exitFundWallet,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private {
-    Market memory market = _validateWalletInMaintenanceDeleverageQuoteQuantity(
-      arguments,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-
-    _updatePositionsForDeleverage(
-      arguments,
-      exitFundWallet,
-      market,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-  }
-
-  function _validateWalletInMaintenanceDeleverageQuoteQuantity(
+  function _validateDeleverageQuoteQuantity(
     AcquisitionDeleverageArguments memory arguments,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement,
@@ -209,7 +176,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
       market.baseAssetSymbol
     );
 
-    LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
+    LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
       market.lastIndexPrice,
       arguments.liquidationQuoteQuantity,
       market
@@ -221,6 +188,39 @@ library WalletInMaintenanceAcquisitionDeleveraging {
         : int64(arguments.liquidationBaseQuantity),
       totalAccountValue,
       totalMaintenanceMarginRequirement
+    );
+  }
+
+  function _validateDeleverageQuoteQuantityAndUpdatePositions(
+    AcquisitionDeleverageArguments memory arguments,
+    address exitFundWallet,
+    int64 totalAccountValue,
+    uint64 totalMaintenanceMarginRequirement,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private {
+    Market memory market = _validateDeleverageQuoteQuantity(
+      arguments,
+      totalAccountValue,
+      totalMaintenanceMarginRequirement,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    _updatePositionsForDeleverage(
+      arguments,
+      exitFundWallet,
+      market,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
     );
   }
 
@@ -254,7 +254,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
       // Load market
       loadArguments.markets[i] = marketsByBaseAssetSymbol[baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]];
 
-      _validateInsuranceFundWalletInMaintenanceLiquidationQuoteQuantityForPosition(
+      _validateInsuranceFundLiquidationQuoteQuantityForPosition(
         arguments,
         baseAssetSymbolsForInsuranceFundAndLiquidatingWallet,
         i,
@@ -274,7 +274,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     );
   }
 
-  function _validateInsuranceFundWalletInMaintenanceLiquidationQuoteQuantityForPosition(
+  function _validateInsuranceFundLiquidationQuoteQuantityForPosition(
     AcquisitionDeleverageArguments memory arguments,
     string[] memory baseAssetSymbolsForInsuranceFundAndLiquidatingWallet,
     uint8 index,
@@ -284,7 +284,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    LiquidationValidations.validateLiquidationQuoteQuantityToClosePositions(
+    LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
       loadArguments.markets[index].lastIndexPrice,
       arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
       loadArguments

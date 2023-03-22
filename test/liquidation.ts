@@ -78,7 +78,7 @@ describe('Exchange', function () {
     );
   });
 
-  describe('calculateLiquidationQuoteQuantityToClosePositions', async function () {
+  describe('calculateQuoteQuantityAtBankruptcyPrice', async function () {
     let liquidationValidationsMock: LiquidationValidationsMock;
 
     beforeEach(async () => {
@@ -89,7 +89,7 @@ describe('Exchange', function () {
 
     it('should revert if result overflows int64', async function () {
       await expect(
-        liquidationValidationsMock.calculateLiquidationQuoteQuantityToClosePositions(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
           new BigNumber(2).pow(63).minus(1).toString(),
           '3000000',
           new BigNumber(2).pow(63).minus(1).toString(),
@@ -101,7 +101,7 @@ describe('Exchange', function () {
 
     it('should revert if result underflows int64', async function () {
       await expect(
-        liquidationValidationsMock.calculateLiquidationQuoteQuantityToClosePositions(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
           new BigNumber(2).pow(63).minus(1).toString(),
           '3000000',
           new BigNumber(2).pow(63).negated().toString(),

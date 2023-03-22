@@ -85,41 +85,6 @@ library IndexPriceMargin {
       );
   }
 
-  function validateInitialMarginRequirement(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view {
-    int64 totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-      wallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
-    uint64 totalInitialMarginRequirement;
-
-    Market memory market;
-    int64 positionSize;
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-      positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
-
-      totalAccountValue += Math.multiplyPipsByFraction(
-        positionSize,
-        int64(market.lastIndexPrice),
-        int64(Constants.PIP_PRICE_MULTIPLIER)
-      );
-      totalInitialMarginRequirement += _loadMarginRequirement(
-        market.loadInitialMarginFractionForWallet(positionSize, wallet, marketOverridesByBaseAssetSymbolAndWallet),
-        market.lastIndexPrice,
-        positionSize
-      );
-    }
-
-    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
-  }
-
   function loadExitAccountValue(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -137,7 +102,7 @@ library IndexPriceMargin {
       balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
 
-      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityByExitPrice(
+      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
         market.lastIndexPrice,
         balanceStruct.balance
@@ -276,6 +241,41 @@ library IndexPriceMargin {
         positionSize
       );
     }
+  }
+
+  function validateInitialMarginRequirement(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view {
+    int64 totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    uint64 totalInitialMarginRequirement;
+
+    Market memory market;
+    int64 positionSize;
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
+
+      totalAccountValue += Math.multiplyPipsByFraction(
+        positionSize,
+        int64(market.lastIndexPrice),
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
+      totalInitialMarginRequirement += _loadMarginRequirement(
+        market.loadInitialMarginFractionForWallet(positionSize, wallet, marketOverridesByBaseAssetSymbolAndWallet),
+        market.lastIndexPrice,
+        positionSize
+      );
+    }
+
+    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
   /**

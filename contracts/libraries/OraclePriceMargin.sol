@@ -109,6 +109,30 @@ library OraclePriceMargin {
       );
   }
 
+  function loadExitAccountValueAndMaintenanceMarginRequirement(
+    int64 outstandingWalletFunding,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int64 exitAccountValue, uint64 maintenanceMarginRequirement) {
+    exitAccountValue = _loadExitAccountValue(
+      outstandingWalletFunding,
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+    maintenanceMarginRequirement = loadTotalMaintenanceMarginRequirement(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
   function loadQuoteQuantityAvailableForExitWithdrawal(
     address exitFundWallet,
     int64 outstandingWalletFunding,
@@ -154,30 +178,6 @@ library OraclePriceMargin {
     }
 
     return quoteQuantityAvailableForExitWithdrawal;
-  }
-
-  function loadExitAccountValueAndMaintenanceMarginRequirement(
-    int64 outstandingWalletFunding,
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 exitAccountValue, uint64 maintenanceMarginRequirement) {
-    exitAccountValue = _loadExitAccountValue(
-      outstandingWalletFunding,
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-    maintenanceMarginRequirement = loadTotalMaintenanceMarginRequirement(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
   }
 
   function loadTotalInitialMarginRequirement(
@@ -247,7 +247,7 @@ library OraclePriceMargin {
       balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
 
-      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityByExitPrice(
+      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
         market.loadOraclePrice(),
         balanceStruct.balance
@@ -299,7 +299,7 @@ library OraclePriceMargin {
     Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
 
     uint64 quoteQuantityForPosition = exitAccountValue < 0
-      ? LiquidationValidations.calculateLiquidationQuoteQuantityToClosePositions(
+      ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
         market.loadOraclePrice(),
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
@@ -309,7 +309,7 @@ library OraclePriceMargin {
         exitAccountValue,
         totalMaintenanceMarginRequirement
       )
-      : LiquidationValidations.calculateExitQuoteQuantityByExitPrice(
+      : LiquidationValidations.calculateExitQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
         market.loadOraclePrice(),
         balanceStruct.balance
