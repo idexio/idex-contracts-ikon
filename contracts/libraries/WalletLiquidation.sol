@@ -228,7 +228,7 @@ library WalletLiquidation {
     );
 
     if (exitAccountValue < 0) {
-      LiquidationValidations.validateQuoteQuantityAtLiquidationPrice(
+      LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
         market.lastIndexPrice,
         arguments.liquidationQuoteQuantities[index],
         market
@@ -258,7 +258,7 @@ library WalletLiquidation {
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    LiquidationValidations.validateQuoteQuantityAtLiquidationPrice(
+    LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
       market.lastIndexPrice,
       arguments.liquidationQuoteQuantities[index],
       market

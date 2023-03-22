@@ -637,7 +637,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Liquidates all positions held by a wallet below maintenance requirements to the Insurance Fund at each
-   * position's liquidation price
+   * position's bankruptcy price
    */
   function liquidateWalletInMaintenance(
     WalletLiquidationArguments memory liquidationArguments
@@ -659,7 +659,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Liquidates all positions held by a wallet below maintenance requirements to the Exit Fund at each
-   * position's liquidation price
+   * position's bankruptcy price
    */
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     WalletLiquidationArguments memory liquidationArguments
@@ -706,7 +706,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Reduces a single position held by a wallet below maintenance requirements by deleveraging a counterparty
-   * position at the liquidation price of the liquidating wallet
+   * position at the bankruptcy price of the liquidating wallet
    */
   function deleverageInMaintenanceAcquisition(
     AcquisitionDeleverageArguments memory deleverageArguments
@@ -771,7 +771,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Reduces a single position held by the Exit Fund by deleveraging a counterparty position at the index
-   * price or the Exit Fund's liquidation price if the Exit Fund account value is positive or negative, respectively
+   * price or the Exit Fund's bankruptcy price if the Exit Fund account value is positive or negative, respectively
    */
   function deleverageExitFundClosure(
     ClosureDeleverageArguments memory deleverageArguments
