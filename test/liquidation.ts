@@ -622,6 +622,35 @@ describe('Exchange', function () {
       });
     });
 
+    it('should work for valid wallet with negative EAV', async function () {
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '3000.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await exchange.connect(dispatcherWallet).liquidateWalletExited({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader1Wallet.address,
+        liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+      });
+    });
+
     it('should revert when not sent by dispatcher', async function () {
       await expect(
         exchange.liquidateWalletExited({

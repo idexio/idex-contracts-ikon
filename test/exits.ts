@@ -3,11 +3,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import type {
+  ChainlinkAggregatorMock,
   Exchange_v4,
   USDC,
   WithdrawExitValidationsMock,
 } from '../typechain-types';
-import { IndexPrice } from '../lib';
+import { decimalToPips, IndexPrice } from '../lib';
 import {
   buildIndexPrice,
   deployAndAssociateContracts,
@@ -17,6 +18,7 @@ import {
 } from './helpers';
 
 describe('Exchange', function () {
+  let chainlinkAggregator: ChainlinkAggregatorMock;
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
@@ -54,6 +56,7 @@ describe('Exchange', function () {
       indexPriceServiceWallet,
       insuranceFundWallet,
     );
+    chainlinkAggregator = results.chainlinkAggregator;
     exchange = results.exchange;
     usdc = results.usdc;
 
@@ -148,7 +151,30 @@ describe('Exchange', function () {
       await exchange.withdrawExit(trader2Wallet.address);
     });
 
-    it('should work for exited wallet', async function () {
+    it('should work for exited wallet with negative EAV', async function () {
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader1Wallet.address,
+          )
+        ).toString(),
+      ).to.not.equal('0');
+
+      await chainlinkAggregator.setPrice(decimalToPips('100000.00000000'));
+
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader1Wallet.address,
+          )
+        ).toString(),
+      ).to.equal('0');
+
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+    });
+
+    it('should work for EF', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
       await exchange.withdrawExit(trader1Wallet.address);
 

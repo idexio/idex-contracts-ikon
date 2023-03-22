@@ -42,8 +42,7 @@ library WalletExitAcquisitionDeleveraging {
     mapping(address => WalletExit) storage walletExits
   ) public {
     require(arguments.liquidatingWallet != arguments.counterpartyWallet, "Cannot liquidate wallet against itself");
-    require(arguments.liquidatingWallet != exitFundWallet, "Cannot liquidate EF");
-    require(arguments.liquidatingWallet != insuranceFundWallet, "Cannot liquidate IF");
+    // The EF and IF cannot be exited, so no need validate that they are not set as liquidating wallet
     require(arguments.counterpartyWallet != exitFundWallet, "Cannot deleverage EF");
     require(arguments.counterpartyWallet != insuranceFundWallet, "Cannot deleverage IF");
 

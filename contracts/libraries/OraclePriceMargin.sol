@@ -46,34 +46,6 @@ library OraclePriceMargin {
   }
 
   // solhint-disable-next-line func-name-mixedcase
-  function loadExitAccountValueIncludingOutstandingWalletFunding_delegatecall(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
-    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public view returns (int64) {
-    int64 outstandingWalletFunding = Funding.loadOutstandingWalletFunding(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      fundingMultipliersByBaseAssetSymbol,
-      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
-    );
-
-    return
-      _loadExitAccountValue(
-        outstandingWalletFunding,
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      );
-  }
-
-  // solhint-disable-next-line func-name-mixedcase
   function loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
