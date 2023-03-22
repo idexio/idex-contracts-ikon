@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 import { LiquidationValidations } from "../libraries/LiquidationValidations.sol";
 
 contract LiquidationValidationsMock {
-  function calculateQuoteQuantityAtBankruptcyPrice(
+  function calculateQuoteQuantityAtLiquidationPrice(
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
     int64 positionSize,
@@ -13,7 +13,7 @@ contract LiquidationValidationsMock {
     uint64 totalMaintenanceMarginRequirement
   ) public pure returns (uint64) {
     return
-      LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
+      LiquidationValidations.calculateQuoteQuantityAtLiquidationPrice(
         indexPrice,
         maintenanceMarginFraction,
         positionSize,

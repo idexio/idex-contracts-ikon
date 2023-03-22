@@ -81,11 +81,11 @@ library WalletExitAcquisitionDeleveraging {
     int64 exitAccountValue
   ) private pure returns (WalletExitAcquisitionDeleveragePriceStrategy) {
     if (exitAccountValue < 0) {
-      // Wallets with negative total account value must use the bankruptcy price for the remainder of exit deleveraging
+      // Wallets with negative total account value must use the liquidation price for the remainder of exit deleveraging
       return WalletExitAcquisitionDeleveragePriceStrategy.LiquidationPrice;
     } else if (savedStrategy == WalletExitAcquisitionDeleveragePriceStrategy.None) {
       // Wallets with a positive total account value should use the exit price (worse of entry price or current entry
-      // price) until deleveraging a position moves the total account value negative, at which point the bankruptcy
+      // price) until deleveraging a position moves the total account value negative, at which point the liquidation
       // price will be used for the remainder of exit deleveraging
       return WalletExitAcquisitionDeleveragePriceStrategy.ExitPrice;
     }
@@ -288,7 +288,7 @@ library WalletExitAcquisitionDeleveraging {
         liquidationBaseQuantity
       );
     } else {
-      LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
+      LiquidationValidations.validateQuoteQuantityAtLiquidationPrice(
         arguments.indexPrice,
         arguments.liquidationQuoteQuantity,
         arguments.maintenanceMarginFraction,

@@ -185,7 +185,7 @@ library BalanceTracking {
     int64 positionSize = balanceStruct.balance;
     // Calculate amount of quote to close position
     uint64 quoteQuantity = arguments.exitAccountValue < 0
-      ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
+      ? LiquidationValidations.calculateQuoteQuantityAtLiquidationPrice(
         arguments.market.loadOraclePrice(),
         arguments.maintenanceMarginFraction,
         positionSize,

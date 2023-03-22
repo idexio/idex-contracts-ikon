@@ -22,9 +22,9 @@ library LiquidationValidations {
   }
 
   /**
-   * @dev Calculates quote quantity needed to close position at bankruptcy price
+   * @dev Calculates quote quantity needed to close position at liquidation price
    */
-  function calculateQuoteQuantityAtBankruptcyPrice(
+  function calculateQuoteQuantityAtLiquidationPrice(
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
     int64 positionSize,
@@ -76,8 +76,8 @@ library LiquidationValidations {
   ) internal pure {
     uint64 expectedLiquidationQuoteQuantity;
     if (totalAccountValue < 0) {
-      // Use bankruptcy price for negative total account value
-      expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
+      // Use liquidation price for negative total account value
+      expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtLiquidationPrice(
         indexPrice,
         maintenanceMarginFraction,
         positionSize,
@@ -134,7 +134,7 @@ library LiquidationValidations {
     );
   }
 
-  function validateQuoteQuantityAtBankruptcyPrice(
+  function validateQuoteQuantityAtLiquidationPrice(
     uint64 indexPrice,
     uint64 liquidationQuoteQuantity,
     uint64 maintenanceMarginFraction,
@@ -142,7 +142,7 @@ library LiquidationValidations {
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
-    uint64 expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
+    uint64 expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtLiquidationPrice(
       indexPrice,
       maintenanceMarginFraction,
       positionSize,

@@ -176,7 +176,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
       market.baseAssetSymbol
     );
 
-    LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
+    LiquidationValidations.validateQuoteQuantityAtLiquidationPrice(
       market.lastIndexPrice,
       arguments.liquidationQuoteQuantity,
       market
@@ -284,7 +284,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
+    LiquidationValidations.validateQuoteQuantityAtLiquidationPrice(
       loadArguments.markets[index].lastIndexPrice,
       arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
       loadArguments

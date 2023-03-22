@@ -299,7 +299,7 @@ library OraclePriceMargin {
     Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
 
     uint64 quoteQuantityForPosition = exitAccountValue < 0
-      ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
+      ? LiquidationValidations.calculateQuoteQuantityAtLiquidationPrice(
         market.loadOraclePrice(),
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
