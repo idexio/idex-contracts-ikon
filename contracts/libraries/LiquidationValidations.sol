@@ -6,7 +6,7 @@ import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 
 library LiquidationValidations {
-  function calculateExitQuoteQuantityAtExitPrice(
+  function calculateQuoteQuantityAtExitPrice(
     int64 costBasis,
     uint64 indexPrice,
     int64 positionSize
@@ -106,7 +106,7 @@ library LiquidationValidations {
     uint64 indexPrice,
     int64 positionSize
   ) internal pure {
-    uint64 expectedExitQuoteQuantity = calculateExitQuoteQuantityAtExitPrice(costBasis, indexPrice, positionSize);
+    uint64 expectedExitQuoteQuantity = calculateQuoteQuantityAtExitPrice(costBasis, indexPrice, positionSize);
 
     // Allow additional pip buffers for integer rounding
     require(

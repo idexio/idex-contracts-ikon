@@ -192,7 +192,7 @@ library BalanceTracking {
         arguments.exitAccountValue,
         arguments.totalMaintenanceMarginRequirement
       )
-      : LiquidationValidations.calculateExitQuoteQuantityAtExitPrice(
+      : LiquidationValidations.calculateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
         arguments.market.loadOraclePrice(),
         positionSize

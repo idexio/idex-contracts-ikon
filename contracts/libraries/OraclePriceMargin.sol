@@ -247,7 +247,7 @@ library OraclePriceMargin {
       balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
 
-      quoteQuantityForPosition = LiquidationValidations.calculateExitQuoteQuantityAtExitPrice(
+      quoteQuantityForPosition = LiquidationValidations.calculateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
         market.loadOraclePrice(),
         balanceStruct.balance
@@ -309,7 +309,7 @@ library OraclePriceMargin {
         exitAccountValue,
         totalMaintenanceMarginRequirement
       )
-      : LiquidationValidations.calculateExitQuoteQuantityAtExitPrice(
+      : LiquidationValidations.calculateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
         market.loadOraclePrice(),
         balanceStruct.balance
