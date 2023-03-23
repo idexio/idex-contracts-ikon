@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
@@ -23,8 +23,9 @@
     "artifacts/contracts/libraries/Trading.sol/Trading.json",
     "artifacts/contracts/libraries/Transferring.sol/Transferring.json",
     "artifacts/contracts/libraries/WalletExitAcquisitionDeleveraging.sol/WalletExitAcquisitionDeleveraging.json",
+    "artifacts/contracts/libraries/WalletExitLiquidation.sol/WalletExitLiquidation.json",
     "artifacts/contracts/libraries/WalletInMaintenanceAcquisitionDeleveraging.sol/WalletInMaintenanceAcquisitionDeleveraging.json",
-    "artifacts/contracts/libraries/WalletLiquidation.sol/WalletLiquidation.json",
+    "artifacts/contracts/libraries/WalletInMaintenanceLiquidation.sol/WalletInMaintenanceLiquidation.json",
     "artifacts/contracts/libraries/Withdrawing.sol/Withdrawing.json",
     "build/lib",
     "build/typechain-types"

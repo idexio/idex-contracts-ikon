@@ -21,7 +21,6 @@ import {
   expect,
   fieldUpgradeDelayInBlocks,
   fundWallets,
-  logWalletBalances,
   quoteAssetSymbol,
 } from './helpers';
 
@@ -746,8 +745,6 @@ describe('Exchange', function () {
         'BTC',
       );
 
-      await logWalletBalances(trader2Wallet.address, exchange, ['ETH', 'BTC']);
-
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
@@ -758,8 +755,6 @@ describe('Exchange', function () {
             ),
           ),
         ]);
-
-      await logWalletBalances(trader2Wallet.address, exchange, ['ETH', 'BTC']);
 
       await exchange.connect(trader2Wallet).exitWallet();
 

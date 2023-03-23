@@ -18,8 +18,8 @@ enum DeleverageType {
 
 enum WalletExitAcquisitionDeleveragePriceStrategy {
   None,
-  ExitPrice,
-  BankruptcyPrice
+  BankruptcyPrice,
+  ExitPrice
 }
 
 // Liquidations //

@@ -9,7 +9,6 @@ import {
   deployAndAssociateContracts,
   executeTrade,
   fundWallets,
-  logWalletBalances,
   quoteAssetDecimals,
 } from './helpers';
 
