@@ -117,8 +117,8 @@ library WalletExitLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+    (int64 exitAccountValue, int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
+      .loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
         arguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -129,12 +129,7 @@ library WalletExitLiquidation {
     validateExitQuoteQuantityArguments.wallet = arguments.liquidatingWallet;
     validateExitQuoteQuantityArguments.totalAccountValue = totalAccountValue;
     validateExitQuoteQuantityArguments.totalMaintenanceMarginRequirement = totalMaintenanceMarginRequirement;
-    validateExitQuoteQuantityArguments.exitAccountValue = IndexPriceMargin.loadExitAccountValue(
-      arguments.liquidatingWallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
+    validateExitQuoteQuantityArguments.exitAccountValue = exitAccountValue;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {

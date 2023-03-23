@@ -225,31 +225,20 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
-    // Outstanding funding payments already applied in withdrawExit_delegatecall
     BalanceTracking.UpdatePositionForExitArguments memory updatePositionForExitArguments;
-    updatePositionForExitArguments.exitAccountValue = OraclePriceMargin.loadExitAccountValue(
-      0,
-      arguments.wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
     updatePositionForExitArguments.exitFundWallet = arguments.exitFundWallet;
-    updatePositionForExitArguments.totalAccountValue = OraclePriceMargin.loadTotalAccountValue(
-      0,
+    (
+      updatePositionForExitArguments.exitAccountValue,
+      updatePositionForExitArguments.totalAccountValue,
+      updatePositionForExitArguments.totalMaintenanceMarginRequirement
+    ) = OraclePriceMargin.loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
+      0, // Outstanding funding payments already applied in withdrawExit_delegatecall
       arguments.wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-    updatePositionForExitArguments.totalMaintenanceMarginRequirement = OraclePriceMargin
-      .loadTotalMaintenanceMarginRequirement(
-        arguments.wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
     updatePositionForExitArguments.wallet = arguments.wallet;
 
     int64 exitFundQuoteQuantityChange;

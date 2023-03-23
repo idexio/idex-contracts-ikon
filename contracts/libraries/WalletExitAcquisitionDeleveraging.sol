@@ -147,27 +147,24 @@ library WalletExitAcquisitionDeleveraging {
       "No open position in market"
     );
 
-    WalletExitAcquisitionDeleveragePriceStrategy deleveragePriceStrategy = _determineAndStoreDeleveragePriceStrategy(
-      IndexPriceMargin.loadExitAccountValue(
-        arguments.liquidatingWallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketsByBaseAssetSymbol
-      ),
-      arguments.liquidatingWallet,
-      walletExits
-    );
-
     (
+      int64 exitAccountValue,
       int64 liquidatingWalletTotalAccountValue,
       uint64 liquidatingWalletTotalMaintenanceMarginRequirement
-    ) = IndexPriceMargin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+    ) = IndexPriceMargin.loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
         arguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
+
+    // Determine price strategy to use for subsequent IF acquisition simulation and actual position deleverage
+    WalletExitAcquisitionDeleveragePriceStrategy deleveragePriceStrategy = _determineAndStoreDeleveragePriceStrategy(
+      exitAccountValue,
+      arguments.liquidatingWallet,
+      walletExits
+    );
 
     // Do not proceed with deleverage if the Insurance Fund can acquire the wallet's positions
     _validateInsuranceFundCannotLiquidateWallet(
