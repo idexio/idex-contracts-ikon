@@ -32,7 +32,7 @@
   ],
   "scripts": {
     "build": "yarn build:sol && yarn build:ts",
-    "build:clean": "rm -rf build && rm -rf artifacts && rm -rf typechain-types",
+    "build:clean": "rm -rf build && rm -rf artifacts && rm -rf cache && rm -rf typechain-types",
     "build:sol": "hardhat compile",
     "build:ts": "tsc -p .",
     "test:coverage": "COVERAGE=1 hardhat coverage",
