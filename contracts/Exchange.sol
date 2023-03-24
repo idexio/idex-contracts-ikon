@@ -478,7 +478,8 @@ contract Exchange_v4 is IExchange, Owned {
   }
 
   /**
-   * @notice Load the balance of quote asset the wallet can withdraw after exiting, in pips
+   * @notice Load the balance of quote asset the wallet can withdraw after exiting, in pips. Note that due to changing
+   * prices the value returned is only an estimate and may not exactly match the value actually transferred after exit
    *
    * @param wallet The wallet address to load the exit quote balance for. Can be different from `msg.sender`
    *
