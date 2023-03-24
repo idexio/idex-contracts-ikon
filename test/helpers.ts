@@ -26,6 +26,8 @@ import {
 } from '../lib';
 import { ChainlinkAggregatorMock, Exchange_v4, USDC } from '../typechain-types';
 
+export const fieldUpgradeDelayInBlocks = (1 * 24 * 60 * 60) / 3;
+
 export const quoteAssetDecimals = 6;
 
 export const baseAssetSymbol = 'ETH';
@@ -36,11 +38,12 @@ export async function addAndActivateMarket(
   chainlinkAggregator: ChainlinkAggregatorMock,
   dispatcherWallet: SignerWithAddress,
   exchange: Exchange_v4,
+  baseAssetSymbol_ = baseAssetSymbol,
 ) {
   await exchange.addMarket({
     exists: true,
     isActive: false,
-    baseAssetSymbol,
+    baseAssetSymbol: baseAssetSymbol_,
     chainlinkPriceFeedAddress: chainlinkAggregator.address,
     indexPriceAtDeactivation: 0,
     lastIndexPrice: 0,
@@ -55,63 +58,7 @@ export async function addAndActivateMarket(
       minimumPositionSize: '10000000',
     },
   });
-  await exchange.connect(dispatcherWallet).activateMarket(baseAssetSymbol);
-}
-
-export async function bootstrapExitedWallet() {
-  const [
-    ownerWallet,
-    dispatcherWallet,
-    exitFundWallet,
-    feeWallet,
-    insuranceWallet,
-    indexPriceServiceWallet,
-    trader1Wallet,
-    trader2Wallet,
-  ] = await ethers.getSigners();
-  const { exchange, usdc } = await deployAndAssociateContracts(
-    ownerWallet,
-    dispatcherWallet,
-    exitFundWallet,
-    feeWallet,
-    indexPriceServiceWallet,
-    insuranceWallet,
-  );
-
-  await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
-
-  await fundWallets(
-    [trader1Wallet, trader2Wallet, insuranceWallet],
-    exchange,
-    usdc,
-  );
-
-  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
-
-  await executeTrade(
-    exchange,
-    dispatcherWallet,
-    indexPrice,
-    trader1Wallet,
-    trader2Wallet,
-  );
-
-  // Deposit additional quote to allow for EF exit withdrawal
-  const depositQuantity = ethers.utils.parseUnits(
-    '100000.0',
-    quoteAssetDecimals,
-  );
-  await usdc.connect(ownerWallet).approve(exchange.address, depositQuantity);
-  await (
-    await exchange
-      .connect(ownerWallet)
-      .deposit(depositQuantity, ethers.constants.AddressZero)
-  ).wait();
-
-  await exchange.connect(trader1Wallet).exitWallet();
-  await exchange.withdrawExit(trader1Wallet.address);
-
-  return exchange;
+  await exchange.connect(dispatcherWallet).activateMarket(baseAssetSymbol_);
 }
 
 export async function bootstrapLiquidatedWallet() {
@@ -120,24 +67,24 @@ export async function bootstrapLiquidatedWallet() {
     dispatcherWallet,
     exitFundWallet,
     feeWallet,
-    insuranceWallet,
+    insuranceFundWallet,
     indexPriceServiceWallet,
     trader1Wallet,
     trader2Wallet,
   ] = await ethers.getSigners();
-  const { exchange, usdc } = await deployAndAssociateContracts(
+  const { exchange, governance, usdc } = await deployAndAssociateContracts(
     ownerWallet,
     dispatcherWallet,
     exitFundWallet,
     feeWallet,
     indexPriceServiceWallet,
-    insuranceWallet,
+    insuranceFundWallet,
   );
 
   await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
 
   await fundWallets(
-    [trader1Wallet, trader2Wallet, insuranceWallet],
+    [trader1Wallet, trader2Wallet, insuranceFundWallet],
     exchange,
     usdc,
   );
@@ -163,7 +110,7 @@ export async function bootstrapLiquidatedWallet() {
     .publishIndexPrices([indexPriceToArgumentStruct(liquidationIndexPrice)]);
 
   await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-    counterpartyWallet: insuranceWallet.address,
+    counterpartyWallet: insuranceFundWallet.address,
     liquidatingWallet: trader1Wallet.address,
     liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
   });
@@ -171,7 +118,9 @@ export async function bootstrapLiquidatedWallet() {
   return {
     dispatcherWallet,
     exchange,
-    insuranceWallet,
+    governance,
+    indexPriceServiceWallet,
+    insuranceFundWallet,
     liquidationIndexPrice,
     liquidatedWallet: trader1Wallet,
     counterpartyWallet: trader2Wallet,
@@ -355,7 +304,6 @@ export async function deployAndAssociateContracts(
 
 export async function deployLibraryContracts() {
   const [
-    AcquisitionDeleveraging,
     ClosureDeleveraging,
     Depositing,
     Funding,
@@ -367,10 +315,12 @@ export async function deployLibraryContracts() {
     PositionInDeactivatedMarketLiquidation,
     Trading,
     Transferring,
-    WalletLiquidation,
+    WalletExitAcquisitionDeleveraging,
+    WalletExitLiquidation,
+    WalletInMaintenanceAcquisitionDeleveraging,
+    WalletInMaintenanceLiquidation,
     Withdrawing,
   ] = await Promise.all([
-    ethers.getContractFactory('AcquisitionDeleveraging'),
     ethers.getContractFactory('ClosureDeleveraging'),
     ethers.getContractFactory('Depositing'),
     ethers.getContractFactory('Funding'),
@@ -382,12 +332,14 @@ export async function deployLibraryContracts() {
     ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
     ethers.getContractFactory('Trading'),
     ethers.getContractFactory('Transferring'),
-    ethers.getContractFactory('WalletLiquidation'),
+    ethers.getContractFactory('WalletExitAcquisitionDeleveraging'),
+    ethers.getContractFactory('WalletExitLiquidation'),
+    ethers.getContractFactory('WalletInMaintenanceAcquisitionDeleveraging'),
+    ethers.getContractFactory('WalletInMaintenanceLiquidation'),
     ethers.getContractFactory('Withdrawing'),
   ]);
 
   const [
-    acquisitionDeleveraging,
     closureDeleveraging,
     depositing,
     funding,
@@ -399,10 +351,12 @@ export async function deployLibraryContracts() {
     positionInDeactivatedMarketLiquidation,
     trading,
     transferring,
-    walletLiquidation,
+    walletExitAcquisitionDeleveraging,
+    walletExitLiquidation,
+    walletInMaintenanceAcquisitionDeleveraging,
+    walletInMaintenanceLiquidation,
     withdrawing,
   ] = await Promise.all([
-    (await AcquisitionDeleveraging.deploy()).deployed(),
     (await ClosureDeleveraging.deploy()).deployed(),
     (await Depositing.deploy()).deployed(),
     (await Funding.deploy()).deployed(),
@@ -414,13 +368,15 @@ export async function deployLibraryContracts() {
     (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
     (await Transferring.deploy()).deployed(),
-    (await WalletLiquidation.deploy()).deployed(),
+    (await WalletExitAcquisitionDeleveraging.deploy()).deployed(),
+    (await WalletExitLiquidation.deploy()).deployed(),
+    (await WalletInMaintenanceAcquisitionDeleveraging.deploy()).deployed(),
+    (await WalletInMaintenanceLiquidation.deploy()).deployed(),
     (await Withdrawing.deploy()).deployed(),
   ]);
 
   return ethers.getContractFactory('Exchange_v4', {
     libraries: {
-      AcquisitionDeleveraging: acquisitionDeleveraging.address,
       ClosureDeleveraging: closureDeleveraging.address,
       Depositing: depositing.address,
       Funding: funding.address,
@@ -433,7 +389,12 @@ export async function deployLibraryContracts() {
         positionInDeactivatedMarketLiquidation.address,
       Trading: trading.address,
       Transferring: transferring.address,
-      WalletLiquidation: walletLiquidation.address,
+      WalletExitAcquisitionDeleveraging:
+        walletExitAcquisitionDeleveraging.address,
+      WalletExitLiquidation: walletExitLiquidation.address,
+      WalletInMaintenanceAcquisitionDeleveraging:
+        walletInMaintenanceAcquisitionDeleveraging.address,
+      WalletInMaintenanceLiquidation: walletInMaintenanceLiquidation.address,
       Withdrawing: withdrawing.address,
     },
   });
@@ -445,6 +406,9 @@ export async function executeTrade(
   indexPrice: IndexPrice | null,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
+  baseAssetSymbol_ = baseAssetSymbol,
+  price = '2000.00000000',
+  quantity = '10.00000000',
 ): Promise<Trade> {
   if (indexPrice) {
     await exchange
@@ -456,11 +420,11 @@ export async function executeTrade(
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader1.address,
-    market: `${baseAssetSymbol}-USD`,
+    market: `${baseAssetSymbol_}-USD`,
     type: OrderType.Limit,
     side: OrderSide.Sell,
-    quantity: '10.00000000',
-    price: '2000.00000000',
+    quantity,
+    price,
   };
   const sellOrderSignature = await trader1.signMessage(
     ethers.utils.arrayify(getOrderHash(sellOrder)),
@@ -470,11 +434,11 @@ export async function executeTrade(
     signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader2.address,
-    market: `${baseAssetSymbol}-USD`,
+    market: `${baseAssetSymbol_}-USD`,
     type: OrderType.Limit,
     side: OrderSide.Buy,
-    quantity: '10.00000000',
-    price: '2000.00000000',
+    quantity,
+    price,
   };
   const buyOrderSignature = await trader2.signMessage(
     ethers.utils.arrayify(getOrderHash(buyOrder)),
@@ -482,11 +446,13 @@ export async function executeTrade(
 
   const trade: Trade = {
     baseAssetSymbol: baseAssetSymbol,
-    baseQuantity: '10.00000000',
-    quoteQuantity: '20000.00000000',
+    baseQuantity: quantity,
+    quoteQuantity: new BigNumber(quantity)
+      .times(new BigNumber(price))
+      .toFixed(8),
     makerFeeQuantity: '20.00000000',
     takerFeeQuantity: '40.00000000',
-    price: '2000.00000000',
+    price,
     makerSide: OrderSide.Sell,
   };
 
@@ -586,38 +552,31 @@ export async function loadFundingMultipliers(
 export async function logWalletBalances(
   wallet: string,
   exchange: Contract,
-  indexPrices: IndexPrice[],
+  baseAssetSymbols: string[],
 ) {
   console.log(
-    `USDC balance: ${pipToDecimal(
-      await exchange.loadBalanceBySymbol(wallet, 'USDC'),
+    `USD balance: ${pipToDecimal(
+      await exchange.loadBalanceBySymbol(wallet, 'USD'),
     )}`,
   );
 
-  for (const indexPrice of indexPrices) {
+  for (const baseAssetSymbol of baseAssetSymbols) {
     console.log(
-      `${indexPrice.baseAssetSymbol} balance:  ${pipToDecimal(
-        await exchange.loadBalanceBySymbol(wallet, indexPrice.baseAssetSymbol),
+      `${baseAssetSymbol} balance:  ${pipToDecimal(
+        await exchange.loadBalanceBySymbol(wallet, baseAssetSymbol),
       )}`,
     );
     console.log(
-      `${indexPrice.baseAssetSymbol} cost basis: ${pipToDecimal(
-        (
-          await exchange.loadBalanceStructBySymbol(
-            wallet,
-            indexPrice.baseAssetSymbol,
-          )
-        ).costBasis,
+      `${baseAssetSymbol} cost basis: ${pipToDecimal(
+        (await exchange.loadBalanceStructBySymbol(wallet, baseAssetSymbol))
+          .costBasis,
       )}`,
     );
   }
 
   console.log(
     `Total account value: ${pipToDecimal(
-      await exchange.loadTotalAccountValue(
-        wallet,
-        indexPrices.map(indexPriceToArgumentStruct),
-      ),
+      await exchange.loadTotalAccountValueFromIndexPrices(wallet),
     )}`,
   );
   console.log(
@@ -627,17 +586,13 @@ export async function logWalletBalances(
   );
   console.log(
     `Initial margin requirement: ${pipToDecimal(
-      await exchange.loadTotalInitialMarginRequirement(
-        wallet,
-        indexPrices.map(indexPriceToArgumentStruct),
-      ),
+      await exchange.loadTotalInitialMarginRequirementFromIndexPrices(wallet),
     )}`,
   );
   console.log(
     `Maintenance margin requirement: ${pipToDecimal(
-      await exchange.loadTotalMaintenanceMarginRequirement(
+      await exchange.loadTotalMaintenanceMarginRequirementFromIndexPrices(
         wallet,
-        indexPrices.map(indexPriceToArgumentStruct),
       ),
     )}`,
   );

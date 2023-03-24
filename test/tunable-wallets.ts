@@ -1,18 +1,31 @@
-import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
-import { bootstrapExitedWallet, deployAndAssociateContracts } from './helpers';
-import type { Exchange_v4 } from '../typechain-types';
+import { decimalToAssetUnits } from '../lib';
+import type { Exchange_v4, USDC } from '../typechain-types';
+import {
+  buildIndexPrice,
+  deployAndAssociateContracts,
+  executeTrade,
+  fundWallets,
+  quoteAssetDecimals,
+} from './helpers';
 
 describe('Exchange', function () {
   let exchange: Exchange_v4;
   let ownerWallet: SignerWithAddress;
+  let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     [ownerWallet] = await ethers.getSigners();
     const results = await deployAndAssociateContracts(ownerWallet);
     exchange = results.exchange;
+    usdc = results.usdc;
   });
 
   describe('setExitFundWallet', async function () {
@@ -44,12 +57,39 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
 
-    it('should revert when EF has open balance', async () => {
-      const exitedExchange = await bootstrapExitedWallet();
+    it('should revert when EF has an open position', async () => {
+      const { exchange: exitedExchange } = await bootstrapExitedWallet();
 
       await expect(
         exitedExchange.setExitFundWallet(ownerWallet.address),
-      ).to.eventually.be.rejectedWith(/EF cannot have open balance/i);
+      ).to.eventually.be.rejectedWith(/current EF cannot have open balance/i);
+    });
+
+    it('should revert when EF has open quote balance', async () => {
+      const {
+        chainlinkAggregator,
+        exchange: exitedExchange,
+        trader2Wallet,
+      } = await bootstrapExitedWallet();
+
+      await chainlinkAggregator.setPrice(
+        decimalToAssetUnits('1500.00000000', quoteAssetDecimals),
+      );
+      await exitedExchange.connect(trader2Wallet).exitWallet();
+      await exitedExchange.withdrawExit(trader2Wallet.address);
+
+      await expect(
+        exitedExchange.setExitFundWallet(ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/current EF cannot have open balance/i);
+    });
+
+    it('should revert when new EF has an open position', async () => {
+      const [, traderWallet] = await ethers.getSigners();
+      await fundWallets([traderWallet], exchange, usdc);
+
+      await expect(
+        exchange.setExitFundWallet(traderWallet.address),
+      ).to.eventually.be.rejectedWith(/new EF cannot have open balance/i);
     });
   });
 
@@ -117,3 +157,60 @@ describe('Exchange', function () {
     });
   });
 });
+
+async function bootstrapExitedWallet() {
+  const [
+    ownerWallet,
+    dispatcherWallet,
+    exitFundWallet,
+    feeWallet,
+    insuranceFundWallet,
+    indexPriceServiceWallet,
+    trader1Wallet,
+    trader2Wallet,
+  ] = await ethers.getSigners();
+  const { chainlinkAggregator, exchange, usdc } =
+    await deployAndAssociateContracts(
+      ownerWallet,
+      dispatcherWallet,
+      exitFundWallet,
+      feeWallet,
+      indexPriceServiceWallet,
+      insuranceFundWallet,
+    );
+
+  await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
+
+  await fundWallets(
+    [trader1Wallet, trader2Wallet, insuranceFundWallet],
+    exchange,
+    usdc,
+  );
+
+  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+
+  await executeTrade(
+    exchange,
+    dispatcherWallet,
+    indexPrice,
+    trader1Wallet,
+    trader2Wallet,
+  );
+
+  // Deposit additional quote to allow for EF exit withdrawal
+  const depositQuantity = ethers.utils.parseUnits(
+    '100000.0',
+    quoteAssetDecimals,
+  );
+  await usdc.connect(ownerWallet).approve(exchange.address, depositQuantity);
+  await (
+    await exchange
+      .connect(ownerWallet)
+      .deposit(depositQuantity, ethers.constants.AddressZero)
+  ).wait();
+
+  await exchange.connect(trader1Wallet).exitWallet();
+  await exchange.withdrawExit(trader1Wallet.address);
+
+  return { chainlinkAggregator, exchange, trader1Wallet, trader2Wallet };
+}

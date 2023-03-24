@@ -8,7 +8,7 @@ import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { ICustodian } from "./Interfaces.sol";
-import { WalletExits } from "./WalletExits.sol";
+import { WalletExit } from "./Structs.sol";
 
 library Depositing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -17,15 +17,17 @@ library Depositing {
   function deposit_delegatecall(
     ICustodian custodian,
     uint64 depositIndex,
+    address destinationWallet,
+    address exitFundWallet,
     uint256 quantityInAssetUnits,
     address quoteTokenAddress,
     address sourceWallet,
-    address destinationWallet,
     BalanceTracking.Storage storage balanceTracking,
-    mapping(address => WalletExits.WalletExit) storage walletExits
+    mapping(address => WalletExit) storage walletExits
   ) public returns (uint64 quantity, int64 newExchangeBalance) {
     // Deposits are disabled until `setDepositIndex` is called successfully
     require(depositIndex != Constants.DEPOSIT_INDEX_NOT_SET, "Deposits disabled");
+    require(destinationWallet != exitFundWallet, "Cannot deposit to EF");
 
     // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and trades which respect
     // the Chain Propagation Period given by `effectiveBlockNumber` via `_isWalletExitFinalized`

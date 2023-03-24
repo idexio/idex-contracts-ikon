@@ -427,6 +427,8 @@ contract Governance is Owned {
    */
   function initiateInsuranceFundWalletUpgrade(address newInsuranceFundWallet) public onlyAdmin {
     require(newInsuranceFundWallet != address(0x0), "Invalid IF wallet address");
+    require(newInsuranceFundWallet != exchange.insuranceFundWallet(), "Must be different from current");
+
     require(!currentInsuranceFundWalletUpgrade.exists, "IF wallet upgrade already in progress");
 
     currentInsuranceFundWalletUpgrade = InsuranceFundWalletUpgrade(
@@ -461,8 +463,16 @@ contract Governance is Owned {
     require(currentInsuranceFundWalletUpgrade.newInsuranceFundWallet == newInsuranceFundWallet, "Address mismatch");
     require(block.number >= currentInsuranceFundWalletUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    exchange.setInsuranceFundWallet(newInsuranceFundWallet);
+    require(
+      exchange.loadBaseAssetSymbolsWithOpenPositionsByWallet(exchange.insuranceFundWallet()).length == 0,
+      "Current IF cannot have open positions"
+    );
+    require(
+      exchange.loadBaseAssetSymbolsWithOpenPositionsByWallet(newInsuranceFundWallet).length == 0,
+      "New IF cannot have open positions"
+    );
 
+    exchange.setInsuranceFundWallet(newInsuranceFundWallet);
     delete (currentInsuranceFundWalletUpgrade);
 
     emit InsuranceFundWalletUpgradeFinalized(newInsuranceFundWallet);
@@ -472,6 +482,10 @@ contract Governance is Owned {
    * @notice Initiates market override upgrade process for `wallet`. If `wallet` is zero address, then the overrides
    * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
    * process can be finalized with `finalizeMarketOverridesUpgrade`
+   *
+   * @param baseAssetSymbol The base asset symbol for the market
+   * @param overridableFields New values for overridable fields
+   * @param wallet The wallet to apply overrides to. If zero, overrides apply to entire market
    */
   function initiateMarketOverridesUpgrade(
     string memory baseAssetSymbol,

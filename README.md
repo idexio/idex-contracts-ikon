@@ -1,11 +1,11 @@
 <!-- markdownlint-disable MD033 -->
 # <img src="assets/logo-v4.png" alt="IDEX" height="37px" valign="top"> Ikon Smart Contracts
 
-<!-- ![Tests](./assets/tests.svg)
+![Tests](./assets/tests.svg)
 ![Lines](./assets/coverage-lines.svg)
 ![Branches](./assets/coverage-branches.svg)
 ![Functions](./assets/coverage-functions.svg)
-![Statements](./assets/coverage-statements.svg) -->
+![Statements](./assets/coverage-statements.svg)
 
 ## Overview
 
@@ -23,8 +23,7 @@ yarn && yarn build
 To run the test suite and generate a coverage report:
 
 ```console
-yarn test
-yarn coverage
+yarn test:coverage
 ```
 
 ## Background
@@ -274,7 +273,7 @@ Orders, withdrawals, transfers, and delegated key authorizations include nonces 
 
 IDEX’s hybrid off-chain/on-chain architecture is vulnerable to a canceled-order submission attack if the off-chain components are compromised. In this scenario, an attacker gains access to the dispatcher wallet and a set of canceled orders by compromising the off-chain order book. Because the orders themselves include valid signatures from the placing wallet, the contracts cannot distinguish between active orders placed by users and those the user has since canceled. A similar issue applies to [delegated key](#delegated-keys) authorizations.
 
-Nonce invalidation via `invalidateOrderNonce` allows users to invalidate all orders and delegated keys prior to a specified nonce, making it impossible to submit those orders or use those delegated key authorizations in an attack. The [controls and governance](#controls-and-governance) spec covers the exact mechanics and parameters of the mechanism.
+Nonce invalidation via `invalidateNonce` allows users to invalidate all orders and delegated keys prior to a specified nonce, making it impossible to submit those orders or use those delegated key authorizations in an attack. The [controls and governance](#controls-and-governance) spec covers the exact mechanics and parameters of the mechanism.
 
 ### Precision and Pips
 

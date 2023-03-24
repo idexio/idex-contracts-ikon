@@ -32,9 +32,9 @@ library ClosureDeleveraging {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public returns (uint256) {
-    require(arguments.liquidatingWallet != arguments.deleveragingWallet, "Cannot liquidate wallet against itself");
-    require(arguments.deleveragingWallet != exitFundWallet, "Cannot deleverage EF");
-    require(arguments.deleveragingWallet != insuranceFundWallet, "Cannot deleverage IF");
+    require(arguments.liquidatingWallet != arguments.counterpartyWallet, "Cannot liquidate wallet against itself");
+    require(arguments.counterpartyWallet != exitFundWallet, "Cannot deleverage EF");
+    require(arguments.counterpartyWallet != insuranceFundWallet, "Cannot deleverage IF");
     if (deleverageType == DeleverageType.ExitFundClosure) {
       require(arguments.liquidatingWallet == exitFundWallet, "Liquidating wallet must be EF");
     } else {
@@ -43,7 +43,7 @@ library ClosureDeleveraging {
     }
 
     Funding.applyOutstandingWalletFunding(
-      arguments.deleveragingWallet,
+      arguments.counterpartyWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -74,7 +74,7 @@ library ClosureDeleveraging {
     // whereas IF closure cannot
     if (deleverageType == DeleverageType.ExitFundClosure) {
       return
-        ExitFund.getExitFundBalanceOpenedAtBlockNumber(
+        ExitFund.getExitFundPositionOpenedAtBlockNumber(
           exitFundPositionOpenedAtBlockNumber,
           exitFundWallet,
           balanceTracking,
@@ -169,7 +169,7 @@ library ClosureDeleveraging {
 
     balanceTracking.updatePositionsForDeleverage(
       arguments.liquidationBaseQuantity,
-      arguments.deleveragingWallet,
+      arguments.counterpartyWallet,
       exitFundWallet,
       arguments.liquidatingWallet,
       market,
@@ -181,7 +181,7 @@ library ClosureDeleveraging {
 
     // Validate that the deleveraged wallet still meets its initial margin requirements
     IndexPriceMargin.validateInitialMarginRequirement(
-      arguments.deleveragingWallet,
+      arguments.counterpartyWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,

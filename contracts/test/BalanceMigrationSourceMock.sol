@@ -16,10 +16,6 @@ contract BalanceMigrationSourceMock {
     balances[wallet][assetSymbol] = newBalance;
   }
 
-  function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64) {
-    return balances[wallet][assetSymbol];
-  }
-
   function loadBalanceStructBySymbol(
     address wallet,
     string calldata assetSymbol

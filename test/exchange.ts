@@ -8,6 +8,7 @@ import {
   USDC,
 } from '../typechain-types';
 import {
+  baseAssetSymbol,
   deployAndAssociateContracts,
   deployLibraryContracts,
   expect,
@@ -155,6 +156,26 @@ describe('Exchange', function () {
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
     });
+
+    describe('setMarketOverrides', async function () {
+      it('should revert when not called by Governance', async () => {
+        await expect(
+          exchange.setMarketOverrides(
+            baseAssetSymbol,
+            {
+              initialMarginFraction: '3000000',
+              maintenanceMarginFraction: '1000000',
+              incrementalInitialMarginFraction: '1000000',
+              baselinePositionSize: '14000000000',
+              incrementalPositionSize: '2800000000',
+              maximumPositionSize: '1000000000000',
+              minimumPositionSize: '10000000',
+            },
+            ethers.constants.AddressZero,
+          ),
+        ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
+      });
+    });
   });
 
   describe('setCustodian', async function () {
@@ -173,6 +194,26 @@ describe('Exchange', function () {
     });
 
     it('should work for valid Custodian and bridge adapters', async () => {
+      const [ownerWallet] = await ethers.getSigners();
+      const newExchange = await ExchangeFactory.deploy(
+        ethers.constants.AddressZero,
+        ownerWallet.address,
+        ownerWallet.address,
+        [usdc.address],
+        ownerWallet.address,
+        usdc.address,
+      );
+
+      const CustodianFactory = await ethers.getContractFactory('Custodian');
+      const custodian = await CustodianFactory.deploy(
+        newExchange.address,
+        newExchange.address,
+      );
+
+      await newExchange.setCustodian(custodian.address, [usdc.address]);
+    });
+
+    it('should revert for invalid bridge adapter', async () => {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
         ethers.constants.AddressZero,
@@ -303,6 +344,12 @@ describe('Exchange', function () {
       await expect(exchange.setDepositIndex()).to.eventually.be.rejectedWith(
         /can only be set once/i,
       );
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        exchange.connect((await ethers.getSigners())[10]).setDepositIndex(),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
 });

@@ -33,16 +33,51 @@ dotenv.config();
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
-const config: HardhatUserConfig = {
-  solidity: {
-    version: '0.8.18',
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 1,
+const SOLC_VERSION = '0.8.18' as const;
+
+// Solidity coverage tool does not support the viaIR compiler option
+// https://github.com/sc-forks/solidity-coverage/issues/715
+const solidity = process.env.COVERAGE
+  ? {
+      version: SOLC_VERSION,
+      settings: {
+        optimizer: {
+          enabled: true,
+          runs: 1,
+        },
       },
-      // viaIR: true,
-    },
+    }
+  : {
+      compilers: [
+        {
+          version: SOLC_VERSION,
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 1000000,
+            },
+            viaIR: true,
+          },
+        },
+      ],
+      overrides: {
+        'contracts/Exchange.sol': {
+          version: SOLC_VERSION,
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 200,
+            },
+            viaIR: true,
+          },
+        },
+      },
+    };
+
+const config: HardhatUserConfig = {
+  solidity,
+  mocha: {
+    timeout: 100000000,
   },
   networks: {
     ropsten: {

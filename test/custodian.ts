@@ -1,5 +1,5 @@
-import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
 import {
   Custodian,
@@ -27,6 +27,10 @@ describe('Custodian', function () {
   let GovernanceFactory: Governance__factory;
   let GovernanceMockFactory: GovernanceMock__factory;
   let USDCFactory: USDC__factory;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     [

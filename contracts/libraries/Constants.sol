@@ -7,20 +7,23 @@ pragma solidity 0.8.18;
  */
 
 library Constants {
+  uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
+
+  string public constant EMPTY_DECIMAL_STRING = "0.00000000";
+
   bytes public constant ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE =
     abi.encodePacked(
       "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
     );
-
-  uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
-
-  string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
   // 1 week at 3s/block
   uint256 public constant EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
 
   // 1 day at 3s/block
   uint256 public constant FIELD_UPGRADE_DELAY_IN_BLOCKS = (1 * 24 * 60 * 60) / 3;
+
+  // 8 hours
+  uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
 
   // 1 week at 3s/block
   uint256 public constant MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
@@ -31,7 +34,7 @@ library Constants {
   // 20%
   uint64 public constant MAX_FEE_MULTIPLIER = 20 * 10 ** 6;
 
-  // 1 year
+  // 1 year - value must be evenly divisible by `FUNDING_PERIOD_IN_MS`
   uint64 public constant MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS = 365 * 24 * 60 * 60 * 1000;
 
   // Max int64
@@ -41,16 +44,13 @@ library Constants {
   // and skip non-negative total quote validation Wallet Exits
   uint64 public constant MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD = 10000;
 
-  // 8 hours
-  uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
+  // To convert integer pips to a fractional price shift decimal left by the pip precision of 8
+  // decimals places
+  uint64 public constant PIP_PRICE_MULTIPLIER = 10 ** 8;
 
   string public constant QUOTE_ASSET_SYMBOL = "USD";
 
   uint8 public constant QUOTE_TOKEN_DECIMALS = 6;
 
   uint8 public constant SIGNATURE_HASH_VERSION = 105;
-
-  // To convert integer pips to a fractional price shift decimal left by the pip precision of 8
-  // decimals places
-  uint64 public constant PIP_PRICE_MULTIPLIER = 10 ** 8;
 }

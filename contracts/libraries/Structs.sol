@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType } from "./Enums.sol";
+import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType, WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
 
 // This file contains definitions for externally-facing structs used as argument or return types for Exchange functions
 
@@ -13,7 +13,7 @@ import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType
  */
 struct AcquisitionDeleverageArguments {
   string baseAssetSymbol;
-  address deleveragingWallet;
+  address counterpartyWallet;
   address liquidatingWallet;
   // Liquidation quote quantities for union of liquidating and IF wallet positions
   uint64[] validateInsuranceFundCannotLiquidateWalletQuoteQuantities;
@@ -39,7 +39,7 @@ struct Balance {
  */
 struct ClosureDeleverageArguments {
   string baseAssetSymbol;
-  address deleveragingWallet;
+  address counterpartyWallet;
   // IF or EF depending on deleverageType
   address liquidatingWallet;
   // Base quantity to decrease position being liquidated
@@ -130,7 +130,7 @@ struct MarketOverrides {
 }
 
 /**
- * @notice Struct capturing wallet order nonce invalidations created via `invalidateOrderNonce`
+ * @notice Struct capturing wallet order nonce invalidations created via `invalidateNonce`
  */
 struct NonceInvalidation {
   uint64 timestampInMs;
@@ -258,9 +258,16 @@ struct Transfer {
   bytes walletSignature;
 }
 
+struct WalletExit {
+  bool exists;
+  // We can safely downcast here as 2^64 blocks would take billions of years to exceed
+  uint64 effectiveBlockNumber;
+  WalletExitAcquisitionDeleveragePriceStrategy deleveragePriceStrategy;
+}
+
 /**
  * @notice Argument type for `Exchange.liquidateWalletInMaintenance`,
- * `Exchange.liquidateWalletInMaintenanceDuringSystemRecovery`, and `Exchange.liquidateWalletExited`
+ * `Exchange.liquidateWalletInMaintenanceDuringSystemRecovery`, and `Exchange.liquidateWalletExit`
  */
 struct WalletLiquidationArguments {
   // Insurance Fund or Exit Fund

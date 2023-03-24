@@ -1,9 +1,17 @@
-import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 
-import { baseAssetSymbol, deployAndAssociateContracts } from './helpers';
+import {
+  baseAssetSymbol,
+  bootstrapLiquidatedWallet,
+  buildIndexPrice,
+  deployAndAssociateContracts,
+  executeTrade,
+  fieldUpgradeDelayInBlocks,
+  fundWallets,
+} from './helpers';
 import type {
   Custodian,
   Exchange_v4,
@@ -15,22 +23,25 @@ import type {
 
 describe('Governance', function () {
   let custodian: Custodian;
+  let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
+  let indexPriceServiceWallet: SignerWithAddress;
+  let insuranceFundWallet: SignerWithAddress;
   let governance: Governance;
   let ownerWallet: SignerWithAddress;
   let usdc: USDC;
 
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
+
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
     ownerWallet = wallets[0];
-    const [
-      ,
-      dispatcherWallet,
-      exitFundWallet,
-      feeWallet,
-      indexPriceServiceWallet,
-      insuranceFundWallet,
-    ] = wallets;
+    dispatcherWallet = wallets[1];
+    indexPriceServiceWallet = wallets[4];
+    insuranceFundWallet = wallets[5];
+    const [, , exitFundWallet, feeWallet] = wallets;
 
     const results = await deployAndAssociateContracts(
       ownerWallet,
@@ -133,7 +144,7 @@ describe('Governance', function () {
       it('should work after block delay when upgrade was initiated', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]);
         expect(
@@ -162,7 +173,7 @@ describe('Governance', function () {
       it('should revert on address length mismatch', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([
@@ -175,11 +186,23 @@ describe('Governance', function () {
       it('should revert on address  mismatch', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([ownerWallet.address]),
         ).to.eventually.be.rejectedWith(/address mismatch/i);
+      });
+
+      it('should revert when not called by admin or dispatcher', async () => {
+        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]),
+        ).to.eventually.be.rejectedWith(
+          /caller must be admin or dispatcher wallet/i,
+        );
       });
     });
 
@@ -270,7 +293,7 @@ describe('Governance', function () {
             newIndexPriceServiceWallets,
           );
 
-          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await governance.finalizeIndexPriceServiceWalletsUpgrade(
             newIndexPriceServiceWallets,
@@ -309,7 +332,7 @@ describe('Governance', function () {
             newIndexPriceServiceWallets,
           );
 
-          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await expect(
             governance.finalizeIndexPriceServiceWalletsUpgrade([
@@ -324,13 +347,29 @@ describe('Governance', function () {
             newIndexPriceServiceWallets,
           );
 
-          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await expect(
             governance.finalizeIndexPriceServiceWalletsUpgrade([
               ownerWallet.address,
             ]),
           ).to.eventually.be.rejectedWith(/address mismatch/i);
+        });
+
+        it('should revert when not called by admin or dispatcher', async () => {
+          await governance.initiateIndexPriceServiceWalletsUpgrade(
+            newIndexPriceServiceWallets,
+          );
+
+          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+          await expect(
+            governance
+              .connect((await ethers.getSigners())[10])
+              .finalizeIndexPriceServiceWalletsUpgrade([ownerWallet.address]),
+          ).to.eventually.be.rejectedWith(
+            /caller must be admin or dispatcher wallet/i,
+          );
         });
       });
     });
@@ -364,6 +403,14 @@ describe('Governance', function () {
             ethers.constants.AddressZero,
           ),
         ).to.eventually.be.rejectedWith(/invalid IF wallet address/i);
+      });
+
+      it('should revert if new IF is same as current', async () => {
+        await expect(
+          governance.initiateInsuranceFundWalletUpgrade(
+            insuranceFundWallet.address,
+          ),
+        ).to.eventually.be.rejectedWith(/must be different from current/i);
       });
 
       it('should revert when upgrade already in progress', async () => {
@@ -465,7 +512,7 @@ describe('Governance', function () {
           newInsuranceFundWallet.address,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeInsuranceFundWalletUpgrade(ownerWallet.address),
@@ -482,6 +529,57 @@ describe('Governance', function () {
             newInsuranceFundWallet.address,
           ),
         ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
+      });
+
+      it('should revert when current IF has open position', async () => {
+        const results = await bootstrapLiquidatedWallet();
+
+        await results.governance.initiateInsuranceFundWalletUpgrade(
+          newInsuranceFundWallet.address,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await expect(
+          results.governance.finalizeInsuranceFundWalletUpgrade(
+            newInsuranceFundWallet.address,
+          ),
+        ).to.eventually.be.rejectedWith(
+          /current IF cannot have open positions/i,
+        );
+      });
+
+      it('should revert when new IF has open position', async () => {
+        const trader1Wallet = (await ethers.getSigners())[6];
+        const trader2Wallet = (await ethers.getSigners())[7];
+        await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+        await executeTrade(
+          exchange,
+          dispatcherWallet,
+          await buildIndexPrice(indexPriceServiceWallet),
+          trader1Wallet,
+          trader2Wallet,
+        );
+
+        await governance.initiateInsuranceFundWalletUpgrade(
+          trader1Wallet.address,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await expect(
+          governance.finalizeInsuranceFundWalletUpgrade(trader1Wallet.address),
+        ).to.eventually.be.rejectedWith(/new IF cannot have open positions/i);
+      });
+
+      it('should revert when not called by admin or dispatcher', async () => {
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .finalizeInsuranceFundWalletUpgrade(newInsuranceFundWallet.address),
+        ).to.eventually.be.rejectedWith(
+          /caller must be admin or dispatcher wallet/i,
+        );
       });
     });
   });
@@ -578,6 +676,14 @@ describe('Governance', function () {
           /no market override upgrade in progress/i,
         );
       });
+
+      it('should revert when not called by admin', async () => {
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .cancelMarketOverridesUpgrade(baseAssetSymbol, walletToOverride),
+        ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
+      });
     });
 
     describe('finalizeMarketOverridesUpgrade', () => {
@@ -588,7 +694,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
@@ -603,6 +709,48 @@ describe('Governance', function () {
         )
           .to.eventually.be.an('array')
           .with.lengthOf(1);
+      });
+
+      it('should work when wallet is zero', async () => {
+        await governance.initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          ethers.constants.AddressZero,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await governance.finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          ethers.constants.AddressZero,
+        );
+
+        expect(
+          governance.queryFilter(
+            governance.filters.MarketOverridesUpgradeFinalized(),
+          ),
+        )
+          .to.eventually.be.an('array')
+          .with.lengthOf(1);
+      });
+
+      it('should revert for invalid market ', async () => {
+        await governance.initiateMarketOverridesUpgrade(
+          'XYZ',
+          marketOverrides,
+          ethers.constants.AddressZero,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await expect(
+          governance.finalizeMarketOverridesUpgrade(
+            'XYZ',
+            marketOverrides,
+            ethers.constants.AddressZero,
+          ),
+        ).to.eventually.be.rejectedWith(/invalid market/i);
       });
 
       it('should revert when not in progress', async () => {
@@ -640,7 +788,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
         await expect(
           governance.finalizeMarketOverridesUpgrade(
@@ -649,6 +797,20 @@ describe('Governance', function () {
             walletToOverride,
           ),
         ).to.eventually.be.rejectedWith(/overrides mismatch/i);
+      });
+
+      it('should revert when not called by admin or dispatcher', async () => {
+        await expect(
+          governance
+            .connect((await ethers.getSigners())[10])
+            .finalizeMarketOverridesUpgrade(
+              baseAssetSymbol,
+              marketOverrides,
+              walletToOverride,
+            ),
+        ).to.eventually.be.rejectedWith(
+          /caller must be admin or dispatcher wallet/i,
+        );
       });
     });
   });

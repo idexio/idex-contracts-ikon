@@ -7,7 +7,7 @@ import { Time } from "./Time.sol";
 import { UUID } from "./UUID.sol";
 
 library NonceInvalidations {
-  function invalidateOrderNonce(
+  function invalidateNonce(
     mapping(address => NonceInvalidation[]) storage self,
     uint128 nonce,
     uint256 chainPropagationPeriodInBlocks
@@ -43,8 +43,8 @@ library NonceInvalidations {
       // invalidation preceding it
       if (nonceInvalidations.length > 1) {
         NonceInvalidation storage nextToLastInvalidation = self[wallet][nonceInvalidations.length - 2];
-        // Validation in `invalidateOrderNonce` prohibits invalidate a nonce while the previous invalidation is still
-        // pending, so no need to check the effective block number here
+        // Validation in `invalidateNonce` prohibits invalidating a nonce while a previous nonce invalidation is still
+        // pending, so no need to check the effective block number here as it will always be in effect
         return nextToLastInvalidation.timestampInMs;
       }
     }

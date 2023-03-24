@@ -1,20 +1,27 @@
-import { ethers } from 'hardhat';
-import { IndexPrice } from '../lib';
-
-import type { ChainlinkAggregatorMock, Exchange_v4 } from '../typechain-types';
+import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
+
+import { IndexPrice } from '../lib';
 import {
+  baseAssetSymbol,
   buildIndexPrice,
   deployAndAssociateContracts,
   executeTrade,
   expect,
   fundWallets,
 } from './helpers';
+import type {
+  ChainlinkAggregatorMock,
+  Exchange_v4,
+  Governance,
+} from '../typechain-types';
 
 describe('Exchange', function () {
   let chainlinkAggregator: ChainlinkAggregatorMock;
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
+  let governance: Governance;
   let indexPrice: IndexPrice;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
@@ -22,6 +29,10 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let trader1Wallet: SignerWithAddress;
   let trader2Wallet: SignerWithAddress;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -46,6 +57,7 @@ describe('Exchange', function () {
       insuranceFundWallet,
     );
     exchange = results.exchange;
+    governance = results.governance;
     chainlinkAggregator = results.chainlinkAggregator;
 
     await results.usdc.faucet(dispatcherWallet.address);
@@ -75,6 +87,39 @@ describe('Exchange', function () {
 
       describe('loadTotalInitialMarginRequirementFromIndexPrices', () => {
         it('should work for wallet with open position', async () => {
+          const totalInitialMarginRequirement =
+            await exchange.loadTotalInitialMarginRequirementFromIndexPrices(
+              trader1Wallet.address,
+            );
+          // TODO value assertions
+        });
+
+        it('should work for wallet with open position exceeding baseline size', async () => {
+          const overrides = {
+            initialMarginFraction: '5000000',
+            maintenanceMarginFraction: '3000000',
+            incrementalInitialMarginFraction: '1000000',
+            baselinePositionSize: '500000000',
+            incrementalPositionSize: '2800000000',
+            maximumPositionSize: '282000000000',
+            minimumPositionSize: '100000000',
+          };
+          await governance
+            .connect(ownerWallet)
+            .initiateMarketOverridesUpgrade(
+              baseAssetSymbol,
+              overrides,
+              trader1Wallet.address,
+            );
+          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await governance
+            .connect(dispatcherWallet)
+            .finalizeMarketOverridesUpgrade(
+              baseAssetSymbol,
+              overrides,
+              trader1Wallet.address,
+            );
+
           const totalInitialMarginRequirement =
             await exchange.loadTotalInitialMarginRequirementFromIndexPrices(
               trader1Wallet.address,
@@ -111,16 +156,6 @@ describe('Exchange', function () {
           'Object',
         );
       });
-
-      it('setPrice should validate input', async () => {
-        await expect(
-          chainlinkAggregator.setPrice(0),
-        ).to.eventually.be.rejectedWith(/price cannot be zero/i);
-
-        await expect(
-          chainlinkAggregator.setPrice((BigInt(2) ** BigInt(128)).toString()),
-        ).to.eventually.be.rejectedWith(/price overflows uint64/i);
-      });
     });
 
     describe('loadTotalAccountValueFromOraclePrices', () => {
@@ -151,6 +186,15 @@ describe('Exchange', function () {
           );
         // TODO value assertions
       });
+    });
+  });
+
+  describe('loadTotalAccountValueFromOraclePrices', () => {
+    it('should revert for negative feed price', async () => {
+      await chainlinkAggregator.setPrice(-100);
+      await expect(
+        exchange.loadTotalAccountValueFromOraclePrices(trader1Wallet.address),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive feed price/i);
     });
   });
 });

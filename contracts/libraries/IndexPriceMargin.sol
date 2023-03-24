@@ -5,9 +5,10 @@ pragma solidity 0.8.18;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
+import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
-import { FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
 
 library IndexPriceMargin {
   using BalanceTracking for BalanceTracking.Storage;
@@ -84,29 +85,32 @@ library IndexPriceMargin {
       );
   }
 
-  function validateInitialMarginRequirement(
+  function loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view {
-    int64 totalAccountValue = loadTotalAccountValue(
+  ) internal view returns (int64 exitAccountValue, int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
+    exitAccountValue = _loadExitAccountValue(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-
-    uint64 totalInitialMarginRequirement = loadTotalInitialMarginRequirement(
+    totalAccountValue = loadTotalAccountValue(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+    totalMaintenanceMarginRequirement = loadTotalMaintenanceMarginRequirement(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-
-    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
   function loadTotalAccountValue(
@@ -147,15 +151,16 @@ library IndexPriceMargin {
     );
 
     Market memory market;
+    int64 positionSize;
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(exitFundWallet, market.baseAssetSymbol);
 
       totalMaintenanceMarginRequirement += _loadMarginRequirement(
         market.overridableFields.maintenanceMarginFraction,
-        market,
-        exitFundWallet,
-        balanceTracking
+        market.lastIndexPrice,
+        positionSize
       );
     }
   }
@@ -190,10 +195,11 @@ library IndexPriceMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (uint64 initialMarginRequirement) {
     Market memory market;
-
+    int64 positionSize;
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
 
       initialMarginRequirement += _loadMarginRequirement(
         market.loadInitialMarginFractionForWallet(
@@ -201,9 +207,8 @@ library IndexPriceMargin {
           wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         ),
-        market,
-        wallet,
-        balanceTracking
+        market.lastIndexPrice,
+        positionSize
       );
     }
   }
@@ -216,21 +221,56 @@ library IndexPriceMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (uint64 maintenanceMarginRequirement) {
     Market memory market;
-
+    int64 positionSize;
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
 
       maintenanceMarginRequirement += _loadMarginRequirement(
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maintenanceMarginFraction,
-        market,
-        wallet,
-        balanceTracking
+        market.lastIndexPrice,
+        positionSize
       );
     }
+  }
+
+  function validateInitialMarginRequirement(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view {
+    int64 totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    uint64 totalInitialMarginRequirement;
+
+    Market memory market;
+    int64 positionSize;
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
+
+      totalAccountValue += Math.multiplyPipsByFraction(
+        positionSize,
+        int64(market.lastIndexPrice),
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
+      totalInitialMarginRequirement += _loadMarginRequirement(
+        market.loadInitialMarginFractionForWallet(positionSize, wallet, marketOverridesByBaseAssetSymbolAndWallet),
+        market.lastIndexPrice,
+        positionSize
+      );
+    }
+
+    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
   /**
@@ -257,6 +297,39 @@ library IndexPriceMargin {
         insuranceFundTotalAccountValue < int64(insuranceFundTotalInitialMarginRequirement),
       "Insurance fund can acquire"
     );
+  }
+
+  function _loadExitAccountValue(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (int64 exitAccountValue) {
+    exitAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL);
+
+    Balance memory balanceStruct;
+    Market memory market;
+    uint64 quoteQuantityForPosition;
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+
+      quoteQuantityForPosition = LiquidationValidations.calculateQuoteQuantityAtExitPrice(
+        balanceStruct.costBasis,
+        market.lastIndexPrice,
+        balanceStruct.balance
+      );
+
+      if (balanceStruct.balance < 0) {
+        // Short positions have negative value
+        exitAccountValue -= int64(quoteQuantityForPosition);
+      } else {
+        // Long positions have positive value
+        exitAccountValue += int64(quoteQuantityForPosition);
+      }
+    }
   }
 
   function _loadInsuranceFundTotalAccountValueAndInitialMarginRequirementAfterLiquidationAcquisition(
@@ -352,21 +425,14 @@ library IndexPriceMargin {
 
   function _loadMarginRequirement(
     uint64 marginFraction,
-    Market memory market,
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking
-  ) private view returns (uint64) {
+    uint64 lastIndexPrice,
+    int64 positionSize
+  ) private pure returns (uint64) {
     return
-      Math.abs(
-        Math.multiplyPipsByFraction(
-          Math.multiplyPipsByFraction(
-            balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-            int64(market.lastIndexPrice),
-            int64(Constants.PIP_PRICE_MULTIPLIER)
-          ),
-          int64(marginFraction),
-          int64(Constants.PIP_PRICE_MULTIPLIER)
-        )
+      Math.multiplyPipsByFraction(
+        Math.multiplyPipsByFraction(Math.abs(positionSize), lastIndexPrice, Constants.PIP_PRICE_MULTIPLIER),
+        marginFraction,
+        Constants.PIP_PRICE_MULTIPLIER
       );
   }
 }

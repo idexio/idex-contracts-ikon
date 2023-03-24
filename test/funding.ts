@@ -1,19 +1,24 @@
 import BigNumber from 'bignumber.js';
-import { ethers } from 'hardhat';
 import { expect } from 'chai';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { ethers, network } from 'hardhat';
 import {
   increase,
   increaseTo,
 } from '@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 import {
   decimalToPips,
   fundingPeriodLengthInMs,
+  getIndexPriceHash,
   IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
-import type { Exchange_v4, USDC } from '../typechain-types';
+import type {
+  Exchange_v4,
+  FundingMultiplierMock,
+  USDC,
+} from '../typechain-types';
 import {
   addAndActivateMarket,
   baseAssetSymbol,
@@ -32,6 +37,10 @@ describe('Exchange', function () {
   let indexPrice: IndexPrice;
   let indexPriceServiceWallet: SignerWithAddress;
   let usdc: USDC;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
 
   beforeEach(async () => {
     const wallets = await ethers.getSigners();
@@ -63,7 +72,7 @@ describe('Exchange', function () {
   });
 
   describe('publishFundingMultiplier', async function () {
-    it('should work one funding period after initial backfill when there are no gaps', async function () {
+    it('should work for funding periods after initial backfill when there are no gaps', async function () {
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
@@ -75,13 +84,38 @@ describe('Exchange', function () {
           decimalToPips(getFundingRate()),
         );
 
+      await increase(fundingPeriodLengthInMs / 1000);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPrice(indexPriceServiceWallet),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate(1)),
+        );
+
       const multipliers = await loadFundingMultipliers(exchange);
-      expect(multipliers).to.be.an('array').with.lengthOf(2);
+      expect(multipliers).to.be.an('array').with.lengthOf(3);
       expect(multipliers[0]).to.equal('0');
       expect(multipliers[1]).to.equal(
         decimalToPips(
           new BigNumber(indexPrice.price)
             .times(new BigNumber(getFundingRate()))
+            .negated()
+            .toString(),
+        ),
+      );
+      expect(multipliers[2]).to.equal(
+        decimalToPips(
+          new BigNumber(indexPrice.price)
+            .times(new BigNumber(getFundingRate(1)))
             .negated()
             .toString(),
         ),
@@ -141,12 +175,60 @@ describe('Exchange', function () {
       );
     });
 
+    it('should work for outdated but not yet stale index price', async function () {
+      indexPrice.timestampInMs -= fundingPeriodLengthInMs / 4;
+      indexPrice.signature = await indexPriceServiceWallet.signMessage(
+        ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+
+      exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPrice(indexPriceServiceWallet),
+          ),
+        ]);
+    });
+
     it('should revert for invalid symbol', async function () {
       await expect(
         exchange
           .connect(dispatcherWallet)
           .publishFundingMultiplier('XYZ', decimalToPips(getFundingRate())),
       ).to.eventually.be.rejectedWith(/no active market found/i);
+    });
+
+    it('should revert for stale index price', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .publishFundingMultiplier(
+            baseAssetSymbol,
+            decimalToPips(getFundingRate()),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /index price too far before next period/i,
+      );
+    });
+
+    it('should revert when not called by dispatcher', async function () {
+      await expect(
+        exchange.publishFundingMultiplier(
+          baseAssetSymbol,
+          decimalToPips(getFundingRate()),
+        ),
+      ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
     });
   });
 
@@ -173,6 +255,27 @@ describe('Exchange', function () {
         await buildIndexPrice(indexPriceServiceWallet),
         trader1Wallet,
         trader2Wallet,
+      );
+
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
+        ).toString(),
+      ).to.equal('0');
+
+      // Calls should do nothing
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader1Wallet.address,
+        baseAssetSymbol,
+      );
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader2Wallet.address,
+        baseAssetSymbol,
       );
 
       await exchange
@@ -270,8 +373,6 @@ describe('Exchange', function () {
           .plus(new BigNumber(expectedTrader2FundingPayment))
           .toString(),
       );
-      /*
-       * FIXME Why is this failing?
       expect(
         (
           await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
@@ -279,7 +380,6 @@ describe('Exchange', function () {
           )
         ).toString(),
       ).to.equal(exitWithdrawalQuantity);
-      */
 
       expect(
         (
@@ -291,6 +391,16 @@ describe('Exchange', function () {
           await exchange.loadOutstandingWalletFunding(trader2Wallet.address)
         ).toString(),
       ).to.equal('0');
+
+      // Subsequent calls should do nothing
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader1Wallet.address,
+        baseAssetSymbol,
+      );
+      await exchange.applyOutstandingWalletFundingForMarket(
+        trader2Wallet.address,
+        baseAssetSymbol,
+      );
 
       // TODO Verify balance updates
     });
@@ -315,6 +425,118 @@ describe('Exchange', function () {
           baseAssetSymbol,
         ),
       ).to.eventually.be.rejectedWith(/no open position in market/i);
+    });
+  });
+
+  describe('loadAggregateMultiplier', async function () {
+    let fundingMultiplierMock: FundingMultiplierMock;
+
+    before(async () => {
+      const FundingMultiplierMock = await ethers.getContractFactory(
+        'FundingMultiplierMock',
+      );
+      fundingMultiplierMock = await FundingMultiplierMock.deploy();
+    });
+
+    it('should work for single quartet', async function () {
+      const earliestTimestampInMs =
+        (await getMidnightTomorrowInSecondsUTC()) * 1000;
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(0)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs,
+          earliestTimestampInMs,
+        ),
+      ).to.eventually.equal(decimalToPips(getFundingRate(0)));
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(1)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(
+          new BigNumber(getFundingRate(0))
+            .plus(new BigNumber(getFundingRate(1)))
+            .toString(),
+        ),
+      );
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(2)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 2,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 2,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(
+          new BigNumber(getFundingRate(0))
+            .plus(new BigNumber(getFundingRate(1)))
+            .plus(new BigNumber(getFundingRate(2)))
+            .toString(),
+        ),
+      );
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(3)),
+      );
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs + fundingPeriodLengthInMs * 3,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 3,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 3,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(new BigNumber(getFundingRate(3)).toString()),
+      );
+    });
+
+    it('should work for multiple quartets', async function () {
+      const earliestTimestampInMs =
+        (await getMidnightTomorrowInSecondsUTC()) * 1000;
+
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(0)),
+      );
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(1)),
+      );
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(
+        decimalToPips(getFundingRate(2)),
+      );
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+      await fundingMultiplierMock.publishFundingMultiplier(0);
+
+      await expect(
+        fundingMultiplierMock.loadAggregateMultiplier(
+          earliestTimestampInMs,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 9,
+          earliestTimestampInMs + fundingPeriodLengthInMs * 9,
+        ),
+      ).to.eventually.equal(
+        decimalToPips(
+          new BigNumber(getFundingRate(0))
+            .plus(new BigNumber(getFundingRate(1)))
+            .plus(new BigNumber(getFundingRate(2)))
+            .toString(),
+        ),
+      );
     });
   });
 });

@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.18;
 
-import { AcquisitionDeleveraging } from "./libraries/AcquisitionDeleveraging.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { AssetUnitConversions } from "./libraries/AssetUnitConversions.sol";
 import { BalanceTracking } from "./libraries/BalanceTracking.sol";
@@ -23,10 +22,13 @@ import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
+import { WalletExitAcquisitionDeleveraging } from "./libraries/WalletExitAcquisitionDeleveraging.sol";
+import { WalletExitLiquidation } from "./libraries/WalletExitLiquidation.sol";
 import { WalletExits } from "./libraries/WalletExits.sol";
-import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
+import { WalletInMaintenanceAcquisitionDeleveraging } from "./libraries/WalletInMaintenanceAcquisitionDeleveraging.sol";
+import { WalletInMaintenanceLiquidation } from "./libraries/WalletInMaintenanceLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -70,7 +72,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteTokenAddress;
   // Exits
-  mapping(address => WalletExits.WalletExit) private _walletExits;
+  mapping(address => WalletExit) private _walletExits;
 
   // State variables - tunable parameters //
 
@@ -137,7 +139,7 @@ contract Exchange_v4 is IExchange, Owned {
     uint64 takerFeeQuantity
   );
   /**
-   * @notice Emitted when a user invalidates an order nonce with `invalidateOrderNonce`
+   * @notice Emitted when a user invalidates an order nonce with `invalidateNonce`
    */
   event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockNumber);
   /**
@@ -182,13 +184,13 @@ contract Exchange_v4 is IExchange, Owned {
 
   modifier onlyDispatcherWhenExitFundHasNoPositions() {
     _onlyDispatcher();
-    require(exitFundPositionOpenedAtBlockNumber == 0, "Exit Fund has open positions");
+    require(_baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length == 0, "Exit Fund has open positions");
     _;
   }
 
   modifier onlyDispatcherWhenExitFundHasOpenPositions() {
     _onlyDispatcher();
-    require(exitFundPositionOpenedAtBlockNumber > 0, "Exit Fund has no positions");
+    require(_baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0, "Exit Fund has no positions");
     _;
   }
 
@@ -360,7 +362,16 @@ contract Exchange_v4 is IExchange, Owned {
         _balanceTracking,
         _baseAssetSymbolsWithOpenPositionsByWallet
       ),
-      "EF cannot have open balance"
+      "Current EF cannot have open balance"
+    );
+
+    require(
+      !ExitFund.doesWalletHaveOpenPositionsOrQuoteBalance(
+        newExitFundWallet,
+        _balanceTracking,
+        _baseAssetSymbolsWithOpenPositionsByWallet
+      ),
+      "New EF cannot have open balance"
     );
 
     address oldExitFundWallet = exitFundWallet;
@@ -388,6 +399,8 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets bridge adapter contract addresses whitelisted for withdrawals
+   *
+   * @param newBridgeAdapters An array of bridge adapter contract addresses
    */
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) public onlyGovernance {
     bridgeAdapters = newBridgeAdapters;
@@ -395,6 +408,8 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets IPS wallet addresses whitelisted to sign Index Price payloads
+   *
+   * @param newIndexPriceServiceWallets An array of IPS wallet addresses
    */
   function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) public onlyGovernance {
     indexPriceServiceWallets = newIndexPriceServiceWallets;
@@ -402,25 +417,11 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Sets IF wallet address
+   *
+   * @param newInsuranceFundWallet The new IF wallet address
    */
   function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
     insuranceFundWallet = newInsuranceFundWallet;
-  }
-
-  /**
-   * @notice Load a wallet's balance-tracking struct by asset symbol
-   *
-   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
-   * @param assetSymbol The asset symbol to load the wallet's balance for
-   *
-   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently in an open position for or
-   * deposited by `wallet`
-   */
-  function loadBalanceStructBySymbol(
-    address wallet,
-    string memory assetSymbol
-  ) public view override returns (Balance memory) {
-    return _balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, assetSymbol);
   }
 
   /**
@@ -445,6 +446,35 @@ contract Exchange_v4 is IExchange, Owned {
         marketsByBaseAssetSymbol
       );
     }
+  }
+
+  /**
+   * @notice Load a wallet's balance-tracking struct by asset symbol
+   *
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetSymbol The asset symbol to load the wallet's balance for
+   *
+   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently in an open position for or
+   * deposited by `wallet`
+   */
+  function loadBalanceStructBySymbol(
+    address wallet,
+    string memory assetSymbol
+  ) public view override returns (Balance memory) {
+    return _balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, assetSymbol);
+  }
+
+  /**
+   * @notice Loads a list of all currently open positions for a wallet
+   *
+   * @param wallet The wallet address to load open positions for for. Can be different from `msg.sender`
+   *
+   * @return A list of base asset symbols corresponding to markets in which the wallet currently has an open position
+   */
+  function loadBaseAssetSymbolsWithOpenPositionsByWallet(
+    address wallet
+  ) public view override returns (string[] memory) {
+    return _baseAssetSymbolsWithOpenPositionsByWallet[wallet];
   }
 
   /**
@@ -510,10 +540,11 @@ contract Exchange_v4 is IExchange, Owned {
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
       custodian,
       depositIndex,
+      destinationWallet_,
+      exitFundWallet,
       quantityInAssetUnits,
       quoteTokenAddress,
       msg.sender,
-      destinationWallet_,
       _balanceTracking,
       _walletExits
     );
@@ -612,7 +643,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletInMaintenance(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    WalletLiquidation.liquidate_delegatecall(
+    WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
       exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
@@ -634,7 +665,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
-    exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate_delegatecall(
+    exitFundPositionOpenedAtBlockNumber = WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
       exitFundPositionOpenedAtBlockNumber,
       exitFundWallet,
@@ -652,17 +683,15 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Liquidates all positions of an exited wallet to the Insurance Fund at each position's exit price
    */
-  function liquidateWalletExited(
+  function liquidateWalletExit(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[liquidationArguments.liquidatingWallet].exists, "Wallet not exited");
 
-    WalletLiquidation.liquidate_delegatecall(
+    WalletExitLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
-      LiquidationType.WalletExited,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -681,9 +710,8 @@ contract Exchange_v4 is IExchange, Owned {
   function deleverageInMaintenanceAcquisition(
     AcquisitionDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    AcquisitionDeleveraging.deleverage_delegatecall(
+    WalletInMaintenanceAcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletInMaintenanceAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -726,9 +754,8 @@ contract Exchange_v4 is IExchange, Owned {
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[deleverageArguments.liquidatingWallet].exists, "Wallet not exited");
 
-    AcquisitionDeleveraging.deleverage_delegatecall(
+    WalletExitAcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletExitAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -736,7 +763,8 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol,
+      _walletExits
     );
   }
 
@@ -860,20 +888,24 @@ contract Exchange_v4 is IExchange, Owned {
 
   /**
    * @notice Set overridable market parameters for a specific wallet or as new market defaults
+   *
+   * @param baseAssetSymbol The base asset symbol for the market
+   * @param overridableFields New values for overridable fields
+   * @param wallet The wallet to apply overrides to. If zero, overrides apply to entire market
    */
   function setMarketOverrides(
     string memory baseAssetSymbol,
-    OverridableMarketFields memory marketOverrides,
+    OverridableMarketFields memory overridableFields,
     address wallet
   ) public onlyGovernance {
     require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
 
     if (wallet == address(0x0)) {
-      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = marketOverrides;
+      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = overridableFields;
     } else {
       _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
         exists: true,
-        overridableFields: marketOverrides
+        overridableFields: overridableFields
       });
     }
   }
@@ -1107,8 +1139,8 @@ contract Exchange_v4 is IExchange, Owned {
    * `executeTrade` will reject order nonces from this wallet with a timestampInMs component lower than the one
    * provided
    */
-  function invalidateOrderNonce(uint128 nonce) public {
-    (uint64 timestampInMs, uint256 effectiveBlockNumber) = nonceInvalidationsByWallet.invalidateOrderNonce(
+  function invalidateNonce(uint128 nonce) public {
+    (uint64 timestampInMs, uint256 effectiveBlockNumber) = nonceInvalidationsByWallet.invalidateNonce(
       nonce,
       chainPropagationPeriodInBlocks
     );

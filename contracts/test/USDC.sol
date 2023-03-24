@@ -21,9 +21,6 @@ contract USDC is ERC20 {
   }
 
   function faucet(address wallet) public {
-    require(wallet != address(0), "Invalid wallet");
-    require(totalSupply() < MAX_SUPPLY, "Max supply exceeded");
-
     _mint(wallet, NUM_TOKENS_RELEASED_BY_FAUCET);
   }
 }

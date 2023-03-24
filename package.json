@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.2.19",
+  "version": "0.3.2",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
@@ -11,7 +11,6 @@
     "lib": "build/lib"
   },
   "files": [
-    "artifacts/contracts/libraries/AcquisitionDeleveraging.sol/AcquisitionDeleveraging.json",
     "artifacts/contracts/libraries/ClosureDeleveraging.sol/ClosureDeleveraging.json",
     "artifacts/contracts/libraries/Depositing.sol/Depositing.json",
     "artifacts/contracts/libraries/Funding.sol/Funding.json",
@@ -23,17 +22,20 @@
     "artifacts/contracts/libraries/PositionInDeactivatedMarketLiquidation.sol/PositionInDeactivatedMarketLiquidation.json",
     "artifacts/contracts/libraries/Trading.sol/Trading.json",
     "artifacts/contracts/libraries/Transferring.sol/Transferring.json",
-    "artifacts/contracts/libraries/WalletLiquidation.sol/WalletLiquidation.json",
+    "artifacts/contracts/libraries/WalletExitAcquisitionDeleveraging.sol/WalletExitAcquisitionDeleveraging.json",
+    "artifacts/contracts/libraries/WalletExitLiquidation.sol/WalletExitLiquidation.json",
+    "artifacts/contracts/libraries/WalletInMaintenanceAcquisitionDeleveraging.sol/WalletInMaintenanceAcquisitionDeleveraging.json",
+    "artifacts/contracts/libraries/WalletInMaintenanceLiquidation.sol/WalletInMaintenanceLiquidation.json",
     "artifacts/contracts/libraries/Withdrawing.sol/Withdrawing.json",
     "build/lib",
     "build/typechain-types"
   ],
   "scripts": {
     "build": "yarn build:sol && yarn build:ts",
-    "build:clean": "rm -rf build && rm -rf artifacts && rm -rf typechain-types",
+    "build:clean": "rm -rf build && rm -rf artifacts && rm -rf cache && rm -rf typechain-types",
     "build:sol": "hardhat compile",
     "build:ts": "tsc -p .",
-    "coverage": "hardhat coverage",
+    "test:coverage": "COVERAGE=1 hardhat coverage && node bin/get-badges.js && git add assets/",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "setup:git:hooks": "git config --local core.hooksPath .githooks || echo 'Not a git repository, did not set up git hooks'",
     "test": "hardhat test"
@@ -45,7 +47,7 @@
   "devDependencies": {
     "@chainlink/contracts": "^0.5.1",
     "@commitlint/config-conventional": "^17.3.0",
-    "@nomicfoundation/hardhat-network-helpers": "^1.0.7",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@nomiclabs/hardhat-ethers": "^2.2.1",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@openzeppelin/contracts": "^4.8.0",

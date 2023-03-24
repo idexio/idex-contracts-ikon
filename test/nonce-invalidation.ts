@@ -1,17 +1,21 @@
-import { ethers } from 'hardhat';
-import { v1 as uuidv1 } from 'uuid';
+import { ethers, network } from 'hardhat';
+import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 
+import { Exchange_v4 } from '../typechain-types';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { uuidToHexString } from '../lib';
 import {
   deployAndAssociateContracts,
   expect,
   getLatestBlockTimestampInSeconds,
 } from './helpers';
-import { Exchange_v4 } from '../typechain-types';
-import { uuidToHexString } from '../lib';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 describe('Exchange', function () {
-  describe('invalidateOrderNonce', async function () {
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+  });
+
+  describe('invalidateNonce', async function () {
     let exchange: Exchange_v4;
     let traderWallet: SignerWithAddress;
 
@@ -25,22 +29,28 @@ describe('Exchange', function () {
     it('should work on initial call', async function () {
       await exchange
         .connect(traderWallet)
-        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+        .invalidateNonce(uuidToHexString(uuidv1()));
     });
 
     it('should work on subsequent valid call', async function () {
       await exchange
         .connect(traderWallet)
-        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+        .invalidateNonce(uuidToHexString(uuidv1()));
 
       await exchange
         .connect(traderWallet)
-        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+        .invalidateNonce(uuidToHexString(uuidv1()));
+    });
+
+    it('should revert for wrong UUID version', async function () {
+      await expect(
+        exchange.invalidateNonce(uuidToHexString(uuidv4())),
+      ).to.eventually.be.rejectedWith(/must be v1 uuid/i);
     });
 
     it('should revert for timestamp too far in the future', async function () {
       await expect(
-        exchange.invalidateOrderNonce(
+        exchange.invalidateNonce(
           uuidToHexString(
             uuidv1({
               msecs:
@@ -57,12 +67,10 @@ describe('Exchange', function () {
 
       await exchange
         .connect(traderWallet)
-        .invalidateOrderNonce(uuidToHexString(uuid));
+        .invalidateNonce(uuidToHexString(uuid));
 
       await expect(
-        exchange
-          .connect(traderWallet)
-          .invalidateOrderNonce(uuidToHexString(uuid)),
+        exchange.connect(traderWallet).invalidateNonce(uuidToHexString(uuid)),
       ).to.eventually.be.rejectedWith(/nonce timestamp invalidated/i);
     });
 
@@ -71,12 +79,12 @@ describe('Exchange', function () {
 
       await exchange
         .connect(traderWallet)
-        .invalidateOrderNonce(uuidToHexString(uuidv1()));
+        .invalidateNonce(uuidToHexString(uuidv1()));
 
       await expect(
         exchange
           .connect(traderWallet)
-          .invalidateOrderNonce(uuidToHexString(uuidv1())),
+          .invalidateNonce(uuidToHexString(uuidv1())),
       ).to.eventually.be.rejectedWith(/last invalidation not finalized/i);
     });
   });

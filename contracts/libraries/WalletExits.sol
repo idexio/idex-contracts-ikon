@@ -2,12 +2,9 @@
 
 pragma solidity 0.8.18;
 
-library WalletExits {
-  struct WalletExit {
-    bool exists;
-    uint256 effectiveBlockNumber;
-  }
+import { WalletExit } from "./Structs.sol";
 
+library WalletExits {
   function isWalletExitFinalized(
     address wallet,
     mapping(address => WalletExit) storage walletExits

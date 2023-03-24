@@ -99,7 +99,7 @@ library Funding {
         Constants.FUNDING_PERIOD_IN_MS
       );
       for (uint64 i = 0; i < periodsToBackfill; i++) {
-        fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultipler(0);
+        fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultiplier(0);
       }
       nextPublishTimestampInMs += periodsToBackfill * Constants.FUNDING_PERIOD_IN_MS;
     }
@@ -113,7 +113,7 @@ library Funding {
       int64(Constants.PIP_PRICE_MULTIPLIER)
     );
 
-    fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultipler(newFundingMultiplier);
+    fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultiplier(newFundingMultiplier);
 
     lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol] = nextPublishTimestampInMs;
   }
@@ -164,7 +164,7 @@ library Funding {
     // Always backfill 1 period for midnight, and an additional period for every period boundary crossed since then
     uint64 periodsToBackfill = 1 + (Time.getMsSinceMidnight() / Constants.FUNDING_PERIOD_IN_MS);
     for (uint64 i = 0; i < periodsToBackfill; i++) {
-      fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].publishFundingMultipler(0);
+      fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].publishFundingMultiplier(0);
     }
 
     lastFundingRatePublishTimestampInMsByBaseAssetSymbol[market.baseAssetSymbol] =
@@ -210,9 +210,6 @@ library Funding {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) private view returns (int64, uint64) {
     // Load funding rates and index
-    FundingMultiplierQuartet[] storage fundingMultipliersForMarket = fundingMultipliersByBaseAssetSymbol[
-      market.baseAssetSymbol
-    ];
     uint64 lastFundingRatePublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[
       market.baseAssetSymbol
     ];
@@ -233,18 +230,19 @@ library Funding {
       } else {
         toTimestampInMs = lastFundingRatePublishTimestampInMs;
       }
-
-      int64 aggregateFundingMultiplier = fromTimestampInMs <= toTimestampInMs
-        ? fundingMultipliersForMarket.loadAggregateMultiplier(
-          fromTimestampInMs,
-          toTimestampInMs,
-          lastFundingRatePublishTimestampInMs
-        )
-        : int64(0);
+      // There is no possibility of `fromTimestampInMs` being greater than `toTimestampInMs` - the maximum value
+      // `fromTimestampInMs` can be initialized to is `lastFundingRatePublishTimestampInMs`, and `toTimestampInMs`
+      // is either itself `lastFundingRatePublishTimestampInMs` OR `fromTimestampInMs` is at least
+      // `MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS` behind `lastFundingRatePublishTimestampInMs`
 
       int64 funding = Math.multiplyPipsByFraction(
         basePosition.balance,
-        aggregateFundingMultiplier,
+        // Load aggregate funding multiplier over specified from and to timestamps
+        fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].loadAggregateMultiplier(
+          fromTimestampInMs,
+          toTimestampInMs,
+          lastFundingRatePublishTimestampInMs
+        ),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
 
