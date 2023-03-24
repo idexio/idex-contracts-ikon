@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
@@ -35,11 +35,10 @@
     "build:clean": "rm -rf build && rm -rf artifacts && rm -rf cache && rm -rf typechain-types",
     "build:sol": "hardhat compile",
     "build:ts": "tsc -p .",
-    "test:coverage": "COVERAGE=1 hardhat coverage",
-    "test:coverage:badges": "COVERAGE=1  hardhat coverage --matrix && node bin/get-badges.js && git add assets/",
+    "test:coverage": "COVERAGE=1 hardhat coverage && node bin/get-badges.js && git add assets/",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "setup:git:hooks": "git config --local core.hooksPath .githooks || echo 'Not a git repository, did not set up git hooks'",
-    "test": "COVERAGE=1 hardhat test"
+    "test": "hardhat test"
   },
   "dependencies": {
     "ethers": "5.7.2",

@@ -429,12 +429,10 @@ library IndexPriceMargin {
     int64 positionSize
   ) private pure returns (uint64) {
     return
-      Math.abs(
-        Math.multiplyPipsByFraction(
-          Math.multiplyPipsByFraction(positionSize, int64(lastIndexPrice), int64(Constants.PIP_PRICE_MULTIPLIER)),
-          int64(marginFraction),
-          int64(Constants.PIP_PRICE_MULTIPLIER)
-        )
+      Math.multiplyPipsByFraction(
+        Math.multiplyPipsByFraction(Math.abs(positionSize), lastIndexPrice, Constants.PIP_PRICE_MULTIPLIER),
+        marginFraction,
+        Constants.PIP_PRICE_MULTIPLIER
       );
   }
 }

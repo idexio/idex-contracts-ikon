@@ -87,6 +87,18 @@ describe('Exchange', function () {
       ).deploy();
     });
 
+    it('should return 0 for zero totalMaintenanceMarginRequirement', async function () {
+      await expect(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
+          '200000000000',
+          '3000000',
+          '10000000000',
+          '3000000',
+          '0',
+        ),
+      ).to.eventually.equal('0');
+    });
+
     it('should revert if result overflows int64', async function () {
       await expect(
         liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(

@@ -155,6 +155,15 @@ library WalletExitLiquidation {
         marketOverridesByBaseAssetSymbolAndWallet
       );
     }
+
+    if (validateExitQuoteQuantityArguments.exitAccountValue <= 0) {
+      // When liquidating at the bankruptcy price, a small amount of quote asset may be left over due to rounding
+      // errors - sweep this remaining amount into the counterparty wallet to fully zero out the liquidating wallet
+      balanceTracking.updateRemainingQuoteBalanceAfterWalletLiquidation(
+        arguments.counterpartyWallet,
+        arguments.liquidatingWallet
+      );
+    }
   }
 
   function _validateLiquidationQuoteQuantity(

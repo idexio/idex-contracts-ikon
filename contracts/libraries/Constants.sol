@@ -22,6 +22,9 @@ library Constants {
   // 1 day at 3s/block
   uint256 public constant FIELD_UPGRADE_DELAY_IN_BLOCKS = (1 * 24 * 60 * 60) / 3;
 
+  // 8 hours
+  uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
+
   // 1 week at 3s/block
   uint256 public constant MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
 
@@ -41,16 +44,13 @@ library Constants {
   // and skip non-negative total quote validation Wallet Exits
   uint64 public constant MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD = 10000;
 
-  // 8 hours
-  uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
+  // To convert integer pips to a fractional price shift decimal left by the pip precision of 8
+  // decimals places
+  uint64 public constant PIP_PRICE_MULTIPLIER = 10 ** 8;
 
   string public constant QUOTE_ASSET_SYMBOL = "USD";
 
   uint8 public constant QUOTE_TOKEN_DECIMALS = 6;
 
   uint8 public constant SIGNATURE_HASH_VERSION = 105;
-
-  // To convert integer pips to a fractional price shift decimal left by the pip precision of 8
-  // decimals places
-  uint64 public constant PIP_PRICE_MULTIPLIER = 10 ** 8;
 }

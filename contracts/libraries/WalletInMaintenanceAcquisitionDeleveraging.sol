@@ -10,8 +10,7 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
-import { AcquisitionDeleverageArguments, Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletExit } from "./Structs.sol";
-import { WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
+import { AcquisitionDeleverageArguments, Balance, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
 
 library WalletInMaintenanceAcquisitionDeleveraging {
   using BalanceTracking for BalanceTracking.Storage;

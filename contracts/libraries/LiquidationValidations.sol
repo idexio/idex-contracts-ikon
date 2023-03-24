@@ -31,6 +31,10 @@ library LiquidationValidations {
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure returns (uint64) {
+    if (totalMaintenanceMarginRequirement == 0) {
+      return 0;
+    }
+
     int256 quoteQuantityInDoublePips = int256(positionSize) * int64(indexPrice);
 
     int256 quotePenaltyInDoublePips = ((positionSize < 0 ? int256(1) : int256(-1)) *

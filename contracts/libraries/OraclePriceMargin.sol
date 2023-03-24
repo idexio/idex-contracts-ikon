@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-3.0-ony
+// SPDX-License-Identifier: LGPL-3.0-only
 
 pragma solidity 0.8.18;
 
@@ -149,13 +149,15 @@ library OraclePriceMargin {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 quoteQuantityAvailableForExitWithdrawal) {
-    quoteQuantityAvailableForExitWithdrawal =
-      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
-      outstandingWalletFunding;
+    quoteQuantityAvailableForExitWithdrawal = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    quoteQuantityAvailableForExitWithdrawal += outstandingWalletFunding;
 
     if (wallet == exitFundWallet) {
       // The EF wallet can withdraw any positive quote balance
-      return Math.max(0, quoteQuantityAvailableForExitWithdrawal + outstandingWalletFunding);
+      return Math.max(0, quoteQuantityAvailableForExitWithdrawal);
     }
 
     (

@@ -187,6 +187,7 @@ library BalanceTracking {
     // Calculate amount of quote to close position
     uint64 quoteQuantity = arguments.exitAccountValue <= 0
       ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
+        // This exit path takes place entirely on-chain, so use on-chain oracle pricing rather than index pricing
         arguments.market.loadOraclePrice(),
         arguments.maintenanceMarginFraction,
         positionSize,

@@ -11,7 +11,7 @@ import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { AcquisitionDeleverageArguments, Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletExit } from "./Structs.sol";
-import { DeleverageType, WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
+import { WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
 
 library WalletExitAcquisitionDeleveraging {
   using BalanceTracking for BalanceTracking.Storage;

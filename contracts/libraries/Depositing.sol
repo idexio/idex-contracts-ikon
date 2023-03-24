@@ -9,7 +9,6 @@ import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { ICustodian } from "./Interfaces.sol";
 import { WalletExit } from "./Structs.sol";
-import { WalletExits } from "./WalletExits.sol";
 
 library Depositing {
   using BalanceTracking for BalanceTracking.Storage;
