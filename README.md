@@ -38,7 +38,7 @@ The Ikon on-chain infrastructure includes three main contracts and a host of sup
 - Governance: implements [upgrade logic](#upgradability) while enforcing [governance constraints](#controls-and-governance).
 - Exchange: implements the majority of exchange functionality, including storage for wallet balance tracking.
 
-Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. AcquisitionDeleveraging, ClosureDeleveraging, Depositing, Funding, IndexPriceMargin, MarketAdmin, OraclePriceMargin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletLiquidation, and Withdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
+Bytecode size limits require splitting much of Exchange’s logic into external library delegatecalls. ClosureDeleveraging, Depositing, Funding, IndexPriceMargin, MarketAdmin, OraclePriceMargin, PositionBelowMinimumLiquidation, PositionInDeactivatedMarketLiquidation, Trading, Transferring, WalletExitAcquisitionDeleveraging, WalletExitLiquidation, WalletInMaintenanceAcquisitionDeleveraging, WalletInMaintenanceLiquidation, and Withdrawing are structured as external libraries supporting Exchange functionality and interacting with Exchange storage. Additionally, stack size limits require many function parameters to be packaged as structs.
 
 An extensible set of [bridge protocol adapter contracts](#cross-chain-bridge-protocol-support) implements support for cross-chain [deposits](#deposit) and [withdrawals](#withdraw).
 
@@ -60,7 +60,7 @@ Users must deposit funds into the Ikon contracts before they are available for t
 
 ### Trade
 
-Ikon includes support for order book trades only; unlike its predecessor, Silverton, it does not implement hybrid liquidity trade types. All order management and trade matching happens off-chain while trades are ultimately settled on-chain. A trade is considered settled when the Exchange contract’s wallet asset balances reflect the new values agreed to in the trade. Exchange’s `executeTrade` function is responsible for settling trades.
+Ikon includes support for order book trades only; unlike its predecessor, [Silverton](https://github.com/idexio/idex-contracts-silverton), it does not implement hybrid liquidity trade types. All order management and trade matching happens off-chain while trades are ultimately settled on-chain. A trade is considered settled when the Exchange contract’s wallet asset balances reflect the new values agreed to in the trade. Exchange’s `executeTrade` function is responsible for settling trades.
 
 - Unlike deposits, trade settlement can only be initiated via a whitelisted dispatcher wallet controlled by IDEX. Users do not settle trades directly; only IDEX can submit trades for settlement. Because IDEX alone controls dispatch, IDEX’s off-chain components can guarantee the eventual on-chain trade settlement order and thus allow users to trade in real-time without waiting for dispatch or mining.
 - The primary responsibility of the trade functions is order and trade validation. In the case that IDEX off-chain infrastructure is compromised, the validations ensure that funds can only move in accordance with orders signed by the depositing wallet. Ikon additionally supports orders signed by a [delegated key](#delegated-keys) that is authorized by the depositing wallet.
@@ -68,7 +68,7 @@ Ikon includes support for order book trades only; unlike its predecessor, Silver
 - As traders may take on leverage, trade settlement enforces [margin requirements](#margin) on any resulting positions.
 - Due to business requirements, order quantity and price are specified as strings in [pip precision](#precision-and-pips), hence the need for order signature validation to convert the provided values to strings.
 - Ikon supports partial fills on orders, which requires additional bookkeeping to prevent overfills and replays.
-- [Fees](#fees) are assessed as part of trade settlement. The off-chain trading engine computes fees, but the contract logic is responsible for enforcing that fees are within [previously defined limits](#controls-and-governance). Because only an IDEX-controlled dispatcher wallet can make the settlement calls, IDEX is the immediate gas payer for trade settlement. IDEX passes along the estimated gas costs to users by including them in the taker fee.
+- [Fees](#fees) are assessed as part of trade settlement. The off-chain trading engine computes fees, but the contract logic is responsible for enforcing that fees are within [previously defined limits](#controls-and-governance). Because only an IDEX-controlled dispatcher wallet can make the settlement calls, IDEX is the immediate gas payer for trade settlement. IDEX passes along the estimated gas costs to users by including them in the trade fees.
 
 ### Withdraw
 
@@ -126,8 +126,8 @@ Condition: Liquidation of a wallet that does not meet its maintenance margin req
 Conditions: Liquidation of an [exited wallet](#wallet-exits). Ikon’s off-chain components proactively liquidate wallets on exit.
 
 - Wallet may or may not meet its maintenance margin requirement.
-- Positions are liquidated to the insurance fund at the exit price. The exit price is the worse of the entry price or current index price, but not below the bankruptcy price of the wallet.
-- To account for [fixed precision](#precision-and-pips) rounding issues, any remaining dust quote amount is transferred to or from the insurance fund as a last step.
+- Positions are liquidated to the insurance fund at the exit price or bankruptcy price. The exit price of a position is the worse of the entry price or current index price, and the exit account value is the total value of a wallet using exit pricing. Exit pricing is used if the exit account value of a wallet is positive, otherwise bankruptcy pricing is used.
+- To account for [fixed precision](#precision-and-pips) rounding issues, any remaining dust quote amount is transferred to or from the insurance fund as a last step when using bankruptcy pricing.
 - The insurance fund must meet its own margin requirements and position size maximums after acquiring the wallet’s positions.
 
 ## Automatic Deleveraging
@@ -159,7 +159,8 @@ Condition: Reduction of a single position held by the insurance fund against a c
 Condition: Reduction of a single position of an exited wallet, regardless of maintenance margin requirements, against a counterparty position during normal system operation.
 
 - Validations confirm that the insurance fund cannot liquidate the wallet in maintenance via a standard [Wallet Exited](#wallet-exited) liquidation.
-- Validates ADL happens at the exit price of the liquidating wallet’s position up to the quantity available from the counterparty position.
+- Positions are deleveraged at the exit price or bankruptcy price. The exit price of a position is the worse of the entry price or current index price, and the exit account value is the total value of a wallet using exit pricing. During each Exit Acquisition settlement, contract logic checks whether the exit account value of the wallet is positive. If so, the deleverage proceeds using the exit price. If the exit account value is not positive, however, contract logic selects the bankruptcy price, persists the decision, and uses the bankruptcy price for the current and all subsequent deleverage settlements for the wallet. Because closing all positions of a wallet via Exit Acquisition ADL may require several settlements, the exit account value of a wallet may change between settlements.
+- Validates ADL happens at either the exit or bankruptcy price of the liquidating wallet’s position up to the quantity available from the counterparty position.
 
 ### Exit Fund Closure
 
@@ -221,9 +222,9 @@ Previous versions of IDEX introduced a wallet exit mechanism, allowing users to 
 
 In Ikon, wallet exit withdrawals via Exchange’s `withdrawExit` close any open positions and return the remaining USDC quote balance to the wallet. In order to support offline operation, exit withdrawals must execute deterministically in contract logic without the user supplying counterparty positions for closure. To achieve this behavior, all positions liquidated in an exit withdrawal are acquired by a designated exit fund wallet. The exit fund does not have any margin requirements, which maximizes the range of positions it can acquire, and is excluded from a number of exchange activities. See [offline operation](#offline-operation) for details.
 
-**Importantly, in order to ensure the solvency of the system, the exit value of positions is different from their order book or index price value.** During exit withdrawals, positions are acquired by the exit fund at the worse of the position’s entry price or current index price, but not below the bankruptcy price of the wallet. As a result, it is possible for a wallet with a negative total account value due to unrealized losses to receive zero USDC during a `withdrawExit`. Wallet positions are still closed in this scenario. Exchange includes `loadQuoteQuantityAvailableForExitWithdrawal` to query the exit value of a wallet before exiting or calling `withdrawExit`.
+**Importantly, in order to ensure the solvency of the system, the exit value of positions differs from their order book or index price values.** During exit withdrawals, positions are acquired by the exit fund at the exit price or bankruptcy price. The exit price of a position is the worse of the entry price or current index price, and the exit account value is the total value of a wallet using exit pricing. Exit pricing is used if the exit account value of a wallet is positive, otherwise bankruptcy pricing is used. As a result, wallets with a negative exit account value due to unrealized losses receive zero USDC during a `withdrawExit`. Wallet positions are still closed in this scenario. Exchange includes `loadQuoteQuantityAvailableForExitWithdrawal` to query the exit value of a wallet before exiting or calling `withdrawExit`.
 
-**Wallets that exit during normal online exchange operation are proactively liquidated at the exit value by IDEX’s off-chain systems.** In this case, the exited wallet’s positions are [acquired by the insurance fund](#wallet-exited) or [deleveraged](#exit-acquisition-wallet-exited), but the result to the wallet holder is the same. It is still necessary to separately call `withdrawExit` to withdraw the remaining USDC balance of the exited wallet.
+**Wallets that exit during normal online exchange operation are proactively liquidated at the exit price or bankruptcy price by IDEX’s off-chain systems.** In this case, the exited wallet’s positions are [acquired by the insurance fund](#wallet-exited) or [deleveraged](#exit-acquisition-wallet-exited), but the result to the wallet holder is the same. It is still necessary to separately call `withdrawExit` to withdraw the remaining USDC balance of the exited wallet.
 
 ## Delegated Keys
 

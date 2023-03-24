@@ -29,7 +29,7 @@ The Governance contract also implements field update logic for sensitive Exchang
 - The admin is the only agent whitelisted to change several Exchange settings:
   - Bridge adapter contract address whitelist
   - Index price service wallet address whitelist
-  - Insurance fund wallet address
+  - Insurance fund wallet address, provided that neither the existing nor new wallet has any open non-quote positions
   - Market configuration override values, subject to limits as defined in Exchange contract’s [fixed parameter settings](#market-override-fixed-parameter-settings).
 - Updating any of the governed fields is a two-step process.
   - The admin first calls an update initiation with the new value(s), which initiates the Field  Update Period.
@@ -56,7 +56,8 @@ The Exchange contract implements the majority of exchange functionality, includi
 - The admin can change the Chain Propagation Period with no delay, subject to the Minimum Chain Propagation Period and Maximum Chain Propagation Period limits.
 - The admin can change the Delegated Key Expiration Period with no delay, subject to the Minimum Delegated Key Expiration Period and Maximum Delegated Key Expiration Period limits.
 - The admin can change the Position Below Minimum Liquidation Price Tolerance Multiplier with no delay to a non-negative value less than or equal to the Maximum Fee Rate.
-- Exchange tracks a single exit fund wallet address, and the exit fund wallet can be changed with no delay by the admin, provided that the existing wallet has no open positions or quote balance.
+- Exchange tracks a single exit fund wallet address, and the exit fund wallet can be changed with no delay by the admin, provided that neither the existing nor new wallet has any open positions or quote balance.
+- The admin can withdraw any positive quote balance from the exit fund after a fixed delay after the exit fund opens its first non-quote position.
 - Exchange tracks a single fee wallet address, and the fee wallet can be changed with no delay by the admin.
 - The admin can change or remove an addresses as the dispatcher wallet with no delay. The dispatcher wallet is authorized to call operator-only contract functions: `executeTrade`, `liquidatePositionBelowMinimum`, `liquidatePositionInDeactivatedMarket`, `liquidateWalletInMaintenance`, `liquidateWalletInMaintenanceDuringSystemRecovery`, `liquidateWalletExited`, `deleverageInMaintenanceAcquisition`, `deleverageInsuranceFundClosure`, `deleverageExitAcquisition`, `deleverageExitFundClosure`, `transfer`, `withdraw`, `activateMarket`, `deactivateMarket`, `publishIndexPrices`, and `publishFundingMultiplier`.
 - The admin can add new markets with no delay, with new market fields subject to limits. The dispatcher wallet can activate and deactivate markets.
@@ -98,13 +99,15 @@ These settings have been pre-determined and may be hard-coded or implicit in the
 - Maximum Delegated Key Expiration Period: 1 year
 - Delegated Key Expiration Change Period: immediate
 - Exit Fund Wallet Change Period: immediate
+- Exit Fund Withdraw Delay: 1 week
 - Fee Wallet Change Period: immediate
 - Dispatcher Wallet Change Period: immediate
 - Market Override Field Limits <a id="market-override-fixed-parameter-settings"></a>
   - Minimum Initial Margin Fraction: 0.005
   - Minimum Maintenance Margin Fraction: 0.003
   - Minimum Incremental Initial Margin Fraction: 0.001
-  - Maximum Baseline Position Size: configured maximum position size
+  - Maximum Baseline Position Size: 2^63 - 1
+  - Incremental Position Size: > 0
   - Maximum Maximum Position Size: 2^63 - 1
   - Maximum Minimum Position Size: 2^63 - 2
 - Maximum Fee Rate: 20%
