@@ -179,22 +179,22 @@ library WalletExitLiquidation {
     if (arguments.exitAccountValue <= 0) {
       LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
         arguments.market.lastIndexPrice,
+        balanceStruct.balance,
         arguments.quoteQuantity,
         arguments
           .market
           .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maintenanceMarginFraction,
-        balanceStruct.balance,
         arguments.totalAccountValue,
         arguments.totalMaintenanceMarginRequirement
       );
     } else {
       LiquidationValidations.validateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
-        arguments.quoteQuantity,
         arguments.market.lastIndexPrice,
-        balanceStruct.balance
+        balanceStruct.balance,
+        arguments.quoteQuantity
       );
     }
   }

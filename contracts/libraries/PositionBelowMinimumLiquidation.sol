@@ -189,7 +189,7 @@ library PositionBelowMinimumLiquidation {
     require(
       expectedLiquidationQuoteQuantity - tolerance <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantity + tolerance >= liquidationQuoteQuantity,
-      "Invalid liquidation quote quantity"
+      "Invalid quote quantity"
     );
   }
 }

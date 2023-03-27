@@ -966,7 +966,7 @@ describe('Exchange', function () {
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('19000.00000000'),
         }),
-      ).to.eventually.be.rejectedWith(/invalid exit quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when wallet is deleveraged against itself', async function () {

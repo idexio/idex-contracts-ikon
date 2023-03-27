@@ -186,12 +186,12 @@ library WalletInMaintenanceLiquidation {
   ) private {
     LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
       market.lastIndexPrice,
+      balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
       arguments.liquidationQuoteQuantities[index],
       market
         .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
         .maintenanceMarginFraction,
-      balanceTracking.loadBalanceAndMigrateIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
       totalAccountValue,
       totalMaintenanceMarginRequirement
     );

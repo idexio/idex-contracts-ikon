@@ -280,16 +280,16 @@ library WalletExitAcquisitionDeleveraging {
           // Position size implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
           int64(Math.abs(balanceStruct.balance))
         ),
-        arguments.liquidationQuoteQuantity,
         arguments.indexPrice,
-        arguments.liquidationBaseQuantity
+        arguments.liquidationBaseQuantity,
+        arguments.liquidationQuoteQuantity
       );
     } else {
       LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
         arguments.indexPrice,
+        arguments.liquidationBaseQuantity,
         arguments.liquidationQuoteQuantity,
         arguments.maintenanceMarginFraction,
-        arguments.liquidationBaseQuantity,
         arguments.totalAccountValue,
         arguments.totalMaintenanceMarginRequirement
       );

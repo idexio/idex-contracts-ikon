@@ -203,7 +203,7 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantity: decimalToPips('0.10000000'),
         }),
-      ).to.eventually.be.rejectedWith(/invalid liquidation quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when not sent by dispatcher', async function () {
@@ -282,7 +282,7 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantity: decimalToPips('2000.00000000'),
         }),
-      ).to.eventually.be.rejectedWith(/invalid liquidation quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when IF cannot acquire', async function () {
@@ -520,7 +520,7 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['20080.00000000'].map(decimalToPips),
         }),
-      ).to.eventually.be.rejectedWith(/invalid liquidation quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when not sent by dispatcher', async function () {
@@ -745,7 +745,7 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['21500.00000000'].map(decimalToPips),
         }),
-      ).to.eventually.be.rejectedWith(/invalid exit quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
   });
 });

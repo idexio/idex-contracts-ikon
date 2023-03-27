@@ -42,7 +42,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Balance tracking
   BalanceTracking.Storage private _balanceTracking;
   // Mapping of wallet => list of base asset symbols with open positions
-  mapping(address => string[]) private _baseAssetSymbolsWithOpenPositionsByWallet;
+  mapping(address => string[]) public baseAssetSymbolsWithOpenPositionsByWallet;
   // Mapping of order wallet hash => isComplete
   mapping(bytes32 => bool) private _completedOrderHashes;
   // Transfers - mapping of transfer wallet hash => isComplete
@@ -62,7 +62,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Milliseconds since epoch, always aligned to funding period
   mapping(string => uint64) public lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // Wallet-specific market parameter overrides
-  mapping(string => mapping(address => MarketOverrides)) private _marketOverridesByBaseAssetSymbolAndWallet;
+  mapping(string => mapping(address => MarketOverrides)) public marketOverridesByBaseAssetSymbolAndWallet;
   // Mapping of base asset symbol => market struct
   mapping(string => Market) public marketsByBaseAssetSymbol;
   // Mapping of wallet => last invalidated timestamp in milliseconds
@@ -72,7 +72,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteTokenAddress;
   // Exits
-  mapping(address => WalletExit) private _walletExits;
+  mapping(address => WalletExit) public walletExits;
 
   // State variables - tunable parameters //
 
@@ -193,13 +193,13 @@ contract Exchange_v4 is IExchange, Owned {
 
   modifier onlyDispatcherWhenExitFundHasNoPositions() {
     _onlyDispatcher();
-    require(_baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length == 0, "Exit Fund has open positions");
+    require(baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length == 0, "Exit Fund has open positions");
     _;
   }
 
   modifier onlyDispatcherWhenExitFundHasOpenPositions() {
     _onlyDispatcher();
-    require(_baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0, "Exit Fund has no positions");
+    require(baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0, "Exit Fund has no positions");
     _;
   }
 
@@ -369,7 +369,7 @@ contract Exchange_v4 is IExchange, Owned {
       !ExitFund.doesWalletHaveOpenPositionsOrQuoteBalance(
         exitFundWallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet
+        baseAssetSymbolsWithOpenPositionsByWallet
       ),
       "Current EF cannot have open balance"
     );
@@ -378,7 +378,7 @@ contract Exchange_v4 is IExchange, Owned {
       !ExitFund.doesWalletHaveOpenPositionsOrQuoteBalance(
         newExitFundWallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet
+        baseAssetSymbolsWithOpenPositionsByWallet
       ),
       "New EF cannot have open balance"
     );
@@ -449,7 +449,7 @@ contract Exchange_v4 is IExchange, Owned {
       balance += Funding.loadOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketsByBaseAssetSymbol
@@ -483,7 +483,7 @@ contract Exchange_v4 is IExchange, Owned {
   function loadBaseAssetSymbolsWithOpenPositionsByWallet(
     address wallet
   ) public view override returns (string[] memory) {
-    return _baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    return baseAssetSymbolsWithOpenPositionsByWallet[wallet];
   }
 
   /**
@@ -505,10 +505,10 @@ contract Exchange_v4 is IExchange, Owned {
         exitFundWallet,
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketOverridesByBaseAssetSymbolAndWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
   }
@@ -556,7 +556,7 @@ contract Exchange_v4 is IExchange, Owned {
       quoteTokenAddress,
       msg.sender,
       _balanceTracking,
-      _walletExits
+      walletExits
     );
 
     depositIndex++;
@@ -582,15 +582,15 @@ contract Exchange_v4 is IExchange, Owned {
         insuranceFundWallet
       ),
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       _completedOrderHashes,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
       nonceInvalidationsByWallet,
       _partiallyFilledOrderQuantities,
-      _walletExits
+      walletExits
     );
 
     emit TradeExecuted(
@@ -621,10 +621,10 @@ contract Exchange_v4 is IExchange, Owned {
       insuranceFundWallet,
       positionBelowMinimumLiquidationPriceToleranceMultiplier,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -639,7 +639,7 @@ contract Exchange_v4 is IExchange, Owned {
       liquidationArguments,
       feeWallet,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
@@ -660,10 +660,10 @@ contract Exchange_v4 is IExchange, Owned {
       insuranceFundWallet,
       LiquidationType.WalletInMaintenance,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -682,10 +682,10 @@ contract Exchange_v4 is IExchange, Owned {
       insuranceFundWallet,
       LiquidationType.WalletInMaintenanceDuringSystemRecovery,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -696,17 +696,17 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletExit(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    require(_walletExits[liquidationArguments.liquidatingWallet].exists, "Wallet not exited");
+    require(walletExits[liquidationArguments.liquidatingWallet].exists, "Wallet not exited");
 
     WalletExitLiquidation.liquidate_delegatecall(
       liquidationArguments,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -725,10 +725,10 @@ contract Exchange_v4 is IExchange, Owned {
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -747,10 +747,10 @@ contract Exchange_v4 is IExchange, Owned {
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -762,19 +762,19 @@ contract Exchange_v4 is IExchange, Owned {
   function deleverageExitAcquisition(
     AcquisitionDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    require(_walletExits[deleverageArguments.liquidatingWallet].exists, "Wallet not exited");
+    require(walletExits[deleverageArguments.liquidatingWallet].exists, "Wallet not exited");
 
     WalletExitAcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
-      _walletExits
+      walletExits
     );
   }
 
@@ -792,10 +792,10 @@ contract Exchange_v4 is IExchange, Owned {
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
   }
@@ -806,13 +806,13 @@ contract Exchange_v4 is IExchange, Owned {
     int64 newSourceWalletExchangeBalance = Transferring.transfer_delegatecall(
       Transferring.Arguments(transfer_, exitFundWallet, insuranceFundWallet, feeWallet),
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       _completedTransferHashes,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
-      _walletExits
+      walletExits
     );
 
     emit Transferred(
@@ -832,7 +832,7 @@ contract Exchange_v4 is IExchange, Owned {
    * @param withdrawal A `Withdrawal` struct encoding the parameters of the withdrawal
    */
   function withdraw(Withdrawal memory withdrawal) public onlyDispatcherWhenExitFundHasNoPositions {
-    require(!WalletExits.isWalletExitFinalized(withdrawal.wallet, _walletExits), "Wallet exited");
+    require(!WalletExits.isWalletExitFinalized(withdrawal.wallet, walletExits), "Wallet exited");
 
     int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
       Withdrawing.WithdrawArguments(
@@ -844,12 +844,12 @@ contract Exchange_v4 is IExchange, Owned {
         feeWallet
       ),
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       _completedWithdrawalHashes,
       bridgeAdapters,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
 
@@ -913,7 +913,7 @@ contract Exchange_v4 is IExchange, Owned {
     if (wallet == address(0x0)) {
       marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = overridableFields;
     } else {
-      _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
+      marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
         exists: true,
         overridableFields: overridableFields
       });
@@ -930,11 +930,11 @@ contract Exchange_v4 is IExchange, Owned {
     require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
     require(wallet != address(0x0), "Invalid wallet");
     require(
-      _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
+      marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
       "Wallet has no overrides for market"
     );
 
-    delete _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet];
+    delete marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet];
 
     emit MarketOverridesUnset(baseAssetSymbol, wallet);
   }
@@ -978,7 +978,7 @@ contract Exchange_v4 is IExchange, Owned {
       baseAssetSymbol,
       wallet,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
@@ -993,7 +993,7 @@ contract Exchange_v4 is IExchange, Owned {
       Funding.loadOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketsByBaseAssetSymbol
@@ -1012,7 +1012,7 @@ contract Exchange_v4 is IExchange, Owned {
       IndexPriceMargin.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketsByBaseAssetSymbol
@@ -1030,7 +1030,7 @@ contract Exchange_v4 is IExchange, Owned {
       OraclePriceMargin.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketsByBaseAssetSymbol
@@ -1049,8 +1049,8 @@ contract Exchange_v4 is IExchange, Owned {
       IndexPriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
-        _marketOverridesByBaseAssetSymbolAndWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
   }
@@ -1066,8 +1066,8 @@ contract Exchange_v4 is IExchange, Owned {
       OraclePriceMargin.loadTotalInitialMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
-        _marketOverridesByBaseAssetSymbolAndWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
   }
@@ -1084,8 +1084,8 @@ contract Exchange_v4 is IExchange, Owned {
       IndexPriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
-        _marketOverridesByBaseAssetSymbolAndWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
   }
@@ -1101,8 +1101,8 @@ contract Exchange_v4 is IExchange, Owned {
       OraclePriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
         wallet,
         _balanceTracking,
-        _baseAssetSymbolsWithOpenPositionsByWallet,
-        _marketOverridesByBaseAssetSymbolAndWallet,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
   }
@@ -1120,7 +1120,7 @@ contract Exchange_v4 is IExchange, Owned {
       exitFundWallet,
       insuranceFundWallet,
       msg.sender,
-      _walletExits
+      walletExits
     );
 
     emit WalletExited(msg.sender, blockThreshold);
@@ -1135,12 +1135,12 @@ contract Exchange_v4 is IExchange, Owned {
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, quoteTokenAddress),
       exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
-      _baseAssetSymbolsWithOpenPositionsByWallet,
+      baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      _marketOverridesByBaseAssetSymbolAndWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
-      _walletExits
+      walletExits
     );
     exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
 
@@ -1152,9 +1152,9 @@ contract Exchange_v4 is IExchange, Owned {
    * by sending wallet
    */
   function clearWalletExit() public {
-    require(WalletExits.isWalletExitFinalized(msg.sender, _walletExits), "Wallet exit not finalized");
+    require(WalletExits.isWalletExitFinalized(msg.sender, walletExits), "Wallet exit not finalized");
 
-    delete _walletExits[msg.sender];
+    delete walletExits[msg.sender];
 
     emit WalletExitCleared(msg.sender);
   }
