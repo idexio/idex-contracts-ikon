@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.18;
 
-import { AcquisitionDeleveraging } from "./libraries/AcquisitionDeleveraging.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { AssetUnitConversions } from "./libraries/AssetUnitConversions.sol";
 import { BalanceTracking } from "./libraries/BalanceTracking.sol";
@@ -23,10 +22,13 @@ import { String } from "./libraries/String.sol";
 import { Trading } from "./libraries/Trading.sol";
 import { Transferring } from "./libraries/Transferring.sol";
 import { Validations } from "./libraries/Validations.sol";
+import { WalletExitAcquisitionDeleveraging } from "./libraries/WalletExitAcquisitionDeleveraging.sol";
+import { WalletExitLiquidation } from "./libraries/WalletExitLiquidation.sol";
 import { WalletExits } from "./libraries/WalletExits.sol";
-import { WalletLiquidation } from "./libraries/WalletLiquidation.sol";
+import { WalletInMaintenanceAcquisitionDeleveraging } from "./libraries/WalletInMaintenanceAcquisitionDeleveraging.sol";
+import { WalletInMaintenanceLiquidation } from "./libraries/WalletInMaintenanceLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
@@ -70,7 +72,7 @@ contract Exchange_v4 is IExchange, Owned {
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteTokenAddress;
   // Exits
-  mapping(address => WalletExits.WalletExit) private _walletExits;
+  mapping(address => WalletExit) private _walletExits;
 
   // State variables - tunable parameters //
 
@@ -641,7 +643,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletInMaintenance(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    WalletLiquidation.liquidate_delegatecall(
+    WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
       exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
@@ -663,7 +665,7 @@ contract Exchange_v4 is IExchange, Owned {
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
-    exitFundPositionOpenedAtBlockNumber = WalletLiquidation.liquidate_delegatecall(
+    exitFundPositionOpenedAtBlockNumber = WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
       exitFundPositionOpenedAtBlockNumber,
       exitFundWallet,
@@ -681,17 +683,15 @@ contract Exchange_v4 is IExchange, Owned {
   /**
    * @notice Liquidates all positions of an exited wallet to the Insurance Fund at each position's exit price
    */
-  function liquidateWalletExited(
+  function liquidateWalletExit(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[liquidationArguments.liquidatingWallet].exists, "Wallet not exited");
 
-    WalletLiquidation.liquidate_delegatecall(
+    WalletExitLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
-      LiquidationType.WalletExited,
       _balanceTracking,
       _baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -710,9 +710,8 @@ contract Exchange_v4 is IExchange, Owned {
   function deleverageInMaintenanceAcquisition(
     AcquisitionDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasNoPositions {
-    AcquisitionDeleveraging.deleverage_delegatecall(
+    WalletInMaintenanceAcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletInMaintenanceAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -755,9 +754,8 @@ contract Exchange_v4 is IExchange, Owned {
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     require(_walletExits[deleverageArguments.liquidatingWallet].exists, "Wallet not exited");
 
-    AcquisitionDeleveraging.deleverage_delegatecall(
+    WalletExitAcquisitionDeleveraging.deleverage_delegatecall(
       deleverageArguments,
-      DeleverageType.WalletExitAcquisition,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -765,7 +763,8 @@ contract Exchange_v4 is IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       _marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol,
+      _walletExits
     );
   }
 

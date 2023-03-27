@@ -78,7 +78,7 @@ describe('Exchange', function () {
     );
   });
 
-  describe('calculateLiquidationQuoteQuantityToClosePositions', async function () {
+  describe('calculateQuoteQuantityAtBankruptcyPrice', async function () {
     let liquidationValidationsMock: LiquidationValidationsMock;
 
     beforeEach(async () => {
@@ -87,9 +87,21 @@ describe('Exchange', function () {
       ).deploy();
     });
 
+    it('should return 0 for zero totalMaintenanceMarginRequirement', async function () {
+      await expect(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
+          '200000000000',
+          '3000000',
+          '10000000000',
+          '3000000',
+          '0',
+        ),
+      ).to.eventually.equal('0');
+    });
+
     it('should revert if result overflows int64', async function () {
       await expect(
-        liquidationValidationsMock.calculateLiquidationQuoteQuantityToClosePositions(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
           new BigNumber(2).pow(63).minus(1).toString(),
           '3000000',
           new BigNumber(2).pow(63).minus(1).toString(),
@@ -101,7 +113,7 @@ describe('Exchange', function () {
 
     it('should revert if result underflows int64', async function () {
       await expect(
-        liquidationValidationsMock.calculateLiquidationQuoteQuantityToClosePositions(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
           new BigNumber(2).pow(63).minus(1).toString(),
           '3000000',
           new BigNumber(2).pow(63).negated().toString(),
@@ -609,22 +621,51 @@ describe('Exchange', function () {
     });
   });
 
-  describe('liquidateWalletExited', async function () {
+  describe('liquidateWalletExit', async function () {
     it('should work for valid wallet', async function () {
       await fundWallets([insuranceFundWallet], exchange, usdc);
 
       await exchange.connect(trader1Wallet).exitWallet();
 
-      await exchange.connect(dispatcherWallet).liquidateWalletExited({
+      await exchange.connect(dispatcherWallet).liquidateWalletExit({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader1Wallet.address,
         liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
       });
     });
 
+    it('should work for valid wallet with negative EAV', async function () {
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '3000.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await exchange.connect(dispatcherWallet).liquidateWalletExit({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader1Wallet.address,
+        liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+      });
+    });
+
     it('should revert when not sent by dispatcher', async function () {
       await expect(
-        exchange.liquidateWalletExited({
+        exchange.liquidateWalletExit({
           counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
@@ -632,9 +673,21 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
     });
 
+    it('should revert when counterparty is not IF', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).liquidateWalletExit({
+          counterpartyWallet: exitFundWallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+        }),
+      ).to.eventually.be.rejectedWith(/must liquidate to IF/i);
+    });
+
     it('should revert when wallet not exited', async function () {
       await expect(
-        exchange.connect(dispatcherWallet).liquidateWalletExited({
+        exchange.connect(dispatcherWallet).liquidateWalletExit({
           counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
@@ -642,11 +695,29 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/wallet not exited/i);
     });
 
+    it('should revert for inactive market', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .deactivateMarket(baseAssetSymbol);
+
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).liquidateWalletExit({
+          counterpartyWallet: insuranceFundWallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
+        }),
+      ).to.eventually.be.rejectedWith(
+        /cannot liquidate position in inactive market/i,
+      );
+    });
+
     it('should revert on invalid quote quantity', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
 
       await expect(
-        exchange.connect(dispatcherWallet).liquidateWalletExited({
+        exchange.connect(dispatcherWallet).liquidateWalletExit({
           counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['21500.00000000'].map(decimalToPips),

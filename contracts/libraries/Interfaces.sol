@@ -58,17 +58,6 @@ interface ICustodian {
  */
 interface IExchange {
   /**
-   * @notice Load a wallet's balance-tracking struct by asset symbol
-   *
-   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
-   * @param assetSymbol The asset symbol to load the wallet's balance for
-   *
-   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently in an open position for or
-   * deposited by `wallet`
-   */
-  function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
-
-  /**
    * @notice Load a wallet's balance by asset symbol, in pips
    *
    * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
@@ -76,6 +65,17 @@ interface IExchange {
    *
    * @return balance The quantity denominated in pips of asset at `assetSymbol` currently in an open position or
    * quote balance by `wallet` if base or quote respectively. Result may be negative
+   */
+  function loadBalanceBySymbol(address wallet, string calldata assetSymbol) external view returns (int64);
+
+  /**
+   * @notice Load a wallet's balance-tracking struct by asset symbol
+   *
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetSymbol The asset symbol to load the wallet's balance for
+   *
+   * @return The internal `Balance` struct tracking the asset at `assetSymbol` currently in an open position for or
+   * deposited by `wallet`
    */
   function loadBalanceStructBySymbol(
     address wallet,
@@ -117,10 +117,15 @@ interface IExchange {
   /**
    * @notice Load the address of the currently whitelisted Dispatcher wallet
    *
-   * @return The address of the Custodian contract
+   * @return The address of the Dispatcher wallet
    */
   function dispatcherWallet() external view returns (address);
 
+  /**
+   * @notice Load the address of the current Insurance Fund wallet
+   *
+   * @return The address of the Insurance Fund wallet
+   */
   function insuranceFundWallet() external view returns (address);
 
   /**

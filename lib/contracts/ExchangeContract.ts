@@ -20,7 +20,6 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
   public static async deploy(
     args: Parameters<Exchange_v4__factory['deploy']>,
     libraryAddresses: {
-      acquisitionDeleveraging: string;
       closureDeleveraging: string;
       depositing: string;
       funding: string;
@@ -32,7 +31,10 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       positionInDeactivatedMarketLiquidation: string;
       trading: string;
       transferring: string;
-      walletLiquidation: string;
+      walletExitAcquisitionDeleveraging: string;
+      walletExitLiquidation: string;
+      walletInMaintenanceAcquisitionDeleveraging: string;
+      walletInMaintenanceLiquidation: string;
       withdrawing: string;
     },
     ownerWalletPrivateKey: string,
@@ -40,8 +42,6 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
     const linkLibraryAddresses: ConstructorParameters<
       typeof Exchange_v4__factory
     >[0] = {
-      ['contracts/libraries/AcquisitionDeleveraging.sol:AcquisitionDeleveraging']:
-        libraryAddresses.acquisitionDeleveraging,
       ['contracts/libraries/ClosureDeleveraging.sol:ClosureDeleveraging']:
         libraryAddresses.closureDeleveraging,
       ['contracts/libraries/Depositing.sol:Depositing']:
@@ -62,8 +62,14 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       ['contracts/libraries/Trading.sol:Trading']: libraryAddresses.trading,
       ['contracts/libraries/Transferring.sol:Transferring']:
         libraryAddresses.transferring,
-      ['contracts/libraries/WalletLiquidation.sol:WalletLiquidation']:
-        libraryAddresses.walletLiquidation,
+      ['contracts/libraries/WalletExitAcquisitionDeleveraging.sol:WalletExitAcquisitionDeleveraging']:
+        libraryAddresses.walletExitAcquisitionDeleveraging,
+      ['contracts/libraries/WalletExitLiquidation.sol:WalletExitLiquidation']:
+        libraryAddresses.walletExitLiquidation,
+      ['contracts/libraries/WalletInMaintenanceAcquisitionDeleveraging.sol:WalletInMaintenanceAcquisitionDeleveraging']:
+        libraryAddresses.walletInMaintenanceAcquisitionDeleveraging,
+      ['contracts/libraries/WalletInMaintenanceLiquidation.sol:WalletInMaintenanceLiquidation']:
+        libraryAddresses.walletInMaintenanceLiquidation,
       ['contracts/libraries/Withdrawing.sol:Withdrawing']:
         libraryAddresses.withdrawing,
     };

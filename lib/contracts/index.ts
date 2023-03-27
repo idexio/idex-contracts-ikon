@@ -23,7 +23,6 @@ export {
 };
 
 export type LibraryName =
-  | 'AcquisitionDeleveraging'
   | 'ClosureDeleveraging'
   | 'Depositing'
   | 'Funding'
@@ -35,7 +34,10 @@ export type LibraryName =
   | 'PositionInDeactivatedMarketLiquidation'
   | 'Trading'
   | 'Transferring'
-  | 'WalletLiquidation'
+  | 'WalletExitAcquisitionDeleveraging'
+  | 'WalletExitLiquidation'
+  | 'WalletInMaintenanceAcquisitionDeleveraging'
+  | 'WalletInMaintenanceLiquidation'
   | 'Withdrawing';
 
 export async function deployLibrary(

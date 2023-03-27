@@ -8,7 +8,7 @@ import { Hashing } from "./Hashing.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { Validations } from "./Validations.sol";
 import { WalletExits } from "./WalletExits.sol";
-import { FundingMultiplierQuartet, Market, MarketOverrides, Transfer } from "./Structs.sol";
+import { FundingMultiplierQuartet, Market, MarketOverrides, Transfer, WalletExit } from "./Structs.sol";
 
 library Transferring {
   using BalanceTracking for BalanceTracking.Storage;
@@ -32,7 +32,7 @@ library Transferring {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => WalletExits.WalletExit) storage walletExits
+    mapping(address => WalletExit) storage walletExits
   ) public returns (int64 newSourceWalletExchangeBalance) {
     require(!WalletExits.isWalletExitFinalized(arguments.transfer.sourceWallet, walletExits), "Wallet exited");
 

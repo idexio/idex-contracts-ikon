@@ -304,7 +304,6 @@ export async function deployAndAssociateContracts(
 
 export async function deployLibraryContracts() {
   const [
-    AcquisitionDeleveraging,
     ClosureDeleveraging,
     Depositing,
     Funding,
@@ -316,10 +315,12 @@ export async function deployLibraryContracts() {
     PositionInDeactivatedMarketLiquidation,
     Trading,
     Transferring,
-    WalletLiquidation,
+    WalletExitAcquisitionDeleveraging,
+    WalletExitLiquidation,
+    WalletInMaintenanceAcquisitionDeleveraging,
+    WalletInMaintenanceLiquidation,
     Withdrawing,
   ] = await Promise.all([
-    ethers.getContractFactory('AcquisitionDeleveraging'),
     ethers.getContractFactory('ClosureDeleveraging'),
     ethers.getContractFactory('Depositing'),
     ethers.getContractFactory('Funding'),
@@ -331,12 +332,14 @@ export async function deployLibraryContracts() {
     ethers.getContractFactory('PositionInDeactivatedMarketLiquidation'),
     ethers.getContractFactory('Trading'),
     ethers.getContractFactory('Transferring'),
-    ethers.getContractFactory('WalletLiquidation'),
+    ethers.getContractFactory('WalletExitAcquisitionDeleveraging'),
+    ethers.getContractFactory('WalletExitLiquidation'),
+    ethers.getContractFactory('WalletInMaintenanceAcquisitionDeleveraging'),
+    ethers.getContractFactory('WalletInMaintenanceLiquidation'),
     ethers.getContractFactory('Withdrawing'),
   ]);
 
   const [
-    acquisitionDeleveraging,
     closureDeleveraging,
     depositing,
     funding,
@@ -348,10 +351,12 @@ export async function deployLibraryContracts() {
     positionInDeactivatedMarketLiquidation,
     trading,
     transferring,
-    walletLiquidation,
+    walletExitAcquisitionDeleveraging,
+    walletExitLiquidation,
+    walletInMaintenanceAcquisitionDeleveraging,
+    walletInMaintenanceLiquidation,
     withdrawing,
   ] = await Promise.all([
-    (await AcquisitionDeleveraging.deploy()).deployed(),
     (await ClosureDeleveraging.deploy()).deployed(),
     (await Depositing.deploy()).deployed(),
     (await Funding.deploy()).deployed(),
@@ -363,13 +368,15 @@ export async function deployLibraryContracts() {
     (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
     (await Trading.deploy()).deployed(),
     (await Transferring.deploy()).deployed(),
-    (await WalletLiquidation.deploy()).deployed(),
+    (await WalletExitAcquisitionDeleveraging.deploy()).deployed(),
+    (await WalletExitLiquidation.deploy()).deployed(),
+    (await WalletInMaintenanceAcquisitionDeleveraging.deploy()).deployed(),
+    (await WalletInMaintenanceLiquidation.deploy()).deployed(),
     (await Withdrawing.deploy()).deployed(),
   ]);
 
   return ethers.getContractFactory('Exchange_v4', {
     libraries: {
-      AcquisitionDeleveraging: acquisitionDeleveraging.address,
       ClosureDeleveraging: closureDeleveraging.address,
       Depositing: depositing.address,
       Funding: funding.address,
@@ -382,7 +389,12 @@ export async function deployLibraryContracts() {
         positionInDeactivatedMarketLiquidation.address,
       Trading: trading.address,
       Transferring: transferring.address,
-      WalletLiquidation: walletLiquidation.address,
+      WalletExitAcquisitionDeleveraging:
+        walletExitAcquisitionDeleveraging.address,
+      WalletExitLiquidation: walletExitLiquidation.address,
+      WalletInMaintenanceAcquisitionDeleveraging:
+        walletInMaintenanceAcquisitionDeleveraging.address,
+      WalletInMaintenanceLiquidation: walletInMaintenanceLiquidation.address,
       Withdrawing: withdrawing.address,
     },
   });

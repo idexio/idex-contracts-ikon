@@ -7,7 +7,7 @@ import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { TradeValidations } from "./TradeValidations.sol";
 import { WalletExits } from "./WalletExits.sol";
-import { ExecuteTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation } from "./Structs.sol";
+import { ExecuteTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation, WalletExit } from "./Structs.sol";
 
 library Trading {
   using BalanceTracking for BalanceTracking.Storage;
@@ -34,7 +34,7 @@ library Trading {
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
     mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities,
-    mapping(address => WalletExits.WalletExit) storage walletExits
+    mapping(address => WalletExit) storage walletExits
   ) public {
     require(
       !WalletExits.isWalletExitFinalized(arguments.externalArguments.buy.wallet, walletExits),

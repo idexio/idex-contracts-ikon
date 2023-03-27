@@ -17,9 +17,10 @@ import { Math } from "./Math.sol";
 import { OraclePriceMargin } from "./OraclePriceMargin.sol";
 import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
+import { WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
 import { WalletExits } from "./WalletExits.sol";
 import { IBridgeAdapter, ICustodian } from "./Interfaces.sol";
-import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, Withdrawal } from "./Structs.sol";
+import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletExit, Withdrawal } from "./Structs.sol";
 
 library Withdrawing {
   using BalanceTracking for BalanceTracking.Storage;
@@ -51,14 +52,14 @@ library Withdrawing {
     address exitFundWallet,
     address insuranceFundWallet,
     address wallet,
-    mapping(address => WalletExits.WalletExit) storage walletExits
+    mapping(address => WalletExit) storage walletExits
   ) external returns (uint256 blockThreshold) {
     require(!walletExits[wallet].exists, "Wallet already exited");
     require(wallet != exitFundWallet, "Cannot exit EF");
     require(wallet != insuranceFundWallet, "Cannot exit IF");
 
     blockThreshold = block.number + chainPropagationPeriodInBlocks;
-    walletExits[wallet] = WalletExits.WalletExit(true, blockThreshold);
+    walletExits[wallet] = WalletExit(true, uint64(blockThreshold), WalletExitAcquisitionDeleveragePriceStrategy.None);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -136,7 +137,7 @@ library Withdrawing {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => WalletExits.WalletExit) storage walletExits
+    mapping(address => WalletExit) storage walletExits
   ) public returns (uint256, uint64) {
     Funding.applyOutstandingWalletFunding(
       arguments.wallet,
@@ -224,34 +225,35 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
-    // Outstanding funding payments already applied in withdrawExit_delegatecall
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = OraclePriceMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
-        0,
-        arguments.wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
+    BalanceTracking.UpdatePositionForExitArguments memory updatePositionForExitArguments;
+    updatePositionForExitArguments.exitFundWallet = arguments.exitFundWallet;
+    (
+      updatePositionForExitArguments.exitAccountValue,
+      updatePositionForExitArguments.totalAccountValue,
+      updatePositionForExitArguments.totalMaintenanceMarginRequirement
+    ) = OraclePriceMargin.loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
+      0, // Outstanding funding payments already applied in withdrawExit_delegatecall
+      arguments.wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+    updatePositionForExitArguments.wallet = arguments.wallet;
 
     int64 exitFundQuoteQuantityChange;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      updatePositionForExitArguments.market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      updatePositionForExitArguments.maintenanceMarginFraction = marketsByBaseAssetSymbol[baseAssetSymbols[i]]
+        .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
+        .overridableFields
+        .maintenanceMarginFraction;
+
       // Sum EF quote quantity change needed to close each wallet position
       exitFundQuoteQuantityChange += balanceTracking.updatePositionForExit(
-        BalanceTracking.UpdatePositionForExitArguments(
-          arguments.exitFundWallet,
-          marketsByBaseAssetSymbol[baseAssetSymbols[i]],
-          marketsByBaseAssetSymbol[baseAssetSymbols[i]]
-            .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
-            .overridableFields
-            .maintenanceMarginFraction,
-          totalAccountValue,
-          totalMaintenanceMarginRequirement,
-          arguments.wallet
-        ),
+        updatePositionForExitArguments,
         baseAssetSymbolsWithOpenPositionsByWallet,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
