@@ -46,8 +46,7 @@ library TradeValidations {
     Trade memory trade,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (Market memory market) {
-    require(!String.isEqual(trade.baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL), "Trade assets must be different");
-
+    // The add market path already validates that the base asset symbol must be different from the quote
     market = marketsByBaseAssetSymbol[trade.baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
   }

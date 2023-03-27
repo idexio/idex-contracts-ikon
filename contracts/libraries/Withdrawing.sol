@@ -207,11 +207,11 @@ library Withdrawing {
       return 0;
     }
 
-    // The available quote for exit can validly be negative for the EF wallet. For all other wallets, the exit quote
-    // calculations are designed such that the result quantity to withdraw is never negative; however we still perform
-    // this check in case of unforeseen bugs or rounding errors. In either case we should revert on negative
-    // A zero available quantity would not transfer out any quote but would still close all positions and quote
-    // balance, so we do not revert on zero
+    // The available quote for exit withdrawal can validly be negative for the EF wallet. For all other wallets, the
+    // exit quote calculations are designed such that the result quantity to withdraw is never negative; however we
+    // still perform this check in case of unforeseen bugs or rounding errors. In either case we should revert on
+    // negative. A zero available quantity would not transfer out any quote but would still close all positions and
+    // quote balance, so we do not revert on zero
     require(walletQuoteQuantityToWithdraw >= 0, "Negative quote after exit");
 
     return walletQuoteQuantityToWithdraw;

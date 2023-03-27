@@ -9,6 +9,7 @@ import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
+import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { Balance, ClosureDeleverageArguments, FundingMultiplierQuartet, Market, MarketOverrides } from "./Structs.sol";
@@ -116,6 +117,39 @@ library ClosureDeleveraging {
     );
   }
 
+  function _validateQuoteQuantityForExitFundClosure(
+    ClosureDeleverageArguments memory arguments,
+    address exitFundWallet,
+    Market memory market,
+    int64 positionSize,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view {
+    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
+    // Use margin calculation specific to EF that accounts for its unlimited leverage
+      .loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
+        exitFundWallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
+      );
+
+    // The provided liquidationBaseQuantity specifies how much of the position to liquidate, so we provide this
+    // quantity as the position size to `LiquidationValidations.validateExitFundClosureQuoteQuantity` while observing
+    // the same signedness
+    LiquidationValidations.validateExitFundClosureQuoteQuantity(
+      market.lastIndexPrice,
+      // Use market default values instead of wallet-specific overrides for the EF, since its margin fraction is zero
+      Math.abs(positionSize) < market.overridableFields.minimumPositionSize,
+      market.overridableFields.maintenanceMarginFraction,
+      positionSize < 0 ? (-1 * int64(arguments.liquidationBaseQuantity)) : int64(arguments.liquidationBaseQuantity),
+      arguments.liquidationQuoteQuantity,
+      totalAccountValue,
+      totalMaintenanceMarginRequirement
+    );
+  }
+
   function _validateQuoteQuantityAndDeleveragePosition(
     ClosureDeleverageArguments memory arguments,
     DeleverageType deleverageType,
@@ -142,28 +176,14 @@ library ClosureDeleveraging {
       );
     } else {
       // DeleverageType.ExitFundClosure
-      (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
-      // Use margin calculation specific to EF that accounts for its unlimited leverage
-        .loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
-          arguments.liquidatingWallet,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketsByBaseAssetSymbol
-        );
-
-      // The provided liquidationBaseQuantity specifies how much of the position to liquidate, so we provide this
-      // quantity as the position size to `LiquidationValidations.validateExitFundClosureQuoteQuantity` while observing
-      // the same signedness
-      LiquidationValidations.validateExitFundClosureQuoteQuantity(
-        market.lastIndexPrice,
-        // Use market default values instead of wallet-specific overrides for the EF, since its margin fraction is zero
-        market.overridableFields.maintenanceMarginFraction,
-        balanceStruct.balance < 0
-          ? (-1 * int64(arguments.liquidationBaseQuantity))
-          : int64(arguments.liquidationBaseQuantity),
-        arguments.liquidationQuoteQuantity,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
+      _validateQuoteQuantityForExitFundClosure(
+        arguments,
+        exitFundWallet,
+        market,
+        balanceStruct.balance,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketsByBaseAssetSymbol
       );
     }
 

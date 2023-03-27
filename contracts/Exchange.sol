@@ -124,6 +124,19 @@ contract Exchange_v4 is IExchange, Owned {
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
+   * @notice Emitted when admin unsets market overrides with `unsetMarketOverridesForWallet`
+   */
+  event MarketOverridesUnset(string baseAssetSymbol, address wallet);
+  /**
+   * @notice Emitted when a user invalidates an order nonce with `invalidateNonce`
+   */
+  event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockNumber);
+  /**
+   * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
+   * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
+   */
+  event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
+  /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
    * `executeTrade`
    */
@@ -138,15 +151,6 @@ contract Exchange_v4 is IExchange, Owned {
     int64 makerFeeQuantity,
     uint64 takerFeeQuantity
   );
-  /**
-   * @notice Emitted when a user invalidates an order nonce with `invalidateNonce`
-   */
-  event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockNumber);
-  /**
-   * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
-   * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
-   */
-  event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a transfer with `transfer`
    */
@@ -176,6 +180,11 @@ contract Exchange_v4 is IExchange, Owned {
   event Withdrawn(address wallet, uint64 quantity, int64 newExchangeBalance);
 
   // Modifiers //
+
+  modifier onlyAdminOrDispatcher() {
+    require(msg.sender == adminWallet || msg.sender == dispatcherWallet, "Caller must be Admin or Dispatcher wallet");
+    _;
+  }
 
   modifier onlyDispatcher() {
     _onlyDispatcher();
@@ -485,10 +494,10 @@ contract Exchange_v4 is IExchange, Owned {
    *
    * @return balance The quantity denominated in pips of quote asset that can be withdrawn after exiting the wallet.
    * Result may be zero, in which case an exit withdrawal would not transfer out any quote but would still close all
-   * positions and quote balance. The available quote for exit can validly be negative for the EF wallet, in which case
-   * this function will return 0 since no withdrawal is possible. For all other wallets, the exit quote calculations are
-   * designed such that the result quantity to withdraw is never negative; however the return type is still signed to
-   * provide visibility into unforeseen bugs or rounding errors
+   * positions and quote balance. The available quote for exit withdrawal can validly be negative for the EF wallet, in
+   * which case this function will return 0 since no withdrawal is possible. For all other wallets, the exit quote
+   * calculations are designed such that the result quantity to withdraw is never negative; however the return type is
+   * still signed to provide visibility into unforeseen bugs or rounding errors
    */
   function loadQuoteQuantityAvailableForExitWithdrawal(address wallet) public view returns (int64) {
     return
@@ -909,6 +918,25 @@ contract Exchange_v4 is IExchange, Owned {
         overridableFields: overridableFields
       });
     }
+  }
+
+  /**
+   * @notice Unset overridable market parameters for a specific wallet
+   *
+   * @param baseAssetSymbol The base asset symbol for the market
+   * @param wallet The wallet to unset overrides for
+   */
+  function unsetMarketOverridesForWallet(string memory baseAssetSymbol, address wallet) public onlyAdminOrDispatcher {
+    require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
+    require(wallet != address(0x0), "Invalid wallet");
+    require(
+      _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
+      "Wallet has no overrides for market"
+    );
+
+    delete _marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet];
+
+    emit MarketOverridesUnset(baseAssetSymbol, wallet);
   }
 
   /**

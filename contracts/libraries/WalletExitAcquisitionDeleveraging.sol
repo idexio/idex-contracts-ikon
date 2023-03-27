@@ -88,7 +88,7 @@ library WalletExitAcquisitionDeleveraging {
       return WalletExitAcquisitionDeleveragePriceStrategy.BankruptcyPrice;
     }
 
-    // Wallets with a positive total account value should use the exit price (worse of entry price or current entry
+    // Wallets with a positive total account value should use the exit price (worse of entry price or current index
     // price) unless a change in index pricing between deleveraging the wallet positions moves its exit account value
     // negative, at which point the bankruptcy price will be used for the remainder of the positions
     walletExit.deleveragePriceStrategy = exitAccountValue <= 0
@@ -330,26 +330,23 @@ library WalletExitAcquisitionDeleveraging {
       .totalMaintenanceMarginRequirement = liquidatingWalletTotalMaintenanceMarginRequirement;
 
     Balance memory balanceStruct;
+    Market memory market;
     // Loop through open position union and populate argument struct fields
     for (uint8 i = 0; i < baseAssetSymbolsForInsuranceFundAndLiquidatingWallet.length; i++) {
       // Load market
-      validateInsuranceFundCannotLiquidateWalletArguments.markets[i] = marketsByBaseAssetSymbol[
-        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]
-      ];
+      market = marketsByBaseAssetSymbol[baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]];
+      validateInsuranceFundCannotLiquidateWalletArguments.markets[i] = market;
 
       balanceStruct = balanceTracking.loadBalanceStructAndMigrateIfNeeded(
         arguments.liquidatingWallet,
-        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]
+        market.baseAssetSymbol
       );
 
-      validateExitQuoteQuantityArguments.indexPrice = marketsByBaseAssetSymbol[
-        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[i]
-      ].lastIndexPrice;
+      validateExitQuoteQuantityArguments.indexPrice = market.lastIndexPrice;
       validateExitQuoteQuantityArguments.liquidationBaseQuantity = balanceStruct.balance;
       validateExitQuoteQuantityArguments.liquidationQuoteQuantity = arguments
         .validateInsuranceFundCannotLiquidateWalletQuoteQuantities[i];
-      validateExitQuoteQuantityArguments.maintenanceMarginFraction = validateInsuranceFundCannotLiquidateWalletArguments
-        .markets[i]
+      validateExitQuoteQuantityArguments.maintenanceMarginFraction = market
         .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
         .maintenanceMarginFraction;

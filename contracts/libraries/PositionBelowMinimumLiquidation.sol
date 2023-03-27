@@ -173,7 +173,10 @@ library PositionBelowMinimumLiquidation {
     );
 
     // Skip validation for positions with very low quote values to avoid false positives due to rounding error
-    if (expectedLiquidationQuoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD) {
+    if (
+      expectedLiquidationQuoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD &&
+      liquidationQuoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
+    ) {
       return;
     }
 

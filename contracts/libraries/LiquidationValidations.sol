@@ -72,6 +72,7 @@ library LiquidationValidations {
 
   function validateExitFundClosureQuoteQuantity(
     uint64 indexPrice,
+    bool isPositionBelowMinimum,
     uint64 maintenanceMarginFraction,
     int64 positionSize,
     uint64 quoteQuantity,
@@ -95,6 +96,15 @@ library LiquidationValidations {
         indexPrice,
         Constants.PIP_PRICE_MULTIPLIER
       );
+    }
+
+    // Skip validation for positions with very low quote values to avoid false positives due to rounding error
+    if (
+      isPositionBelowMinimum &&
+      expectedLiquidationQuoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD &&
+      quoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
+    ) {
+      return;
     }
 
     // Allow additional pip buffers for integer rounding
