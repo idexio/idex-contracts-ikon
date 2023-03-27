@@ -177,14 +177,14 @@ library WalletInMaintenanceAcquisitionDeleveraging {
 
     LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
       market.lastIndexPrice,
+      balanceStruct.balance < 0
+        ? (-1 * int64(arguments.liquidationBaseQuantity))
+        : int64(arguments.liquidationBaseQuantity),
       arguments.liquidationQuoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
         .maintenanceMarginFraction,
-      balanceStruct.balance < 0
-        ? (-1 * int64(arguments.liquidationBaseQuantity))
-        : int64(arguments.liquidationBaseQuantity),
       totalAccountValue,
       totalMaintenanceMarginRequirement
     );
@@ -285,16 +285,16 @@ library WalletInMaintenanceAcquisitionDeleveraging {
   ) private {
     LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
       loadArguments.markets[index].lastIndexPrice,
+      balanceTracking.loadBalanceAndMigrateIfNeeded(
+        arguments.liquidatingWallet,
+        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[index]
+      ),
       arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
       loadArguments
         .markets[index]
         .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
         .maintenanceMarginFraction,
-      balanceTracking.loadBalanceAndMigrateIfNeeded(
-        arguments.liquidatingWallet,
-        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[index]
-      ),
       liquidatingWalletTotalAccountValue,
       liquidatingWalletTotalMaintenanceMarginRequirement
     );

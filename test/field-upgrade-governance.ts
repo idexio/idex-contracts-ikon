@@ -813,5 +813,96 @@ describe('Governance', function () {
         );
       });
     });
+
+    describe('unsetMarketOverridesForWallet', () => {
+      it('should work for valid market and wallet when called by admin', async () => {
+        await governance.initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          walletToOverride,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await governance.finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          walletToOverride,
+        );
+
+        await exchange.unsetMarketOverridesForWallet(
+          baseAssetSymbol,
+          walletToOverride,
+        );
+
+        await expect(
+          exchange.queryFilter(exchange.filters.MarketOverridesUnset()),
+        )
+          .to.eventually.be.an('array')
+          .with.lengthOf(1);
+      });
+
+      it('should work for valid market and wallet when called by dispatcher', async () => {
+        await exchange.setDispatcher((await ethers.getSigners())[5].address);
+
+        await governance.initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          walletToOverride,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await governance.finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          marketOverrides,
+          walletToOverride,
+        );
+
+        await exchange
+          .connect((await ethers.getSigners())[5])
+          .unsetMarketOverridesForWallet(baseAssetSymbol, walletToOverride);
+
+        await expect(
+          exchange.queryFilter(exchange.filters.MarketOverridesUnset()),
+        )
+          .to.eventually.be.an('array')
+          .with.lengthOf(1);
+      });
+
+      it('should revert for invalid market ', async () => {
+        await expect(
+          exchange.unsetMarketOverridesForWallet('XYZ', walletToOverride),
+        ).to.eventually.be.rejectedWith(/invalid market/i);
+      });
+
+      it('should revert for zero wallet address ', async () => {
+        await expect(
+          exchange.unsetMarketOverridesForWallet(
+            baseAssetSymbol,
+            ethers.constants.AddressZero,
+          ),
+        ).to.eventually.be.rejectedWith(/invalid wallet/i);
+      });
+
+      it('should revert for wallet with no overrides ', async () => {
+        await expect(
+          exchange.unsetMarketOverridesForWallet(
+            baseAssetSymbol,
+            walletToOverride,
+          ),
+        ).to.eventually.be.rejectedWith(/wallet has no overrides for market/i);
+      });
+
+      it('should revert when not called by admin', async () => {
+        await expect(
+          exchange
+            .connect((await ethers.getSigners())[5])
+            .unsetMarketOverridesForWallet(baseAssetSymbol, walletToOverride),
+        ).to.eventually.be.rejectedWith(
+          /caller must be admin or dispatcher wallet/i,
+        );
+      });
+    });
   });
 });

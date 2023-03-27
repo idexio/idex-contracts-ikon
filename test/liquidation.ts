@@ -183,6 +183,29 @@ describe('Exchange', function () {
       });
     });
 
+    it('should revert when expected quote quantity is below validation threshold but provided quote quantity is not', async function () {
+      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            await buildIndexPriceWithValue(
+              indexPriceServiceWallet,
+              '0.00000100',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await expect(
+        exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
+          baseAssetSymbol,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationQuoteQuantity: decimalToPips('0.10000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
+    });
+
     it('should revert when not sent by dispatcher', async function () {
       await expect(
         exchange.liquidatePositionBelowMinimum({
@@ -259,7 +282,7 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantity: decimalToPips('2000.00000000'),
         }),
-      ).to.eventually.be.rejectedWith(/invalid liquidation quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when IF cannot acquire', async function () {
@@ -497,7 +520,7 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['20080.00000000'].map(decimalToPips),
         }),
-      ).to.eventually.be.rejectedWith(/invalid liquidation quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when not sent by dispatcher', async function () {
@@ -722,7 +745,7 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['21500.00000000'].map(decimalToPips),
         }),
-      ).to.eventually.be.rejectedWith(/invalid exit quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
   });
 });

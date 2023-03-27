@@ -1263,7 +1263,7 @@ describe('Exchange', function () {
               trade,
             ),
           ),
-      ).to.eventually.be.rejectedWith(/trade assets must be different/i);
+      ).to.eventually.be.rejectedWith(/no active market found/i);
     });
 
     it('should revert for invalid market', async function () {

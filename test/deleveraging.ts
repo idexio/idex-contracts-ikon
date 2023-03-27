@@ -966,7 +966,7 @@ describe('Exchange', function () {
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('19000.00000000'),
         }),
-      ).to.eventually.be.rejectedWith(/invalid exit quote quantity/i);
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when wallet is deleveraged against itself', async function () {
@@ -1140,6 +1140,50 @@ describe('Exchange', function () {
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('21500.00000000'),
       });
+    });
+
+    it('should work for quote quantities below validation threshold', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('9.99999999'),
+        liquidationQuoteQuantity: decimalToPips('19999.99998000'),
+      });
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('0.00000001'),
+        liquidationQuoteQuantity: decimalToPips('0.00000629'),
+      });
+    });
+
+    it('should revert when expected quote quantity is below validation threshold but provided quote quantity is not', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      await exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+        baseAssetSymbol,
+        counterpartyWallet: trader2Wallet.address,
+        liquidatingWallet: exitFundWallet.address,
+        liquidationBaseQuantity: decimalToPips('9.99999999'),
+        liquidationQuoteQuantity: decimalToPips('19999.99998000'),
+      });
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: exitFundWallet.address,
+          liquidationBaseQuantity: decimalToPips('0.00000001'),
+          liquidationQuoteQuantity: decimalToPips('0.10000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when not sent by dispatcher', async function () {

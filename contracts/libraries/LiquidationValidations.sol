@@ -72,9 +72,10 @@ library LiquidationValidations {
 
   function validateExitFundClosureQuoteQuantity(
     uint64 indexPrice,
+    bool isPositionBelowMinimum,
+    int64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity,
     uint64 maintenanceMarginFraction,
-    int64 positionSize,
-    uint64 quoteQuantity,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
@@ -84,38 +85,53 @@ library LiquidationValidations {
       expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
         indexPrice,
         maintenanceMarginFraction,
-        positionSize,
+        liquidationBaseQuantity,
         totalAccountValue,
         totalMaintenanceMarginRequirement
       );
     } else {
       // Use index price for positive total account value
       expectedLiquidationQuoteQuantity = Math.multiplyPipsByFraction(
-        Math.abs(positionSize),
+        Math.abs(liquidationBaseQuantity),
         indexPrice,
         Constants.PIP_PRICE_MULTIPLIER
       );
     }
 
+    // Skip validation for positions with very low quote values to avoid false positives due to rounding error
+    if (
+      isPositionBelowMinimum &&
+      expectedLiquidationQuoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD &&
+      liquidationQuoteQuantity < Constants.MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD
+    ) {
+      return;
+    }
+
     // Allow additional pip buffers for integer rounding
     require(
-      expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
+      expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
+        expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
       "Invalid quote quantity"
     );
   }
 
   function validateQuoteQuantityAtExitPrice(
     int64 costBasis,
-    uint64 exitQuoteQuantity,
     uint64 indexPrice,
-    int64 positionSize
+    int64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
   ) internal pure {
-    uint64 expectedExitQuoteQuantity = calculateQuoteQuantityAtExitPrice(costBasis, indexPrice, positionSize);
+    uint64 expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtExitPrice(
+      costBasis,
+      indexPrice,
+      liquidationBaseQuantity
+    );
 
     // Allow additional pip buffers for integer rounding
     require(
-      expectedExitQuoteQuantity - 1 <= exitQuoteQuantity && expectedExitQuoteQuantity + 1 >= exitQuoteQuantity,
-      "Invalid exit quote quantity"
+      expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
+        expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
+      "Invalid quote quantity"
     );
   }
 
@@ -140,16 +156,16 @@ library LiquidationValidations {
 
   function validateQuoteQuantityAtBankruptcyPrice(
     uint64 indexPrice,
+    int64 liquidationBaseQuantity,
     uint64 liquidationQuoteQuantity,
     uint64 maintenanceMarginFraction,
-    int64 positionSize,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement
   ) internal pure {
     uint64 expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
       indexPrice,
       maintenanceMarginFraction,
-      positionSize,
+      liquidationBaseQuantity,
       totalAccountValue,
       totalMaintenanceMarginRequirement
     );
@@ -158,7 +174,7 @@ library LiquidationValidations {
     require(
       expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
-      "Invalid liquidation quote quantity"
+      "Invalid quote quantity"
     );
   }
 }
