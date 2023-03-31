@@ -16,11 +16,11 @@ library Constants {
       "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
     );
 
-  // 1 week at 3s/block
-  uint256 public constant EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
+  // 1 hour at 3s/block
+  uint256 public constant EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS = (1 * 60 * 60) / 3;
 
-  // 1 day at 3s/block
-  uint256 public constant FIELD_UPGRADE_DELAY_IN_BLOCKS = (1 * 24 * 60 * 60) / 3;
+  // 5 minutes at 3s/block
+  uint256 public constant FIELD_UPGRADE_DELAY_IN_BLOCKS = (5 * 60) / 3;
 
   // 8 hours
   uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
