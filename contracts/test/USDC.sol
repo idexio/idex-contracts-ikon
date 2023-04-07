@@ -10,7 +10,7 @@ contract USDC is ERC20 {
 
   uint256 public constant MAX_SUPPLY = 10 ** 35;
 
-  uint256 public constant NUM_TOKENS_RELEASED_BY_FAUCET = 10 ** 3;
+  uint256 public constant NUM_TOKENS_RELEASED_BY_FAUCET = 10 ** 9;
 
   constructor() ERC20("USD Coin", "USDC") {
     _mint(msg.sender, INITIAL_SUPPLY);
