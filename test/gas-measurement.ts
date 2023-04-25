@@ -18,7 +18,7 @@ import {
   getExecuteTradeArguments,
   getOrderHash,
   getTransferArguments,
-  getTransferHash,
+  getTransferSignatureTypedData,
   getWithdrawArguments,
   getWithdrawalHash,
   indexPriceToArgumentStruct,
@@ -597,8 +597,8 @@ describe.skip('Gas measurement', function () {
         destinationWallet: trader2Wallet.address,
         quantity: '1.00000000',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getTransferHash(transfer)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getTransferSignatureTypedData(transfer, exchange.address),
       );
 
       await exchange
@@ -606,8 +606,8 @@ describe.skip('Gas measurement', function () {
         .transfer(...getTransferArguments(transfer, '0.00000000', signature));
 
       transfer.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getTransferHash(transfer)),
+      signature = await trader1Wallet._signTypedData(
+        ...getTransferSignatureTypedData(transfer, exchange.address),
       );
       const result = await exchange
         .connect(dispatcherWallet)

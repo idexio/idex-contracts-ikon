@@ -242,8 +242,6 @@ struct Trade {
 }
 
 struct Transfer {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Address of wallet giving funds

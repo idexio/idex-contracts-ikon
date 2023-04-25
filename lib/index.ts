@@ -119,7 +119,6 @@ export interface Trade {
 }
 
 export interface Transfer {
-  signatureHashVersion: number;
   nonce: string;
   sourceWallet: string;
   destinationWallet: string;
@@ -155,6 +154,18 @@ export const decimalToPips = (decimal: string): string =>
     .shiftedBy(8)
     .integerValue(BigNumber.ROUND_DOWN)
     .toFixed(0);
+
+export const getDomainSeparator = (
+  contractAddress: string,
+  chainId = 31337,
+) => {
+  return {
+    name: 'IDEX',
+    version: `${signatureHashVersion}`,
+    chainId,
+    verifyingContract: contractAddress,
+  };
+};
 
 export const getIndexPriceHash = (
   indexPrice: Omit<IndexPrice, 'signature'>,
@@ -216,14 +227,27 @@ ${delegateKeyFragment}${uuidToUintString(delegatedKeyAuthorization.nonce)}`;
   return message;
 };
 
-export const getTransferHash = (transfer: Transfer): string => {
-  return solidityHashOfParams([
-    ['uint8', transfer.signatureHashVersion],
-    ['uint128', uuidToUint8Array(transfer.nonce)],
-    ['address', transfer.sourceWallet],
-    ['address', transfer.destinationWallet],
-    ['string', transfer.quantity],
-  ]);
+export const getTransferSignatureTypedData = (
+  transfer: Transfer,
+  contractAddress: string,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress),
+    {
+      Transfer: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'sourceWallet', type: 'address' },
+        { name: 'destinationWallet', type: 'address' },
+        { name: 'quantity', type: 'string' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(transfer.nonce),
+      sourceWallet: transfer.sourceWallet,
+      destinationWallet: transfer.destinationWallet,
+      quantity: transfer.quantity,
+    },
+  ];
 };
 
 export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
@@ -277,7 +301,6 @@ export const getTransferArguments = (
 ): [TransferStruct] => {
   return [
     {
-      signatureHashVersion: transfer.signatureHashVersion,
       nonce: uuidToHexString(transfer.nonce),
       sourceWallet: transfer.sourceWallet,
       destinationWallet: transfer.destinationWallet,
