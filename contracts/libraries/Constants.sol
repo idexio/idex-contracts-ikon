@@ -9,6 +9,10 @@ pragma solidity 0.8.18;
 library Constants {
   uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
 
+  string public constant EIP_712_DOMAIN_NAME = "IDEX";
+
+  string public constant EIP_712_DOMAIN_VERSION = "105";
+
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
   bytes public constant ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE =

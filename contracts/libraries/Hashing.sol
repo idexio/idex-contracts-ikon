@@ -13,16 +13,31 @@ import { DelegatedKeyAuthorization, IndexPrice, Order, Transfer, Withdrawal } fr
  * @notice Library helpers for building hashes and verifying wallet signatures
  */
 library Hashing {
+  bytes32 constant _TRANSFER_EIP_712_TYPE_HASH =
+    keccak256("Transfer(uint128 nonce,address sourceWallet,address destinationWallet,string quantity)");
+
+  // TODO deprecated
   function getSigner(bytes32 hash, bytes memory signature) internal pure returns (address) {
     return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature);
   }
 
+  // TODO deprecated
   function isSignatureValid(bytes memory message, bytes memory signature, address signer) internal pure returns (bool) {
     return ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
   }
 
+  // TODO deprecated
   function isSignatureValid(bytes32 hash, bytes memory signature, address signer) internal pure returns (bool) {
     return getSigner(hash, signature) == signer;
+  }
+
+  function isSignatureValid(
+    bytes32 domainSeparator,
+    bytes32 structHash,
+    bytes memory signature,
+    address signer
+  ) internal pure returns (bool) {
+    return ECDSA.recover(ECDSA.toTypedDataHash(domainSeparator, structHash), signature) == signer;
   }
 
   function getDelegatedKeySignatureMessage(
@@ -98,16 +113,14 @@ library Hashing {
   }
 
   function getTransferHash(Transfer memory transfer) internal pure returns (bytes32) {
-    require(transfer.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-
     return
       keccak256(
-        abi.encodePacked(
-          transfer.signatureHashVersion,
+        abi.encode(
+          _TRANSFER_EIP_712_TYPE_HASH,
           transfer.nonce,
           transfer.sourceWallet,
           transfer.destinationWallet,
-          _pipToDecimal(transfer.grossQuantity)
+          keccak256(bytes(_pipToDecimal(transfer.grossQuantity)))
         )
       );
   }
