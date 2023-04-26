@@ -579,6 +579,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       Trading.Arguments(
         tradeArguments,
         delegateKeyExpirationPeriodInMs,
+        _domainSeparatorV4(),
         exitFundWallet,
         feeWallet,
         insuranceFundWallet

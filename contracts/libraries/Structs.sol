@@ -52,8 +52,6 @@ struct ClosureDeleverageArguments {
  * @notice Field in `Order` struct for optionally authorizing a delegate key signing wallet
  */
 struct DelegatedKeyAuthorization {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Public component of ECDSA signing key pair

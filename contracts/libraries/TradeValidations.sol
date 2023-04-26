@@ -18,6 +18,7 @@ library TradeValidations {
   function validateTrade(
     ExecuteTradeArguments memory arguments,
     uint64 delegateKeyExpirationPeriodInMs,
+    bytes32 domainSeparator,
     address exitFundWallet,
     address insuranceFundWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
@@ -29,7 +30,7 @@ library TradeValidations {
     market = _validateAssetPair(arguments.trade, marketsByBaseAssetSymbol);
     _validateExecutionConditions(arguments.buy, arguments.sell, arguments.trade, exitFundWallet, insuranceFundWallet);
     _validateNonces(arguments.buy, arguments.sell, delegateKeyExpirationPeriodInMs, nonceInvalidationsByWallet);
-    (buyHash, sellHash) = _validateSignatures(arguments.buy, arguments.sell, arguments.trade);
+    (buyHash, sellHash) = _validateSignatures(domainSeparator, arguments.buy, arguments.sell, arguments.trade);
     _validateFees(arguments.trade);
   }
 
@@ -151,25 +152,28 @@ library TradeValidations {
   }
 
   function _validateSignatures(
+    bytes32 domainSeparator,
     Order memory buy,
     Order memory sell,
     Trade memory trade
   ) private pure returns (bytes32, bytes32) {
-    bytes32 buyOrderHash = _validateSignatureForOrder(buy, trade.baseAssetSymbol);
-    bytes32 sellOrderHash = _validateSignatureForOrder(sell, trade.baseAssetSymbol);
+    bytes32 buyOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, buy);
+    bytes32 sellOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, sell);
 
     return (buyOrderHash, sellOrderHash);
   }
 
   function _validateSignatureForOrder(
-    Order memory order,
-    string memory baseAssetSymbol
+    string memory baseAssetSymbol,
+    bytes32 domainSeparator,
+    Order memory order
   ) private pure returns (bytes32) {
     bytes32 orderHash = Hashing.getOrderHash(order, baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL);
 
     bool isSignatureValid = order.isSignedByDelegatedKey
       ? (Hashing.isSignatureValid(
-        Hashing.getDelegatedKeySignatureMessage(order.delegatedKeyAuthorization),
+        domainSeparator,
+        Hashing.getDelegatedKeyAuthorizationHash(order.delegatedKeyAuthorization),
         order.delegatedKeyAuthorization.signature,
         order.wallet
       ) &&
