@@ -141,7 +141,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         traderWallet,
         trader2Wallet,
       );
@@ -154,6 +154,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '1900.00000000',
               baseAssetSymbol,
@@ -198,7 +199,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         traderWallet,
         trader2Wallet,
       );
@@ -241,7 +242,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         traderWallet,
         trader2Wallet,
       );
@@ -254,6 +255,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '1900.00000000',
               baseAssetSymbol,

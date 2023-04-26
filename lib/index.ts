@@ -74,7 +74,6 @@ export enum OrderTriggerType {
 }
 
 export interface IndexPrice {
-  signatureHashVersion: number;
   baseAssetSymbol: string;
   timestampInMs: number;
   price: string; // Decimal string
@@ -191,17 +190,29 @@ export const getDelegatedKeyAuthorizationSignatureTypedData = (
   ];
 };
 
-export const getIndexPriceHash = (
+export const getIndexPriceSignatureTypedData = (
   indexPrice: Omit<IndexPrice, 'signature'>,
   quoteAssetSymbol: string,
-): string => {
-  return solidityHashOfParams([
-    ['uint8', indexPrice.signatureHashVersion],
-    ['string', indexPrice.baseAssetSymbol],
-    ['string', quoteAssetSymbol],
-    ['uint64', indexPrice.timestampInMs],
-    ['string', indexPrice.price],
-  ]);
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      IndexPrice: [
+        { name: 'baseAssetSymbol', type: 'string' },
+        { name: 'quoteAssetSymbol', type: 'string' },
+        { name: 'timestampInMs', type: 'uint64' },
+        { name: 'price', type: 'string' },
+      ],
+    },
+    {
+      baseAssetSymbol: indexPrice.baseAssetSymbol,
+      quoteAssetSymbol,
+      timestampInMs: indexPrice.timestampInMs,
+      price: indexPrice.price,
+    },
+  ];
 };
 
 export const getOrderSignatureTypedData = (
@@ -377,7 +388,6 @@ export const getWithdrawArguments = (
 
 export const indexPriceToArgumentStruct = (o: IndexPrice) => {
   return {
-    signatureHashVersion: o.signatureHashVersion,
     baseAssetSymbol: o.baseAssetSymbol,
     timestampInMs: o.timestampInMs,
     price: decimalToPips(o.price),

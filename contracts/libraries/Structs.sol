@@ -84,8 +84,6 @@ struct FundingMultiplierQuartet {
  * @notice Index price data signed by index wallet
  */
 struct IndexPrice {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   string baseAssetSymbol;
   // Milliseconds since epoch
   uint64 timestampInMs;

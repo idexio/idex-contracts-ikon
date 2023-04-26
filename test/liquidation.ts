@@ -67,7 +67,10 @@ describe('Exchange', function () {
 
     await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
 
-    indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+    indexPrice = await buildIndexPrice(
+      exchange.address,
+      indexPriceServiceWallet,
+    );
 
     await executeTrade(
       exchange,
@@ -169,6 +172,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '0.00000100',
               baseAssetSymbol,
@@ -190,6 +194,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '0.00000100',
               baseAssetSymbol,
@@ -257,6 +262,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -443,6 +449,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -465,6 +472,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -507,6 +515,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -539,6 +548,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -565,6 +575,7 @@ describe('Exchange', function () {
   describe('liquidateWalletInMaintenanceDuringSystemRecovery', async function () {
     this.beforeEach(async () => {
       const newIndexPrice = await buildIndexPriceWithValue(
+        exchange.address,
         indexPriceServiceWallet,
         '2150.00000000',
         baseAssetSymbol,
@@ -670,6 +681,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '3000.00000000',
               baseAssetSymbol,

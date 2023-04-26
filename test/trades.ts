@@ -85,7 +85,7 @@ describe('Exchange', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          await buildIndexPrice(indexPriceServiceWallet),
+          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         ),
       ]);
 
@@ -177,7 +177,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         trader1Wallet,
         trader2Wallet,
       );
@@ -219,7 +219,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         trader2Wallet,
         trader1Wallet,
         baseAssetSymbol,
@@ -264,7 +264,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         trader2Wallet,
         trader1Wallet,
         baseAssetSymbol,
@@ -344,6 +344,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -436,6 +437,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '1850.00000000',
               baseAssetSymbol,
@@ -1179,7 +1181,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         trader1Wallet,
         trader2Wallet,
       );
