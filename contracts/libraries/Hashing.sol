@@ -16,6 +16,11 @@ library Hashing {
   bytes32 constant _DELEGATED_KEY_AUTHORIZATION_TYPE_HASH =
     keccak256("DelegatedKeyAuthorization(uint128 nonce,address delegatedPublicKey,string message)");
 
+  bytes32 constant _ORDER_TYPE_HASH =
+    keccak256(
+      "Order(uint128 nonce,address wallet,string symbol,uint8 orderType,uint8 orderSide,string quantity,string limitPrice,string triggerPrice,uint8 triggerType,string callbackRate,uint128 conditionalOrderId,bool isReduceOnly,uint8 timeInForce,uint8 selfTradePrevention,address delegatedPublicKey,string clientOrderId)"
+    );
+
   bytes32 constant _TRANSFER_TYPE_HASH =
     keccak256("Transfer(uint128 nonce,address sourceWallet,address destinationWallet,string quantity)");
 
@@ -87,32 +92,31 @@ library Hashing {
     string memory baseSymbol,
     string memory quoteSymbol
   ) internal pure returns (bytes32) {
-    require(order.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-    // Placing all the fields in a single `abi.encodePacked` call causes a `stack too deep` error
+    // Placing all the fields in a single `abi.encode` call causes a `stack too deep` error
     return
       keccak256(
         abi.encodePacked(
-          abi.encodePacked(
-            order.signatureHashVersion,
+          abi.encode(
+            _ORDER_TYPE_HASH,
             order.nonce,
             order.wallet,
-            string(abi.encodePacked(baseSymbol, "-", quoteSymbol)),
+            keccak256(abi.encodePacked(baseSymbol, "-", quoteSymbol)),
             uint8(order.orderType),
             uint8(order.side),
-            _pipToDecimal(order.quantity)
+            keccak256(bytes(_pipToDecimal(order.quantity))),
+            keccak256(bytes(_pipToDecimal(order.limitPrice)))
           ),
-          abi.encodePacked(
-            _pipToDecimal(order.limitPrice),
-            _pipToDecimal(order.triggerPrice),
-            order.triggerType,
-            _pipToDecimal(order.callbackRate),
+          abi.encode(
+            keccak256(bytes(_pipToDecimal(order.triggerPrice))),
+            uint8(order.triggerType),
+            keccak256(bytes(_pipToDecimal(order.callbackRate))),
             order.conditionalOrderId,
             order.isReduceOnly,
             uint8(order.timeInForce),
-            uint8(order.selfTradePrevention)
-          ),
-          order.delegatedKeyAuthorization.delegatedPublicKey,
-          order.clientOrderId
+            uint8(order.selfTradePrevention),
+            order.delegatedKeyAuthorization.delegatedPublicKey,
+            keccak256(bytes(order.clientOrderId))
+          )
         )
       );
   }

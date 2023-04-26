@@ -14,7 +14,7 @@ import {
   decimalToPips,
   getExecuteTradeArguments,
   getIndexPriceHash,
-  getOrderHash,
+  getOrderSignatureTypedData,
   indexPriceToArgumentStruct,
   IndexPrice,
   Order,
@@ -183,6 +183,7 @@ export async function buildIndexPriceWithValue(
 }
 
 export async function buildLimitOrder(
+  exchangeAddress: string,
   signer: SignerWithAddress,
   side: OrderSide,
   market = `${baseAssetSymbol}-USDC`,
@@ -190,7 +191,6 @@ export async function buildLimitOrder(
   price = '2000.00000000',
 ) {
   const order: Order = {
-    signatureHashVersion,
     nonce: uuidv1(),
     wallet: signer.address,
     market,
@@ -199,8 +199,8 @@ export async function buildLimitOrder(
     quantity,
     price,
   };
-  const signature = await signer.signMessage(
-    ethers.utils.arrayify(getOrderHash(order)),
+  const signature = await signer._signTypedData(
+    ...getOrderSignatureTypedData(order, exchangeAddress),
   );
 
   return { order, signature };
@@ -417,7 +417,6 @@ export async function executeTrade(
   }
 
   const sellOrder: Order = {
-    signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader1.address,
     market: `${baseAssetSymbol_}-USD`,
@@ -426,12 +425,11 @@ export async function executeTrade(
     quantity,
     price,
   };
-  const sellOrderSignature = await trader1.signMessage(
-    ethers.utils.arrayify(getOrderHash(sellOrder)),
+  const sellOrderSignature = await trader1._signTypedData(
+    ...getOrderSignatureTypedData(sellOrder, exchange.address),
   );
 
   const buyOrder: Order = {
-    signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader2.address,
     market: `${baseAssetSymbol_}-USD`,
@@ -440,8 +438,8 @@ export async function executeTrade(
     quantity,
     price,
   };
-  const buyOrderSignature = await trader2.signMessage(
-    ethers.utils.arrayify(getOrderHash(buyOrder)),
+  const buyOrderSignature = await trader2._signTypedData(
+    ...getOrderSignatureTypedData(buyOrder, exchange.address),
   );
 
   const trade: Trade = {

@@ -181,8 +181,6 @@ struct PositionInDeactivatedMarketLiquidationArguments {
  * @notice Argument type for `Exchange.executeTrade` and `Hashing.getOrderWalletHash`
  */
 struct Order {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Custody wallet address that placed order and (if not using delegate wallet) signed hash

@@ -18,14 +18,13 @@ import {
   decimalToPips,
   getDelegatedKeyAuthorizationSignatureTypedData,
   getExecuteTradeArguments,
-  getOrderHash,
+  getOrderSignatureTypedData,
   indexPriceToArgumentStruct,
   Order,
   OrderSide,
   OrderTimeInForce,
   OrderTriggerType,
   OrderType,
-  signatureHashVersion,
   Trade,
   uuidToHexString,
 } from '../lib';
@@ -91,7 +90,6 @@ describe('Exchange', function () {
       ]);
 
     buyOrder = {
-      signatureHashVersion,
       nonce: uuidv1(),
       wallet: trader2Wallet.address,
       market: `${baseAssetSymbol}-USD`,
@@ -100,12 +98,11 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    buyOrderSignature = await trader2Wallet.signMessage(
-      ethers.utils.arrayify(getOrderHash(buyOrder)),
+    buyOrderSignature = await trader2Wallet._signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, exchange.address),
     );
 
     sellOrder = {
-      signatureHashVersion,
       nonce: uuidv1(),
       wallet: trader1Wallet.address,
       market: `${baseAssetSymbol}-USD`,
@@ -114,8 +111,8 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    sellOrderSignature = await trader1Wallet.signMessage(
-      ethers.utils.arrayify(getOrderHash(sellOrder)),
+    sellOrderSignature = await trader1Wallet._signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, exchange.address),
     );
 
     trade = {
@@ -375,8 +372,7 @@ describe('Exchange', function () {
           ),
         ),
       };
-      const insuranceBuyFundOrder: Order = {
-        signatureHashVersion,
+      const insuranceFundBuyOrder: Order = {
         nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
         wallet: insuranceFundWallet.address,
         market: `${baseAssetSymbol}-USD`,
@@ -386,13 +382,16 @@ describe('Exchange', function () {
         price: '0.00000000',
         isReduceOnly: true,
       };
-      insuranceBuyFundOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      const insuranceFundOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(insuranceBuyFundOrder)),
-      );
+      insuranceFundBuyOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      const insuranceFundOrderSignature =
+        await delegatedKeyWallet._signTypedData(
+          ...getOrderSignatureTypedData(
+            insuranceFundBuyOrder,
+            exchange.address,
+          ),
+        );
 
       sellOrder = {
-        signatureHashVersion,
         nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
         wallet: trader2Wallet.address,
         market: `${baseAssetSymbol}-USD`,
@@ -401,15 +400,15 @@ describe('Exchange', function () {
         quantity: '10.00000000',
         price: '2000.00000000',
       };
-      sellOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await exchange
         .connect(dispatcherWallet)
         .executeTrade(
           ...getExecuteTradeArguments(
-            insuranceBuyFundOrder,
+            insuranceFundBuyOrder,
             insuranceFundOrderSignature,
             sellOrder,
             sellOrderSignature,
@@ -454,7 +453,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const insuranceFundDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -468,7 +466,6 @@ describe('Exchange', function () {
         ),
       };
       const insuranceFundSellOrder: Order = {
-        signatureHashVersion,
         nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
         wallet: insuranceFundWallet.address,
         market: `${baseAssetSymbol}-USD`,
@@ -480,12 +477,14 @@ describe('Exchange', function () {
       };
       insuranceFundSellOrder.delegatedPublicKey = delegatedKeyWallet.address;
       const insuranceFundSellOrderSignature =
-        await delegatedKeyWallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(insuranceFundSellOrder)),
+        await delegatedKeyWallet._signTypedData(
+          ...getOrderSignatureTypedData(
+            insuranceFundSellOrder,
+            exchange.address,
+          ),
         );
 
       buyOrder = {
-        signatureHashVersion,
         nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
         wallet: trader1Wallet.address,
         market: `${baseAssetSymbol}-USD`,
@@ -494,8 +493,8 @@ describe('Exchange', function () {
         quantity: '10.00000000',
         price: '2000.00000000',
       };
-      buyOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await exchange
@@ -517,7 +516,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const buyDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -533,8 +531,8 @@ describe('Exchange', function () {
 
       buyOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await exchange
@@ -586,8 +584,8 @@ describe('Exchange', function () {
 
     it('should work for limit maker buy gtx order ', async function () {
       buyOrder.timeInForce = OrderTimeInForce.GTX;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
       trade.makerSide = OrderSide.Buy;
 
@@ -606,8 +604,8 @@ describe('Exchange', function () {
 
     it('should work for limit maker sell gtx order ', async function () {
       sellOrder.timeInForce = OrderTimeInForce.GTX;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await exchange
@@ -625,8 +623,8 @@ describe('Exchange', function () {
 
     it('should work for limit taker ioc order ', async function () {
       buyOrder.timeInForce = OrderTimeInForce.IOC;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await exchange
@@ -644,8 +642,8 @@ describe('Exchange', function () {
 
     it('should work for limit taker fok order ', async function () {
       buyOrder.timeInForce = OrderTimeInForce.FOK;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await exchange
@@ -663,13 +661,13 @@ describe('Exchange', function () {
 
     it('should revert when buy side exceeds max position size', async function () {
       buyOrder.quantity = '20.00000000';
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       sellOrder.quantity = '20.00000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await exchange
@@ -726,13 +724,13 @@ describe('Exchange', function () {
 
     it('should revert when sell side exceeds max position size', async function () {
       buyOrder.quantity = '20.00000000';
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       sellOrder.quantity = '20.00000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await exchange
@@ -791,7 +789,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const buyDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -812,8 +809,8 @@ describe('Exchange', function () {
 
       buyOrder.nonce = uuidv1();
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -836,7 +833,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const sellDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -857,8 +853,8 @@ describe('Exchange', function () {
 
       sellOrder.nonce = uuidv1();
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -882,7 +878,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(0);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const buyDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -898,8 +893,8 @@ describe('Exchange', function () {
 
       buyOrder.nonce = uuidv1();
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -922,7 +917,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(0);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const sellDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -938,8 +932,8 @@ describe('Exchange', function () {
 
       sellOrder.nonce = uuidv1();
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -963,7 +957,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(0);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const buyDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -978,8 +971,8 @@ describe('Exchange', function () {
       };
 
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1002,7 +995,6 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(0);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const sellDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
@@ -1017,8 +1009,8 @@ describe('Exchange', function () {
       };
 
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1125,8 +1117,8 @@ describe('Exchange', function () {
 
     it('should revert for self-trade', async function () {
       buyOrder.wallet = trader1Wallet.address;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1164,8 +1156,8 @@ describe('Exchange', function () {
 
     it('should revert for reduce-only sell that open position', async function () {
       buyOrder.isReduceOnly = true;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1193,8 +1185,8 @@ describe('Exchange', function () {
       );
 
       buyOrder.isReduceOnly = true;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1215,8 +1207,8 @@ describe('Exchange', function () {
     it('should revert for same assets', async function () {
       trade.baseAssetSymbol = quoteAssetSymbol;
       buyOrder.market = 'USD-USD';
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1236,8 +1228,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid market', async function () {
       buyOrder.market = 'XYZ-USD';
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1297,8 +1289,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid quote quantity', async function () {
       buyOrder.wallet = exitFundWallet.address;
-      buyOrderSignature = await exitFundWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await exitFundWallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1318,8 +1310,8 @@ describe('Exchange', function () {
 
     it('should revert for limit order with missing price', async function () {
       buyOrder.price = '0';
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1339,8 +1331,8 @@ describe('Exchange', function () {
 
     it('should revert for market order with price', async function () {
       buyOrder.type = OrderType.Market;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1362,8 +1354,8 @@ describe('Exchange', function () {
       buyOrder.type = OrderType.Market;
       buyOrder.price = '0.00000000';
       buyOrder.timeInForce = OrderTimeInForce.GTX;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1438,8 +1430,8 @@ describe('Exchange', function () {
 
     it('should revert for IF order not signed by DK', async function () {
       buyOrder.wallet = insuranceFundWallet.address;
-      buyOrderSignature = await insuranceFundWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await insuranceFundWallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       await expect(
@@ -1626,8 +1618,8 @@ describe('Exchange', function () {
 
     it('should revert for non-taker ioc order', async function () {
       sellOrder.timeInForce = OrderTimeInForce.IOC;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1647,8 +1639,8 @@ describe('Exchange', function () {
 
     it('should revert for non-taker fok order', async function () {
       sellOrder.timeInForce = OrderTimeInForce.FOK;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1668,8 +1660,8 @@ describe('Exchange', function () {
 
     it('should revert for missing trigger price for stop loss limit sell', async function () {
       sellOrder.type = OrderType.StopLossLimit;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1690,8 +1682,8 @@ describe('Exchange', function () {
     it('should revert for missing trigger price for stop loss market sell', async function () {
       sellOrder.type = OrderType.StopLossMarket;
       sellOrder.price = '0.00000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1711,8 +1703,8 @@ describe('Exchange', function () {
 
     it('should revert for missing trigger price for take profit limit sell', async function () {
       sellOrder.type = OrderType.TakeProfitLimit;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1733,8 +1725,8 @@ describe('Exchange', function () {
     it('should revert for missing trigger price for take profit market sell', async function () {
       sellOrder.type = OrderType.TakeProfitMarket;
       sellOrder.price = '0.00000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1754,8 +1746,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid trigger price', async function () {
       sellOrder.triggerPrice = '2100.00000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1776,8 +1768,8 @@ describe('Exchange', function () {
     it('should revert for missing callback rate', async function () {
       sellOrder.type = OrderType.TrailingStop;
       sellOrder.price = '0.00000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1797,8 +1789,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid callback rate', async function () {
       sellOrder.callbackRate = '0.50000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1819,8 +1811,8 @@ describe('Exchange', function () {
     it('should revert for invalid trigger type', async function () {
       sellOrder.type = OrderType.StopLossLimit;
       sellOrder.triggerPrice = '2100.00000000';
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1840,8 +1832,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid trigger type', async function () {
       sellOrder.triggerType = OrderTriggerType.Index;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       await expect(
@@ -1857,27 +1849,6 @@ describe('Exchange', function () {
             ),
           ),
       ).to.eventually.be.rejectedWith(/invalid trigger type/i);
-    });
-
-    it('should revert for invalid signature hash version', async function () {
-      sellOrder.signatureHashVersion = 177;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
-      );
-
-      await expect(
-        exchange
-          .connect(dispatcherWallet)
-          .executeTrade(
-            ...getExecuteTradeArguments(
-              buyOrder,
-              buyOrderSignature,
-              sellOrder,
-              sellOrderSignature,
-              trade,
-            ),
-          ),
-      ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
     });
   });
 });
