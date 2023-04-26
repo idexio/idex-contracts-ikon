@@ -84,7 +84,6 @@ export interface IndexPrice {
 }
 
 export interface Order {
-  signatureHashVersion: number;
   nonce: string;
   wallet: string;
   market: string;
@@ -207,35 +206,57 @@ export const getIndexPriceHash = (
   ]);
 };
 
-export const getOrderHash = (order: Order): string => {
+export const getOrderSignatureTypedData = (
+  order: Order,
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
   const emptyPipString = '0.00000000';
 
-  let params: TypeValuePair[] = [
-    ['uint8', order.signatureHashVersion],
-    ['uint128', uuidToUint8Array(order.nonce)],
-    ['address', order.wallet],
-    ['string', order.market],
-    ['uint8', order.type],
-    ['uint8', order.side],
-    ['string', order.quantity],
-    ['string', order.price || emptyPipString],
-    ['string', order.triggerPrice || emptyPipString],
-    ['uint8', order.triggerType || 0],
-    ['string', order.callbackRate || emptyPipString],
-    [
-      'uint128',
-      order.conditionalOrderId
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      Order: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'wallet', type: 'address' },
+        { name: 'symbol', type: 'string' },
+        { name: 'orderType', type: 'uint8' },
+        { name: 'orderSide', type: 'uint8' },
+        { name: 'quantity', type: 'string' },
+        { name: 'limitPrice', type: 'string' },
+        { name: 'triggerPrice', type: 'string' },
+        { name: 'triggerType', type: 'uint8' },
+        { name: 'callbackRate', type: 'string' },
+        { name: 'conditionalOrderId', type: 'uint128' },
+        { name: 'isReduceOnly', type: 'bool' },
+        { name: 'timeInForce', type: 'uint8' },
+        { name: 'selfTradePrevention', type: 'uint8' },
+        { name: 'delegatedPublicKey', type: 'address' },
+        { name: 'clientOrderId', type: 'string' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(order.nonce),
+      wallet: order.wallet,
+      symbol: order.market,
+      orderType: order.type,
+      orderSide: order.side,
+      quantity: order.quantity,
+      limitPrice: order.price || emptyPipString,
+      triggerPrice: order.triggerPrice || emptyPipString,
+      triggerType: order.triggerType || 0,
+      callbackRate: order.callbackRate || emptyPipString,
+      conditionalOrderId: order.conditionalOrderId
         ? uuidToUint8Array(order.conditionalOrderId)
         : '0',
-    ],
-    ['bool', !!order.isReduceOnly],
-    ['uint8', order.timeInForce || 0],
-    ['uint8', order.selfTradePrevention || 0],
-    ['address', order.delegatedPublicKey || ethers.constants.AddressZero],
-    ['string', order.clientOrderId || ''],
+      isReduceOnly: !!order.isReduceOnly,
+      timeInForce: order.timeInForce || 0,
+      selfTradePrevention: order.selfTradePrevention || 0,
+      delegatedPublicKey:
+        order.delegatedPublicKey || ethers.constants.AddressZero,
+      clientOrderId: order.clientOrderId || '',
+    },
   ];
-
-  return solidityHashOfParams(params);
 };
 
 export const getTransferSignatureTypedData = (
@@ -386,7 +407,6 @@ const orderToArgumentStruct = (
   const emptyPipString = '0.00000000';
 
   return {
-    signatureHashVersion: o.signatureHashVersion,
     nonce: uuidToHexString(o.nonce),
     wallet: o.wallet,
     orderType: o.type,

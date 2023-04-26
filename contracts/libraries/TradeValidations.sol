@@ -177,8 +177,13 @@ library TradeValidations {
         order.delegatedKeyAuthorization.signature,
         order.wallet
       ) &&
-        Hashing.isSignatureValid(orderHash, order.walletSignature, order.delegatedKeyAuthorization.delegatedPublicKey))
-      : Hashing.isSignatureValid(orderHash, order.walletSignature, order.wallet);
+        Hashing.isSignatureValid(
+          domainSeparator,
+          orderHash,
+          order.walletSignature,
+          order.delegatedKeyAuthorization.delegatedPublicKey
+        ))
+      : Hashing.isSignatureValid(domainSeparator, orderHash, order.walletSignature, order.wallet);
 
     require(
       isSignatureValid,
