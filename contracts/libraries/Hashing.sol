@@ -16,6 +16,9 @@ library Hashing {
   bytes32 constant _DELEGATED_KEY_AUTHORIZATION_TYPE_HASH =
     keccak256("DelegatedKeyAuthorization(uint128 nonce,address delegatedPublicKey,string message)");
 
+  bytes32 constant _INDEX_PRICE_TYPE_HASH =
+    keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
+
   bytes32 constant _ORDER_TYPE_HASH =
     keccak256(
       "Order(uint128 nonce,address wallet,string symbol,uint8 orderType,uint8 orderSide,string quantity,string limitPrice,string triggerPrice,uint8 triggerType,string callbackRate,uint128 conditionalOrderId,bool isReduceOnly,uint8 timeInForce,uint8 selfTradePrevention,address delegatedPublicKey,string clientOrderId)"
@@ -29,19 +32,12 @@ library Hashing {
       "Withdrawal(uint128 nonce,address wallet,string quantity,address bridgeAdapter,bytes bridgeAdapterPayload)"
     );
 
-  // TODO deprecated
-  function getSigner(bytes32 hash, bytes memory signature) internal pure returns (address) {
-    return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature);
-  }
-
-  // TODO deprecated
-  function isSignatureValid(bytes memory message, bytes memory signature, address signer) internal pure returns (bool) {
-    return ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
-  }
-
-  // TODO deprecated
-  function isSignatureValid(bytes32 hash, bytes memory signature, address signer) internal pure returns (bool) {
-    return getSigner(hash, signature) == signer;
+  function getSigner(
+    bytes32 domainSeparator,
+    bytes32 structHash,
+    bytes memory signature
+  ) internal pure returns (address) {
+    return ECDSA.recover(ECDSA.toTypedDataHash(domainSeparator, structHash), signature);
   }
 
   function isSignatureValid(
@@ -50,7 +46,7 @@ library Hashing {
     bytes memory signature,
     address signer
   ) internal pure returns (bool) {
-    return ECDSA.recover(ECDSA.toTypedDataHash(domainSeparator, structHash), signature) == signer;
+    return getSigner(domainSeparator, structHash, signature) == signer;
   }
 
   function getDelegatedKeyAuthorizationHash(
@@ -68,16 +64,14 @@ library Hashing {
   }
 
   function getIndexPriceHash(IndexPrice memory indexPrice) internal pure returns (bytes32) {
-    require(indexPrice.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-
     return
       keccak256(
-        abi.encodePacked(
-          indexPrice.signatureHashVersion,
-          indexPrice.baseAssetSymbol,
-          Constants.QUOTE_ASSET_SYMBOL,
+        abi.encode(
+          _INDEX_PRICE_TYPE_HASH,
+          keccak256(bytes(indexPrice.baseAssetSymbol)),
+          keccak256(bytes(Constants.QUOTE_ASSET_SYMBOL)),
           indexPrice.timestampInMs,
-          _pipToDecimal(indexPrice.price)
+          keccak256(bytes(_pipToDecimal(indexPrice.price)))
         )
       );
   }

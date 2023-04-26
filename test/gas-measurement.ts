@@ -111,7 +111,7 @@ describe.skip('Gas measurement', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          await buildIndexPrice(indexPriceServiceWallet),
+          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         ),
       ]);
 
@@ -181,6 +181,7 @@ describe.skip('Gas measurement', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2250.00000000',
               baseAssetSymbol,
@@ -251,6 +252,7 @@ describe.skip('Gas measurement', function () {
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
                 await buildIndexPriceWithValue(
+                  exchange.address,
                   indexPriceServiceWallet,
                   '2150.00000000',
                   symbol,
@@ -335,6 +337,7 @@ describe.skip('Gas measurement', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -408,6 +411,7 @@ describe.skip('Gas measurement', function () {
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
                 await buildIndexPriceWithValue(
+                  exchange.address,
                   indexPriceServiceWallet,
                   '2150.00000000',
                   symbol,
@@ -620,7 +624,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            await buildIndexPrice(indexPriceServiceWallet),
+            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
 
@@ -628,7 +632,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            await buildIndexPrice(indexPriceServiceWallet),
+            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
       console.log((await result.wait()).gasUsed.toString());
@@ -648,7 +652,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -660,7 +668,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -693,7 +705,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -705,7 +721,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -748,7 +768,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -760,7 +784,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -1112,6 +1140,7 @@ async function publishFundingRates(
       .publishIndexPrices([
         indexPriceToArgumentStruct(
           await buildIndexPriceWithTimestamp(
+            exchange.address,
             indexPriceServiceWallet,
             nextFundingTimestampInMs,
           ),

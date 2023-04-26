@@ -13,7 +13,7 @@ import {
   decimalToAssetUnits,
   decimalToPips,
   getExecuteTradeArguments,
-  getIndexPriceHash,
+  getIndexPriceSignatureTypedData,
   getOrderSignatureTypedData,
   indexPriceToArgumentStruct,
   IndexPrice,
@@ -89,7 +89,10 @@ export async function bootstrapLiquidatedWallet() {
     usdc,
   );
 
-  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+  const indexPrice = await buildIndexPrice(
+    exchange.address,
+    indexPriceServiceWallet,
+  );
 
   await executeTrade(
     exchange,
@@ -100,6 +103,7 @@ export async function bootstrapLiquidatedWallet() {
   );
 
   const liquidationIndexPrice = await buildIndexPriceWithValue(
+    exchange.address,
     indexPriceServiceWallet,
     '2150.00000000',
     baseAssetSymbol,
@@ -136,10 +140,12 @@ const prices = [
 ];
 
 export async function buildIndexPrice(
+  exchangeAddress: string,
   indexPriceServiceWallet: SignerWithAddress,
   baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
   return buildIndexPriceWithTimestamp(
+    exchangeAddress,
     indexPriceServiceWallet,
     (await getLatestBlockTimestampInSeconds()) * 1000 + 1000,
     baseAssetSymbol_,
@@ -147,6 +153,7 @@ export async function buildIndexPrice(
 }
 
 export async function buildIndexPriceWithTimestamp(
+  exchangeAddress: string,
   indexPriceServiceWallet: SignerWithAddress,
   timestampInMs: number,
   baseAssetSymbol_ = baseAssetSymbol,
@@ -157,26 +164,34 @@ export async function buildIndexPriceWithTimestamp(
     timestampInMs,
     price: prices[0],
   };
-  const signature = await indexPriceServiceWallet.signMessage(
-    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+  const signature = await indexPriceServiceWallet._signTypedData(
+    ...getIndexPriceSignatureTypedData(
+      indexPrice,
+      quoteAssetSymbol,
+      exchangeAddress,
+    ),
   );
 
   return { ...indexPrice, signature };
 }
 
 export async function buildIndexPriceWithValue(
+  exchangeAddress: string,
   indexPriceServiceWallet: SignerWithAddress,
   price: string,
   baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
   const indexPrice = {
-    signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
     timestampInMs: (await getLatestBlockTimestampInSeconds()) * 1000 + 1000,
     price,
   };
-  const signature = await indexPriceServiceWallet.signMessage(
-    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+  const signature = await indexPriceServiceWallet._signTypedData(
+    ...getIndexPriceSignatureTypedData(
+      indexPrice,
+      quoteAssetSymbol,
+      exchangeAddress,
+    ),
   );
 
   return { ...indexPrice, signature };

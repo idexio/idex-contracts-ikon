@@ -184,7 +184,10 @@ describe('Exchange', function () {
 
   describe('publishIndexPrices', async function () {
     it('should revert when not called by dispatcher', async () => {
-      const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+      );
       await expect(
         exchange
           .connect((await ethers.getSigners())[1])
@@ -193,7 +196,11 @@ describe('Exchange', function () {
     });
 
     it('should revert when market not found', async () => {
-      const indexPrice = await buildIndexPrice(indexPriceServiceWallet, 'XYZ');
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+        'XYZ',
+      );
 
       await expect(
         exchange.publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]),
@@ -201,7 +208,10 @@ describe('Exchange', function () {
     });
 
     it('should revert when index price is outdated', async () => {
-      const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+      );
       indexPrice.timestampInMs -= 2 * 24 * 60 * 60 * 1000;
 
       await expect(
@@ -210,7 +220,10 @@ describe('Exchange', function () {
     });
 
     it('should revert when index price is too far in future', async () => {
-      const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+      );
       indexPrice.timestampInMs += 2 * 24 * 60 * 60 * 1000;
 
       await expect(
@@ -218,17 +231,11 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/index price timestamp too high/i);
     });
 
-    it('should revert when IPS signature hash version is invalid', async () => {
-      const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
-      indexPrice.signatureHashVersion = 111;
-
-      await expect(
-        exchange.publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]),
-      ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
-    });
-
     it('should revert when IPS signature is invalid', async () => {
-      const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+      );
       indexPrice.timestampInMs += 5;
 
       await expect(
