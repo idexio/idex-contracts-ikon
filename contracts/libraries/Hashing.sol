@@ -16,6 +16,11 @@ library Hashing {
   bytes32 constant _TRANSFER_EIP_712_TYPE_HASH =
     keccak256("Transfer(uint128 nonce,address sourceWallet,address destinationWallet,string quantity)");
 
+  bytes32 constant _WITHDRAWAL_EIP_712_TYPE_HASH =
+    keccak256(
+      "Withdrawal(uint128 nonce,address wallet,string quantity,address bridgeAdapter,bytes bridgeAdapterPayload)"
+    );
+
   // TODO deprecated
   function getSigner(bytes32 hash, bytes memory signature) internal pure returns (address) {
     return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature);
@@ -126,17 +131,15 @@ library Hashing {
   }
 
   function getWithdrawalHash(Withdrawal memory withdrawal) internal pure returns (bytes32) {
-    require(withdrawal.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-
     return
       keccak256(
-        abi.encodePacked(
-          withdrawal.signatureHashVersion,
+        abi.encode(
+          _WITHDRAWAL_EIP_712_TYPE_HASH,
           withdrawal.nonce,
           withdrawal.wallet,
-          _pipToDecimal(withdrawal.grossQuantity),
+          keccak256(bytes(_pipToDecimal(withdrawal.grossQuantity))),
           withdrawal.bridgeAdapter,
-          withdrawal.bridgeAdapterPayload
+          keccak256(withdrawal.bridgeAdapterPayload)
         )
       );
   }

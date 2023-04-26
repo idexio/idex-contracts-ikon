@@ -20,7 +20,7 @@ import {
   getTransferArguments,
   getTransferSignatureTypedData,
   getWithdrawArguments,
-  getWithdrawalHash,
+  getWithdrawalSignatureTypedData,
   indexPriceToArgumentStruct,
   Order,
   OrderSide,
@@ -479,8 +479,8 @@ describe.skip('Gas measurement', function () {
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await exchange
@@ -488,8 +488,8 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       const result = await exchange
@@ -540,8 +540,8 @@ describe.skip('Gas measurement', function () {
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await exchange
@@ -549,8 +549,8 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       const result = await exchange
@@ -568,8 +568,8 @@ describe.skip('Gas measurement', function () {
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await exchange
@@ -577,8 +577,8 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       const result = await exchange

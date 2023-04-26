@@ -279,8 +279,6 @@ struct WalletLiquidationArguments {
  * @notice Argument type for `Exchange.withdraw` and `Hashing.getWithdrawalWalletHash`
  */
 struct Withdrawal {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Address of wallet to which funds will be returned
