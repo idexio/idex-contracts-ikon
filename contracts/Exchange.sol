@@ -839,11 +839,12 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
       Withdrawing.WithdrawArguments(
         withdrawal,
-        quoteTokenAddress,
+        _domainSeparatorV4(),
         custodian,
         exitFundPositionOpenedAtBlockNumber,
         exitFundWallet,
-        feeWallet
+        feeWallet,
+        quoteTokenAddress
       ),
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

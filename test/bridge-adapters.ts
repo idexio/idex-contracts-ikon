@@ -16,8 +16,7 @@ import {
   decimalToAssetUnits,
   decimalToPips,
   getWithdrawArguments,
-  getWithdrawalHash,
-  signatureHashVersion,
+  getWithdrawalSignatureTypedData,
   Withdrawal,
 } from '../lib';
 import {
@@ -235,7 +234,6 @@ describe('ExchangeStargateAdapter', function () {
       ).wait();
 
       withdrawal = {
-        signatureHashVersion,
         nonce: uuidv1(),
         wallet: traderWallet.address,
         quantity: '1.00000000',
@@ -245,8 +243,8 @@ describe('ExchangeStargateAdapter', function () {
           [1, 1, 1],
         ),
       };
-      signature = await traderWallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await traderWallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
     });
 

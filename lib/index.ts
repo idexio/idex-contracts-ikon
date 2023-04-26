@@ -126,13 +126,14 @@ export interface Transfer {
 }
 
 export interface Withdrawal {
-  signatureHashVersion: number;
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
   bridgeAdapter: string;
   bridgeAdapterPayload: string;
 }
+
+const hardhatChainId = 31337;
 
 export const compareMarketSymbols = (a: string, b: string): number =>
   Buffer.compare(
@@ -157,7 +158,7 @@ export const decimalToPips = (decimal: string): string =>
 
 export const getDomainSeparator = (
   contractAddress: string,
-  chainId = 31337,
+  chainId: number,
 ) => {
   return {
     name: 'IDEX',
@@ -230,9 +231,10 @@ ${delegateKeyFragment}${uuidToUintString(delegatedKeyAuthorization.nonce)}`;
 export const getTransferSignatureTypedData = (
   transfer: Transfer,
   contractAddress: string,
+  chainId = hardhatChainId,
 ): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
   return [
-    getDomainSeparator(contractAddress),
+    getDomainSeparator(contractAddress, chainId),
     {
       Transfer: [
         { name: 'nonce', type: 'uint128' },
@@ -250,15 +252,30 @@ export const getTransferSignatureTypedData = (
   ];
 };
 
-export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
-  return solidityHashOfParams([
-    ['uint8', withdrawal.signatureHashVersion],
-    ['uint128', uuidToUint8Array(withdrawal.nonce)],
-    ['address', withdrawal.wallet],
-    ['string', withdrawal.quantity],
-    ['address', withdrawal.bridgeAdapter],
-    ['bytes', withdrawal.bridgeAdapterPayload],
-  ]);
+export const getWithdrawalSignatureTypedData = (
+  withdrawal: Withdrawal,
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      Withdrawal: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'wallet', type: 'address' },
+        { name: 'quantity', type: 'string' },
+        { name: 'bridgeAdapter', type: 'address' },
+        { name: 'bridgeAdapterPayload', type: 'bytes' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(withdrawal.nonce),
+      wallet: withdrawal.wallet,
+      quantity: withdrawal.quantity,
+      bridgeAdapter: withdrawal.bridgeAdapter,
+      bridgeAdapterPayload: withdrawal.bridgeAdapterPayload,
+    },
+  ];
 };
 
 export const getPublishFundingMutiplierArguments = (
@@ -318,7 +335,6 @@ export const getWithdrawArguments = (
 ): [WithdrawalStruct] => {
   return [
     {
-      signatureHashVersion: withdrawal.signatureHashVersion,
       nonce: uuidToHexString(withdrawal.nonce),
       wallet: withdrawal.wallet,
       grossQuantity: decimalToPips(withdrawal.quantity),
