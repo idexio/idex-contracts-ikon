@@ -13,6 +13,25 @@ library Constants {
 
   string public constant EIP_712_DOMAIN_VERSION = "105";
 
+  bytes32 public constant EIP_712_TYPE_HASH_DELEGATED_KEY_AUTHORIZATION =
+    keccak256("DelegatedKeyAuthorization(uint128 nonce,address delegatedPublicKey,string message)");
+
+  bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
+    keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
+
+  bytes32 public constant EIP_712_TYPE_HASH_ORDER =
+    keccak256(
+      "Order(uint128 nonce,address wallet,string symbol,uint8 orderType,uint8 orderSide,string quantity,string limitPrice,string triggerPrice,uint8 triggerType,string callbackRate,uint128 conditionalOrderId,bool isReduceOnly,uint8 timeInForce,uint8 selfTradePrevention,address delegatedPublicKey,string clientOrderId)"
+    );
+
+  bytes32 public constant EIP_712_TYPE_HASH_TRANSFER =
+    keccak256("Transfer(uint128 nonce,address sourceWallet,address destinationWallet,string quantity)");
+
+  bytes32 public constant EIP_712_TYPE_HASH_WITHDRAWAL =
+    keccak256(
+      "Withdrawal(uint128 nonce,address wallet,string quantity,address bridgeAdapter,bytes bridgeAdapterPayload)"
+    );
+
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
   bytes32 public constant DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH =
@@ -57,6 +76,4 @@ library Constants {
   string public constant QUOTE_ASSET_SYMBOL = "USD";
 
   uint8 public constant QUOTE_TOKEN_DECIMALS = 6;
-
-  uint8 public constant SIGNATURE_HASH_VERSION = 105;
 }

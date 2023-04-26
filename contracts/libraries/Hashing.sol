@@ -13,25 +13,6 @@ import { DelegatedKeyAuthorization, IndexPrice, Order, Transfer, Withdrawal } fr
  * @notice Library helpers for building hashes and verifying wallet signatures
  */
 library Hashing {
-  bytes32 constant _DELEGATED_KEY_AUTHORIZATION_TYPE_HASH =
-    keccak256("DelegatedKeyAuthorization(uint128 nonce,address delegatedPublicKey,string message)");
-
-  bytes32 constant _INDEX_PRICE_TYPE_HASH =
-    keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
-
-  bytes32 constant _ORDER_TYPE_HASH =
-    keccak256(
-      "Order(uint128 nonce,address wallet,string symbol,uint8 orderType,uint8 orderSide,string quantity,string limitPrice,string triggerPrice,uint8 triggerType,string callbackRate,uint128 conditionalOrderId,bool isReduceOnly,uint8 timeInForce,uint8 selfTradePrevention,address delegatedPublicKey,string clientOrderId)"
-    );
-
-  bytes32 constant _TRANSFER_TYPE_HASH =
-    keccak256("Transfer(uint128 nonce,address sourceWallet,address destinationWallet,string quantity)");
-
-  bytes32 constant _WITHDRAWAL_TYPE_HASH =
-    keccak256(
-      "Withdrawal(uint128 nonce,address wallet,string quantity,address bridgeAdapter,bytes bridgeAdapterPayload)"
-    );
-
   function getSigner(
     bytes32 domainSeparator,
     bytes32 structHash,
@@ -55,7 +36,7 @@ library Hashing {
     return
       keccak256(
         abi.encode(
-          _DELEGATED_KEY_AUTHORIZATION_TYPE_HASH,
+          Constants.EIP_712_TYPE_HASH_DELEGATED_KEY_AUTHORIZATION,
           delegatedKeyAuthorization.nonce,
           delegatedKeyAuthorization.delegatedPublicKey,
           Constants.DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH
@@ -67,7 +48,7 @@ library Hashing {
     return
       keccak256(
         abi.encode(
-          _INDEX_PRICE_TYPE_HASH,
+          Constants.EIP_712_TYPE_HASH_INDEX_PRICE,
           keccak256(bytes(indexPrice.baseAssetSymbol)),
           keccak256(bytes(Constants.QUOTE_ASSET_SYMBOL)),
           indexPrice.timestampInMs,
@@ -91,7 +72,7 @@ library Hashing {
       keccak256(
         abi.encodePacked(
           abi.encode(
-            _ORDER_TYPE_HASH,
+            Constants.EIP_712_TYPE_HASH_ORDER,
             order.nonce,
             order.wallet,
             keccak256(abi.encodePacked(baseSymbol, "-", quoteSymbol)),
@@ -119,7 +100,7 @@ library Hashing {
     return
       keccak256(
         abi.encode(
-          _TRANSFER_TYPE_HASH,
+          Constants.EIP_712_TYPE_HASH_TRANSFER,
           transfer.nonce,
           transfer.sourceWallet,
           transfer.destinationWallet,
@@ -132,7 +113,7 @@ library Hashing {
     return
       keccak256(
         abi.encode(
-          _WITHDRAWAL_TYPE_HASH,
+          Constants.EIP_712_TYPE_HASH_WITHDRAWAL,
           withdrawal.nonce,
           withdrawal.wallet,
           keccak256(bytes(_pipToDecimal(withdrawal.grossQuantity))),
