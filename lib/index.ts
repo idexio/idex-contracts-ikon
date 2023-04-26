@@ -104,7 +104,6 @@ export interface Order {
 }
 
 export interface DelegatedKeyAuthorization {
-  signatureHashVersion: number;
   nonce: string;
   delegatedPublicKey: string;
   signature: string;
@@ -148,6 +147,9 @@ export const decimalToAssetUnits = (
   decimals: number,
 ): string => pipsToAssetUnits(decimalToPips(decimal), decimals);
 
+export const delegatedKeyAuthorizationMessage =
+  "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.";
+
 /**
  * Convert decimal quantity string to integer pips as expected by contract structs. Truncates
  * anything beyond 8 decimals
@@ -168,6 +170,28 @@ export const getDomainSeparator = (
     chainId,
     verifyingContract: contractAddress,
   };
+};
+
+export const getDelegatedKeyAuthorizationSignatureTypedData = (
+  delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      DelegatedKeyAuthorization: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'delegatedPublicKey', type: 'address' },
+        { name: 'message', type: 'string' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(delegatedKeyAuthorization.nonce),
+      delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
+      message: delegatedKeyAuthorizationMessage,
+    },
+  ];
 };
 
 export const getIndexPriceHash = (
@@ -212,22 +236,6 @@ export const getOrderHash = (order: Order): string => {
   ];
 
   return solidityHashOfParams(params);
-};
-
-export const getDelegatedKeyAuthorizationMessage = (
-  delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
-): string => {
-  const delegateKeyFragment = delegatedKeyAuthorization
-    ? `delegated ${
-        delegatedKeyAuthorization.signatureHashVersion
-      }${addressToUintString(delegatedKeyAuthorization.delegatedPublicKey)}`
-    : '';
-  const message = `Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.
-
-Message:
-${delegateKeyFragment}${uuidToUintString(delegatedKeyAuthorization.nonce)}`;
-
-  return message;
 };
 
 export const getTransferSignatureTypedData = (
@@ -370,9 +378,6 @@ export const pipsToAssetUnits = (pips: string, decimals: number): string =>
 export const uuidToHexString = (uuid: string): string =>
   `0x${uuid.replace(/-/g, '')}`;
 
-const addressToUintString = (address: string): string =>
-  new BigNumber(address.toLowerCase()).toFixed(0);
-
 const orderToArgumentStruct = (
   o: Order,
   walletSignature: string,
@@ -400,13 +405,11 @@ const orderToArgumentStruct = (
     isSignedByDelegatedKey: !!delegatedKeyAuthorization,
     delegatedKeyAuthorization: delegatedKeyAuthorization
       ? {
-          signatureHashVersion: delegatedKeyAuthorization.signatureHashVersion,
           nonce: uuidToHexString(delegatedKeyAuthorization.nonce),
           delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
           signature: delegatedKeyAuthorization.signature,
         }
       : {
-          signatureHashVersion: 0,
           nonce: 0,
           delegatedPublicKey: ethers.constants.AddressZero,
           signature: '0x',

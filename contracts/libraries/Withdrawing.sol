@@ -321,8 +321,10 @@ library Withdrawing {
     );
   }
 
-  function _validateWithdrawalSignature(WithdrawArguments memory arguments) private pure returns (bytes32) {
-    bytes32 withdrawalHash = Hashing.getWithdrawalHash(arguments.withdrawal);
+  function _validateWithdrawalSignature(
+    WithdrawArguments memory arguments
+  ) private pure returns (bytes32 withdrawalHash) {
+    withdrawalHash = Hashing.getWithdrawalHash(arguments.withdrawal);
 
     require(
       Hashing.isSignatureValid(
@@ -333,7 +335,5 @@ library Withdrawing {
       ),
       "Invalid wallet signature"
     );
-
-    return withdrawalHash;
   }
 }

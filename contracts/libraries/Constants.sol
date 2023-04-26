@@ -15,9 +15,11 @@ library Constants {
 
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
-  bytes public constant ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE =
-    abi.encodePacked(
-      "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
+  bytes32 public constant DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH =
+    keccak256(
+      bytes(
+        "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees."
+      )
     );
 
   // 1 hour at 3s/block

@@ -16,6 +16,7 @@ library Trading {
     ExecuteTradeArguments externalArguments;
     // Exchange state
     uint64 delegateKeyExpirationPeriodInMs;
+    bytes32 domainSeparator;
     address exitFundWallet;
     address feeWallet;
     address insuranceFundWallet;
@@ -124,6 +125,7 @@ library Trading {
     (bytes32 buyHash, bytes32 sellHash, Market memory market) = TradeValidations.validateTrade(
       arguments.externalArguments,
       arguments.delegateKeyExpirationPeriodInMs,
+      arguments.domainSeparator,
       arguments.exitFundWallet,
       arguments.insuranceFundWallet,
       marketsByBaseAssetSymbol,

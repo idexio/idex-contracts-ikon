@@ -16,7 +16,7 @@ import {
 } from './helpers';
 import {
   decimalToPips,
-  getDelegatedKeyAuthorizationMessage,
+  getDelegatedKeyAuthorizationSignatureTypedData,
   getExecuteTradeArguments,
   getOrderHash,
   indexPriceToArgumentStruct,
@@ -363,15 +363,15 @@ describe('Exchange', function () {
       await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
       const delegatedKeyWallet = (await ethers.getSigners())[10];
       const insuranceFundDelegatedKeyAuthorizationFields = {
-        signatureHashVersion,
         nonce: uuidv1(),
         delegatedPublicKey: delegatedKeyWallet.address,
       };
       const insuranceFundDelegatedKeyAuthorization = {
         ...insuranceFundDelegatedKeyAuthorizationFields,
-        signature: await insuranceFundWallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await insuranceFundWallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             insuranceFundDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -460,9 +460,10 @@ describe('Exchange', function () {
       };
       const insuranceFundDelegatedKeyAuthorization = {
         ...insuranceFundDelegatedKeyAuthorizationFields,
-        signature: await insuranceFundWallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await insuranceFundWallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             insuranceFundDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -522,9 +523,10 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await trader2Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -795,9 +797,10 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await trader2Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -839,9 +842,10 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await trader2Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -884,9 +888,10 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await trader2Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -923,9 +928,10 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader1Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await trader1Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -963,9 +969,10 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await trader2Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -1001,9 +1008,10 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
+        signature: await trader2Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
+            exchange.address,
           ),
         ),
       };
@@ -1028,46 +1036,6 @@ describe('Exchange', function () {
             ),
           ),
       ).to.eventually.be.rejectedWith(/sell order predates delegated key/i);
-    });
-
-    it('should revert for invalid DK signature version', async function () {
-      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
-      const delegatedKeyWallet = (await ethers.getSigners())[10];
-      const sellDelegatedKeyAuthorizationFields = {
-        signatureHashVersion: 123,
-        nonce: uuidv1(),
-        delegatedPublicKey: delegatedKeyWallet.address,
-      };
-      const sellDelegatedKeyAuthorization = {
-        ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet.signMessage(
-          getDelegatedKeyAuthorizationMessage(
-            sellDelegatedKeyAuthorizationFields,
-          ),
-        ),
-      };
-
-      sellOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
-      sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
-      );
-
-      await expect(
-        exchange
-          .connect(dispatcherWallet)
-          .executeTrade(
-            ...getExecuteTradeArguments(
-              buyOrder,
-              buyOrderSignature,
-              sellOrder,
-              sellOrderSignature,
-              trade,
-              undefined,
-              sellDelegatedKeyAuthorization,
-            ),
-          ),
-      ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
     });
 
     it('should revert when EF has open positions', async function () {

@@ -13,10 +13,13 @@ import { DelegatedKeyAuthorization, IndexPrice, Order, Transfer, Withdrawal } fr
  * @notice Library helpers for building hashes and verifying wallet signatures
  */
 library Hashing {
-  bytes32 constant _TRANSFER_EIP_712_TYPE_HASH =
+  bytes32 constant _DELEGATED_KEY_AUTHORIZATION_TYPE_HASH =
+    keccak256("DelegatedKeyAuthorization(uint128 nonce,address delegatedPublicKey,string message)");
+
+  bytes32 constant _TRANSFER_TYPE_HASH =
     keccak256("Transfer(uint128 nonce,address sourceWallet,address destinationWallet,string quantity)");
 
-  bytes32 constant _WITHDRAWAL_EIP_712_TYPE_HASH =
+  bytes32 constant _WITHDRAWAL_TYPE_HASH =
     keccak256(
       "Withdrawal(uint128 nonce,address wallet,string quantity,address bridgeAdapter,bytes bridgeAdapterPayload)"
     );
@@ -45,20 +48,17 @@ library Hashing {
     return ECDSA.recover(ECDSA.toTypedDataHash(domainSeparator, structHash), signature) == signer;
   }
 
-  function getDelegatedKeySignatureMessage(
+  function getDelegatedKeyAuthorizationHash(
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
-  ) internal pure returns (bytes memory) {
-    require(
-      delegatedKeyAuthorization.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION,
-      "Signature hash version invalid"
-    );
-
+  ) internal pure returns (bytes32) {
     return
-      abi.encodePacked(
-        Constants.ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE,
-        Strings.toString(delegatedKeyAuthorization.signatureHashVersion),
-        Strings.toString(uint160(delegatedKeyAuthorization.delegatedPublicKey)),
-        Strings.toString(delegatedKeyAuthorization.nonce)
+      keccak256(
+        abi.encode(
+          _DELEGATED_KEY_AUTHORIZATION_TYPE_HASH,
+          delegatedKeyAuthorization.nonce,
+          delegatedKeyAuthorization.delegatedPublicKey,
+          Constants.DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH
+        )
       );
   }
 
@@ -121,7 +121,7 @@ library Hashing {
     return
       keccak256(
         abi.encode(
-          _TRANSFER_EIP_712_TYPE_HASH,
+          _TRANSFER_TYPE_HASH,
           transfer.nonce,
           transfer.sourceWallet,
           transfer.destinationWallet,
@@ -134,7 +134,7 @@ library Hashing {
     return
       keccak256(
         abi.encode(
-          _WITHDRAWAL_EIP_712_TYPE_HASH,
+          _WITHDRAWAL_TYPE_HASH,
           withdrawal.nonce,
           withdrawal.wallet,
           keccak256(bytes(_pipToDecimal(withdrawal.grossQuantity))),
