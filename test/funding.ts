@@ -10,7 +10,7 @@ import {
 import {
   decimalToPips,
   fundingPeriodLengthInMs,
-  getIndexPriceHash,
+  getIndexPriceSignatureTypedData,
   IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
@@ -68,7 +68,10 @@ describe('Exchange', function () {
     );
     await increase(fundingPeriodLengthInMs / 1000);
 
-    indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+    indexPrice = await buildIndexPrice(
+      exchange.address,
+      indexPriceServiceWallet,
+    );
   });
 
   describe('publishFundingMultiplier', async function () {
@@ -90,7 +93,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            await buildIndexPrice(indexPriceServiceWallet),
+            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
 
@@ -140,7 +143,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            await buildIndexPrice(indexPriceServiceWallet),
+            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
 
@@ -177,8 +180,12 @@ describe('Exchange', function () {
 
     it('should work for outdated but not yet stale index price', async function () {
       indexPrice.timestampInMs -= fundingPeriodLengthInMs / 4;
-      indexPrice.signature = await indexPriceServiceWallet.signMessage(
-        ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+      indexPrice.signature = await indexPriceServiceWallet._signTypedData(
+        ...getIndexPriceSignatureTypedData(
+          indexPrice,
+          quoteAssetSymbol,
+          exchange.address,
+        ),
       );
 
       await exchange
@@ -196,7 +203,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            await buildIndexPrice(indexPriceServiceWallet),
+            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
     });
@@ -252,7 +259,7 @@ describe('Exchange', function () {
       const trade = await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         trader1Wallet,
         trader2Wallet,
       );
@@ -283,6 +290,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithTimestamp(
+              exchange.address,
               indexPriceServiceWallet,
               indexPrice.timestampInMs + fundingPeriodLengthInMs,
             ),

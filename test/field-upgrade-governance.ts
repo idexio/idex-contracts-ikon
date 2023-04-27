@@ -556,7 +556,7 @@ describe('Governance', function () {
         await executeTrade(
           exchange,
           dispatcherWallet,
-          await buildIndexPrice(indexPriceServiceWallet),
+          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           trader1Wallet,
           trader2Wallet,
         );

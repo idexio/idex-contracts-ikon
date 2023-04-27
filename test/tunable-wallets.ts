@@ -187,7 +187,10 @@ async function bootstrapExitedWallet() {
     usdc,
   );
 
-  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+  const indexPrice = await buildIndexPrice(
+    exchange.address,
+    indexPriceServiceWallet,
+  );
 
   await executeTrade(
     exchange,

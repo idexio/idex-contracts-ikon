@@ -6,9 +6,8 @@ import { v1 as uuidv1 } from 'uuid';
 import {
   decimalToPips,
   getWithdrawArguments,
-  getWithdrawalHash,
+  getWithdrawalSignatureTypedData,
   indexPriceToArgumentStruct,
-  signatureHashVersion,
   Withdrawal,
 } from '../lib';
 import { Exchange_v4, USDC } from '../typechain-types';
@@ -68,15 +67,14 @@ describe('Exchange', function () {
     ).wait();
 
     withdrawal = {
-      signatureHashVersion,
       nonce: uuidv1(),
       wallet: traderWallet.address,
       quantity: '1.00000000',
       bridgeAdapter: ethers.constants.AddressZero,
       bridgeAdapterPayload: '0x',
     };
-    signature = await traderWallet.signMessage(
-      ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+    signature = await traderWallet._signTypedData(
+      ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
     );
   });
 
@@ -143,7 +141,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         traderWallet,
         trader2Wallet,
       );
@@ -156,6 +154,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '1900.00000000',
               baseAssetSymbol,
@@ -176,8 +175,8 @@ describe('Exchange', function () {
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1.00000000';
-      signature = await exitFundWallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await exitFundWallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await exchange
@@ -200,7 +199,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         traderWallet,
         trader2Wallet,
       );
@@ -221,8 +220,8 @@ describe('Exchange', function () {
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1000.00000000';
-      signature = await exitFundWallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await exitFundWallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await expect(
@@ -243,7 +242,7 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(indexPriceServiceWallet),
+        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         traderWallet,
         trader2Wallet,
       );
@@ -256,6 +255,7 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '1900.00000000',
               baseAssetSymbol,
@@ -273,8 +273,8 @@ describe('Exchange', function () {
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1.00000000';
-      signature = await exitFundWallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await exitFundWallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await expect(
@@ -331,24 +331,9 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
     });
 
-    it('should revert for invalid signature hash version', async function () {
-      withdrawal.signatureHashVersion = 177;
-      signature = await traderWallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
-      );
-
-      await expect(
-        exchange
-          .connect(dispatcherWallet)
-          .withdraw(
-            ...getWithdrawArguments(withdrawal, '0.00000000', signature),
-          ),
-      ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
-    });
-
     it('should revert for invalid signature', async function () {
-      signature = await dispatcherWallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await dispatcherWallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await expect(
@@ -362,8 +347,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid bridge adapter', async function () {
       withdrawal.bridgeAdapter = dispatcherWallet.address;
-      signature = await traderWallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await traderWallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await expect(

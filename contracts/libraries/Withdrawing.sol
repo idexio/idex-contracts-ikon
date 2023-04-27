@@ -30,11 +30,12 @@ library Withdrawing {
     // External arguments
     Withdrawal withdrawal;
     // Exchange state
-    address quoteTokenAddress;
+    bytes32 domainSeparator;
     ICustodian custodian;
     uint256 exitFundPositionOpenedAtBlockNumber;
     address exitFundWallet;
     address feeWallet;
+    address quoteTokenAddress;
   }
 
   struct WithdrawExitArguments {
@@ -92,7 +93,7 @@ library Withdrawing {
       Validations.isFeeQuantityValid(arguments.withdrawal.gasFee, arguments.withdrawal.grossQuantity),
       "Excessive withdrawal fee"
     );
-    bytes32 withdrawalHash = _validateWithdrawalSignature(arguments.withdrawal);
+    bytes32 withdrawalHash = _validateWithdrawalSignature(arguments);
     require(!completedWithdrawalHashes[withdrawalHash], "Duplicate withdrawal");
 
     Funding.applyOutstandingWalletFunding(
@@ -320,14 +321,19 @@ library Withdrawing {
     );
   }
 
-  function _validateWithdrawalSignature(Withdrawal memory withdrawal) private pure returns (bytes32) {
-    bytes32 withdrawalHash = Hashing.getWithdrawalHash(withdrawal);
+  function _validateWithdrawalSignature(
+    WithdrawArguments memory arguments
+  ) private pure returns (bytes32 withdrawalHash) {
+    withdrawalHash = Hashing.getWithdrawalHash(arguments.withdrawal);
 
     require(
-      Hashing.isSignatureValid(withdrawalHash, withdrawal.walletSignature, withdrawal.wallet),
+      Hashing.isSignatureValid(
+        arguments.domainSeparator,
+        withdrawalHash,
+        arguments.withdrawal.walletSignature,
+        arguments.withdrawal.wallet
+      ),
       "Invalid wallet signature"
     );
-
-    return withdrawalHash;
   }
 }

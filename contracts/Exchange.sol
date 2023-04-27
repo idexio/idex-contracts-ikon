@@ -3,6 +3,8 @@
 pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
 import { AssetUnitConversions } from "./libraries/AssetUnitConversions.sol";
 import { BalanceTracking } from "./libraries/BalanceTracking.sol";
 import { ClosureDeleveraging } from "./libraries/ClosureDeleveraging.sol";
@@ -33,7 +35,7 @@ import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.so
 import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
 
 // solhint-disable-next-line contract-name-camelcase
-contract Exchange_v4 is IExchange, Owned {
+contract Exchange_v4 is EIP712, IExchange, Owned {
   using BalanceTracking for BalanceTracking.Storage;
   using NonceInvalidations for mapping(address => NonceInvalidation[]);
 
@@ -229,7 +231,7 @@ contract Exchange_v4 is IExchange, Owned {
     address[] memory indexPriceServiceWallets_,
     address insuranceFundWallet_,
     address quoteTokenAddress_
-  ) Owned() {
+  ) EIP712(Constants.EIP_712_DOMAIN_NAME, Constants.EIP_712_DOMAIN_VERSION) Owned() {
     require(
       address(balanceMigrationSource) == address(0x0) || Address.isContract(address(balanceMigrationSource)),
       "Invalid migration source"
@@ -577,6 +579,7 @@ contract Exchange_v4 is IExchange, Owned {
       Trading.Arguments(
         tradeArguments,
         delegateKeyExpirationPeriodInMs,
+        _domainSeparatorV4(),
         exitFundWallet,
         feeWallet,
         insuranceFundWallet
@@ -804,7 +807,7 @@ contract Exchange_v4 is IExchange, Owned {
 
   function transfer(Transfer memory transfer_) public onlyDispatcherWhenExitFundHasNoPositions {
     int64 newSourceWalletExchangeBalance = Transferring.transfer_delegatecall(
-      Transferring.Arguments(transfer_, exitFundWallet, insuranceFundWallet, feeWallet),
+      Transferring.Arguments(transfer_, _domainSeparatorV4(), exitFundWallet, insuranceFundWallet, feeWallet),
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       _completedTransferHashes,
@@ -837,11 +840,12 @@ contract Exchange_v4 is IExchange, Owned {
     int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
       Withdrawing.WithdrawArguments(
         withdrawal,
-        quoteTokenAddress,
+        _domainSeparatorV4(),
         custodian,
         exitFundPositionOpenedAtBlockNumber,
         exitFundWallet,
-        feeWallet
+        feeWallet,
+        quoteTokenAddress
       ),
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -893,7 +897,12 @@ contract Exchange_v4 is IExchange, Owned {
    * closure deleveraging during system recovery
    */
   function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcher {
-    MarketAdmin.publishIndexPrices_delegatecall(indexPrices, indexPriceServiceWallets, marketsByBaseAssetSymbol);
+    MarketAdmin.publishIndexPrices_delegatecall(
+      _domainSeparatorV4(),
+      indexPrices,
+      indexPriceServiceWallets,
+      marketsByBaseAssetSymbol
+    );
   }
 
   /**

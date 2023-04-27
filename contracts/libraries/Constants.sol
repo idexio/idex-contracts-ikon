@@ -9,11 +9,36 @@ pragma solidity 0.8.18;
 library Constants {
   uint64 public constant DEPOSIT_INDEX_NOT_SET = type(uint64).max;
 
+  string public constant EIP_712_DOMAIN_NAME = "IDEX";
+
+  string public constant EIP_712_DOMAIN_VERSION = "105";
+
+  bytes32 public constant EIP_712_TYPE_HASH_DELEGATED_KEY_AUTHORIZATION =
+    keccak256("DelegatedKeyAuthorization(uint128 nonce,address delegatedPublicKey,string message)");
+
+  bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
+    keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
+
+  bytes32 public constant EIP_712_TYPE_HASH_ORDER =
+    keccak256(
+      "Order(uint128 nonce,address wallet,string marketSymbol,uint8 orderType,uint8 orderSide,string quantity,string limitPrice,string triggerPrice,uint8 triggerType,string callbackRate,uint128 conditionalOrderId,bool isReduceOnly,uint8 timeInForce,uint8 selfTradePrevention,address delegatedPublicKey,string clientOrderId)"
+    );
+
+  bytes32 public constant EIP_712_TYPE_HASH_TRANSFER =
+    keccak256("Transfer(uint128 nonce,address sourceWallet,address destinationWallet,string quantity)");
+
+  bytes32 public constant EIP_712_TYPE_HASH_WITHDRAWAL =
+    keccak256(
+      "Withdrawal(uint128 nonce,address wallet,string quantity,address bridgeAdapter,bytes bridgeAdapterPayload)"
+    );
+
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
-  bytes public constant ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE =
-    abi.encodePacked(
-      "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.\n\nMessage:\ndelegated "
+  bytes32 public constant DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH =
+    keccak256(
+      bytes(
+        "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees."
+      )
     );
 
   // 1 hour at 3s/block
@@ -51,6 +76,4 @@ library Constants {
   string public constant QUOTE_ASSET_SYMBOL = "USD";
 
   uint8 public constant QUOTE_TOKEN_DECIMALS = 6;
-
-  uint8 public constant SIGNATURE_HASH_VERSION = 105;
 }
