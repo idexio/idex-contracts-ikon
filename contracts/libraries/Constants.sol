@@ -21,7 +21,7 @@ library Constants {
 
   bytes32 public constant EIP_712_TYPE_HASH_ORDER =
     keccak256(
-      "Order(uint128 nonce,address wallet,string symbol,uint8 orderType,uint8 orderSide,string quantity,string limitPrice,string triggerPrice,uint8 triggerType,string callbackRate,uint128 conditionalOrderId,bool isReduceOnly,uint8 timeInForce,uint8 selfTradePrevention,address delegatedPublicKey,string clientOrderId)"
+      "Order(uint128 nonce,address wallet,string marketSymbol,uint8 orderType,uint8 orderSide,string quantity,string limitPrice,string triggerPrice,uint8 triggerType,string callbackRate,uint128 conditionalOrderId,bool isReduceOnly,uint8 timeInForce,uint8 selfTradePrevention,address delegatedPublicKey,string clientOrderId)"
     );
 
   bytes32 public constant EIP_712_TYPE_HASH_TRANSFER =

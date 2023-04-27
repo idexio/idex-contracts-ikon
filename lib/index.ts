@@ -228,7 +228,7 @@ export const getOrderSignatureTypedData = (
       Order: [
         { name: 'nonce', type: 'uint128' },
         { name: 'wallet', type: 'address' },
-        { name: 'symbol', type: 'string' },
+        { name: 'marketSymbol', type: 'string' },
         { name: 'orderType', type: 'uint8' },
         { name: 'orderSide', type: 'uint8' },
         { name: 'quantity', type: 'string' },
@@ -445,19 +445,6 @@ const orderToArgumentStruct = (
   };
 };
 
-type TypeValuePair =
-  | ['string' | 'address', string]
-  | ['uint128' | 'uint256', string | Uint8Array]
-  | ['uint8' | 'uint32' | 'uint64', number]
-  | ['bool', boolean]
-  | ['bytes', string];
-
-const solidityHashOfParams = (params: TypeValuePair[]): string => {
-  const fields = params.map((param) => param[0]);
-  const values = params.map((param) => param[1]);
-  return ethers.utils.solidityKeccak256(fields, values);
-};
-
 const tradeToArgumentStruct = (t: Trade, order: Order) => {
   return {
     baseAssetSymbol: order.market.split('-')[0],
@@ -473,6 +460,3 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
 
 const uuidToUint8Array = (uuid: string): Uint8Array =>
   ethers.utils.arrayify(uuidToHexString(uuid));
-
-const uuidToUintString = (uuid: string): string =>
-  new BigNumber(`0x${uuid.replace(/-/g, '')}`).toFixed(0);
