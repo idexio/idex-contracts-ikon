@@ -257,6 +257,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;
   }
 
+  receive() external payable {}
+
   // Tunable parameters //
 
   /**

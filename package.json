@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.5.0-sandbox",
+  "version": "0.4.0-pyth.3",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
@@ -41,6 +41,7 @@
     "test": "hardhat test"
   },
   "dependencies": {
+    "@pythnetwork/pyth-sdk-solidity": "^2.2.1",
     "ethers": "5.7.2",
     "uuid": "8.3.2"
   },

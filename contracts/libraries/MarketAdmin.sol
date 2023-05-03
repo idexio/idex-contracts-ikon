@@ -3,6 +3,8 @@
 pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { IPyth } from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import { PythStructs } from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 
 import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
@@ -15,6 +17,9 @@ import { FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
 
 library MarketAdmin {
   using MarketHelper for Market;
+
+  address constant _pythAddress = 0x939C0e902FF5B3F7BA666Cc8F6aC75EE76d3f900;
+  bytes32 constant _pythPriceId = 0xf9c0172ba10dfa4d19088d94f5bf61d3b54d5bd7483a322a982e1373ee8ea31b; // BTC-USD
 
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
@@ -84,7 +89,22 @@ library MarketAdmin {
       require(market.exists && market.isActive, "Active market not found");
       require(market.lastIndexPriceTimestampInMs < indexPrices[i].timestampInMs, "Outdated index price");
       require(indexPrices[i].timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
-      _validateIndexPriceSignature(domainSeparator, indexPrices[i], indexPriceServiceWallets);
+      //_validateIndexPriceSignature(domainSeparator, indexPrices[i], indexPriceServiceWallets);
+
+      bytes[] memory updateData = new bytes[](1);
+      updateData[0] = indexPrices[i].signature;
+
+      bytes32[] memory priceIds = new bytes32[](1);
+      priceIds[0] = _pythPriceId;
+
+      uint256 fee = IPyth(_pythAddress).getUpdateFee(updateData);
+      PythStructs.PriceFeed[] memory priceFeeds = IPyth(_pythAddress).parsePriceFeedUpdates{ value: fee }(
+        updateData,
+        priceIds,
+        0,
+        1693086726
+      );
+      // Do something with parsed structs
 
       market.lastIndexPrice = indexPrices[i].price;
       market.lastIndexPriceTimestampInMs = indexPrices[i].timestampInMs;
