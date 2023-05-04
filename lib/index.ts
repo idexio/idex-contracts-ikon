@@ -249,7 +249,7 @@ export const getOrderSignatureTypedData = (
     {
       nonce: uuidToUint8Array(order.nonce),
       wallet: order.wallet,
-      symbol: order.market,
+      marketSymbol: order.market,
       orderType: order.type,
       orderSide: order.side,
       quantity: order.quantity,
