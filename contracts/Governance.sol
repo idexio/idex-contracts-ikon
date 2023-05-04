@@ -9,7 +9,7 @@ import { Owned } from "./Owned.sol";
 import { String } from "./libraries/String.sol";
 import { Validations } from "./libraries/Validations.sol";
 import { OverridableMarketFields } from "./libraries/Structs.sol";
-import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
+import { IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter } from "./libraries/Interfaces.sol";
 
 contract Governance is Owned {
   // State variables //
@@ -23,7 +23,7 @@ contract Governance is Owned {
   BridgeAdaptersUpgrade public currentBridgeAdaptersUpgrade;
   ContractUpgrade public currentExchangeUpgrade;
   ContractUpgrade public currentGovernanceUpgrade;
-  IndexPriceServiceWalletsUpgrade public currentIndexPriceServiceWalletsUpgrade;
+  IndexPriceAdaptersUpgrade public currentIndexPriceAdaptersUpgrade;
   InsuranceFundWalletUpgrade public currentInsuranceFundWalletUpgrade;
   mapping(string => mapping(address => MarketOverridesUpgrade))
     public currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet;
@@ -42,9 +42,9 @@ contract Governance is Owned {
     uint256 blockThreshold;
   }
 
-  struct IndexPriceServiceWalletsUpgrade {
+  struct IndexPriceAdaptersUpgrade {
     bool exists;
-    address[] newIndexPriceServiceWallets;
+    IIndexPriceAdapter[] newIndexPriceAdapters;
     uint256 blockThreshold;
   }
 
@@ -103,18 +103,18 @@ contract Governance is Owned {
    */
   event GovernanceUpgradeFinalized(address oldGovernance, address newGovernance);
   /**
-   * @notice Emitted when admin initiates IPS wallet upgrade with `initiateIndexPriceServiceWalletsUpgrade`
+   * @notice Emitted when admin initiates IPS wallet upgrade with `initiateIndexPriceAdaptersUpgrade`
    */
-  event IndexPriceServiceWalletsUpgradeInitiated(address[] newIndexPriceServiceWallets, uint256 blockThreshold);
+  event IndexPriceAdaptersUpgradeInitiated(IIndexPriceAdapter[] newIndexPriceAdapters, uint256 blockThreshold);
   /**
    * @notice Emitted when admin cancels previously started IPS wallet upgrade with
-   * `cancelIndexPriceServiceWalletsUpgrade`
+   * `cancelIndexPriceAdaptersUpgrade`
    */
-  event IndexPriceServiceWalletsUpgradeCanceled();
+  event IndexPriceAdaptersUpgradeCanceled();
   /**
-   * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeIndexPriceServiceWalletsUpgrade`
+   * @notice Emitted when admin finalizes IF wallet upgrade with `finalizeIndexPriceAdaptersUpgrade`
    */
-  event IndexPriceServiceWalletsUpgradeFinalized(address[] newIndexPriceServiceWallets);
+  event IndexPriceAdaptersUpgradeFinalized(IIndexPriceAdapter[] newIndexPriceAdapters);
   /**
    * @notice Emitted when admin initiates IF wallet upgrade with `initiateInsuranceFundWalletUpgrade`
    */
@@ -352,71 +352,68 @@ contract Governance is Owned {
 
   /**
    * @notice Initiates Index Price Service wallet upgrade process. Once block delay has passed the process
-   * can be finalized with `finalizeIndexPriceServiceWalletsUpgrade`
+   * can be finalized with `finalizeIndexPriceAdaptersUpgrade`
    *
-   * @param newIndexPriceServiceWallets The IPS wallet addresses
+   * @param newIndexPriceAdapters The IPS wallet addresses
    */
-  function initiateIndexPriceServiceWalletsUpgrade(address[] memory newIndexPriceServiceWallets) public onlyAdmin {
-    for (uint8 i = 0; i < newIndexPriceServiceWallets.length; i++) {
-      require(newIndexPriceServiceWallets[i] != address(0x0), "Invalid IPS wallet address");
+  function initiateIndexPriceAdaptersUpgrade(IIndexPriceAdapter[] memory newIndexPriceAdapters) public onlyAdmin {
+    for (uint8 i = 0; i < newIndexPriceAdapters.length; i++) {
+      require(Address.isContract(address(newIndexPriceAdapters[i])), "Invalid index price adapter address");
     }
 
-    require(!currentIndexPriceServiceWalletsUpgrade.exists, "IPS wallet upgrade already in progress");
+    require(!currentIndexPriceAdaptersUpgrade.exists, "Index price adapter upgrade already in progress");
 
-    currentIndexPriceServiceWalletsUpgrade = IndexPriceServiceWalletsUpgrade(
+    currentIndexPriceAdaptersUpgrade = IndexPriceAdaptersUpgrade(
       true,
-      newIndexPriceServiceWallets,
+      newIndexPriceAdapters,
       block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS
     );
 
-    emit IndexPriceServiceWalletsUpgradeInitiated(
-      newIndexPriceServiceWallets,
-      currentIndexPriceServiceWalletsUpgrade.blockThreshold
-    );
+    emit IndexPriceAdaptersUpgradeInitiated(newIndexPriceAdapters, currentIndexPriceAdaptersUpgrade.blockThreshold);
   }
 
   /**
    * @notice Cancels an in-flight IPS wallet upgrade that has not yet been finalized
    */
-  function cancelIndexPriceServiceWalletsUpgrade() public onlyAdmin {
-    require(currentIndexPriceServiceWalletsUpgrade.exists, "No IPS wallet upgrade in progress");
+  function cancelIndexPriceAdaptersUpgrade() public onlyAdmin {
+    require(currentIndexPriceAdaptersUpgrade.exists, "No index price adapter wallet upgrade in progress");
 
-    delete currentIndexPriceServiceWalletsUpgrade;
+    delete currentIndexPriceAdaptersUpgrade;
 
-    emit IndexPriceServiceWalletsUpgradeCanceled();
+    emit IndexPriceAdaptersUpgradeCanceled();
   }
 
   /**
    * @notice Finalizes the IPS wallet upgrade. The number of blocks specified by
    * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateIndexPriceServiceWalletsUpgrade`
+   * `initiateIndexPriceAdaptersUpgrade`
    *
-   * @param newIndexPriceServiceWallets The address of the new IPS wallets. Must equal the addresses
-   * provided to `initiateIndexPriceServiceWalletsUpgrade`
+   * @param newIndexPriceAdapters The address of the new IPS wallets. Must equal the addresses
+   * provided to `initiateIndexPriceAdaptersUpgrade`
    */
-  function finalizeIndexPriceServiceWalletsUpgrade(
-    address[] memory newIndexPriceServiceWallets
+  function finalizeIndexPriceAdaptersUpgrade(
+    IIndexPriceAdapter[] memory newIndexPriceAdapters
   ) public onlyAdminOrDispatcher {
-    require(currentIndexPriceServiceWalletsUpgrade.exists, "No IPS wallet upgrade in progress");
+    require(currentIndexPriceAdaptersUpgrade.exists, "No index price adapter wallet upgrade in progress");
 
     require(
-      currentIndexPriceServiceWalletsUpgrade.newIndexPriceServiceWallets.length == newIndexPriceServiceWallets.length,
+      currentIndexPriceAdaptersUpgrade.newIndexPriceAdapters.length == newIndexPriceAdapters.length,
       "Address mismatch"
     );
-    for (uint8 i = 0; i < newIndexPriceServiceWallets.length; i++) {
+    for (uint8 i = 0; i < newIndexPriceAdapters.length; i++) {
       require(
-        currentIndexPriceServiceWalletsUpgrade.newIndexPriceServiceWallets[i] == newIndexPriceServiceWallets[i],
+        currentIndexPriceAdaptersUpgrade.newIndexPriceAdapters[i] == newIndexPriceAdapters[i],
         "Address mismatch"
       );
     }
 
-    require(block.number >= currentIndexPriceServiceWalletsUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(block.number >= currentIndexPriceAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    exchange.setIndexPriceServiceWallets(newIndexPriceServiceWallets);
+    exchange.setIndexPriceAdapters(newIndexPriceAdapters);
 
-    delete (currentIndexPriceServiceWalletsUpgrade);
+    delete (currentIndexPriceAdaptersUpgrade);
 
-    emit IndexPriceServiceWalletsUpgradeFinalized(newIndexPriceServiceWallets);
+    emit IndexPriceAdaptersUpgradeFinalized(newIndexPriceAdapters);
   }
 
   /**

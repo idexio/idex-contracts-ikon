@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.18;
 
-import { Balance, OverridableMarketFields } from "./Structs.sol";
+import { Balance, IndexPrice, OverridableMarketFields } from "./Structs.sol";
 
 interface IBridgeAdapter {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) external;
@@ -136,11 +136,11 @@ interface IExchange {
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) external;
 
   /**
-   * @notice Sets IPS wallet addresses whitelisted to sign Index Price payloads
+   * @notice Sets Index Price Adapter contract addresses whitelisted to sign Index Price payloads
    *
-   * @param newIndexPriceServiceWallets An array of IPS wallet addresses
+   * @param newIndexPriceAdapters An array of contract addresses
    */
-  function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) external;
+  function setIndexPriceAdapters(IIndexPriceAdapter[] memory newIndexPriceAdapters) external;
 
   /**
    * @notice Sets IF wallet address
@@ -161,4 +161,12 @@ interface IExchange {
     OverridableMarketFields memory overridableFields,
     address wallet
   ) external;
+}
+
+interface IOraclePriceAdapter {
+  function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) external view returns (uint64 price);
+}
+
+interface IIndexPriceAdapter is IOraclePriceAdapter {
+  function validateIndexPricePayload(bytes calldata payload) external returns (IndexPrice memory);
 }

@@ -5,6 +5,7 @@ pragma solidity 0.8.18;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
+import { IOraclePriceAdapter } from "./Interfaces.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
@@ -17,6 +18,7 @@ library OraclePriceMargin {
   // solhint-disable-next-line func-name-mixedcase
   function loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
     address exitFundWallet,
+    IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -36,6 +38,7 @@ library OraclePriceMargin {
     return
       loadQuoteQuantityAvailableForExitWithdrawal(
         exitFundWallet,
+        oraclePriceAdapter,
         outstandingWalletFunding,
         wallet,
         balanceTracking,
@@ -47,6 +50,7 @@ library OraclePriceMargin {
 
   // solhint-disable-next-line func-name-mixedcase
   function loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
+    IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -65,6 +69,7 @@ library OraclePriceMargin {
 
     return
       loadTotalAccountValue(
+        oraclePriceAdapter,
         outstandingWalletFunding,
         wallet,
         balanceTracking,
@@ -75,6 +80,7 @@ library OraclePriceMargin {
 
   // solhint-disable-next-line func-name-mixedcase
   function loadTotalInitialMarginRequirement_delegatecall(
+    IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -83,6 +89,7 @@ library OraclePriceMargin {
   ) public view returns (uint64 initialMarginRequirement) {
     return
       loadTotalInitialMarginRequirement(
+        oraclePriceAdapter,
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -93,6 +100,7 @@ library OraclePriceMargin {
 
   // solhint-disable-next-line func-name-mixedcase
   function loadTotalMaintenanceMarginRequirement_delegatecall(
+    IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -101,6 +109,7 @@ library OraclePriceMargin {
   ) public view returns (uint64 maintenanceMarginRequirement) {
     return
       loadTotalMaintenanceMarginRequirement(
+        oraclePriceAdapter,
         wallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -110,6 +119,7 @@ library OraclePriceMargin {
   }
 
   function loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
+    IOraclePriceAdapter oraclePriceAdapter,
     int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -118,6 +128,7 @@ library OraclePriceMargin {
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) internal view returns (int64 exitAccountValue, int64 totalAccountValue, uint64 maintenanceMarginRequirement) {
     exitAccountValue = _loadExitAccountValue(
+      oraclePriceAdapter,
       outstandingWalletFunding,
       wallet,
       balanceTracking,
@@ -125,6 +136,7 @@ library OraclePriceMargin {
       marketsByBaseAssetSymbol
     );
     totalAccountValue = loadTotalAccountValue(
+      oraclePriceAdapter,
       outstandingWalletFunding,
       wallet,
       balanceTracking,
@@ -132,6 +144,7 @@ library OraclePriceMargin {
       marketsByBaseAssetSymbol
     );
     maintenanceMarginRequirement = loadTotalMaintenanceMarginRequirement(
+      oraclePriceAdapter,
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -142,6 +155,7 @@ library OraclePriceMargin {
 
   function loadQuoteQuantityAvailableForExitWithdrawal(
     address exitFundWallet,
+    IOraclePriceAdapter oraclePriceAdapter,
     int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -165,6 +179,7 @@ library OraclePriceMargin {
       int64 totalAccountValue,
       uint64 totalMaintenanceMarginRequirement
     ) = loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
+        oraclePriceAdapter,
         outstandingWalletFunding,
         wallet,
         balanceTracking,
@@ -178,6 +193,7 @@ library OraclePriceMargin {
       quoteQuantityAvailableForExitWithdrawal += _loadQuoteQuantityForPositionExit(
         baseAssetSymbols[i],
         exitAccountValue,
+        oraclePriceAdapter,
         totalAccountValue,
         totalMaintenanceMarginRequirement,
         wallet,
@@ -191,6 +207,7 @@ library OraclePriceMargin {
   }
 
   function loadTotalAccountValue(
+    IOraclePriceAdapter oraclePriceAdapter,
     int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -207,13 +224,14 @@ library OraclePriceMargin {
 
       totalAccountValue += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-        int64(market.loadOraclePrice()),
+        int64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol)),
         int64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
   }
 
   function loadTotalInitialMarginRequirement(
+    IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -231,6 +249,7 @@ library OraclePriceMargin {
           marketOverridesByBaseAssetSymbolAndWallet
         ),
         market,
+        oraclePriceAdapter,
         wallet,
         balanceTracking
       );
@@ -238,6 +257,7 @@ library OraclePriceMargin {
   }
 
   function loadTotalMaintenanceMarginRequirement(
+    IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -254,6 +274,7 @@ library OraclePriceMargin {
           .overridableFields
           .maintenanceMarginFraction,
         market,
+        oraclePriceAdapter,
         wallet,
         balanceTracking
       );
@@ -261,6 +282,7 @@ library OraclePriceMargin {
   }
 
   function _loadExitAccountValue(
+    IOraclePriceAdapter oraclePriceAdapter,
     int64 outstandingWalletFunding,
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -282,7 +304,7 @@ library OraclePriceMargin {
 
       quoteQuantityForPosition = LiquidationValidations.calculateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
-        market.loadOraclePrice(),
+        oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol),
         balanceStruct.balance
       );
 
@@ -299,6 +321,7 @@ library OraclePriceMargin {
   function _loadMarginRequirement(
     uint64 marginFraction,
     Market memory market,
+    IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
     BalanceTracking.Storage storage balanceTracking
   ) private view returns (uint64) {
@@ -307,7 +330,7 @@ library OraclePriceMargin {
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-            int64(market.loadOraclePrice()),
+            int64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol)),
             int64(Constants.PIP_PRICE_MULTIPLIER)
           ),
           int64(marginFraction),
@@ -319,6 +342,7 @@ library OraclePriceMargin {
   function _loadQuoteQuantityForPositionExit(
     string memory baseAssetSymbol,
     int64 exitAccountValue,
+    IOraclePriceAdapter oraclePriceAdapter,
     int64 totalAccountValue,
     uint64 totalMaintenanceMarginRequirement,
     address wallet,
@@ -331,10 +355,11 @@ library OraclePriceMargin {
       baseAssetSymbol
     );
     Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
+    uint64 oraclePrice = oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol);
 
     uint64 quoteQuantityForPosition = exitAccountValue <= 0
       ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
-        market.loadOraclePrice(),
+        oraclePrice,
         market
           .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
@@ -345,7 +370,7 @@ library OraclePriceMargin {
       )
       : LiquidationValidations.calculateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
-        market.loadOraclePrice(),
+        oraclePrice,
         balanceStruct.balance
       );
 

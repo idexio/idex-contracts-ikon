@@ -7,13 +7,6 @@ import { Market, MarketOverrides } from "./Structs.sol";
 pragma solidity 0.8.18;
 
 library MarketHelper {
-  function loadOraclePrice(Market memory self) internal view returns (uint64 price) {
-    (, int256 answer, , , ) = self.chainlinkPriceFeedAddress.latestRoundData();
-    require(answer > 0, "Unexpected non-positive feed price");
-
-    return AssetUnitConversions.assetUnitsToPips(uint256(answer), self.chainlinkPriceFeedAddress.decimals());
-  }
-
   function loadInitialMarginFractionForWallet(
     Market memory market,
     int64 positionSize,
@@ -52,7 +45,6 @@ library MarketHelper {
           exists: market.exists,
           isActive: market.isActive,
           baseAssetSymbol: market.baseAssetSymbol,
-          chainlinkPriceFeedAddress: market.chainlinkPriceFeedAddress,
           indexPriceAtDeactivation: market.indexPriceAtDeactivation,
           lastIndexPrice: market.lastIndexPrice,
           lastIndexPriceTimestampInMs: market.lastIndexPriceTimestampInMs,

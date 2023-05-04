@@ -3,12 +3,12 @@
 pragma solidity 0.8.18;
 
 import { Constants } from "./Constants.sol";
-import { IExchange } from "./Interfaces.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
 import { Math } from "./Math.sol";
 import { OrderSide } from "./Enums.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
+import { IExchange, IOraclePriceAdapter } from "./Interfaces.sol";
 import { Balance, ExecuteTradeArguments, Market, MarketOverrides, Transfer, Withdrawal } from "./Structs.sol";
 
 library BalanceTracking {
@@ -24,8 +24,9 @@ library BalanceTracking {
   struct UpdatePositionForExitArguments {
     int64 exitAccountValue;
     address exitFundWallet;
-    Market market;
     uint64 maintenanceMarginFraction;
+    Market market;
+    IOraclePriceAdapter oraclePriceAdapter;
     int64 totalAccountValue;
     uint64 totalMaintenanceMarginRequirement;
     address wallet;
@@ -183,22 +184,19 @@ library BalanceTracking {
       arguments.wallet,
       arguments.market.baseAssetSymbol
     );
+    uint64 oraclePrice = arguments.oraclePriceAdapter.loadPriceForBaseAssetSymbol(arguments.market.baseAssetSymbol);
     int64 positionSize = balanceStruct.balance;
     // Calculate amount of quote to close position
     uint64 quoteQuantity = arguments.exitAccountValue <= 0
       ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
         // This exit path takes place entirely on-chain, so use on-chain oracle pricing rather than index pricing
-        arguments.market.loadOraclePrice(),
+        oraclePrice,
         arguments.maintenanceMarginFraction,
         positionSize,
         arguments.totalAccountValue,
         arguments.totalMaintenanceMarginRequirement
       )
-      : LiquidationValidations.calculateQuoteQuantityAtExitPrice(
-        balanceStruct.costBasis,
-        arguments.market.loadOraclePrice(),
-        positionSize
-      );
+      : LiquidationValidations.calculateQuoteQuantityAtExitPrice(balanceStruct.costBasis, oraclePrice, positionSize);
 
     // Zero out wallet position for market
     _resetPositionToZero(balanceStruct);

@@ -60,6 +60,13 @@ struct DelegatedKeyAuthorization {
   bytes signature;
 }
 
+struct IndexPricePayload {
+  // Address of IIndexPriceAdapter that will validate and decode payload
+  address indexPriceAdapter;
+  // Index price payload encoded in adapter-specific format
+  bytes payload;
+}
+
 /**
  * @notice Argument type for `executeTrade`
  */
@@ -89,8 +96,6 @@ struct IndexPrice {
   uint64 timestampInMs;
   // Price of base asset in quote terms
   uint64 price;
-  // Signature from index price service wallet
-  bytes signature;
 }
 
 /**
@@ -103,8 +108,6 @@ struct Market {
   bool isActive;
   // No need to specify quote asset, it is always `Constants.QUOTE_ASSET_SYMBOL`
   string baseAssetSymbol;
-  // Chainlink price feed aggregator contract to use for on-chain exit withdrawals
-  IChainlinkAggregator chainlinkPriceFeedAddress;
   // Set when deactivating a market to determine price for all position liquidations in that market
   uint64 indexPriceAtDeactivation;
   // The latest index price published for this market

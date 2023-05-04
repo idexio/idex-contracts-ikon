@@ -11,7 +11,8 @@ import { MarketHelper } from "./MarketHelper.sol";
 import { String } from "./String.sol";
 import { Time } from "./Time.sol";
 import { Validations } from "./Validations.sol";
-import { FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
+import { IIndexPriceAdapter, IOraclePriceAdapter } from "./Interfaces.sol";
+import { IndexPricePayload, FundingMultiplierQuartet, IndexPrice, Market } from "./Structs.sol";
 
 library MarketAdmin {
   using MarketHelper for Market;
@@ -19,6 +20,7 @@ library MarketAdmin {
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
     Market memory newMarket,
+    IOraclePriceAdapter oraclePriceAdapter,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => Market) storage marketsByBaseAssetSymbol
@@ -28,13 +30,12 @@ library MarketAdmin {
       !String.isEqual(newMarket.baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL),
       "Base asset symbol cannot be same as quote"
     );
-    require(Address.isContract(address(newMarket.chainlinkPriceFeedAddress)), "Invalid Chainlink price feed");
     Validations.validateOverridableMarketFields(newMarket.overridableFields);
 
     // Populate non-overridable fields and commit new market to storage
     newMarket.exists = true;
     newMarket.isActive = false;
-    newMarket.lastIndexPrice = newMarket.loadOraclePrice();
+    newMarket.lastIndexPrice = oraclePriceAdapter.loadPriceForBaseAssetSymbol(newMarket.baseAssetSymbol);
     newMarket.lastIndexPriceTimestampInMs = uint64(block.timestamp * 1000);
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
 
@@ -71,38 +72,24 @@ library MarketAdmin {
 
   // solhint-disable-next-line func-name-mixedcase
   function publishIndexPrices_delegatecall(
-    bytes32 domainSeparator,
-    IndexPrice[] memory indexPrices,
-    address[] memory indexPriceServiceWallets,
+    IndexPricePayload[] memory encodedIndexPrices,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market;
+    IndexPrice memory indexPrice;
 
-    for (uint8 i = 0; i < indexPrices.length; i++) {
-      market = marketsByBaseAssetSymbol[indexPrices[i].baseAssetSymbol];
+    for (uint8 i = 0; i < encodedIndexPrices.length; i++) {
+      indexPrice = IIndexPriceAdapter(encodedIndexPrices[i].indexPriceAdapter).validateIndexPricePayload(
+        encodedIndexPrices[i].payload
+      );
+      require(indexPrice.timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
 
+      market = marketsByBaseAssetSymbol[indexPrice.baseAssetSymbol];
       require(market.exists && market.isActive, "Active market not found");
-      require(market.lastIndexPriceTimestampInMs < indexPrices[i].timestampInMs, "Outdated index price");
-      require(indexPrices[i].timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
-      _validateIndexPriceSignature(domainSeparator, indexPrices[i], indexPriceServiceWallets);
+      require(market.lastIndexPriceTimestampInMs < indexPrice.timestampInMs, "Outdated index price");
 
-      market.lastIndexPrice = indexPrices[i].price;
-      market.lastIndexPriceTimestampInMs = indexPrices[i].timestampInMs;
+      market.lastIndexPrice = indexPrice.price;
+      market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
     }
-  }
-
-  function _validateIndexPriceSignature(
-    bytes32 domainSeparator,
-    IndexPrice memory indexPrice,
-    address[] memory indexPriceServiceWallets
-  ) private pure {
-    bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
-
-    address signer = Hashing.getSigner(domainSeparator, indexPriceHash, indexPrice.signature);
-    bool isSignatureValid = false;
-    for (uint8 i = 0; i < indexPriceServiceWallets.length; i++) {
-      isSignatureValid = isSignatureValid || signer == indexPriceServiceWallets[i];
-    }
-    require(isSignatureValid, "Invalid index price signature");
   }
 }

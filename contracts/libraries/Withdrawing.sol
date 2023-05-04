@@ -19,7 +19,7 @@ import { String } from "./String.sol";
 import { Validations } from "./Validations.sol";
 import { WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
 import { WalletExits } from "./WalletExits.sol";
-import { IBridgeAdapter, ICustodian } from "./Interfaces.sol";
+import { IBridgeAdapter, ICustodian, IOraclePriceAdapter } from "./Interfaces.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletExit, Withdrawal } from "./Structs.sol";
 
 library Withdrawing {
@@ -44,6 +44,7 @@ library Withdrawing {
     // Exchange state
     ICustodian custodian;
     address exitFundWallet;
+    IOraclePriceAdapter oraclePriceAdapter;
     address quoteTokenAddress;
   }
 
@@ -233,6 +234,7 @@ library Withdrawing {
       updatePositionForExitArguments.totalAccountValue,
       updatePositionForExitArguments.totalMaintenanceMarginRequirement
     ) = OraclePriceMargin.loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
+      arguments.oraclePriceAdapter,
       0, // Outstanding funding payments already applied in withdrawExit_delegatecall
       arguments.wallet,
       balanceTracking,
