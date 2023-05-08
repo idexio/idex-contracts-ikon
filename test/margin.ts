@@ -14,6 +14,7 @@ import {
 import type {
   ChainlinkAggregatorMock,
   Exchange_v4,
+  IDEXIndexPriceAdapter,
   Governance,
 } from '../typechain-types';
 
@@ -23,6 +24,7 @@ describe('Exchange', function () {
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
   let indexPrice: IndexPrice;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
@@ -58,6 +60,7 @@ describe('Exchange', function () {
     );
     exchange = results.exchange;
     governance = results.governance;
+    indexPriceAdapter = results.indexPriceAdapter;
     chainlinkAggregator = results.chainlinkAggregator;
 
     await results.usdc.faucet(dispatcherWallet.address);
@@ -73,6 +76,7 @@ describe('Exchange', function () {
       exchange,
       dispatcherWallet,
       indexPrice,
+      indexPriceAdapter.address,
       trader1Wallet,
       trader2Wallet,
     );

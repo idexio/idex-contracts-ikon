@@ -28,7 +28,12 @@ import {
   signatureHashVersion,
   Trade,
 } from '../lib';
-import type { Exchange_v4, Governance, USDC } from '../typechain-types';
+import type {
+  Exchange_v4,
+  Governance,
+  IDEXIndexPriceAdapter,
+  USDC,
+} from '../typechain-types';
 import { MarketStruct } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
 
 describe.skip('Gas measurement', function () {
@@ -38,6 +43,7 @@ describe.skip('Gas measurement', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let marketStruct: MarketStruct;
@@ -77,13 +83,13 @@ describe.skip('Gas measurement', function () {
     );
     exchange = results.exchange;
     governance = results.governance;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     marketStruct = {
       exists: true,
       isActive: false,
       baseAssetSymbol,
-      chainlinkPriceFeedAddress: results.chainlinkAggregator.address,
       indexPriceAtDeactivation: 0,
       lastIndexPrice: 0,
       lastIndexPriceTimestampInMs: 0,
@@ -111,6 +117,7 @@ describe.skip('Gas measurement', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
+          indexPriceAdapter.address,
           await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         ),
       ]);
@@ -180,6 +187,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -251,6 +259,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPriceWithValue(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -336,6 +345,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -410,6 +420,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPriceWithValue(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -624,6 +635,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
@@ -632,6 +644,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
@@ -652,6 +665,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPrice(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -668,6 +682,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPrice(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -705,6 +720,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPrice(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -721,6 +737,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPrice(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -768,6 +785,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPrice(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -784,6 +802,7 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
                 await buildIndexPrice(
                   exchange.address,
                   indexPriceServiceWallet,
@@ -992,6 +1011,7 @@ describe.skip('Gas measurement', function () {
       await publishFundingRates(
         exchange,
         dispatcherWallet,
+        indexPriceAdapter,
         indexPriceServiceWallet,
         1,
       );
@@ -1014,6 +1034,7 @@ describe.skip('Gas measurement', function () {
       await publishFundingRates(
         exchange,
         dispatcherWallet,
+        indexPriceAdapter,
         indexPriceServiceWallet,
         10,
       );
@@ -1043,6 +1064,7 @@ describe.skip('Gas measurement', function () {
       await publishFundingRates(
         exchange,
         dispatcherWallet,
+        indexPriceAdapter,
         indexPriceServiceWallet,
         100,
       );
@@ -1072,6 +1094,7 @@ describe.skip('Gas measurement', function () {
       await publishFundingRates(
         exchange,
         dispatcherWallet,
+        indexPriceAdapter,
         indexPriceServiceWallet,
         1000,
       );
@@ -1101,6 +1124,7 @@ describe.skip('Gas measurement', function () {
       await publishFundingRates(
         exchange,
         dispatcherWallet,
+        indexPriceAdapter,
         indexPriceServiceWallet,
         6000,
       );
@@ -1124,6 +1148,7 @@ describe.skip('Gas measurement', function () {
 async function publishFundingRates(
   exchange: Exchange_v4,
   dispatcherWallet: SignerWithAddress,
+  indexPriceAdapter: IDEXIndexPriceAdapter,
   indexPriceServiceWallet: SignerWithAddress,
   count: number,
 ) {
@@ -1139,6 +1164,7 @@ async function publishFundingRates(
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
+          indexPriceAdapter.address,
           await buildIndexPriceWithTimestamp(
             exchange.address,
             indexPriceServiceWallet,

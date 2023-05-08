@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.18;
 
-import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-
 import { OrderSelfTradePrevention, OrderSide, OrderTimeInForce, OrderTriggerType, OrderType, WalletExitAcquisitionDeleveragePriceStrategy } from "./Enums.sol";
 
 // This file contains definitions for externally-facing structs used as argument or return types for Exchange functions
@@ -60,13 +58,6 @@ struct DelegatedKeyAuthorization {
   bytes signature;
 }
 
-struct IndexPricePayload {
-  // Address of IIndexPriceAdapter that will validate and decode payload
-  address indexPriceAdapter;
-  // Index price payload encoded in adapter-specific format
-  bytes payload;
-}
-
 /**
  * @notice Argument type for `executeTrade`
  */
@@ -96,6 +87,13 @@ struct IndexPrice {
   uint64 timestampInMs;
   // Price of base asset in quote terms
   uint64 price;
+}
+
+struct IndexPricePayload {
+  // Address of IIndexPriceAdapter that will validate and decode payload
+  address indexPriceAdapter;
+  // Index price payload encoded in adapter-specific format
+  bytes payload;
 }
 
 /**

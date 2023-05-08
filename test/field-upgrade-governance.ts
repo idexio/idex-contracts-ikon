@@ -19,12 +19,14 @@ import type {
   ExchangeStargateAdapter__factory,
   Governance,
   USDC,
+  IDEXIndexPriceAdapter,
 } from '../typechain-types';
 
 describe('Governance', function () {
   let custodian: Custodian;
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let governance: Governance;
@@ -55,6 +57,7 @@ describe('Governance', function () {
     custodian = results.custodian;
     exchange = results.exchange;
     governance = results.governance;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
   });
 
@@ -206,20 +209,25 @@ describe('Governance', function () {
       });
     });
 
-    describe('IPS wallet upgrade', () => {
-      let newIndexPriceServiceWallets: string[];
+    describe('Index Price Adapter upgrade', () => {
+      let newIndexPriceAdapter: IDEXIndexPriceAdapter;
+
       beforeEach(async () => {
-        newIndexPriceServiceWallets = [(await ethers.getSigners())[10].address];
+        newIndexPriceAdapter = await (
+          await (
+            await ethers.getContractFactory('IDEXIndexPriceAdapter')
+          ).deploy([indexPriceServiceWallet.address])
+        ).deployed();
       });
 
-      describe('initiateIndexPriceServiceWalletsUpgrade', () => {
+      describe('initiateIndexPriceAdaptersUpgrade', () => {
         it('should work for valid wallet address', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
           expect(
             governance.queryFilter(
-              governance.filters.IndexPriceServiceWalletsUpgradeInitiated(),
+              governance.filters.IndexPriceAdaptersUpgradeInitiated(),
             ),
           )
             .to.eventually.be.an('array')
@@ -228,21 +236,23 @@ describe('Governance', function () {
 
         it('should revert for invalid address', async () => {
           await expect(
-            governance.initiateIndexPriceServiceWalletsUpgrade([
+            governance.initiateIndexPriceAdaptersUpgrade([
               ethers.constants.AddressZero,
             ]),
-          ).to.eventually.be.rejectedWith(/invalid IPS wallet address/i);
+          ).to.eventually.be.rejectedWith(
+            /invalid index price adapter address/i,
+          );
         });
 
         it('should revert when already in progress', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
 
           await expect(
-            governance.initiateIndexPriceServiceWalletsUpgrade(
-              newIndexPriceServiceWallets,
-            ),
+            governance.initiateIndexPriceAdaptersUpgrade([
+              newIndexPriceAdapter.address,
+            ]),
           ).to.eventually.be.rejectedWith(/already in progress/i);
         });
 
@@ -250,22 +260,22 @@ describe('Governance', function () {
           await expect(
             governance
               .connect((await ethers.getSigners())[5])
-              .initiateIndexPriceServiceWalletsUpgrade(
-                newIndexPriceServiceWallets,
-              ),
+              .initiateIndexPriceAdaptersUpgrade([
+                newIndexPriceAdapter.address,
+              ]),
           ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
         });
       });
 
-      describe('cancelIndexPriceServiceWalletsUpgrade', () => {
+      describe('cancelIndexPriceAdaptersUpgrade', () => {
         it('should work when in progress', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
-          await governance.cancelIndexPriceServiceWalletsUpgrade();
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
+          await governance.cancelIndexPriceAdaptersUpgrade();
           expect(
             governance.queryFilter(
-              governance.filters.IndexPriceServiceWalletsUpgradeCanceled(),
+              governance.filters.IndexPriceAdaptersUpgradeCanceled(),
             ),
           )
             .to.eventually.be.an('array')
@@ -274,33 +284,35 @@ describe('Governance', function () {
 
         it('should revert when not in progress', async () => {
           await expect(
-            governance.cancelIndexPriceServiceWalletsUpgrade(),
-          ).to.eventually.be.rejectedWith(/no IPS wallet upgrade in progress/i);
+            governance.cancelIndexPriceAdaptersUpgrade(),
+          ).to.eventually.be.rejectedWith(
+            /no index price adapter in progress/i,
+          );
         });
 
         it('should revert when not called by admin', async () => {
           await expect(
             governance
               .connect((await ethers.getSigners())[5])
-              .cancelIndexPriceServiceWalletsUpgrade(),
+              .cancelIndexPriceAdaptersUpgrade(),
           ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
         });
       });
 
-      describe('finalizeIndexPriceServiceWalletsUpgrade', async () => {
+      describe('finalizeIndexPriceAdaptersUpgrade', async () => {
         it('should work when in progress', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
 
           await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
-          await governance.finalizeIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.finalizeIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
           expect(
             governance.queryFilter(
-              governance.filters.IndexPriceServiceWalletsUpgradeFinalized(),
+              governance.filters.IndexPriceAdaptersUpgradeFinalized(),
             ),
           )
             .to.eventually.be.an('array')
@@ -309,64 +321,64 @@ describe('Governance', function () {
 
         it('should revert when not in progress', async () => {
           await expect(
-            governance.finalizeIndexPriceServiceWalletsUpgrade(
-              newIndexPriceServiceWallets,
-            ),
-          ).to.eventually.be.rejectedWith(/no IPS wallet upgrade in progress/i);
+            governance.finalizeIndexPriceAdaptersUpgrade([
+              newIndexPriceAdapter.address,
+            ]),
+          ).to.eventually.be.rejectedWith(
+            /no index price adapter upgrade in progress/i,
+          );
         });
 
         it('should revert before block delay', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
 
           await expect(
-            governance.finalizeIndexPriceServiceWalletsUpgrade(
-              newIndexPriceServiceWallets,
-            ),
+            governance.finalizeIndexPriceAdaptersUpgrade([
+              newIndexPriceAdapter.address,
+            ]),
           ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
         });
 
         it('should revert on address length mismatch', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
 
           await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await expect(
-            governance.finalizeIndexPriceServiceWalletsUpgrade([
-              ...newIndexPriceServiceWallets,
-              ...newIndexPriceServiceWallets,
+            governance.finalizeIndexPriceAdaptersUpgrade([
+              newIndexPriceAdapter.address,
+              newIndexPriceAdapter.address,
             ]),
           ).to.eventually.be.rejectedWith(/address mismatch/i);
         });
 
         it('should revert on address  mismatch', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
 
           await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await expect(
-            governance.finalizeIndexPriceServiceWalletsUpgrade([
-              ownerWallet.address,
-            ]),
+            governance.finalizeIndexPriceAdaptersUpgrade([ownerWallet.address]),
           ).to.eventually.be.rejectedWith(/address mismatch/i);
         });
 
         it('should revert when not called by admin or dispatcher', async () => {
-          await governance.initiateIndexPriceServiceWalletsUpgrade(
-            newIndexPriceServiceWallets,
-          );
+          await governance.initiateIndexPriceAdaptersUpgrade([
+            newIndexPriceAdapter.address,
+          ]);
 
           await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
 
           await expect(
             governance
               .connect((await ethers.getSigners())[10])
-              .finalizeIndexPriceServiceWalletsUpgrade([ownerWallet.address]),
+              .finalizeIndexPriceAdaptersUpgrade([ownerWallet.address]),
           ).to.eventually.be.rejectedWith(
             /caller must be admin or dispatcher wallet/i,
           );
@@ -557,6 +569,7 @@ describe('Governance', function () {
           exchange,
           dispatcherWallet,
           await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+          indexPriceAdapter.address,
           trader1Wallet,
           trader2Wallet,
         );

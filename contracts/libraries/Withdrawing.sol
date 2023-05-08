@@ -229,6 +229,7 @@ library Withdrawing {
   ) private returns (int64 walletQuoteQuantityToWithdraw) {
     BalanceTracking.UpdatePositionForExitArguments memory updatePositionForExitArguments;
     updatePositionForExitArguments.exitFundWallet = arguments.exitFundWallet;
+    updatePositionForExitArguments.oraclePriceAdapter = arguments.oraclePriceAdapter;
     (
       updatePositionForExitArguments.exitAccountValue,
       updatePositionForExitArguments.totalAccountValue,

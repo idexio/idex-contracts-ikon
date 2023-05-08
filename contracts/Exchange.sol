@@ -60,7 +60,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   // Zero only if Exit Fund has no open positions or quote balance
   uint256 public exitFundPositionOpenedAtBlockNumber;
   // List of whitelisted Index Price Adapter contracts
-  IIndexPriceAdapter[] indexPriceAdapters;
+  IIndexPriceAdapter[] public indexPriceAdapters;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => FundingMultiplierQuartet[]) public fundingMultipliersByBaseAssetSymbol;
   // Milliseconds since epoch, always aligned to funding period
@@ -233,6 +233,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     address feeWallet_,
     IIndexPriceAdapter[] memory indexPriceAdapters_,
     address insuranceFundWallet_,
+    IOraclePriceAdapter oraclePriceAdapter_,
     address quoteTokenAddress_
   ) EIP712(Constants.EIP_712_DOMAIN_NAME, Constants.EIP_712_DOMAIN_VERSION) Owned() {
     require(
@@ -255,6 +256,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       require(Address.isContract(address(indexPriceAdapters_[i])), "Invalid index price adapter address");
     }
     indexPriceAdapters = indexPriceAdapters_;
+
+    require(Address.isContract(address(oraclePriceAdapter_)), "Invalid oracle price adapter address");
+    oraclePriceAdapter = oraclePriceAdapter_;
 
     // Deposits must be manually enabled via `setDepositIndex`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;

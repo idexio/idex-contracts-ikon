@@ -376,7 +376,7 @@ contract Governance is Owned {
    * @notice Cancels an in-flight IPS wallet upgrade that has not yet been finalized
    */
   function cancelIndexPriceAdaptersUpgrade() public onlyAdmin {
-    require(currentIndexPriceAdaptersUpgrade.exists, "No index price adapter wallet upgrade in progress");
+    require(currentIndexPriceAdaptersUpgrade.exists, "No index price adapter upgrade in progress");
 
     delete currentIndexPriceAdaptersUpgrade;
 
@@ -394,7 +394,7 @@ contract Governance is Owned {
   function finalizeIndexPriceAdaptersUpgrade(
     IIndexPriceAdapter[] memory newIndexPriceAdapters
   ) public onlyAdminOrDispatcher {
-    require(currentIndexPriceAdaptersUpgrade.exists, "No index price adapter wallet upgrade in progress");
+    require(currentIndexPriceAdaptersUpgrade.exists, "No index price adapter upgrade in progress");
 
     require(
       currentIndexPriceAdaptersUpgrade.newIndexPriceAdapters.length == newIndexPriceAdapters.length,

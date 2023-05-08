@@ -5,6 +5,7 @@ import { ethers, network } from 'hardhat';
 import type {
   ChainlinkAggregatorMock,
   Exchange_v4,
+  IDEXIndexPriceAdapter,
   USDC,
   WithdrawExitValidationsMock,
 } from '../typechain-types';
@@ -23,6 +24,7 @@ describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let indexPrice: IndexPrice;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
@@ -58,6 +60,7 @@ describe('Exchange', function () {
     );
     chainlinkAggregator = results.chainlinkAggregator;
     exchange = results.exchange;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     await usdc.faucet(dispatcherWallet.address);
@@ -73,6 +76,7 @@ describe('Exchange', function () {
       exchange,
       dispatcherWallet,
       indexPrice,
+      indexPriceAdapter.address,
       trader1Wallet,
       trader2Wallet,
     );

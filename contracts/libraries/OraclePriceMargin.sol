@@ -15,6 +15,15 @@ library OraclePriceMargin {
   using BalanceTracking for BalanceTracking.Storage;
   using MarketHelper for Market;
 
+  struct LoadQuoteQuantityForPositionExitArguments {
+    string baseAssetSymbol;
+    int64 exitAccountValue;
+    IOraclePriceAdapter oraclePriceAdapter;
+    int64 totalAccountValue;
+    uint64 totalMaintenanceMarginRequirement;
+    address wallet;
+  }
+
   // solhint-disable-next-line func-name-mixedcase
   function loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
     address exitFundWallet,
@@ -174,29 +183,28 @@ library OraclePriceMargin {
       return Math.max(0, quoteQuantityAvailableForExitWithdrawal);
     }
 
+    LoadQuoteQuantityForPositionExitArguments memory loadQuoteQuantityForPositionExitArguments;
+    loadQuoteQuantityForPositionExitArguments.oraclePriceAdapter = oraclePriceAdapter;
+    loadQuoteQuantityForPositionExitArguments.wallet = wallet;
     (
-      int64 exitAccountValue,
-      int64 totalAccountValue,
-      uint64 totalMaintenanceMarginRequirement
+      loadQuoteQuantityForPositionExitArguments.exitAccountValue,
+      loadQuoteQuantityForPositionExitArguments.totalAccountValue,
+      loadQuoteQuantityForPositionExitArguments.totalMaintenanceMarginRequirement
     ) = loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
-        oraclePriceAdapter,
-        outstandingWalletFunding,
-        wallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
+      oraclePriceAdapter,
+      outstandingWalletFunding,
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      loadQuoteQuantityForPositionExitArguments.baseAssetSymbol = baseAssetSymbols[i];
       quoteQuantityAvailableForExitWithdrawal += _loadQuoteQuantityForPositionExit(
-        baseAssetSymbols[i],
-        exitAccountValue,
-        oraclePriceAdapter,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
-        wallet,
+        loadQuoteQuantityForPositionExitArguments,
         balanceTracking,
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
@@ -340,33 +348,28 @@ library OraclePriceMargin {
   }
 
   function _loadQuoteQuantityForPositionExit(
-    string memory baseAssetSymbol,
-    int64 exitAccountValue,
-    IOraclePriceAdapter oraclePriceAdapter,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
-    address wallet,
+    LoadQuoteQuantityForPositionExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view returns (int64) {
     Balance memory balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(
-      wallet,
-      baseAssetSymbol
+      arguments.wallet,
+      arguments.baseAssetSymbol
     );
-    Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
-    uint64 oraclePrice = oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol);
+    Market memory market = marketsByBaseAssetSymbol[arguments.baseAssetSymbol];
+    uint64 oraclePrice = arguments.oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol);
 
-    uint64 quoteQuantityForPosition = exitAccountValue <= 0
+    uint64 quoteQuantityForPosition = arguments.exitAccountValue <= 0
       ? LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
         oraclePrice,
         market
-          .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maintenanceMarginFraction,
         balanceStruct.balance,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
+        arguments.totalAccountValue,
+        arguments.totalMaintenanceMarginRequirement
       )
       : LiquidationValidations.calculateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
