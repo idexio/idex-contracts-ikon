@@ -511,7 +511,7 @@ export async function executeTrade(
     baseQuantity: quantity,
     quoteQuantity: new BigNumber(quantity)
       .times(new BigNumber(price))
-      .toFixed(8),
+      .toFixed(8, BigNumber.ROUND_DOWN),
     makerFeeQuantity: '20.00000000',
     takerFeeQuantity: '40.00000000',
     price,

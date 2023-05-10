@@ -235,15 +235,12 @@ library Funding {
       // is either itself `lastFundingRatePublishTimestampInMs` OR `fromTimestampInMs` is at least
       // `MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS` behind `lastFundingRatePublishTimestampInMs`
 
-      int64 funding = Math.multiplyPipsByFraction(
-        basePosition.balance,
-        // Load aggregate funding multiplier over specified from and to timestamps
-        fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].loadAggregateMultiplier(
-          fromTimestampInMs,
-          toTimestampInMs,
-          lastFundingRatePublishTimestampInMs
-        ),
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+      // Load aggregate funding multiplier over specified from and to timestamps
+      int64 funding = fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].loadAggregatePayment(
+        fromTimestampInMs,
+        toTimestampInMs,
+        lastFundingRatePublishTimestampInMs,
+        basePosition.balance
       );
 
       return (funding, toTimestampInMs);

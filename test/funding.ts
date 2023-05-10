@@ -24,11 +24,13 @@ import {
   addAndActivateMarket,
   baseAssetSymbol,
   buildIndexPrice,
+  buildIndexPriceWithTimestamp,
+  buildIndexPriceWithValue,
+  deployAndAssociateContracts,
   executeTrade,
   fundWallets,
   getLatestBlockTimestampInSeconds,
-  deployAndAssociateContracts,
-  buildIndexPriceWithTimestamp,
+  pipToDecimal,
   quoteAssetSymbol,
 } from './helpers';
 
@@ -425,6 +427,94 @@ describe('Exchange', function () {
       // TODO Verify balance updates
     });
 
+    it('should correctly round individual funding payments', async function () {
+      const trader1Wallet = (await ethers.getSigners())[6];
+      const trader2Wallet = (await ethers.getSigners())[7];
+      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+
+      indexPrice = await buildIndexPriceWithValue(
+        exchange.address,
+        indexPriceServiceWallet,
+        '29897.98017846',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        indexPrice,
+        indexPriceAdapter.address,
+        trader1Wallet,
+        trader2Wallet,
+        baseAssetSymbol,
+        '29897.98017846',
+        '1.02883000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithTimestamp(
+              exchange.address,
+              indexPriceServiceWallet,
+              indexPrice.timestampInMs + fundingPeriodLengthInMs,
+              baseAssetSymbol,
+              '27678.79000000',
+            ),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('0.02250000'));
+
+      const fundingPayment1 = new BigNumber('27678.79000000')
+        .times(new BigNumber('0.02250000'))
+        .times('1.02883000')
+        .toFixed(8, BigNumber.ROUND_DOWN);
+
+      expect(
+        pipToDecimal(
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address),
+        ),
+      ).to.equal(fundingPayment1.toString());
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithTimestamp(
+              exchange.address,
+              indexPriceServiceWallet,
+              indexPrice.timestampInMs + fundingPeriodLengthInMs * 2,
+              baseAssetSymbol,
+              '28214.68000000',
+            ),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('0.02250000'));
+
+      const fundingPayment2 = new BigNumber('28214.68000000')
+        .times(new BigNumber('0.02250000'))
+        .times('1.02883000')
+        .toFixed(8, BigNumber.ROUND_DOWN);
+
+      const totalFundingPayment = new BigNumber(fundingPayment1)
+        .plus(new BigNumber(fundingPayment2))
+        .toFixed(8, BigNumber.ROUND_DOWN);
+
+      expect(
+        pipToDecimal(
+          await exchange.loadOutstandingWalletFunding(trader1Wallet.address),
+        ),
+      ).to.equal(totalFundingPayment.toString());
+    });
+
     it('should revert for invalid symbol', async function () {
       await expect(
         exchange.applyOutstandingWalletFundingForMarket(
@@ -448,7 +538,7 @@ describe('Exchange', function () {
     });
   });
 
-  describe('loadAggregateMultiplier', async function () {
+  describe('loadAggregatePayment', async function () {
     let fundingMultiplierMock: FundingMultiplierMock;
 
     before(async () => {
@@ -466,10 +556,11 @@ describe('Exchange', function () {
         decimalToPips(getFundingRate(0)),
       );
       await expect(
-        fundingMultiplierMock.loadAggregateMultiplier(
+        fundingMultiplierMock.loadAggregatePayment(
           earliestTimestampInMs,
           earliestTimestampInMs,
           earliestTimestampInMs,
+          decimalToPips('1.00000000'),
         ),
       ).to.eventually.equal(decimalToPips(getFundingRate(0)));
 
@@ -477,10 +568,11 @@ describe('Exchange', function () {
         decimalToPips(getFundingRate(1)),
       );
       await expect(
-        fundingMultiplierMock.loadAggregateMultiplier(
+        fundingMultiplierMock.loadAggregatePayment(
           earliestTimestampInMs,
           earliestTimestampInMs + fundingPeriodLengthInMs,
           earliestTimestampInMs + fundingPeriodLengthInMs,
+          decimalToPips('1.00000000'),
         ),
       ).to.eventually.equal(
         decimalToPips(
@@ -494,10 +586,11 @@ describe('Exchange', function () {
         decimalToPips(getFundingRate(2)),
       );
       await expect(
-        fundingMultiplierMock.loadAggregateMultiplier(
+        fundingMultiplierMock.loadAggregatePayment(
           earliestTimestampInMs,
           earliestTimestampInMs + fundingPeriodLengthInMs * 2,
           earliestTimestampInMs + fundingPeriodLengthInMs * 2,
+          decimalToPips('1.00000000'),
         ),
       ).to.eventually.equal(
         decimalToPips(
@@ -512,10 +605,11 @@ describe('Exchange', function () {
         decimalToPips(getFundingRate(3)),
       );
       await expect(
-        fundingMultiplierMock.loadAggregateMultiplier(
+        fundingMultiplierMock.loadAggregatePayment(
           earliestTimestampInMs + fundingPeriodLengthInMs * 3,
           earliestTimestampInMs + fundingPeriodLengthInMs * 3,
           earliestTimestampInMs + fundingPeriodLengthInMs * 3,
+          decimalToPips('1.00000000'),
         ),
       ).to.eventually.equal(
         decimalToPips(new BigNumber(getFundingRate(3)).toString()),
@@ -544,10 +638,11 @@ describe('Exchange', function () {
       await fundingMultiplierMock.publishFundingMultiplier(0);
 
       await expect(
-        fundingMultiplierMock.loadAggregateMultiplier(
+        fundingMultiplierMock.loadAggregatePayment(
           earliestTimestampInMs,
           earliestTimestampInMs + fundingPeriodLengthInMs * 9,
           earliestTimestampInMs + fundingPeriodLengthInMs * 9,
+          decimalToPips('1.00000000'),
         ),
       ).to.eventually.equal(
         decimalToPips(
