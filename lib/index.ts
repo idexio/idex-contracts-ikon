@@ -130,7 +130,7 @@ export interface Withdrawal {
   bridgeAdapterPayload: string;
 }
 
-const hardhatChainId = 31337;
+export const hardhatChainId = 31337;
 
 export const compareMarketSymbols = (a: string, b: string): number =>
   Buffer.compare(

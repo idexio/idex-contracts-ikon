@@ -136,7 +136,7 @@ interface IExchange {
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) external;
 
   /**
-   * @notice Sets Index Price Adapter contract addresses whitelisted to sign Index Price payloads
+   * @notice Sets Index Price Adapter contract addresses
    *
    * @param newIndexPriceAdapters An array of contract addresses
    */
@@ -161,6 +161,13 @@ interface IExchange {
     OverridableMarketFields memory overridableFields,
     address wallet
   ) external;
+
+  /**
+   * @notice Sets Oracle Price Adapter contract address
+   *
+   * @param newOraclePriceAdapter The new contract addresses
+   */
+  function setOraclePriceAdapter(IOraclePriceAdapter newOraclePriceAdapter) external;
 }
 
 interface IOraclePriceAdapter {

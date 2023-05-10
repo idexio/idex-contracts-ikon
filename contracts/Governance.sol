@@ -9,7 +9,7 @@ import { Owned } from "./Owned.sol";
 import { String } from "./libraries/String.sol";
 import { Validations } from "./libraries/Validations.sol";
 import { OverridableMarketFields } from "./libraries/Structs.sol";
-import { IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter } from "./libraries/Interfaces.sol";
+import { IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "./libraries/Interfaces.sol";
 
 contract Governance is Owned {
   // State variables //
@@ -27,6 +27,7 @@ contract Governance is Owned {
   InsuranceFundWalletUpgrade public currentInsuranceFundWalletUpgrade;
   mapping(string => mapping(address => MarketOverridesUpgrade))
     public currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet;
+  ContractUpgrade public currentOraclePriceAdapterUpgrade;
 
   // Internally used structs //
 
@@ -103,11 +104,11 @@ contract Governance is Owned {
    */
   event GovernanceUpgradeFinalized(address oldGovernance, address newGovernance);
   /**
-   * @notice Emitted when admin initiates IPS wallet upgrade with `initiateIndexPriceAdaptersUpgrade`
+   * @notice Emitted when admin initiates index price adapter  upgrade with `initiateIndexPriceAdaptersUpgrade`
    */
   event IndexPriceAdaptersUpgradeInitiated(IIndexPriceAdapter[] newIndexPriceAdapters, uint256 blockThreshold);
   /**
-   * @notice Emitted when admin cancels previously started IPS wallet upgrade with
+   * @notice Emitted when admin cancels previously started index price adapter upgrade with
    * `cancelIndexPriceAdaptersUpgrade`
    */
   event IndexPriceAdaptersUpgradeCanceled();
@@ -148,6 +149,18 @@ contract Governance is Owned {
     address wallet,
     OverridableMarketFields overridableFields
   );
+  /**
+   * @notice Emitted when admin initiates oracle price adapter upgrade with `initiateOraclePriceAdapterUpgrade`
+   */
+  event OraclePriceAdapterUpgradeInitiated(IOraclePriceAdapter newOraclePriceAdapter, uint256 blockThreshold);
+  /**
+   * @notice Emitted when admin cancels previously started oracle price adapter upgrade with `cancelOraclePriceAdapterUpgrade`
+   */
+  event OraclePriceAdapterUpgradeCanceled();
+  /**
+   * @notice Emitted when admin finalizes oracle price adapter upgrade with `finalizeOraclePriceAdapterUpgrade`
+   */
+  event OraclePriceAdapterUpgradeFinalized(IOraclePriceAdapter newOraclePriceAdapter);
 
   modifier onlyAdminOrDispatcher() {
     require(
@@ -354,7 +367,7 @@ contract Governance is Owned {
    * @notice Initiates Index Price Service wallet upgrade process. Once block delay has passed the process
    * can be finalized with `finalizeIndexPriceAdaptersUpgrade`
    *
-   * @param newIndexPriceAdapters The IPS wallet addresses
+   * @param newIndexPriceAdapters The index price adapter contract addresses
    */
   function initiateIndexPriceAdaptersUpgrade(IIndexPriceAdapter[] memory newIndexPriceAdapters) public onlyAdmin {
     for (uint8 i = 0; i < newIndexPriceAdapters.length; i++) {
@@ -373,7 +386,7 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Cancels an in-flight IPS wallet upgrade that has not yet been finalized
+   * @notice Cancels an in-flight index price adapter  wallet upgrade that has not yet been finalized
    */
   function cancelIndexPriceAdaptersUpgrade() public onlyAdmin {
     require(currentIndexPriceAdaptersUpgrade.exists, "No index price adapter upgrade in progress");
@@ -384,11 +397,11 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the IPS wallet upgrade. The number of blocks specified by
+   * @notice Finalizes the index price adapter  wallet upgrade. The number of blocks specified by
    * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
    * `initiateIndexPriceAdaptersUpgrade`
    *
-   * @param newIndexPriceAdapters The address of the new IPS wallets. Must equal the addresses
+   * @param newIndexPriceAdapters The address of the new index price adapter contracts. Must equal the addresses
    * provided to `initiateIndexPriceAdaptersUpgrade`
    */
   function finalizeIndexPriceAdaptersUpgrade(
@@ -553,5 +566,56 @@ contract Governance is Owned {
     delete (currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet]);
 
     emit MarketOverridesUpgradeFinalized(baseAssetSymbol, wallet, overridableFields);
+  }
+
+  /**
+   * @notice Initiates Oracle Price Adapter upgrade process. Once block delay has passed the process can be
+   * finalized with `finalizeOraclePriceAdapterUpgrade`
+   *
+   * @param newOraclePriceAdapter The new adapter descriptor struct
+   */
+  function initiateOraclePriceAdapterUpgrade(IOraclePriceAdapter newOraclePriceAdapter) public onlyAdmin {
+    require(!currentOraclePriceAdapterUpgrade.exists, "Oracle price adapter upgrade already in progress");
+
+    require(Address.isContract(address(newOraclePriceAdapter)), "Invalid oracle price adapter address");
+
+    currentOraclePriceAdapterUpgrade.exists = true;
+    currentOraclePriceAdapterUpgrade.newContract = address(newOraclePriceAdapter);
+    currentOraclePriceAdapterUpgrade.blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+
+    emit OraclePriceAdapterUpgradeInitiated(newOraclePriceAdapter, currentBridgeAdaptersUpgrade.blockThreshold);
+  }
+
+  /**
+   * @notice Cancels an in-flight oracle price adapter upgrade that has not yet been finalized
+   */
+  function cancelOraclePriceAdapterUpgrade() public onlyAdmin {
+    require(currentOraclePriceAdapterUpgrade.exists, "No oracle price adapter upgrade in progress");
+
+    delete currentOraclePriceAdapterUpgrade;
+
+    emit OraclePriceAdapterUpgradeCanceled();
+  }
+
+  /**
+   * @notice Finalizes the oracle price adapter upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
+   * `initiateOraclePriceAdapterUpgrade`
+   *
+   * @param newOraclePriceAdapter The address of the new oracle price adapter contracts. Must equal the addresses
+   * provided to `initiateOraclePriceAdapterUpgrade`
+   */
+  function finalizeOraclePriceAdapterUpgrade(IOraclePriceAdapter newOraclePriceAdapter) public onlyAdminOrDispatcher {
+    require(currentOraclePriceAdapterUpgrade.exists, "No oracle price adapter upgrade in progress");
+
+    require(currentOraclePriceAdapterUpgrade.newContract == address(newOraclePriceAdapter), "Address mismatch");
+
+    require(block.number >= currentOraclePriceAdapterUpgrade.blockThreshold, "Block threshold not yet reached");
+
+    exchange.setOraclePriceAdapter(newOraclePriceAdapter);
+
+    delete (currentOraclePriceAdapterUpgrade);
+
+    emit OraclePriceAdapterUpgradeFinalized(newOraclePriceAdapter);
   }
 }

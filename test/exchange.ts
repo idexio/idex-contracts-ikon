@@ -128,6 +128,25 @@ describe('Exchange', function () {
         ),
       ).to.eventually.be.rejectedWith(/invalid IF wallet/i);
     });
+
+    it('should revert for zero oracle price adapter address', async () => {
+      const [ownerWallet] = await ethers.getSigners();
+
+      const balanceMigrationSourceMock =
+        await BalanceMigrationSourceMockFactory.deploy(0);
+
+      await expect(
+        ExchangeFactory.deploy(
+          balanceMigrationSourceMock.address,
+          ownerWallet.address,
+          ownerWallet.address,
+          [usdc.address],
+          ownerWallet.address,
+          ethers.constants.AddressZero,
+          usdc.address,
+        ),
+      ).to.eventually.be.rejectedWith(/invalid oracle price adapter address/i);
+    });
   });
 
   describe('field upgrade governance setters', () => {
@@ -159,6 +178,14 @@ describe('Exchange', function () {
       it('should revert when not called by Governance', async () => {
         await expect(
           exchange.setInsuranceFundWallet(ethers.constants.AddressZero),
+        ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
+      });
+    });
+
+    describe('setOraclePriceAdapter', async function () {
+      it('should revert when not called by Governance', async () => {
+        await expect(
+          exchange.setOraclePriceAdapter(ethers.constants.AddressZero),
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
     });

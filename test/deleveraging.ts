@@ -25,7 +25,7 @@ import {
 } from './helpers';
 
 // TODO Partial deleveraging
-describe.only('Exchange', function () {
+describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
@@ -64,6 +64,10 @@ describe.only('Exchange', function () {
       feeWallet,
       indexPriceServiceWallet,
       insuranceFundWallet,
+      0,
+      true,
+      ethers.constants.AddressZero,
+      ['ETH', 'BTC'],
     );
     exchange = results.exchange;
     governance = results.governance;

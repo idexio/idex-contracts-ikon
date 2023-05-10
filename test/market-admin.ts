@@ -8,7 +8,9 @@ import type { MarketStruct } from '../typechain-types/contracts/Exchange.sol/Exc
 import {
   baseAssetSymbol,
   buildIndexPrice,
+  buildIndexPriceWithTimestamp,
   deployAndAssociateContracts,
+  getLatestBlockTimestampInSeconds,
   quoteAssetSymbol,
 } from './helpers';
 import { indexPriceToArgumentStruct } from '../lib';
@@ -205,11 +207,12 @@ describe('Exchange', function () {
     });
 
     it('should revert when index price is outdated', async () => {
-      const indexPrice = await buildIndexPrice(
+      const indexPrice = await buildIndexPriceWithTimestamp(
         exchange.address,
         indexPriceServiceWallet,
+        (await getLatestBlockTimestampInSeconds()) * 1000 -
+          2 * 24 * 60 * 60 * 1000,
       );
-      indexPrice.timestampInMs -= 2 * 24 * 60 * 60 * 1000;
 
       await expect(
         exchange.publishIndexPrices([
@@ -219,11 +222,12 @@ describe('Exchange', function () {
     });
 
     it('should revert when index price is too far in future', async () => {
-      const indexPrice = await buildIndexPrice(
+      const indexPrice = await buildIndexPriceWithTimestamp(
         exchange.address,
         indexPriceServiceWallet,
+        (await getLatestBlockTimestampInSeconds()) * 1000 +
+          2 * 24 * 60 * 60 * 1000,
       );
-      indexPrice.timestampInMs += 2 * 24 * 60 * 60 * 1000;
 
       await expect(
         exchange.publishIndexPrices([

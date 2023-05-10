@@ -8,11 +8,14 @@ import { Constants } from "../libraries/Constants.sol";
 import { Hashing } from "../libraries/Hashing.sol";
 import { IIndexPriceAdapter } from "../libraries/Interfaces.sol";
 import { IndexPrice } from "../libraries/Structs.sol";
+import { Owned } from "../Owned.sol";
 import { String } from "../libraries/String.sol";
 
-contract IDEXIndexPriceAdapter is IIndexPriceAdapter {
+contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
     keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
+
+  address public exchange;
 
   // EIP-712 domain separator hash for Exchange
   bytes32 public exchangeDomainSeparator;
@@ -34,17 +37,23 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter {
     indexPriceServiceWallets = indexPriceServiceWallets_;
   }
 
-  function setExchange(address exchange) public {
-    require(Address.isContract(exchange), "Invalid Exchange address");
-    require(exchangeDomainSeparator == bytes32(0), "Exchange can only be set once");
+  modifier onlyExchange() {
+    require(msg.sender == exchange, "Caller must be Exchange contract");
+    _;
+  }
 
+  function setExchange(address exchange_) public onlyOwner {
+    require(Address.isContract(exchange_), "Invalid Exchange contract address");
+    require(exchange == address(0x0), "Exchange contract can only be set once");
+
+    exchange = exchange_;
     exchangeDomainSeparator = keccak256(
       abi.encode(
         Constants.EIP_712_TYPE_HASH_DOMAIN,
         keccak256(bytes(Constants.EIP_712_DOMAIN_NAME)),
         keccak256(bytes(Constants.EIP_712_DOMAIN_VERSION)),
         block.chainid,
-        exchange
+        exchange_
       )
     );
   }
@@ -56,9 +65,7 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter {
     return indexPrice.price;
   }
 
-  function validateIndexPricePayload(bytes calldata payload) external returns (IndexPrice memory) {
-    require(exchangeDomainSeparator != bytes32(0), "Exchange not set");
-
+  function validateIndexPricePayload(bytes memory payload) public onlyExchange returns (IndexPrice memory) {
     (IndexPrice memory indexPrice, bytes memory signature) = abi.decode(payload, (IndexPrice, bytes));
 
     // Extract signer from signature

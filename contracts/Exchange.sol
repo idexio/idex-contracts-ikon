@@ -425,7 +425,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
-   * @notice Sets Index Price Adapter contract addresses whitelisted to sign Index Price payloads
+   * @notice Sets Index Price Adapter contract addresses
    *
    * @param newIndexPriceAdapters An array of contract addresses
    */
@@ -440,6 +440,15 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
     insuranceFundWallet = newInsuranceFundWallet;
+  }
+
+  /**
+   * @notice Sets Oracle Price Adapter contract address
+   *
+   * @param newOraclePriceAdapter The new contract addresses
+   */
+  function setOraclePriceAdapter(IOraclePriceAdapter newOraclePriceAdapter) public onlyGovernance {
+    oraclePriceAdapter = newOraclePriceAdapter;
   }
 
   /**

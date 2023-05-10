@@ -28,7 +28,7 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
 
   function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) public view returns (uint64 price) {
     IChainlinkAggregator chainlinkAggregator = chainlinkAggregatorsByBaseAssetSymbol[baseAssetSymbol];
-    require(address(chainlinkAggregator) != address(0x0), "Missing aggregator");
+    require(address(chainlinkAggregator) != address(0x0), "Missing aggregator for symbol");
 
     (, int256 answer, , , ) = chainlinkAggregator.latestRoundData();
     require(answer > 0, "Unexpected non-positive feed price");

@@ -38,26 +38,7 @@ export async function addAndActivateMarket(
   dispatcherWallet: SignerWithAddress,
   exchange: Exchange_v4,
   baseAssetSymbol_ = baseAssetSymbol,
-  deployOraclePriceAdapter = false,
 ) {
-  if (deployOraclePriceAdapter) {
-    const [ChainlinkAggregatorFactory, ChainlinkOraclePriceAdapter] =
-      await Promise.all([
-        ethers.getContractFactory('ChainlinkAggregatorMock'),
-        ethers.getContractFactory('ChainlinkOraclePriceAdapter'),
-      ]);
-
-    const chainlinkAggregator = await (
-      await ChainlinkAggregatorFactory.deploy()
-    ).deployed();
-    const oraclePriceAdapter = await (
-      await ChainlinkOraclePriceAdapter.deploy(
-        [baseAssetSymbol],
-        [chainlinkAggregator.address],
-      )
-    ).deployed();
-  }
-
   await exchange.addMarket({
     exists: true,
     isActive: false,
@@ -181,12 +162,13 @@ export async function buildIndexPriceWithTimestamp(
   indexPriceServiceWallet: SignerWithAddress,
   timestampInMs: number,
   baseAssetSymbol_ = baseAssetSymbol,
+  price = prices[0],
 ): Promise<IndexPrice> {
   const indexPrice = {
     signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
     timestampInMs,
-    price: prices[0],
+    price,
   };
   const signature = await indexPriceServiceWallet._signTypedData(
     ...getIndexPriceSignatureTypedData(
@@ -253,10 +235,11 @@ export async function deployContractsExceptCustodian(
   insuranceFund: SignerWithAddress = owner,
   governanceBlockDelay = 0,
   balanceMigrationSource?: string,
+  baseAssetSymbols: string[] = [baseAssetSymbol],
 ) {
   const [
     ChainlinkAggregatorFactory,
-    ChainlinkOraclePriceAdapter,
+    ChainlinkOraclePriceAdapterFactory,
     IDEXIndexPriceAdapterFactory,
     USDCFactory,
     ExchangeFactory,
@@ -279,9 +262,12 @@ export async function deployContractsExceptCustodian(
   const usdc = await (await USDCFactory.connect(owner).deploy()).deployed();
 
   const oraclePriceAdapter = await (
-    await ChainlinkOraclePriceAdapter.connect(owner).deploy(
-      [baseAssetSymbol],
-      [chainlinkAggregator.address],
+    await ChainlinkOraclePriceAdapterFactory.connect(owner).deploy(
+      baseAssetSymbols,
+      // TODO Do we need to set on-chain prices separately per market?
+      Array.from(Array(baseAssetSymbols.length).keys()).map(
+        () => chainlinkAggregator.address,
+      ),
     )
   ).deployed();
 
@@ -330,6 +316,7 @@ export async function deployAndAssociateContracts(
   governanceBlockDelay = 0,
   addDefaultMarket = true,
   balanceMigrationSource?: string,
+  baseAssetSymbols: string[] = [baseAssetSymbol],
 ) {
   const {
     chainlinkAggregator,
@@ -346,6 +333,7 @@ export async function deployAndAssociateContracts(
     insuranceFund,
     governanceBlockDelay,
     balanceMigrationSource,
+    baseAssetSymbols,
   );
 
   const Custodian = await ethers.getContractFactory('Custodian');
