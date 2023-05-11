@@ -30,7 +30,7 @@ import { WalletExits } from "./libraries/WalletExits.sol";
 import { WalletInMaintenanceAcquisitionDeleveraging } from "./libraries/WalletInMaintenanceAcquisitionDeleveraging.sol";
 import { WalletInMaintenanceLiquidation } from "./libraries/WalletInMaintenanceLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, IndexPricePayload, ExecuteTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPricePayload, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
 import { IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "./libraries/Interfaces.sol";
 
@@ -221,8 +221,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param balanceMigrationSource Previous Exchange contract to migrate wallet balances from. Not used if zero
    * @param exitFundWallet_ Address of EF wallet
    * @param feeWallet_ Address of Fee wallet
-   * @param indexPriceAdapters_ Addresses of Index Price Adapter contracts whitelisted to validate Index Price payloads
+   * @param indexPriceAdapters_ Addresses of Index Price Adapter contracts whitelisted to validate index price payloads
    * @param insuranceFundWallet_ Address of IF wallet
+   * @param oraclePriceAdapter_ Addresses of Oracle Price Adapter contract used for on-chain exit pricing
    * @param quoteTokenAddress_ Address of quote asset ERC20 contract
    *
    * @dev Sets `owner_` and `admin_` to `msg.sender`
@@ -253,11 +254,11 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     insuranceFundWallet = insuranceFundWallet_;
 
     for (uint8 i = 0; i < indexPriceAdapters_.length; i++) {
-      require(Address.isContract(address(indexPriceAdapters_[i])), "Invalid index price adapter address");
+      require(Address.isContract(address(indexPriceAdapters_[i])), "Invalid Index Price Adapter address");
     }
     indexPriceAdapters = indexPriceAdapters_;
 
-    require(Address.isContract(address(oraclePriceAdapter_)), "Invalid oracle price adapter address");
+    require(Address.isContract(address(oraclePriceAdapter_)), "Invalid Oracle Price Adapter address");
     oraclePriceAdapter = oraclePriceAdapter_;
 
     // Deposits must be manually enabled via `setDepositIndex`
@@ -328,7 +329,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
-   * @notice Sets the address of the `Custodian` contract as well as initial cross-chain Bridge Adapters
+   * @notice Sets the address of the `Custodian` contract as well as initial cross-chain Bridge Adapter contracts
    *
    * @dev The `Custodian` accepts `Exchange` and `Governance` addresses in its constructor, after which they can only be
    * changed by the `Governance` contract itself. Therefore the `Custodian` must be deployed last and its address set
@@ -443,7 +444,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
-   * @notice Sets Oracle Price Adapter contract address
+   * @notice Sets Oracle Price Adapter contract address used for on-chain exit pricing
    *
    * @param newOraclePriceAdapter The new contract addresses
    */

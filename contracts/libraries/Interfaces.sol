@@ -170,10 +170,22 @@ interface IExchange {
   function setOraclePriceAdapter(IOraclePriceAdapter newOraclePriceAdapter) external;
 }
 
+/**
+ * @notice Interface to Oracle Price Adapter
+ */
 interface IOraclePriceAdapter {
+  /**
+   * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
+   */
   function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) external view returns (uint64 price);
 }
 
+/**
+ * @notice Interface to Index Price Adapter
+ */
 interface IIndexPriceAdapter is IOraclePriceAdapter {
+  /**
+   * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   */
   function validateIndexPricePayload(bytes calldata payload) external returns (IndexPrice memory);
 }

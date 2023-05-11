@@ -5,6 +5,10 @@ coverage
 coverage.json
 typechain-types
 
-#Hardhat files
+# Hardhat files
 cache
 artifacts
+
+# Etherscan verification
+exchangeArguments.js
+governanaceArguments.js

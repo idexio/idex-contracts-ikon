@@ -15,7 +15,7 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
    * @notice Instantiate a new `ChainlinkOraclePriceAdapter` contract
    *
    * @param baseAssetSymbols Base asset symbols
-   * @param chainlinkAggregators Addresses of Chainlink aggregator corresponding to base asset symbols
+   * @param chainlinkAggregators Addresses of Chainlink aggregators corresponding to base asset symbols
    */
   constructor(string[] memory baseAssetSymbols, IChainlinkAggregator[] memory chainlinkAggregators) {
     require(baseAssetSymbols.length == chainlinkAggregators.length, "Argument length mismatch");
@@ -26,6 +26,9 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
     }
   }
 
+  /**
+   * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
+   */
   function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) public view returns (uint64 price) {
     IChainlinkAggregator chainlinkAggregator = chainlinkAggregatorsByBaseAssetSymbol[baseAssetSymbol];
     require(address(chainlinkAggregator) != address(0x0), "Missing aggregator for symbol");
