@@ -15,11 +15,13 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
     keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
 
+  // Address of Exchange contract
   address public exchange;
 
   // EIP-712 domain separator hash for Exchange
   bytes32 public exchangeDomainSeparator;
 
+  // IPS wallet addresses whitelisted to sign index price payloads
   address[] public indexPriceServiceWallets;
 
   // Mapping of base asset symbol => index price struct
@@ -42,9 +44,15 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
     _;
   }
 
+  /**
+   * @notice Sets Exchange contract address used for EIP-712 domain and access control. This value is immutable once
+   * set and cannot be changed again
+   *
+   * @param exchange_ The address of the new whitelisted Exchange contract
+   */
   function setExchange(address exchange_) public onlyOwner {
-    require(Address.isContract(exchange_), "Invalid Exchange contract address");
     require(exchange == address(0x0), "Exchange contract can only be set once");
+    require(Address.isContract(exchange_), "Invalid Exchange contract address");
 
     exchange = exchange_;
     exchangeDomainSeparator = keccak256(
@@ -58,6 +66,9 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
     );
   }
 
+  /**
+   * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
+   */
   function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) public view returns (uint64 price) {
     IndexPrice memory indexPrice = latestIndexPriceByBaseAssetSymbol[baseAssetSymbol];
     require(indexPrice.price > 0, "Missing price");
@@ -65,6 +76,9 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
     return indexPrice.price;
   }
 
+  /**
+   * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   */
   function validateIndexPricePayload(bytes memory payload) public onlyExchange returns (IndexPrice memory) {
     (IndexPrice memory indexPrice, bytes memory signature) = abi.decode(payload, (IndexPrice, bytes));
 
