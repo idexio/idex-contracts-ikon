@@ -36,13 +36,13 @@ library FundingMultiplierQuartetHelper {
 
   /**
    * @dev Given a start and end timestamp, scans an array of funding multiplier quartets and calculates the aggregate
-   * funding rate payment to apply
+   * funding payment to apply
    *
    * @param self The array of funding multiplier quartets
    * @param fromTimestampInMs The publish timestamp of the first funding multiplier to apply
    * @param toTimestampInMs The publish timestamp of the last funding multiplier to apply
    * @param lastFundingRatePublishTimestampInMs The publish timestamp of the latest funding multiplier in the array
-   * @param positionSize The position size against which all funding multipliers are applied
+   * @param positionSize The position size against which all funding multipliers are multiplied
    */
   function loadAggregatePayment(
     FundingMultiplierQuartet[] storage self,
