@@ -235,7 +235,7 @@ library Funding {
       // is either itself `lastFundingRatePublishTimestampInMs` OR `fromTimestampInMs` is at least
       // `MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS` behind `lastFundingRatePublishTimestampInMs`
 
-      // Load aggregate funding multiplier over specified from and to timestamps
+      // Load aggregate funding payment over specified from and to timestamps
       int64 funding = fundingMultipliersByBaseAssetSymbol[market.baseAssetSymbol].loadAggregatePayment(
         fromTimestampInMs,
         toTimestampInMs,
