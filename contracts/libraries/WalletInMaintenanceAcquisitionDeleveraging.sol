@@ -52,10 +52,20 @@ library WalletInMaintenanceAcquisitionDeleveraging {
       marketsByBaseAssetSymbol
     );
 
+    int64 insuranceFundWalletOutstandingFundingPayment = Funding.loadOutstandingWalletFunding(
+      arguments.liquidatingWallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
     _validateArgumentsAndDeleverage(
       arguments,
       exitFundWallet,
       insuranceFundWallet,
+      insuranceFundWalletOutstandingFundingPayment,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -68,6 +78,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     AcquisitionDeleverageArguments memory arguments,
     address exitFundWallet,
     address insuranceFundWallet,
+    int64 insuranceFundWalletOutstandingFundingPayment,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -100,6 +111,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     _validateInsuranceFundCannotLiquidateWallet(
       arguments,
       insuranceFundWallet,
+      insuranceFundWalletOutstandingFundingPayment,
       liquidatingWalletTotalAccountValue,
       liquidatingWalletTotalMaintenanceMarginRequirement,
       balanceTracking,
@@ -226,6 +238,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
   function _validateInsuranceFundCannotLiquidateWallet(
     AcquisitionDeleverageArguments memory arguments,
     address insuranceFundWallet,
+    int64 insuranceFundWalletOutstandingFundingPayment,
     int64 liquidatingWalletTotalAccountValue,
     uint64 liquidatingWalletTotalMaintenanceMarginRequirement,
     BalanceTracking.Storage storage balanceTracking,
@@ -243,6 +256,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     IndexPriceMargin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments = IndexPriceMargin
       .ValidateInsuranceFundCannotLiquidateWalletArguments(
         insuranceFundWallet,
+        insuranceFundWalletOutstandingFundingPayment,
         arguments.liquidatingWallet,
         arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities,
         new Market[](baseAssetSymbolsForInsuranceFundAndLiquidatingWallet.length)
