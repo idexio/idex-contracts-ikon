@@ -53,7 +53,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     );
 
     int64 insuranceFundWalletOutstandingFundingPayment = Funding.loadOutstandingWalletFunding(
-      arguments.liquidatingWallet,
+      insuranceFundWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
