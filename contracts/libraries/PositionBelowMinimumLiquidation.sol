@@ -58,7 +58,10 @@ library PositionBelowMinimumLiquidation {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-    require(totalAccountValue >= int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement not met");
+    require(
+      totalAccountValue >= Math.toInt64(totalMaintenanceMarginRequirement),
+      "Maintenance margin requirement not met"
+    );
 
     _validateAndLiquidatePositionBelowMinimum(
       arguments,

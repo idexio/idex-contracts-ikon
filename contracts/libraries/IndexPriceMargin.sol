@@ -130,8 +130,8 @@ library IndexPriceMargin {
 
       totalAccountValue += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-        int64(market.lastIndexPrice),
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+        Math.toInt64(market.lastIndexPrice),
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
   }
@@ -261,8 +261,8 @@ library IndexPriceMargin {
 
       totalAccountValue += Math.multiplyPipsByFraction(
         positionSize,
-        int64(market.lastIndexPrice),
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+        Math.toInt64(market.lastIndexPrice),
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
       totalInitialMarginRequirement += _loadMarginRequirement(
         market.loadInitialMarginFractionForWallet(positionSize, wallet, marketOverridesByBaseAssetSymbolAndWallet),
@@ -271,7 +271,7 @@ library IndexPriceMargin {
       );
     }
 
-    require(totalAccountValue >= int64(totalInitialMarginRequirement), "Initial margin requirement not met");
+    require(totalAccountValue >= Math.toInt64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
   /**
@@ -295,7 +295,7 @@ library IndexPriceMargin {
     // IF cannot acquire if doing so would exceed its max position size or bring it below its initial margin requirement
     require(
       isInsuranceFundMaximumPositionSizeExceeded ||
-        insuranceFundTotalAccountValue < int64(insuranceFundTotalInitialMarginRequirement),
+        insuranceFundTotalAccountValue < Math.toInt64(insuranceFundTotalInitialMarginRequirement),
       "Insurance fund can acquire"
     );
   }
@@ -325,10 +325,10 @@ library IndexPriceMargin {
 
       if (balanceStruct.balance < 0) {
         // Short positions have negative value
-        exitAccountValue -= int64(quoteQuantityForPosition);
+        exitAccountValue -= Math.toInt64(quoteQuantityForPosition);
       } else {
         // Long positions have positive value
-        exitAccountValue += int64(quoteQuantityForPosition);
+        exitAccountValue += Math.toInt64(quoteQuantityForPosition);
       }
     }
   }
@@ -364,10 +364,10 @@ library IndexPriceMargin {
 
       if (liquidatingWalletPositionSize < 0) {
         // IF receives quote to acquire short position
-        insuranceFundTotalAccountValue += int64(arguments.liquidationQuoteQuantities[i]);
+        insuranceFundTotalAccountValue += Math.toInt64(arguments.liquidationQuoteQuantities[i]);
       } else {
         // IF gives quote to acquire long position
-        insuranceFundTotalAccountValue -= int64(arguments.liquidationQuoteQuantities[i]);
+        insuranceFundTotalAccountValue -= Math.toInt64(arguments.liquidationQuoteQuantities[i]);
       }
 
       // Calculate Insurance Fund position size after acquiring position
@@ -385,7 +385,7 @@ library IndexPriceMargin {
       isInsuranceFundMaximumPositionSizeExceeded =
         insuranceFundPositionSizeAfterAcquisition > type(int64).max ||
         insuranceFundPositionSizeAfterAcquisition < type(int64).min ||
-        Math.abs(int64(insuranceFundPositionSizeAfterAcquisition)) >
+        Math.abs(Math.toInt64(insuranceFundPositionSizeAfterAcquisition)) >
         arguments
           .markets[i]
           .loadMarketWithOverridesForWallet(arguments.insuranceFundWallet, marketOverridesByBaseAssetSymbolAndWallet)
@@ -399,28 +399,19 @@ library IndexPriceMargin {
       // If position is non-zero then include in total account value
       if (insuranceFundPositionSizeAfterAcquisition != 0) {
         // Accumulate account value by adding signed position value
-        insuranceFundTotalAccountValue += Math.multiplyPipsByFraction(
+        int64 positionNotionalValue = Math.multiplyPipsByFraction(
           int64(insuranceFundPositionSizeAfterAcquisition),
-          int64(arguments.markets[i].lastIndexPrice),
-          int64(Constants.PIP_PRICE_MULTIPLIER)
+          Math.toInt64(arguments.markets[i].lastIndexPrice),
+          Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
         );
+        insuranceFundTotalAccountValue += positionNotionalValue;
         // Accumulate margin requirement
-        insuranceFundTotalInitialMarginRequirement += Math.abs(
-          Math.multiplyPipsByFraction(
-            Math.multiplyPipsByFraction(
-              int64(insuranceFundPositionSizeAfterAcquisition),
-              int64(arguments.markets[i].lastIndexPrice),
-              int64(Constants.PIP_PRICE_MULTIPLIER)
-            ),
-            int64(
-              arguments.markets[i].loadInitialMarginFractionForWallet(
-                int64(insuranceFundPositionSizeAfterAcquisition),
-                arguments.insuranceFundWallet,
-                marketOverridesByBaseAssetSymbolAndWallet
-              )
-            ),
-            int64(Constants.PIP_PRICE_MULTIPLIER)
-          )
+        insuranceFundTotalInitialMarginRequirement += _loadInitialMarginRequirement(
+          arguments.insuranceFundWallet,
+          arguments.markets[i],
+          int64(insuranceFundPositionSizeAfterAcquisition),
+          positionNotionalValue,
+          marketOverridesByBaseAssetSymbolAndWallet
         );
       }
     }
@@ -436,6 +427,29 @@ library IndexPriceMargin {
         Math.multiplyPipsByFraction(Math.abs(positionSize), lastIndexPrice, Constants.PIP_PRICE_MULTIPLIER),
         marginFraction,
         Constants.PIP_PRICE_MULTIPLIER
+      );
+  }
+
+  function _loadInitialMarginRequirement(
+    address insuranceFundWallet,
+    Market memory market,
+    int64 positionSize,
+    int64 positionNotionalValue,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
+  ) private view returns (uint64) {
+    return
+      Math.abs(
+        Math.multiplyPipsByFraction(
+          positionNotionalValue,
+          Math.toInt64(
+            market.loadInitialMarginFractionForWallet(
+              positionSize,
+              insuranceFundWallet,
+              marketOverridesByBaseAssetSymbolAndWallet
+            )
+          ),
+          Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
+        )
       );
   }
 }

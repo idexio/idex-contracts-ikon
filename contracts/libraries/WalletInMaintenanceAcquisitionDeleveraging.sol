@@ -103,7 +103,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
         marketsByBaseAssetSymbol
       );
     require(
-      liquidatingWalletTotalAccountValue < int64(liquidatingWalletTotalMaintenanceMarginRequirement),
+      liquidatingWalletTotalAccountValue < Math.toInt64(liquidatingWalletTotalMaintenanceMarginRequirement),
       "Maintenance margin requirement met"
     );
 
@@ -190,8 +190,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
       market.lastIndexPrice,
       balanceStruct.balance < 0
-        ? (-1 * int64(arguments.liquidationBaseQuantity))
-        : int64(arguments.liquidationBaseQuantity),
+        ? (-1 * Math.toInt64(arguments.liquidationBaseQuantity))
+        : Math.toInt64(arguments.liquidationBaseQuantity),
       arguments.liquidationQuoteQuantity,
       market
         .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)

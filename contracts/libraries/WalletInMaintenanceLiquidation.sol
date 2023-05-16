@@ -9,6 +9,7 @@ import { IndexPriceMargin } from "./IndexPriceMargin.sol";
 import { LiquidationType } from "./Enums.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
 import { MarketHelper } from "./MarketHelper.sol";
+import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Balance, FundingMultiplierQuartet, Market, MarketOverrides, WalletLiquidationArguments } from "./Structs.sol";
 
@@ -136,7 +137,7 @@ library WalletInMaintenanceLiquidation {
         marketsByBaseAssetSymbol
       );
 
-    require(totalAccountValue < int64(totalMaintenanceMarginRequirement), "Maintenance margin requirement met");
+    require(totalAccountValue < Math.toInt64(totalMaintenanceMarginRequirement), "Maintenance margin requirement met");
 
     Market memory market;
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];

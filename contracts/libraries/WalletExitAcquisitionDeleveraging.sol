@@ -256,8 +256,8 @@ library WalletExitAcquisitionDeleveraging {
     validateExitQuoteQuantityArguments.deleveragePriceStrategy = arguments.deleveragePriceStrategy;
     validateExitQuoteQuantityArguments.indexPrice = market.lastIndexPrice;
     validateExitQuoteQuantityArguments.liquidationBaseQuantity = balanceStruct.balance < 0
-      ? (-1 * int64(arguments.acquisitionDeleverageArguments.liquidationBaseQuantity))
-      : int64(arguments.acquisitionDeleverageArguments.liquidationBaseQuantity);
+      ? (-1 * Math.toInt64(arguments.acquisitionDeleverageArguments.liquidationBaseQuantity))
+      : Math.toInt64(arguments.acquisitionDeleverageArguments.liquidationBaseQuantity);
     validateExitQuoteQuantityArguments.liquidationQuoteQuantity = arguments
       .acquisitionDeleverageArguments
       .liquidationQuoteQuantity;
@@ -314,7 +314,7 @@ library WalletExitAcquisitionDeleveraging {
           balanceStruct.costBasis,
           arguments.liquidationBaseQuantity,
           // Position size implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
-          int64(Math.abs(balanceStruct.balance))
+          Math.toInt64(Math.abs(balanceStruct.balance))
         ),
         arguments.indexPrice,
         arguments.liquidationBaseQuantity,
