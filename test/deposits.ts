@@ -79,6 +79,56 @@ describe('Exchange', function () {
       expect(depositedEvents[0].args?.quantity).to.equal(
         decimalToPips('5.00000000'),
       );
+      expect(depositedEvents[0].args?.newExchangeBalance).to.equal(
+        decimalToPips('5.00000000'),
+      );
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            traderWallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('5.00000000'));
+    });
+
+    it('should work with fee', async function () {
+      await expect(usdc.decimals()).to.eventually.equal(quoteAssetDecimals);
+
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      const feeQuantity = ethers.utils.parseUnits('0.5', quoteAssetDecimals);
+
+      await usdc.transfer(traderWallet.address, depositQuantity);
+      await usdc
+        .connect(traderWallet)
+        .approve(exchange.address, depositQuantity);
+      await usdc.setFee(feeQuantity);
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+
+      const depositedEvents = await exchange.queryFilter(
+        exchange.filters.Deposited(),
+      );
+
+      expect(depositedEvents).to.have.lengthOf(1);
+      expect(depositedEvents[0].args?.quantity).to.equal(
+        decimalToPips('5.00000000'),
+      );
+      expect(depositedEvents[0].args?.newExchangeBalance).to.equal(
+        decimalToPips('4.50000000'),
+      );
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            traderWallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('4.50000000'));
     });
 
     it('should migrate balance on deposit', async () => {

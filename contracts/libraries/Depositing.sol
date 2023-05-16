@@ -46,10 +46,21 @@ library Depositing {
       Constants.QUOTE_TOKEN_DECIMALS
     );
 
+    uint256 balanceBefore = IERC20(quoteTokenAddress).balanceOf(address(custodian));
+
     // Forward the funds to the `Custodian`
     IERC20(quoteTokenAddress).transferFrom(sourceWallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
 
+    uint256 balanceAfter = IERC20(quoteTokenAddress).balanceOf(address(custodian));
+
+    // Support fee-on-transfer by only crediting actual token balance difference. If fee causes transferred amount to
+    // have a fractional pip component, it will accumulate as dust in the Custodian
+    uint64 quantityTransferred = AssetUnitConversions.assetUnitsToPips(
+      balanceAfter - balanceBefore,
+      Constants.QUOTE_TOKEN_DECIMALS
+    );
+
     // Update balance with actual transferred quantity
-    newExchangeBalance = balanceTracking.updateForDeposit(destinationWallet, quantity);
+    newExchangeBalance = balanceTracking.updateForDeposit(destinationWallet, quantityTransferred);
   }
 }
