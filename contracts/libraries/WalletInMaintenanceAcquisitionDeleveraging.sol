@@ -297,20 +297,29 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
-    LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
-      loadArguments.markets[index].lastIndexPrice,
-      balanceTracking.loadBalanceAndMigrateIfNeeded(
-        arguments.liquidatingWallet,
-        baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[index]
-      ),
-      arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
-      loadArguments
-        .markets[index]
-        .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
-        .overridableFields
-        .maintenanceMarginFraction,
-      liquidatingWalletTotalAccountValue,
-      liquidatingWalletTotalMaintenanceMarginRequirement
+    int64 positionSize = balanceTracking.loadBalanceAndMigrateIfNeeded(
+      arguments.liquidatingWallet,
+      baseAssetSymbolsForInsuranceFundAndLiquidatingWallet[index]
     );
+
+    if (positionSize != 0) {
+      LiquidationValidations.validateQuoteQuantityAtBankruptcyPrice(
+        loadArguments.markets[index].lastIndexPrice,
+        positionSize,
+        arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index],
+        loadArguments
+          .markets[index]
+          .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        liquidatingWalletTotalAccountValue,
+        liquidatingWalletTotalMaintenanceMarginRequirement
+      );
+    } else {
+      require(
+        arguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[index] == 0,
+        "Invalid quote quantity"
+      );
+    }
   }
 }

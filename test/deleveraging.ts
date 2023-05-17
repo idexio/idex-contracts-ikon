@@ -293,6 +293,168 @@ describe('Exchange', function () {
         });
     });
 
+    it('should work when IF has open position that liquidating wallet does not', async function () {
+      const indexPrice = await buildIndexPriceWithValue(
+        exchange.address,
+        indexPriceServiceWallet,
+        '1850.00000000',
+      );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader2Wallet.address,
+        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
+      });
+
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+
+      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        exchange,
+        usdc,
+        '51000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '24000.00000000',
+          'BTC',
+        ),
+        indexPriceAdapter.address,
+        trader3Wallet,
+        trader4Wallet,
+        'BTC',
+        '24000.00000000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '30000.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .deleverageInMaintenanceAcquisition({
+          baseAssetSymbol: 'BTC',
+          counterpartyWallet: trader4Wallet.address,
+          liquidatingWallet: trader3Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '0.00000000',
+            '292980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('292980.00000000'),
+        });
+    });
+
+    it('should revert when IF simulation quote quantity is non-zero for position not held by liquidating wallet', async function () {
+      const indexPrice = await buildIndexPriceWithValue(
+        exchange.address,
+        indexPriceServiceWallet,
+        '1850.00000000',
+      );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader2Wallet.address,
+        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
+      });
+
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+
+      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        exchange,
+        usdc,
+        '51000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '24000.00000000',
+          'BTC',
+        ),
+        indexPriceAdapter.address,
+        trader3Wallet,
+        trader4Wallet,
+        'BTC',
+        '24000.00000000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '30000.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
+          baseAssetSymbol: 'BTC',
+          counterpartyWallet: trader4Wallet.address,
+          liquidatingWallet: trader3Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '18040.00000000',
+            '292980.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('292980.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
+    });
+
     it('should revert when IF can acquire after funding payments', async function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
@@ -742,6 +904,73 @@ describe('Exchange', function () {
       });
     });
 
+    it('should work when IF has an open position that exited wallet does not', async function () {
+      const indexPrice = await buildIndexPriceWithValue(
+        exchange.address,
+        indexPriceServiceWallet,
+        '1850.00000000',
+      );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader2Wallet.address,
+        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
+      });
+
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+
+      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        exchange,
+        usdc,
+        '51000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '24000.00000000',
+          'BTC',
+        ),
+        indexPriceAdapter.address,
+        trader3Wallet,
+        trader4Wallet,
+        'BTC',
+        '24000.00000000',
+      );
+
+      await exchange.connect(trader3Wallet).exitWallet();
+
+      await exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+        baseAssetSymbol: 'BTC',
+        counterpartyWallet: trader4Wallet.address,
+        liquidatingWallet: trader3Wallet.address,
+        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+          '0.00000000',
+          '240000.00000000',
+        ].map(decimalToPips),
+        liquidationBaseQuantity: decimalToPips('10.00000000'),
+        liquidationQuoteQuantity: decimalToPips('240000.00000000'),
+      });
+    });
+
     it('should maintain pricing strategy when account value stays positive', async function () {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
@@ -1077,6 +1306,75 @@ describe('Exchange', function () {
           await exchange.loadBalanceBySymbol(trader2Wallet.address, 'BTC')
         ).toString(),
       ).to.equal('0');
+    });
+
+    it('should revert when IF simulation quote quantity is non-zero for position not held by liquidating wallet', async function () {
+      const indexPrice = await buildIndexPriceWithValue(
+        exchange.address,
+        indexPriceServiceWallet,
+        '1850.00000000',
+      );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader2Wallet.address,
+        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
+      });
+
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+
+      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        exchange,
+        usdc,
+        '51000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '24000.00000000',
+          'BTC',
+        ),
+        indexPriceAdapter.address,
+        trader3Wallet,
+        trader4Wallet,
+        'BTC',
+        '24000.00000000',
+      );
+
+      await exchange.connect(trader3Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol: 'BTC',
+          counterpartyWallet: trader4Wallet.address,
+          liquidatingWallet: trader3Wallet.address,
+          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+            '18500.00000000',
+            '240000.00000000',
+          ].map(decimalToPips),
+          liquidationBaseQuantity: decimalToPips('10.00000000'),
+          liquidationQuoteQuantity: decimalToPips('240000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
     });
 
     it('should revert when IF can acquire after funding payments', async function () {

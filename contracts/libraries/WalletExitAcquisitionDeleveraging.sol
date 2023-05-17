@@ -313,7 +313,8 @@ library WalletExitAcquisitionDeleveraging {
         Math.multiplyPipsByFraction(
           balanceStruct.costBasis,
           arguments.liquidationBaseQuantity,
-          // Position size implicitly validated non-zero by `Validations.loadAndValidateActiveMarket`
+          // IF simulation explicitly validates non-zero position size, otherwise implicitly validated non-zero by
+          // `Validations.loadAndValidateActiveMarket`
           Math.toInt64(Math.abs(balanceStruct.balance))
         ),
         arguments.indexPrice,
@@ -376,20 +377,27 @@ library WalletExitAcquisitionDeleveraging {
         market.baseAssetSymbol
       );
 
-      validateExitQuoteQuantityArguments.indexPrice = market.lastIndexPrice;
-      validateExitQuoteQuantityArguments.liquidationBaseQuantity = balanceStruct.balance;
-      validateExitQuoteQuantityArguments.liquidationQuoteQuantity = arguments
-        .acquisitionDeleverageArguments
-        .validateInsuranceFundCannotLiquidateWalletQuoteQuantities[i];
-      validateExitQuoteQuantityArguments.maintenanceMarginFraction = market
-        .loadMarketWithOverridesForWallet(
-          arguments.acquisitionDeleverageArguments.liquidatingWallet,
-          marketOverridesByBaseAssetSymbolAndWallet
-        )
-        .overridableFields
-        .maintenanceMarginFraction;
+      if (balanceStruct.balance != 0) {
+        validateExitQuoteQuantityArguments.indexPrice = market.lastIndexPrice;
+        validateExitQuoteQuantityArguments.liquidationBaseQuantity = balanceStruct.balance;
+        validateExitQuoteQuantityArguments.liquidationQuoteQuantity = arguments
+          .acquisitionDeleverageArguments
+          .validateInsuranceFundCannotLiquidateWalletQuoteQuantities[i];
+        validateExitQuoteQuantityArguments.maintenanceMarginFraction = market
+          .loadMarketWithOverridesForWallet(
+            arguments.acquisitionDeleverageArguments.liquidatingWallet,
+            marketOverridesByBaseAssetSymbolAndWallet
+          )
+          .overridableFields
+          .maintenanceMarginFraction;
 
-      _validateExitQuoteQuantity(balanceStruct, validateExitQuoteQuantityArguments);
+        _validateExitQuoteQuantity(balanceStruct, validateExitQuoteQuantityArguments);
+      } else {
+        require(
+          arguments.acquisitionDeleverageArguments.validateInsuranceFundCannotLiquidateWalletQuoteQuantities[i] == 0,
+          "Invalid quote quantity"
+        );
+      }
     }
 
     // Argument struct is populated with validated field values, pass through to margin validation
