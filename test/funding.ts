@@ -226,6 +226,24 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/no active market found/i);
     });
 
+    it('should revert for excessive funding rate', async function () {
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .publishFundingMultiplier(baseAssetSymbol, decimalToPips('1.0')),
+      ).to.eventually.be.rejectedWith(
+        /funding rate exceeds maintenance margin fraction/i,
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .publishFundingMultiplier(baseAssetSymbol, decimalToPips('-1.0')),
+      ).to.eventually.be.rejectedWith(
+        /funding rate exceeds maintenance margin fraction/i,
+      );
+    });
+
     it('should revert for stale index price', async function () {
       await expect(
         exchange
