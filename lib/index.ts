@@ -389,7 +389,7 @@ export const getWithdrawArguments = (
 export const indexPriceToArgumentStruct = (
   indexPriceAdapter: string,
   o: IndexPrice,
-) => {
+): IndexPricePayloadStruct => {
   return {
     indexPriceAdapter,
     payload: ethers.utils.defaultAbiCoder.encode(
