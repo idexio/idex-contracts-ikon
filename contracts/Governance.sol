@@ -16,7 +16,6 @@ contract Governance is Owned {
 
   uint256 public immutable blockDelay;
   ICustodian public custodian;
-  IExchange public exchange;
 
   // State variables - upgrade tracking //
 
@@ -164,7 +163,7 @@ contract Governance is Owned {
 
   modifier onlyAdminOrDispatcher() {
     require(
-      msg.sender == adminWallet || msg.sender == exchange.dispatcherWallet(),
+      msg.sender == adminWallet || msg.sender == _loadExchange().dispatcherWallet(),
       "Caller must be Admin or Dispatcher wallet"
     );
     _;
@@ -197,7 +196,6 @@ contract Governance is Owned {
     require(Address.isContract(address(newCustodian)), "Invalid address");
 
     custodian = newCustodian;
-    exchange = IExchange(custodian.exchange());
   }
 
   // Exchange upgrade //
@@ -210,12 +208,12 @@ contract Governance is Owned {
    */
   function initiateExchangeUpgrade(address newExchange) public onlyAdmin {
     require(Address.isContract(address(newExchange)), "Invalid address");
-    require(newExchange != custodian.exchange(), "Must be different from current Exchange");
+    require(newExchange != address(_loadExchange()), "Must be different from current Exchange");
     require(!currentExchangeUpgrade.exists, "Exchange upgrade already in progress");
 
     currentExchangeUpgrade = ContractUpgrade(true, newExchange, block.number + blockDelay);
 
-    emit ExchangeUpgradeInitiated(address(exchange), newExchange, currentExchangeUpgrade.blockThreshold);
+    emit ExchangeUpgradeInitiated(address(_loadExchange()), newExchange, currentExchangeUpgrade.blockThreshold);
   }
 
   /**
@@ -227,7 +225,7 @@ contract Governance is Owned {
     address newExchange = currentExchangeUpgrade.newContract;
     delete currentExchangeUpgrade;
 
-    emit ExchangeUpgradeCanceled(address(exchange), newExchange);
+    emit ExchangeUpgradeCanceled(address(_loadExchange()), newExchange);
   }
 
   /**
@@ -243,7 +241,7 @@ contract Governance is Owned {
     require(currentExchangeUpgrade.newContract == newExchange, "Address mismatch");
     require(block.number >= currentExchangeUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    address oldExchange = address(exchange);
+    address oldExchange = address(_loadExchange());
     custodian.setExchange(newExchange);
     delete currentExchangeUpgrade;
 
@@ -356,7 +354,7 @@ contract Governance is Owned {
       require(currentBridgeAdaptersUpgrade.newBridgeAdapters[i] == newBridgeAdapters[i], "Address mismatch");
     }
 
-    exchange.setBridgeAdapters(currentBridgeAdaptersUpgrade.newBridgeAdapters);
+    _loadExchange().setBridgeAdapters(currentBridgeAdaptersUpgrade.newBridgeAdapters);
 
     delete currentBridgeAdaptersUpgrade;
 
@@ -422,7 +420,7 @@ contract Governance is Owned {
 
     require(block.number >= currentIndexPriceAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    exchange.setIndexPriceAdapters(newIndexPriceAdapters);
+    _loadExchange().setIndexPriceAdapters(newIndexPriceAdapters);
 
     delete (currentIndexPriceAdaptersUpgrade);
 
@@ -437,7 +435,7 @@ contract Governance is Owned {
    */
   function initiateInsuranceFundWalletUpgrade(address newInsuranceFundWallet) public onlyAdmin {
     require(newInsuranceFundWallet != address(0x0), "Invalid IF wallet address");
-    require(newInsuranceFundWallet != exchange.insuranceFundWallet(), "Must be different from current");
+    require(newInsuranceFundWallet != _loadExchange().insuranceFundWallet(), "Must be different from current");
 
     require(!currentInsuranceFundWalletUpgrade.exists, "IF wallet upgrade already in progress");
 
@@ -474,15 +472,15 @@ contract Governance is Owned {
     require(block.number >= currentInsuranceFundWalletUpgrade.blockThreshold, "Block threshold not yet reached");
 
     require(
-      exchange.loadBaseAssetSymbolsWithOpenPositionsByWallet(exchange.insuranceFundWallet()).length == 0,
+      _loadExchange().loadBaseAssetSymbolsWithOpenPositionsByWallet(_loadExchange().insuranceFundWallet()).length == 0,
       "Current IF cannot have open positions"
     );
     require(
-      exchange.loadBaseAssetSymbolsWithOpenPositionsByWallet(newInsuranceFundWallet).length == 0,
+      _loadExchange().loadBaseAssetSymbolsWithOpenPositionsByWallet(newInsuranceFundWallet).length == 0,
       "New IF cannot have open positions"
     );
 
-    exchange.setInsuranceFundWallet(newInsuranceFundWallet);
+    _loadExchange().setInsuranceFundWallet(newInsuranceFundWallet);
     delete (currentInsuranceFundWalletUpgrade);
 
     emit InsuranceFundWalletUpgradeFinalized(newInsuranceFundWallet);
@@ -561,7 +559,7 @@ contract Governance is Owned {
       "Overrides mismatch"
     );
 
-    exchange.setMarketOverrides(baseAssetSymbol, overridableFields, wallet);
+    _loadExchange().setMarketOverrides(baseAssetSymbol, overridableFields, wallet);
 
     delete (currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet]);
 
@@ -612,10 +610,14 @@ contract Governance is Owned {
 
     require(block.number >= currentOraclePriceAdapterUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    exchange.setOraclePriceAdapter(newOraclePriceAdapter);
+    _loadExchange().setOraclePriceAdapter(newOraclePriceAdapter);
 
     delete (currentOraclePriceAdapterUpgrade);
 
     emit OraclePriceAdapterUpgradeFinalized(newOraclePriceAdapter);
+  }
+
+  function _loadExchange() private view returns (IExchange) {
+    return IExchange(custodian.exchange());
   }
 }

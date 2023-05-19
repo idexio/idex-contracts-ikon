@@ -3,6 +3,8 @@ import { mine } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
+import { Exchange_v4__factory } from '../typechain-types';
+
 import {
   baseAssetSymbol,
   bootstrapLiquidatedWallet,
@@ -27,6 +29,7 @@ describe('Governance', function () {
   let custodian: Custodian;
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
+  let ExchangeFactory: Exchange_v4__factory;
   let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
@@ -57,6 +60,7 @@ describe('Governance', function () {
 
     custodian = results.custodian;
     exchange = results.exchange;
+    ExchangeFactory = results.ExchangeFactory;
     governance = results.governance;
     indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
@@ -158,6 +162,32 @@ describe('Governance', function () {
         )
           .to.eventually.be.an('array')
           .with.lengthOf(1);
+      });
+
+      it('should be applied to current Exchange contract following an upgrade', async () => {
+        const newExchange = await ExchangeFactory.deploy(
+          ethers.constants.AddressZero,
+          ownerWallet.address,
+          ownerWallet.address,
+          [usdc.address],
+          ownerWallet.address,
+          usdc.address,
+          usdc.address,
+        );
+        await newExchange.setCustodian(custodian.address, []);
+
+        await governance.initiateExchangeUpgrade(newExchange.address);
+        await governance.finalizeExchangeUpgrade(newExchange.address);
+
+        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]);
+
+        await expect(newExchange.bridgeAdapters(0)).to.eventually.equal(
+          bridgeAdapter.address,
+        );
       });
 
       it('should revert when not in progress', async () => {
