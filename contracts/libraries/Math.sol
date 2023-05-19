@@ -2,14 +2,22 @@
 
 pragma solidity 0.8.18;
 
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
+import { Constants } from "./Constants.sol";
+
 library Math {
-  function abs(int64 signed) internal pure returns (uint64) {
-    return uint64(signed < 0 ? -1 * signed : signed);
+  // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/SignedMath.sol#L37
+  function abs(int64 n) internal pure returns (uint64) {
+    unchecked {
+      // must be unchecked in order to support `n = type(int64).min`
+      return uint64(n >= 0 ? n : -n);
+    }
   }
 
   // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L45
   function divideRoundUp(uint64 a, uint64 b) internal pure returns (uint64) {
-    // (a + b - 1) / b can overflow on addition, so we distribute.
+    // (a + b - 1) / b can overflow on addition, so we distribute
     return a == 0 ? 0 : (a - 1) / b + 1;
   }
 
@@ -22,6 +30,10 @@ library Math {
       // Otherwise round down (default division behavior)
       return a / b;
     }
+  }
+
+  function doublePipsToPips(int256 valueInDoublePips) internal pure returns (int64 valueInPips) {
+    valueInPips = SafeCast.toInt64(valueInDoublePips / SafeCast.toInt256(Constants.PIP_PRICE_MULTIPLIER));
   }
 
   // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol#L19
@@ -73,5 +85,11 @@ library Math {
   function toInt64(uint64 value) internal pure returns (int64) {
     require(value <= uint64(type(int64).max), "Pip quantity overflows int64");
     return int64(value);
+  }
+
+  function triplePipsToPips(uint256 valueInTriplePips) internal pure returns (uint64 valueInPips) {
+    valueInPips = SafeCast.toUint64(
+      valueInTriplePips / Constants.PIP_PRICE_MULTIPLIER / Constants.PIP_PRICE_MULTIPLIER
+    );
   }
 }

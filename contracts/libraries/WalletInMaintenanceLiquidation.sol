@@ -2,7 +2,10 @@
 
 pragma solidity 0.8.18;
 
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
 import { BalanceTracking } from "./BalanceTracking.sol";
+import { Constants } from "./Constants.sol";
 import { ExitFund } from "./ExitFund.sol";
 import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
@@ -128,16 +131,32 @@ library WalletInMaintenanceLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
+    {
+      (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
+        .loadTotalAccountValueAndMaintenanceMarginRequirement(
+          arguments.liquidatingWallet,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
+        );
+
+      require(Math.abs(totalAccountValue) < totalMaintenanceMarginRequirement, "Maintenance margin requirement met");
+    }
+
+    (int256 totalAccountValueInDoublePips, uint256 totalMaintenanceMarginRequirementInTriplePips) = IndexPriceMargin
+      .loadTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
         arguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
-
-    require(totalAccountValue < Math.toInt64(totalMaintenanceMarginRequirement), "Maintenance margin requirement met");
+    require(
+      Math.abs(Math.doublePipsToPips(totalAccountValueInDoublePips)) <
+        Math.triplePipsToPips(totalMaintenanceMarginRequirementInTriplePips),
+      "Maintenance margin requirement met"
+    );
 
     Market memory market;
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
@@ -149,8 +168,8 @@ library WalletInMaintenanceLiquidation {
         arguments,
         i,
         market,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement,
+        totalAccountValueInDoublePips,
+        totalMaintenanceMarginRequirementInTriplePips,
         balanceTracking,
         marketOverridesByBaseAssetSymbolAndWallet
       );
@@ -180,8 +199,8 @@ library WalletInMaintenanceLiquidation {
     WalletLiquidationArguments memory arguments,
     uint8 index,
     Market memory market,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
+    int256 totalAccountValueInDoublePips,
+    uint256 totalMaintenanceMarginRequirementInTriplePips,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
   ) private {
@@ -193,8 +212,8 @@ library WalletInMaintenanceLiquidation {
         .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
         .maintenanceMarginFraction,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
+      totalAccountValueInDoublePips,
+      totalMaintenanceMarginRequirementInTriplePips
     );
   }
 }

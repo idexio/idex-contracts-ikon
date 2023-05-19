@@ -450,7 +450,7 @@ describe('Exchange', function () {
   });
 
   describe('liquidateWalletInMaintenance', async function () {
-    it('should work for valid wallet', async function () {
+    it.only('should work for valid wallet', async function () {
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([

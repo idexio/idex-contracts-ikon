@@ -2,6 +2,10 @@
 
 pragma solidity 0.8.18;
 
+import { Math as OpenZeppelinMath } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+
 import { Constants } from "./Constants.sol";
 import { Math } from "./Math.sol";
 
@@ -28,21 +32,23 @@ library LiquidationValidations {
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
     int64 positionSize,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
+    int256 totalAccountValueInDoublePips,
+    uint256 totalMaintenanceMarginRequirementInTriplePips
   ) internal pure returns (uint64) {
-    if (totalMaintenanceMarginRequirement == 0) {
+    if (totalMaintenanceMarginRequirementInTriplePips == 0) {
       return 0;
     }
 
     int256 quoteQuantityInDoublePips = int256(positionSize) * Math.toInt64(indexPrice);
 
-    int256 quotePenaltyInDoublePips = ((positionSize < 0 ? int256(1) : int256(-1)) *
-      quoteQuantityInDoublePips *
-      Math.toInt64(maintenanceMarginFraction) *
-      totalAccountValue) /
-      Math.toInt64(totalMaintenanceMarginRequirement) /
-      Math.toInt64(Constants.PIP_PRICE_MULTIPLIER);
+    uint256 quotePenaltyInDoublePipsUnsigned = OpenZeppelinMath.mulDiv(
+      SignedMath.abs(quoteQuantityInDoublePips) * maintenanceMarginFraction,
+      SignedMath.abs(totalAccountValueInDoublePips),
+      totalMaintenanceMarginRequirementInTriplePips
+    );
+
+    int256 quotePenaltyInDoublePips = (totalAccountValueInDoublePips < 0 ? int256(1) : int256(-1)) *
+      SafeCast.toInt256(quotePenaltyInDoublePipsUnsigned);
 
     int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
       (Math.toInt64(Constants.PIP_PRICE_MULTIPLIER));
@@ -159,15 +165,15 @@ library LiquidationValidations {
     int64 liquidationBaseQuantity,
     uint64 liquidationQuoteQuantity,
     uint64 maintenanceMarginFraction,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
+    int256 totalAccountValueInDoublePips,
+    uint256 totalMaintenanceMarginRequirementInTriplePips
   ) internal pure {
     uint64 expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
       indexPrice,
       maintenanceMarginFraction,
       liquidationBaseQuantity,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
+      totalAccountValueInDoublePips,
+      totalMaintenanceMarginRequirementInTriplePips
     );
 
     // Allow additional pip buffers for integer rounding
