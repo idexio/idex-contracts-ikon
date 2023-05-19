@@ -232,17 +232,18 @@ library Withdrawing {
     updatePositionForExitArguments.oraclePriceAdapter = arguments.oraclePriceAdapter;
     (
       updatePositionForExitArguments.exitAccountValue,
-      updatePositionForExitArguments.totalAccountValue,
-      updatePositionForExitArguments.totalMaintenanceMarginRequirement
-    ) = OraclePriceMargin.loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
-      arguments.oraclePriceAdapter,
-      0, // Outstanding funding payments already applied in withdrawExit_delegatecall
-      arguments.wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
+      updatePositionForExitArguments.totalAccountValueInDoublePips,
+      updatePositionForExitArguments.totalMaintenanceMarginRequirementInTriplePips
+    ) = OraclePriceMargin
+      .loadExitAccountValueAndTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
+        arguments.oraclePriceAdapter,
+        0, // Outstanding funding payments already applied in withdrawExit_delegatecall
+        arguments.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
     updatePositionForExitArguments.wallet = arguments.wallet;
 
     int64 exitFundQuoteQuantityChange;

@@ -82,18 +82,18 @@ library LiquidationValidations {
     int64 liquidationBaseQuantity,
     uint64 liquidationQuoteQuantity,
     uint64 maintenanceMarginFraction,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
+    int256 totalAccountValueInDoublePips,
+    uint256 totalMaintenanceMarginRequirementInTriplePips
   ) internal pure {
     uint64 expectedLiquidationQuoteQuantity;
-    if (totalAccountValue < 0) {
+    if (totalAccountValueInDoublePips < 0) {
       // Use bankruptcy price for negative total account value
       expectedLiquidationQuoteQuantity = calculateQuoteQuantityAtBankruptcyPrice(
         indexPrice,
         maintenanceMarginFraction,
         liquidationBaseQuantity,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
+        totalAccountValueInDoublePips,
+        totalMaintenanceMarginRequirementInTriplePips
       );
     } else {
       // Use index price for positive total account value

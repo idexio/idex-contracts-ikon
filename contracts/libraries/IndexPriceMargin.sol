@@ -86,34 +86,6 @@ library IndexPriceMargin {
       );
   }
 
-  function loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 exitAccountValue, int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
-    exitAccountValue = _loadExitAccountValue(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-    totalAccountValue = loadTotalAccountValue(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-    totalMaintenanceMarginRequirement = loadTotalMaintenanceMarginRequirement(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-  }
-
   function loadTotalAccountValue(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -158,15 +130,55 @@ library IndexPriceMargin {
     }
   }
 
-  // Identical to `loadTotalAccountValueAndMaintenanceMarginRequirement` except no wallet-specific overrides are
-  // observed for the EF
-  function loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
+  function loadTotalExitAccountValueAndTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  )
+    internal
+    view
+    returns (
+      int64 exitAccountValue,
+      int256 liquidatingWalletTotalAccountValueInDoublePips,
+      uint256 liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips
+    )
+  {
+    exitAccountValue = _loadExitAccountValue(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+    liquidatingWalletTotalAccountValueInDoublePips = loadTotalAccountValueInDoublePips(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketsByBaseAssetSymbol
+    );
+    liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips = loadTotalMaintenanceMarginRequirementInTriplePips(
+      wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  // Identical to `loadTotalExitAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips` except no
+  // wallet-specific overrides are observed for the EF
+  function loadTotalExitAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePipsForExitFund(
     address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
-    totalAccountValue = loadTotalAccountValue(
+  )
+    internal
+    view
+    returns (int256 totalAccountValueInDoublePips, uint256 totalMaintenanceMarginRequirementInTriplePips)
+  {
+    totalAccountValueInDoublePips = loadTotalAccountValueInDoublePips(
       exitFundWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -180,7 +192,7 @@ library IndexPriceMargin {
       market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
       positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(exitFundWallet, market.baseAssetSymbol);
 
-      totalMaintenanceMarginRequirement += _loadMarginRequirement(
+      totalMaintenanceMarginRequirementInTriplePips += _loadMarginRequirementInTriplePips(
         market.overridableFields.maintenanceMarginFraction,
         market.lastIndexPrice,
         positionSize

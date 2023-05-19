@@ -100,7 +100,7 @@ describe('Exchange', function () {
           '200000000000',
           '3000000',
           '10000000000',
-          '3000000',
+          '300000000000000',
           '0',
         ),
       ).to.eventually.equal('0');
@@ -112,8 +112,8 @@ describe('Exchange', function () {
           new BigNumber(2).pow(63).minus(1).toString(),
           '3000000',
           new BigNumber(2).pow(63).minus(1).toString(),
-          '10000000',
-          '3000000',
+          '1000000000000000',
+          '30000000000000000000000',
         ),
       ).to.eventually.be.rejectedWith(/pip quantity overflows int64/i);
     });
@@ -124,8 +124,8 @@ describe('Exchange', function () {
           new BigNumber(2).pow(63).minus(1).toString(),
           '3000000',
           new BigNumber(2).pow(63).negated().toString(),
-          '10000000',
-          '3000000',
+          '1000000000000000',
+          '30000000000000000000000',
         ),
       ).to.eventually.be.rejectedWith(/pip quantity underflows int64/i);
     });
@@ -450,7 +450,7 @@ describe('Exchange', function () {
   });
 
   describe('liquidateWalletInMaintenance', async function () {
-    it.only('should work for valid wallet', async function () {
+    it('should work for valid wallet', async function () {
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([

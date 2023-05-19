@@ -131,19 +131,6 @@ library WalletInMaintenanceLiquidation {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    {
-      (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
-        .loadTotalAccountValueAndMaintenanceMarginRequirement(
-          arguments.liquidatingWallet,
-          balanceTracking,
-          baseAssetSymbolsWithOpenPositionsByWallet,
-          marketOverridesByBaseAssetSymbolAndWallet,
-          marketsByBaseAssetSymbol
-        );
-
-      require(Math.abs(totalAccountValue) < totalMaintenanceMarginRequirement, "Maintenance margin requirement met");
-    }
-
     (int256 totalAccountValueInDoublePips, uint256 totalMaintenanceMarginRequirementInTriplePips) = IndexPriceMargin
       .loadTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
         arguments.liquidatingWallet,

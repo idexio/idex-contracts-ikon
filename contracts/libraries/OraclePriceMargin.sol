@@ -19,8 +19,8 @@ library OraclePriceMargin {
     string baseAssetSymbol;
     int64 exitAccountValue;
     IOraclePriceAdapter oraclePriceAdapter;
-    int64 totalAccountValue;
-    uint64 totalMaintenanceMarginRequirement;
+    int256 totalAccountValueInDoublePips;
+    uint256 totalMaintenanceMarginRequirementInTriplePips;
     address wallet;
   }
 
@@ -127,7 +127,7 @@ library OraclePriceMargin {
       );
   }
 
-  function loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
+  function loadExitAccountValueAndTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
     IOraclePriceAdapter oraclePriceAdapter,
     int64 outstandingWalletFunding,
     address wallet,
@@ -135,7 +135,15 @@ library OraclePriceMargin {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 exitAccountValue, int64 totalAccountValue, uint64 maintenanceMarginRequirement) {
+  )
+    internal
+    view
+    returns (
+      int64 exitAccountValue,
+      int256 totalAccountValueInDoublePips,
+      uint256 maintenanceMarginRequirementInTriplePip
+    )
+  {
     exitAccountValue = _loadExitAccountValue(
       oraclePriceAdapter,
       outstandingWalletFunding,
@@ -144,7 +152,7 @@ library OraclePriceMargin {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    totalAccountValue = loadTotalAccountValue(
+    totalAccountValueInDoublePips = loadTotalAccountValueInDoublePips(
       oraclePriceAdapter,
       outstandingWalletFunding,
       wallet,
@@ -152,7 +160,7 @@ library OraclePriceMargin {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    maintenanceMarginRequirement = loadTotalMaintenanceMarginRequirement(
+    maintenanceMarginRequirementInTriplePip = loadTotalMaintenanceMarginRequirementInTriplePips(
       oraclePriceAdapter,
       wallet,
       balanceTracking,
@@ -188,9 +196,9 @@ library OraclePriceMargin {
     loadQuoteQuantityForPositionExitArguments.wallet = wallet;
     (
       loadQuoteQuantityForPositionExitArguments.exitAccountValue,
-      loadQuoteQuantityForPositionExitArguments.totalAccountValue,
-      loadQuoteQuantityForPositionExitArguments.totalMaintenanceMarginRequirement
-    ) = loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
+      loadQuoteQuantityForPositionExitArguments.totalAccountValueInDoublePips,
+      loadQuoteQuantityForPositionExitArguments.totalMaintenanceMarginRequirementInTriplePips
+    ) = loadExitAccountValueAndTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
       oraclePriceAdapter,
       outstandingWalletFunding,
       wallet,
@@ -238,6 +246,31 @@ library OraclePriceMargin {
     }
   }
 
+  function loadTotalAccountValueInDoublePips(
+    IOraclePriceAdapter oraclePriceAdapter,
+    int64 outstandingWalletFunding,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (int256 totalAccountValueInDoublePips) {
+    totalAccountValueInDoublePips =
+      int256(
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
+          outstandingWalletFunding
+      ) *
+      Math.toInt64(Constants.PIP_PRICE_MULTIPLIER);
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+
+      totalAccountValueInDoublePips +=
+        int256(balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol)) *
+        Math.toInt64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol));
+    }
+  }
+
   function loadTotalInitialMarginRequirement(
     IOraclePriceAdapter oraclePriceAdapter,
     address wallet,
@@ -256,6 +289,31 @@ library OraclePriceMargin {
           wallet,
           marketOverridesByBaseAssetSymbolAndWallet
         ),
+        market,
+        oraclePriceAdapter,
+        wallet,
+        balanceTracking
+      );
+    }
+  }
+
+  function loadTotalMaintenanceMarginRequirementInTriplePips(
+    IOraclePriceAdapter oraclePriceAdapter,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view returns (uint256 maintenanceMarginRequirementInTriplePip) {
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+
+      maintenanceMarginRequirementInTriplePip += _loadMarginRequirementInTriplePips(
+        market
+          .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
         market,
         oraclePriceAdapter,
         wallet,
@@ -347,6 +405,19 @@ library OraclePriceMargin {
       );
   }
 
+  function _loadMarginRequirementInTriplePips(
+    uint64 marginFraction,
+    Market memory market,
+    IOraclePriceAdapter oraclePriceAdapter,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking
+  ) private view returns (uint256) {
+    return
+      uint256(Math.abs(balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol))) *
+      oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol) *
+      marginFraction;
+  }
+
   function _loadQuoteQuantityForPositionExit(
     LoadQuoteQuantityForPositionExitArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
@@ -368,8 +439,8 @@ library OraclePriceMargin {
           .overridableFields
           .maintenanceMarginFraction,
         balanceStruct.balance,
-        arguments.totalAccountValue,
-        arguments.totalMaintenanceMarginRequirement
+        arguments.totalAccountValueInDoublePips,
+        arguments.totalMaintenanceMarginRequirementInTriplePips
       )
       : LiquidationValidations.calculateQuoteQuantityAtExitPrice(
         balanceStruct.costBasis,
