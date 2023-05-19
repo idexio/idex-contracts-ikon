@@ -123,7 +123,7 @@ library WalletExitLiquidation {
       validateExitQuoteQuantityArguments.totalAccountValueInDoublePips,
       validateExitQuoteQuantityArguments.totalMaintenanceMarginRequirementInTriplePips
     ) = IndexPriceMargin
-      .loadTotalExitAccountValueAndTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
+      .loadTotalExitAccountValueAndAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
         arguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,

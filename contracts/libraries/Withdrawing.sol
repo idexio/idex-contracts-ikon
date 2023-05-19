@@ -235,7 +235,7 @@ library Withdrawing {
       updatePositionForExitArguments.totalAccountValueInDoublePips,
       updatePositionForExitArguments.totalMaintenanceMarginRequirementInTriplePips
     ) = OraclePriceMargin
-      .loadExitAccountValueAndTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
+      .loadTotalExitAccountValueAndAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
         arguments.oraclePriceAdapter,
         0, // Outstanding funding payments already applied in withdrawExit_delegatecall
         arguments.wallet,

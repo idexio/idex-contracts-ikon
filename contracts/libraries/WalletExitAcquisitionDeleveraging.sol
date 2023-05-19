@@ -180,7 +180,7 @@ library WalletExitAcquisitionDeleveraging {
       int256 liquidatingWalletTotalAccountValueInDoublePips,
       uint256 liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips
     ) = IndexPriceMargin
-        .loadTotalExitAccountValueAndTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
+        .loadTotalExitAccountValueAndAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
           arguments.liquidatingWallet,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet,
