@@ -49,8 +49,8 @@ library Constants {
   // 8 hours
   uint64 public constant FUNDING_PERIOD_IN_MS = 8 * 60 * 60 * 1000;
 
-  // 1 week at 3s/block
-  uint256 public constant MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
+  // 1 day at 3s/block
+  uint256 public constant MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS = (1 * 24 * 60 * 60) / 3;
 
   // 1 year
   uint256 public constant MAX_DELEGATE_KEY_EXPIRATION_PERIOD_IN_MS = 365 * 24 * 60 * 60 * 1000;
