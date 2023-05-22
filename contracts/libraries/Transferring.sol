@@ -35,7 +35,12 @@ library Transferring {
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => WalletExit) storage walletExits
   ) public returns (int64 newSourceWalletExchangeBalance) {
-    require(!WalletExits.isWalletExitFinalized(arguments.transfer.sourceWallet, walletExits), "Wallet exited");
+    require(!WalletExits.isWalletExitFinalized(arguments.transfer.sourceWallet, walletExits), "Source wallet exited");
+    require(
+      !WalletExits.isWalletExitFinalized(arguments.transfer.destinationWallet, walletExits),
+      "Destination wallet exited"
+    );
+    require(arguments.transfer.sourceWallet != arguments.transfer.destinationWallet, "Cannot self-transfer");
 
     require(arguments.transfer.sourceWallet != arguments.exitFundWallet, "Cannot transfer from EF");
     require(arguments.transfer.sourceWallet != arguments.insuranceFundWallet, "Cannot transfer from IF");
