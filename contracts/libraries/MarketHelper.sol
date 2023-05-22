@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 import { AssetUnitConversions } from "./AssetUnitConversions.sol";
 import { Math } from "./Math.sol";

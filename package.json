@@ -4,7 +4,7 @@
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
-  "license": "LGPL-3.0-only",
+  "license": "MIT",
   "main": "build/lib/index.js",
   "types": "build/lib/index.d.ts",
   "directories": {

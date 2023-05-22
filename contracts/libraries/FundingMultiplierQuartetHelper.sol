@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-3.0-only
+// SPDX-License-Identifier: MIT
 
 import { Constants } from "./Constants.sol";
 import { FundingMultiplierQuartet } from "./Structs.sol";
