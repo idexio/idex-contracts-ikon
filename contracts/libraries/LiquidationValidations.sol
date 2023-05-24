@@ -46,10 +46,8 @@ library LiquidationValidations {
 
     int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
       (Math.toInt64(Constants.PIP_PRICE_MULTIPLIER));
-    require(quoteQuantity <= type(int64).max, "Pip quantity overflows int64");
-    require(quoteQuantity >= type(int64).min, "Pip quantity underflows int64");
 
-    return Math.abs(int64(quoteQuantity));
+    return Math.abs(Math.toInt64(quoteQuantity));
   }
 
   function validateDeactivatedMarketLiquidationQuoteQuantity(
