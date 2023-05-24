@@ -27,6 +27,11 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   // Mapping of base asset symbol => index price struct
   mapping(string => IndexPrice) public latestIndexPriceByBaseAssetSymbol;
 
+  modifier onlyExchange() {
+    require(msg.sender == exchange, "Caller must be Exchange contract");
+    _;
+  }
+
   /**
    * @notice Instantiate a new `IDEXIndexPriceAdapter` contract
    *
@@ -37,11 +42,6 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
       require(indexPriceServiceWallets_[i] != address(0x0), "Invalid IPS wallet");
     }
     indexPriceServiceWallets = indexPriceServiceWallets_;
-  }
-
-  modifier onlyExchange() {
-    require(msg.sender == exchange, "Caller must be Exchange contract");
-    _;
   }
 
   /**

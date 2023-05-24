@@ -73,12 +73,22 @@ library MarketAdmin {
   // solhint-disable-next-line func-name-mixedcase
   function publishIndexPrices_delegatecall(
     IndexPricePayload[] memory encodedIndexPrices,
+    IIndexPriceAdapter[] memory indexPriceAdapters,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market;
     IndexPrice memory indexPrice;
 
     for (uint8 i = 0; i < encodedIndexPrices.length; i++) {
+      bool indexPriceAdapterIsWhitelisted = false;
+      for (uint8 j = 0; j < indexPriceAdapters.length; j++) {
+        if (encodedIndexPrices[i].indexPriceAdapter == address(indexPriceAdapters[j])) {
+          indexPriceAdapterIsWhitelisted = true;
+          break;
+        }
+      }
+      require(indexPriceAdapterIsWhitelisted, "Invalid index price adapter");
+
       indexPrice = IIndexPriceAdapter(encodedIndexPrices[i].indexPriceAdapter).validateIndexPricePayload(
         encodedIndexPrices[i].payload
       );

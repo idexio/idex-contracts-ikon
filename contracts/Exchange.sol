@@ -916,7 +916,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * closure deleveraging during system recovery
    */
   function publishIndexPrices(IndexPricePayload[] memory encodedIndexPrices) public onlyDispatcher {
-    MarketAdmin.publishIndexPrices_delegatecall(encodedIndexPrices, marketsByBaseAssetSymbol);
+    MarketAdmin.publishIndexPrices_delegatecall(encodedIndexPrices, indexPriceAdapters, marketsByBaseAssetSymbol);
   }
 
   /**
