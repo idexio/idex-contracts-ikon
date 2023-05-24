@@ -14,7 +14,7 @@ import {
 import type {
   ChainlinkAggregatorMock,
   Exchange_v4,
-  IDEXIndexPriceAdapter,
+  IDEXIndexAndOraclePriceAdapter,
   Governance,
 } from '../typechain-types';
 
@@ -24,7 +24,7 @@ describe('Exchange', function () {
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
   let indexPrice: IndexPrice;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;

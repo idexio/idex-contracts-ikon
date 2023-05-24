@@ -241,7 +241,7 @@ export async function deployContractsExceptCustodian(
   const [
     ChainlinkAggregatorFactory,
     ChainlinkOraclePriceAdapterFactory,
-    IDEXIndexPriceAdapterFactory,
+    IDEXIndexAndOraclePriceAdapterFactory,
     USDCFactory,
     ExchangeFactory,
     GovernanceFactory,
@@ -249,7 +249,7 @@ export async function deployContractsExceptCustodian(
   ] = await Promise.all([
     ethers.getContractFactory('ChainlinkAggregatorMock'),
     ethers.getContractFactory('ChainlinkOraclePriceAdapter'),
-    ethers.getContractFactory('IDEXIndexPriceAdapter'),
+    ethers.getContractFactory('IDEXIndexAndOraclePriceAdapter'),
     ethers.getContractFactory('USDC'),
     deployLibraryContracts(),
     ethers.getContractFactory('Governance'),
@@ -276,9 +276,10 @@ export async function deployContractsExceptCustodian(
   ).deployed();
 
   const indexPriceAdapter = await (
-    await IDEXIndexPriceAdapterFactory.connect(owner).deploy(owner.address, [
-      indexPriceServiceWallet.address,
-    ])
+    await IDEXIndexAndOraclePriceAdapterFactory.connect(owner).deploy(
+      owner.address,
+      [indexPriceServiceWallet.address],
+    )
   ).deployed();
 
   const [exchange, governance] = await Promise.all([

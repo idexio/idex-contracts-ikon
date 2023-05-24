@@ -20,13 +20,13 @@ import {
   ExchangeIndexPriceAdapterMock,
   ExchangeIndexPriceAdapterMock__factory,
   Exchange_v4,
-  IDEXIndexPriceAdapter,
-  IDEXIndexPriceAdapter__factory,
+  IDEXIndexAndOraclePriceAdapter,
+  IDEXIndexAndOraclePriceAdapter__factory,
 } from '../typechain-types';
 
-describe('IDEXIndexPriceAdapter', function () {
+describe('IDEXIndexAndOraclePriceAdapter', function () {
   let ExchangeIndexPriceAdapterMockFactory: ExchangeIndexPriceAdapterMock__factory;
-  let IDEXIndexPriceAdapterFactory: IDEXIndexPriceAdapter__factory;
+  let IDEXIndexAndOraclePriceAdapterFactory: IDEXIndexAndOraclePriceAdapter__factory;
   let indexPriceServiceWallet: SignerWithAddress;
   let owner: SignerWithAddress;
 
@@ -35,8 +35,8 @@ describe('IDEXIndexPriceAdapter', function () {
     ExchangeIndexPriceAdapterMockFactory = await ethers.getContractFactory(
       'ExchangeIndexPriceAdapterMock',
     );
-    IDEXIndexPriceAdapterFactory = await ethers.getContractFactory(
-      'IDEXIndexPriceAdapter',
+    IDEXIndexAndOraclePriceAdapterFactory = await ethers.getContractFactory(
+      'IDEXIndexAndOraclePriceAdapter',
     );
     indexPriceServiceWallet = (await ethers.getSigners())[5];
     [owner] = await ethers.getSigners();
@@ -44,22 +44,23 @@ describe('IDEXIndexPriceAdapter', function () {
 
   describe('deploy', async function () {
     it('should work for valid activator and IPS wallet', async () => {
-      await IDEXIndexPriceAdapterFactory.deploy(owner.address, [
+      await IDEXIndexAndOraclePriceAdapterFactory.deploy(owner.address, [
         indexPriceServiceWallet.address,
       ]);
     });
 
     it('should revert for invalid activator', async () => {
       await expect(
-        IDEXIndexPriceAdapterFactory.deploy(ethers.constants.AddressZero, [
-          indexPriceServiceWallet.address,
-        ]),
+        IDEXIndexAndOraclePriceAdapterFactory.deploy(
+          ethers.constants.AddressZero,
+          [indexPriceServiceWallet.address],
+        ),
       ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
     });
 
     it('should revert for invalid IPS wallet', async () => {
       await expect(
-        IDEXIndexPriceAdapterFactory.deploy(owner.address, [
+        IDEXIndexAndOraclePriceAdapterFactory.deploy(owner.address, [
           ethers.constants.AddressZero,
         ]),
       ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
@@ -68,15 +69,15 @@ describe('IDEXIndexPriceAdapter', function () {
 
   describe('setActive', async function () {
     let exchange: Exchange_v4;
-    let indexPriceAdapter: IDEXIndexPriceAdapter;
-    let oldIndexPriceAdapter: IDEXIndexPriceAdapter;
+    let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
+    let oldIndexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
 
     beforeEach(async () => {
       const results = await deployContractsExceptCustodian(owner);
       exchange = results.exchange;
       oldIndexPriceAdapter = results.indexPriceAdapter;
 
-      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+      indexPriceAdapter = await IDEXIndexAndOraclePriceAdapterFactory.deploy(
         owner.address,
         [indexPriceServiceWallet.address],
       );
@@ -164,10 +165,10 @@ describe('IDEXIndexPriceAdapter', function () {
 
   describe('loadPriceForBaseAssetSymbol', async function () {
     let exchangeMock: ExchangeIndexPriceAdapterMock;
-    let indexPriceAdapter: IDEXIndexPriceAdapter;
+    let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
 
     beforeEach(async () => {
-      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+      indexPriceAdapter = await IDEXIndexAndOraclePriceAdapterFactory.deploy(
         owner.address,
         [indexPriceServiceWallet.address],
       );
@@ -231,10 +232,10 @@ describe('IDEXIndexPriceAdapter', function () {
   });
 
   describe('validateIndexPricePayload', async function () {
-    let indexPriceAdapter: IDEXIndexPriceAdapter;
+    let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
 
     beforeEach(async () => {
-      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+      indexPriceAdapter = await IDEXIndexAndOraclePriceAdapterFactory.deploy(
         owner.address,
         [indexPriceServiceWallet.address],
       );
@@ -255,10 +256,10 @@ describe('IDEXIndexPriceAdapter', function () {
 
   describe('validateInitialIndexPricePayloadAdmin', async function () {
     let exchange: Exchange_v4;
-    let indexPriceAdapter: IDEXIndexPriceAdapter;
+    let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
 
     beforeEach(async () => {
-      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+      indexPriceAdapter = await IDEXIndexAndOraclePriceAdapterFactory.deploy(
         owner.address,
         [indexPriceServiceWallet.address],
       );

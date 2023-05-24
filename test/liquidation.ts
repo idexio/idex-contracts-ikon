@@ -6,7 +6,7 @@ import { ethers, network } from 'hardhat';
 import type {
   Exchange_v4,
   Governance,
-  IDEXIndexPriceAdapter,
+  IDEXIndexAndOraclePriceAdapter,
   LiquidationValidationsMock,
   USDC,
 } from '../typechain-types';
@@ -26,7 +26,7 @@ describe('Exchange', function () {
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
   let indexPrice: IndexPrice;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;

@@ -10,7 +10,11 @@ import {
   indexPriceToArgumentStruct,
   Withdrawal,
 } from '../lib';
-import { Exchange_v4, IDEXIndexPriceAdapter, USDC } from '../typechain-types';
+import {
+  Exchange_v4,
+  IDEXIndexAndOraclePriceAdapter,
+  USDC,
+} from '../typechain-types';
 import {
   baseAssetSymbol,
   buildIndexPrice,
@@ -27,7 +31,7 @@ describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let feeWallet: SignerWithAddress;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let signature: string;
   let traderWallet: SignerWithAddress;

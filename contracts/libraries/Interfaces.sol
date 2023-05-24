@@ -188,6 +188,21 @@ interface IExchange {
 }
 
 /**
+ * @notice Interface to Index Price Adapter
+ */
+interface IIndexPriceAdapter {
+  /**
+   * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   */
+  function validateIndexPricePayload(bytes calldata payload) external returns (IndexPrice memory);
+
+  /**
+   * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
+   */
+  function setActive(IExchange exchange) external;
+}
+
+/**
  * @notice Interface to Oracle Price Adapter
  */
 interface IOraclePriceAdapter {
@@ -200,14 +215,4 @@ interface IOraclePriceAdapter {
    * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
    */
   function setActive(IExchange exchange) external;
-}
-
-/**
- * @notice Interface to Index Price Adapter
- */
-interface IIndexPriceAdapter is IOraclePriceAdapter {
-  /**
-   * @notice Validate encoded payload and return decoded `IndexPrice` struct
-   */
-  function validateIndexPricePayload(bytes calldata payload) external returns (IndexPrice memory);
 }

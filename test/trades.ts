@@ -31,7 +31,7 @@ import {
 import type {
   Exchange_v4,
   Governance,
-  IDEXIndexPriceAdapter,
+  IDEXIndexAndOraclePriceAdapter,
   USDC,
 } from '../typechain-types';
 
@@ -42,7 +42,7 @@ describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;

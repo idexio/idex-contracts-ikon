@@ -109,7 +109,7 @@ describe('oracle price adapters', function () {
         ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
       });
 
-      it.only('should revert for mismatched argument lengths', async () => {
+      it('should revert for mismatched argument lengths', async () => {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
             ethers.constants.AddressZero,

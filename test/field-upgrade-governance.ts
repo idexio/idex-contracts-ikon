@@ -22,7 +22,7 @@ import type {
   ExchangeStargateAdapter__factory,
   Governance,
   USDC,
-  IDEXIndexPriceAdapter,
+  IDEXIndexAndOraclePriceAdapter,
 } from '../typechain-types';
 
 describe('Governance', function () {
@@ -30,7 +30,7 @@ describe('Governance', function () {
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
   let ExchangeFactory: Exchange_v4__factory;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let governance: Governance;
@@ -241,12 +241,12 @@ describe('Governance', function () {
     });
 
     describe('Index Price Adapter upgrade', () => {
-      let newIndexPriceAdapter: IDEXIndexPriceAdapter;
+      let newIndexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
 
       beforeEach(async () => {
         newIndexPriceAdapter = await (
           await (
-            await ethers.getContractFactory('IDEXIndexPriceAdapter')
+            await ethers.getContractFactory('IDEXIndexAndOraclePriceAdapter')
           ).deploy(governance.address, [indexPriceServiceWallet.address])
         ).deployed();
       });

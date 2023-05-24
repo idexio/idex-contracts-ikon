@@ -5,13 +5,13 @@ pragma solidity 0.8.18;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IPyth, PythStructs } from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 
-import { IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 import { Math } from "../libraries/Math.sol";
 import { Owned } from "../Owned.sol";
+import { IExchange, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 
 contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
+  // Mapping of Pyth price IDs to market base asset symbols
   mapping(string => bytes32) public priceIdsByBaseAssetSymbol;
-
   // Address of Pyth contract
   IPyth public immutable pyth;
 
@@ -39,6 +39,13 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
 
     return _priceToPips(pythPrice.price, pythPrice.expo);
   }
+
+  /**
+   * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
+   *
+   * @dev No-op
+   */
+  function setActive(IExchange exchange_) public {}
 
   function _priceToPips(int64 price, int32 exponent) internal pure returns (uint64 priceInPips) {
     require(price > 0, "Unexpected non-positive price");
