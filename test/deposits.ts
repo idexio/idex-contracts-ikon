@@ -233,5 +233,29 @@ describe('Exchange', function () {
           .deposit('10000000', ownerWallet.address),
       ).to.eventually.be.rejectedWith(/deposits disabled/i);
     });
+
+    it('should revert when deposits are disabled', async function () {
+      await exchange.setDepositEnabled(false);
+
+      await expect(
+        exchange.connect(traderWallet).deposit('10000000', ownerWallet.address),
+      ).to.eventually.be.rejectedWith(/deposits disabled/i);
+    });
+  });
+
+  describe('setDepositEnabled', function () {
+    it('should work', async function () {
+      await expect(exchange.isDepositEnabled()).to.eventually.equal(true);
+
+      await exchange.setDepositEnabled(false);
+
+      await expect(exchange.isDepositEnabled()).to.eventually.equal(false);
+    });
+
+    it('should revert when not sent by admin', async function () {
+      await expect(
+        exchange.connect(traderWallet).setDepositEnabled(false),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
   });
 });

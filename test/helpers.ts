@@ -350,6 +350,7 @@ export async function deployAndAssociateContracts(
   await Promise.all([
     (await exchange.setCustodian(custodian.address, [])).wait(),
     (await exchange.setDepositIndex()).wait(),
+    (await exchange.setDepositEnabled(true)).wait(),
     (await exchange.setDispatcher(dispatcher.address)).wait(),
     (await governance.setCustodian(custodian.address)).wait(),
   ]);

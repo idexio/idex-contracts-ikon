@@ -61,6 +61,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   uint256 public exitFundPositionOpenedAtBlockNumber;
   // List of whitelisted Index Price Adapter contracts
   IIndexPriceAdapter[] public indexPriceAdapters;
+  // Must be true or `deposit` will revert
+  bool public isDepositEnabled;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => FundingMultiplierQuartet[]) public fundingMultipliersByBaseAssetSymbol;
   // Milliseconds since epoch, always aligned to funding period
@@ -266,7 +268,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     require(Address.isContract(address(oraclePriceAdapter_)), "Invalid Oracle Price Adapter address");
     oraclePriceAdapter = oraclePriceAdapter_;
 
-    // Deposits must be manually enabled via `setDepositIndex`
+    // Deposits must be manually enabled via `setDepositIndex` and `setDepositIndex`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;
   }
 
@@ -367,6 +369,15 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     depositIndex = address(_balanceTracking.migrationSource) == address(0x0)
       ? 0
       : _balanceTracking.migrationSource.depositIndex();
+  }
+
+  /**
+   * @notice Enables or disables depositing assets into the Exchange
+   *
+   * @param isEnabled Enables deposit if true, disables if false
+   */
+  function setDepositEnabled(bool isEnabled) public onlyAdmin {
+    isDepositEnabled = isEnabled;
   }
 
   /**
@@ -574,13 +585,16 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     address destinationWallet_ = destinationWallet == address(0x0) ? msg.sender : destinationWallet;
 
     (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
-      custodian,
-      depositIndex,
-      destinationWallet_,
-      exitFundWallet,
-      quantityInAssetUnits,
-      quoteTokenAddress,
-      msg.sender,
+      Depositing.DepositArguments(
+        destinationWallet_,
+        msg.sender,
+        quantityInAssetUnits,
+        custodian,
+        depositIndex,
+        exitFundWallet,
+        isDepositEnabled,
+        quoteTokenAddress
+      ),
       _balanceTracking,
       walletExits
     );

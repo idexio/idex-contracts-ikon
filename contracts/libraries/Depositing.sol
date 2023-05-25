@@ -13,28 +13,38 @@ import { WalletExit } from "./Structs.sol";
 library Depositing {
   using BalanceTracking for BalanceTracking.Storage;
 
+  struct DepositArguments {
+    // External arguments
+    address destinationWallet;
+    address sourceWallet;
+    uint256 quantityInAssetUnits;
+    // Exchange state
+    ICustodian custodian;
+    uint64 depositIndex;
+    address exitFundWallet;
+    bool isDepositEnabled;
+    address quoteTokenAddress;
+  }
+
   // solhint-disable-next-line func-name-mixedcase
   function deposit_delegatecall(
-    ICustodian custodian,
-    uint64 depositIndex,
-    address destinationWallet,
-    address exitFundWallet,
-    uint256 quantityInAssetUnits,
-    address quoteTokenAddress,
-    address sourceWallet,
+    DepositArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => WalletExit) storage walletExits
   ) public returns (uint64 quantity, int64 newExchangeBalance) {
     // Deposits are disabled until `setDepositIndex` is called successfully
-    require(depositIndex != Constants.DEPOSIT_INDEX_NOT_SET, "Deposits disabled");
-    require(destinationWallet != exitFundWallet, "Cannot deposit to EF");
+    require(
+      arguments.depositIndex != Constants.DEPOSIT_INDEX_NOT_SET && arguments.isDepositEnabled,
+      "Deposits disabled"
+    );
+    require(arguments.destinationWallet != arguments.exitFundWallet, "Cannot deposit to EF");
 
     // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and trades which respect
     // the Chain Propagation Period given by `effectiveBlockNumber` via `_isWalletExitFinalized`
-    require(!walletExits[sourceWallet].exists, "Source wallet exited");
-    require(!walletExits[destinationWallet].exists, "Destination wallet exited");
+    require(!walletExits[arguments.sourceWallet].exists, "Source wallet exited");
+    require(!walletExits[arguments.destinationWallet].exists, "Destination wallet exited");
 
-    quantity = AssetUnitConversions.assetUnitsToPips(quantityInAssetUnits, Constants.QUOTE_TOKEN_DECIMALS);
+    quantity = AssetUnitConversions.assetUnitsToPips(arguments.quantityInAssetUnits, Constants.QUOTE_TOKEN_DECIMALS);
     require(quantity > 0, "Quantity is too low");
     require(quantity < uint64(type(int64).max), "Quantity is too large");
 
@@ -46,12 +56,16 @@ library Depositing {
       Constants.QUOTE_TOKEN_DECIMALS
     );
 
-    uint256 balanceBefore = IERC20(quoteTokenAddress).balanceOf(address(custodian));
+    uint256 balanceBefore = IERC20(arguments.quoteTokenAddress).balanceOf(address(arguments.custodian));
 
     // Forward the funds to the `Custodian`
-    IERC20(quoteTokenAddress).transferFrom(sourceWallet, address(custodian), quantityInAssetUnitsWithoutFractionalPips);
+    IERC20(arguments.quoteTokenAddress).transferFrom(
+      arguments.sourceWallet,
+      address(arguments.custodian),
+      quantityInAssetUnitsWithoutFractionalPips
+    );
 
-    uint256 balanceAfter = IERC20(quoteTokenAddress).balanceOf(address(custodian));
+    uint256 balanceAfter = IERC20(arguments.quoteTokenAddress).balanceOf(address(arguments.custodian));
 
     // Support fee-on-transfer by only crediting actual token balance difference. If fee causes transferred amount to
     // have a fractional pip component, it will accumulate as dust in the Custodian
@@ -61,6 +75,6 @@ library Depositing {
     );
 
     // Update balance with actual transferred quantity
-    newExchangeBalance = balanceTracking.updateForDeposit(destinationWallet, quantityTransferred);
+    newExchangeBalance = balanceTracking.updateForDeposit(arguments.destinationWallet, quantityTransferred);
   }
 }
