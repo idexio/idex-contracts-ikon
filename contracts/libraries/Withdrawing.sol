@@ -195,6 +195,48 @@ library Withdrawing {
     );
   }
 
+  // solhint-disable-next-line func-name-mixedcase
+  function withdrawExitAdmin_delegatecall(
+    WithdrawExitArguments memory arguments,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) public returns (uint64) {
+    require(arguments.wallet != arguments.exitFundWallet, "Cannot withdraw EF");
+    Funding.applyOutstandingWalletFunding(
+      arguments.wallet,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketsByBaseAssetSymbol
+    );
+
+    int64 walletQuoteQuantityToWithdraw = validateExitQuoteQuantityAndCoerceIfNeeded(
+      false,
+      _updatePositionsForWalletExit(
+        arguments,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      )
+    );
+
+    arguments.custodian.withdraw(
+      arguments.wallet,
+      arguments.quoteTokenAddress,
+      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_TOKEN_DECIMALS)
+    );
+
+    // Quote quantity will never be negative per design of exit quote calculations
+    return uint64(walletQuoteQuantityToWithdraw);
+  }
+
   function validateExitQuoteQuantityAndCoerceIfNeeded(
     bool isExitFundWallet,
     int64 walletQuoteQuantityToWithdraw

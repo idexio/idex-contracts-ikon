@@ -202,9 +202,14 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     _;
   }
 
+  modifier onlyWhenExitFundHasOpenPositions() {
+    _onlyWhenExitFundHasOpenPositions();
+    _;
+  }
+
   modifier onlyDispatcherWhenExitFundHasOpenPositions() {
     _onlyDispatcher();
-    require(baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0, "Exit Fund has no positions");
+    _onlyWhenExitFundHasOpenPositions();
     _;
   }
 
@@ -1175,6 +1180,27 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
+   * @notice Close all open positions and withdraw the net quote balance for an exited wallet during system recovery,
+   * regardless of Chain Propagation Period elapsing
+   *
+   * @dev Does not modify `exitFundPositionOpenedAtBlockNumber` since EF already has a position open and `wallet` cannot
+   * be the EF
+   */
+  function withdrawExitAdmin(address wallet) public onlyAdmin onlyWhenExitFundHasOpenPositions {
+    uint64 quantity = Withdrawing.withdrawExitAdmin_delegatecall(
+      Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
+      _balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      fundingMultipliersByBaseAssetSymbol,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+
+    emit WalletExitWithdrawn(wallet, quantity);
+  }
+
+  /**
    * @notice Clears exited status of sending wallet. Upon mining immediately enables deposits, trades, and withdrawals
    * by sending wallet
    */
@@ -1206,5 +1232,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
 
   function _onlyDispatcher() private view {
     require(msg.sender == dispatcherWallet, "Caller must be Dispatcher wallet");
+  }
+
+  function _onlyWhenExitFundHasOpenPositions() private view {
+    require(baseAssetSymbolsWithOpenPositionsByWallet[exitFundWallet].length > 0, "Exit Fund has no positions");
   }
 }
