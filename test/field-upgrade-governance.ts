@@ -217,7 +217,7 @@ describe('Governance', function () {
         newIndexPriceAdapter = await (
           await (
             await ethers.getContractFactory('IDEXIndexPriceAdapter')
-          ).deploy([indexPriceServiceWallet.address])
+          ).deploy(governance.address, [indexPriceServiceWallet.address])
         ).deployed();
       });
 

@@ -272,7 +272,7 @@ export async function deployContractsExceptCustodian(
   ).deployed();
 
   const indexPriceAdapter = await (
-    await IDEXIndexPriceAdapterFactory.connect(owner).deploy([
+    await IDEXIndexPriceAdapterFactory.connect(owner).deploy(owner.address, [
       indexPriceServiceWallet.address,
     ])
   ).deployed();
@@ -294,7 +294,8 @@ export async function deployContractsExceptCustodian(
     ).deployed(),
   ]);
 
-  await indexPriceAdapter.setExchange(exchange.address);
+  await indexPriceAdapter.setActive(exchange.address);
+  await oraclePriceAdapter.setActive(exchange.address);
 
   return {
     chainlinkAggregator,
