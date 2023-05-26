@@ -2,7 +2,6 @@ import { ethers, network } from 'hardhat';
 
 import {
   ChainlinkAggregatorMock__factory,
-  ChainlinkOraclePriceAdapter,
   ChainlinkOraclePriceAdapter__factory,
 } from '../typechain-types';
 import { baseAssetSymbol, expect } from './helpers';

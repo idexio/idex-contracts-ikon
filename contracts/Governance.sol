@@ -307,7 +307,7 @@ contract Governance is Owned {
    * @notice Initiates Bridge Adapter upgrade process. Once block delay has passed the process can be
    * finalized with `finalizeBridgeAdaptersUpgrade`
    *
-   * @param newBridgeAdapters The new adapter descriptor structs
+   * @param newBridgeAdapters The new adapter contract addresses
    */
   function initiateBridgeAdaptersUpgrade(IBridgeAdapter[] memory newBridgeAdapters) public onlyAdmin {
     require(!currentBridgeAdaptersUpgrade.exists, "Bridge adapter upgrade already in progress");
@@ -336,19 +336,17 @@ contract Governance is Owned {
 
   /**
    * @notice Finalizes the Bridge Adapter upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateBridgeAdaptersUpgrade`
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateBridgeAdaptersUpgrade`
    *
-   * @param newBridgeAdapters The descriptors for the new Bridge Adapter, passed in as an
-   * additional layer of verification. Must match the order and values of the descriptors provided to
-   * `initiateBridgeAdaptersUpgrade`
+   * @param newBridgeAdapters The new Bridge Adapter contract addresses. Must match the order and values of the
+   * addresses provided to `initiateBridgeAdaptersUpgrade`
    */
   function finalizeBridgeAdaptersUpgrade(IBridgeAdapter[] memory newBridgeAdapters) public onlyAdminOrDispatcher {
     require(currentBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
 
     require(block.number >= currentBridgeAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
 
-    // Verify provided descriptors match originals
+    // Verify provided addresses match originals
     require(currentBridgeAdaptersUpgrade.newBridgeAdapters.length == newBridgeAdapters.length, "Address mismatch");
     for (uint8 i = 0; i < newBridgeAdapters.length; i++) {
       require(currentBridgeAdaptersUpgrade.newBridgeAdapters[i] == newBridgeAdapters[i], "Address mismatch");
@@ -362,8 +360,8 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Initiates Index Price Service wallet upgrade process. Once block delay has passed the process
-   * can be finalized with `finalizeIndexPriceAdaptersUpgrade`
+   * @notice Initiates Index Price Adapter upgrade process. Once block delay has passed the process can be finalized
+   * with `finalizeIndexPriceAdaptersUpgrade`
    *
    * @param newIndexPriceAdapters The Index Price Adapter contract addresses
    */
@@ -372,7 +370,7 @@ contract Governance is Owned {
       require(Address.isContract(address(newIndexPriceAdapters[i])), "Invalid Index Price Adapter address");
     }
 
-    require(!currentIndexPriceAdaptersUpgrade.exists, "Index price adapter upgrade already in progress");
+    require(!currentIndexPriceAdaptersUpgrade.exists, "Index Price Adapter upgrade already in progress");
 
     currentIndexPriceAdaptersUpgrade = IndexPriceAdaptersUpgrade(
       true,
@@ -384,7 +382,7 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Cancels an in-flight Index Price Adapter  wallet upgrade that has not yet been finalized
+   * @notice Cancels an in-flight Index Price Adapter upgrade that has not yet been finalized
    */
   function cancelIndexPriceAdaptersUpgrade() public onlyAdmin {
     require(currentIndexPriceAdaptersUpgrade.exists, "No Index Price Adapter upgrade in progress");
@@ -395,12 +393,11 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the Index Price Adapter  wallet upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateIndexPriceAdaptersUpgrade`
+   * @notice Finalizes the Index Price Adapter upgrade. The number of blocks specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateIndexPriceAdaptersUpgrade`
    *
-   * @param newIndexPriceAdapters The address of the new Index Price Adapter contracts. Must equal the addresses
-   * provided to `initiateIndexPriceAdaptersUpgrade`
+   * @param newIndexPriceAdapters The addresses of the new Index Price Adapter contracts. Must match the order and
+   * values of the addresses provided to `initiateIndexPriceAdaptersUpgrade`
    */
   function finalizeIndexPriceAdaptersUpgrade(
     IIndexPriceAdapter[] memory newIndexPriceAdapters
@@ -416,6 +413,7 @@ contract Governance is Owned {
         currentIndexPriceAdaptersUpgrade.newIndexPriceAdapters[i] == newIndexPriceAdapters[i],
         "Address mismatch"
       );
+      newIndexPriceAdapters[i].setActive(_loadExchange());
     }
 
     require(block.number >= currentIndexPriceAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
@@ -570,7 +568,7 @@ contract Governance is Owned {
    * @notice Initiates Oracle Price Adapter upgrade process. Once block delay has passed the process can be
    * finalized with `finalizeOraclePriceAdapterUpgrade`
    *
-   * @param newOraclePriceAdapter The new adapter descriptor struct
+   * @param newOraclePriceAdapter The new adapter contract address
    */
   function initiateOraclePriceAdapterUpgrade(IOraclePriceAdapter newOraclePriceAdapter) public onlyAdmin {
     require(!currentOraclePriceAdapterUpgrade.exists, "Oracle price adapter upgrade already in progress");
@@ -597,11 +595,10 @@ contract Governance is Owned {
 
   /**
    * @notice Finalizes the Oracle Price Adapter upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling
-   * `initiateOraclePriceAdapterUpgrade`
+   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateOraclePriceAdapterUpgrade`
    *
-   * @param newOraclePriceAdapter The address of the new Oracle Price Adapter contracts. Must equal the addresses
-   * provided to `initiateOraclePriceAdapterUpgrade`
+   * @param newOraclePriceAdapter The address of the new Oracle Price Adapter contract. Must equal the address provided
+   * to `initiateOraclePriceAdapterUpgrade`
    */
   function finalizeOraclePriceAdapterUpgrade(IOraclePriceAdapter newOraclePriceAdapter) public onlyAdminOrDispatcher {
     require(currentOraclePriceAdapterUpgrade.exists, "No Oracle Price Adapter upgrade in progress");
@@ -610,6 +607,7 @@ contract Governance is Owned {
 
     require(block.number >= currentOraclePriceAdapterUpgrade.blockThreshold, "Block threshold not yet reached");
 
+    newOraclePriceAdapter.setActive(_loadExchange());
     _loadExchange().setOraclePriceAdapter(newOraclePriceAdapter);
 
     delete (currentOraclePriceAdapterUpgrade);

@@ -145,8 +145,8 @@ library IndexPriceMargin {
     view
     returns (
       int64 totalExitAccountValue,
-      int256 liquidatingWalletTotalAccountValueInDoublePips,
-      uint256 liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips
+      int256 totalAccountValueInDoublePips,
+      uint256 totalMaintenanceMarginRequirementInTriplePips
     )
   {
     totalExitAccountValue = _loadTotalExitAccountValue(
@@ -155,13 +155,13 @@ library IndexPriceMargin {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    liquidatingWalletTotalAccountValueInDoublePips = _loadTotalAccountValueInDoublePips(
+    totalAccountValueInDoublePips = _loadTotalAccountValueInDoublePips(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips = _loadTotalMaintenanceMarginRequirementInTriplePips(
+    totalMaintenanceMarginRequirementInTriplePips = _loadTotalMaintenanceMarginRequirementInTriplePips(
       wallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -171,7 +171,7 @@ library IndexPriceMargin {
   }
 
   // No wallet-specific overrides are observed for the EF
-  function loadTotalExitAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePipsForExitFund(
+  function loadTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePipsForExitFund(
     address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
@@ -354,7 +354,7 @@ library IndexPriceMargin {
       if (insuranceFundPositionSizeAfterAcquisition != 0) {
         // Accumulate account value by adding signed position value
         int64 positionNotionalValue = Math.multiplyPipsByFraction(
-          int64(insuranceFundPositionSizeAfterAcquisition),
+          Math.toInt64(insuranceFundPositionSizeAfterAcquisition),
           Math.toInt64(arguments.markets[i].lastIndexPrice),
           Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
         );
@@ -363,7 +363,7 @@ library IndexPriceMargin {
         insuranceFundTotalInitialMarginRequirement += _loadInitialMarginRequirement(
           arguments.insuranceFundWallet,
           arguments.markets[i],
-          int64(insuranceFundPositionSizeAfterAcquisition),
+          Math.toInt64(insuranceFundPositionSizeAfterAcquisition),
           positionNotionalValue,
           marketOverridesByBaseAssetSymbolAndWallet
         );
