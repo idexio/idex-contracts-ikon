@@ -415,6 +415,7 @@ contract Governance is Owned {
         currentIndexPriceAdaptersUpgrade.newIndexPriceAdapters[i] == newIndexPriceAdapters[i],
         "Address mismatch"
       );
+      newIndexPriceAdapters[i].setActive(exchange);
     }
 
     require(block.number >= currentIndexPriceAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
@@ -608,6 +609,7 @@ contract Governance is Owned {
 
     require(block.number >= currentOraclePriceAdapterUpgrade.blockThreshold, "Block threshold not yet reached");
 
+    newOraclePriceAdapter.setActive(exchange);
     exchange.setOraclePriceAdapter(newOraclePriceAdapter);
 
     delete (currentOraclePriceAdapterUpgrade);

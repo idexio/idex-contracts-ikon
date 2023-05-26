@@ -23,6 +23,7 @@ library MarketAdmin {
     IOraclePriceAdapter oraclePriceAdapter,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    string[] storage marketBaseAssetSymbols,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
@@ -37,7 +38,9 @@ library MarketAdmin {
     newMarket.isActive = false;
     newMarket.lastIndexPrice = oraclePriceAdapter.loadPriceForBaseAssetSymbol(newMarket.baseAssetSymbol);
     newMarket.lastIndexPriceTimestampInMs = uint64(block.timestamp * 1000);
+
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
+    marketBaseAssetSymbols.push(newMarket.baseAssetSymbol);
 
     Funding.backfillFundingMultipliersForMarket(
       newMarket,

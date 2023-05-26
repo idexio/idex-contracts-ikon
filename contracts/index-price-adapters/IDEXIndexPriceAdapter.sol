@@ -6,8 +6,8 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { Constants } from "../libraries/Constants.sol";
 import { Hashing } from "../libraries/Hashing.sol";
-import { IIndexPriceAdapter } from "../libraries/Interfaces.sol";
-import { IndexPrice } from "../libraries/Structs.sol";
+import { IExchange, IIndexPriceAdapter } from "../libraries/Interfaces.sol";
+import { IndexPrice, Market } from "../libraries/Structs.sol";
 import { Owned } from "../Owned.sol";
 import { String } from "../libraries/String.sol";
 
@@ -15,8 +15,10 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
     keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
 
+  address public activator;
+
   // Address of Exchange contract
-  address public exchange;
+  IExchange public exchange;
 
   // EIP-712 domain separator hash for Exchange
   bytes32 public exchangeDomainSeparator;
@@ -27,8 +29,14 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   // Mapping of base asset symbol => index price struct
   mapping(string => IndexPrice) public latestIndexPriceByBaseAssetSymbol;
 
+  modifier onlyActivator() {
+    require(msg.sender == activator, "Caller must be activator");
+    _;
+  }
+
   modifier onlyExchange() {
-    require(msg.sender == exchange, "Caller must be Exchange contract");
+    require(_isActive(), "Exchange not set");
+    require(msg.sender == address(exchange), "Caller must be Exchange contract");
     _;
   }
 
@@ -37,7 +45,10 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
    *
    * @param indexPriceServiceWallets_ Addresses of IPS wallets whitelisted to sign index prices
    */
-  constructor(address[] memory indexPriceServiceWallets_) {
+  constructor(address activator_, address[] memory indexPriceServiceWallets_) {
+    require(activator_ != address(0x0), "Invalid activator address");
+    activator = activator_;
+
     for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {
       require(indexPriceServiceWallets_[i] != address(0x0), "Invalid IPS wallet");
     }
@@ -45,14 +56,25 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   }
 
   /**
-   * @notice Sets Exchange contract address used for EIP-712 domain and access control. This value is immutable once
-   * set and cannot be changed again
-   *
-   * @param exchange_ The address of the new whitelisted Exchange contract
+   * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
    */
-  function setExchange(address exchange_) public onlyOwner {
-    require(exchange == address(0x0), "Exchange contract can only be set once");
-    require(Address.isContract(exchange_), "Invalid Exchange contract address");
+  function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) public view returns (uint64 price) {
+    IndexPrice memory indexPrice = latestIndexPriceByBaseAssetSymbol[baseAssetSymbol];
+    require(indexPrice.price > 0, "Missing price");
+
+    return indexPrice.price;
+  }
+
+  /**
+   * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
+   */
+  function setActive(IExchange exchange_) public onlyActivator {
+    if (_isActive()) {
+      // If this adapter is being used for both oracle and index price roles, this function will validly be called twice
+      return;
+    }
+
+    require(Address.isContract(address(exchange_)), "Invalid Exchange contract address");
 
     exchange = exchange_;
     exchangeDomainSeparator = keccak256(
@@ -64,16 +86,16 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
         exchange_
       )
     );
-  }
 
-  /**
-   * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
-   */
-  function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) public view returns (uint64 price) {
-    IndexPrice memory indexPrice = latestIndexPriceByBaseAssetSymbol[baseAssetSymbol];
-    require(indexPrice.price > 0, "Missing price");
-
-    return indexPrice.price;
+    Market memory market;
+    for (uint8 i = 0; i < exchange.loadMarketsLength(); i++) {
+      market = exchange.loadMarket(i);
+      latestIndexPriceByBaseAssetSymbol[market.baseAssetSymbol] = IndexPrice(
+        market.baseAssetSymbol,
+        market.lastIndexPriceTimestampInMs,
+        market.lastIndexPrice
+      );
+    }
   }
 
   /**
@@ -109,5 +131,9 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
     }
 
     return indexPrice;
+  }
+
+  function _isActive() private view returns (bool) {
+    return address(exchange) != address(0x0);
   }
 }
