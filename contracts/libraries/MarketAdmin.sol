@@ -23,6 +23,7 @@ library MarketAdmin {
     IOraclePriceAdapter oraclePriceAdapter,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    string[] storage marketBaseAssetSymbols,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
@@ -37,7 +38,9 @@ library MarketAdmin {
     newMarket.isActive = false;
     newMarket.lastIndexPrice = oraclePriceAdapter.loadPriceForBaseAssetSymbol(newMarket.baseAssetSymbol);
     newMarket.lastIndexPriceTimestampInMs = uint64(block.timestamp * 1000);
+
     marketsByBaseAssetSymbol[newMarket.baseAssetSymbol] = newMarket;
+    marketBaseAssetSymbols.push(newMarket.baseAssetSymbol);
 
     Funding.backfillFundingMultipliersForMarket(
       newMarket,
@@ -73,12 +76,22 @@ library MarketAdmin {
   // solhint-disable-next-line func-name-mixedcase
   function publishIndexPrices_delegatecall(
     IndexPricePayload[] memory encodedIndexPrices,
+    IIndexPriceAdapter[] memory indexPriceAdapters,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
     Market storage market;
     IndexPrice memory indexPrice;
 
     for (uint8 i = 0; i < encodedIndexPrices.length; i++) {
+      bool indexPriceAdapterIsWhitelisted = false;
+      for (uint8 j = 0; j < indexPriceAdapters.length; j++) {
+        if (encodedIndexPrices[i].indexPriceAdapter == address(indexPriceAdapters[j])) {
+          indexPriceAdapterIsWhitelisted = true;
+          break;
+        }
+      }
+      require(indexPriceAdapterIsWhitelisted, "Invalid index price adapter");
+
       indexPrice = IIndexPriceAdapter(encodedIndexPrices[i].indexPriceAdapter).validateIndexPricePayload(
         encodedIndexPrices[i].payload
       );
