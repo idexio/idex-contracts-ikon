@@ -128,7 +128,7 @@ library ClosureDeleveraging {
   ) private view {
     (int256 totalAccountValueInDoublePips, uint256 totalMaintenanceMarginRequirementInTriplePips) = IndexPriceMargin
     // Use margin calculation specific to EF that accounts for its unlimited leverage
-      .loadTotalExitAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePipsForExitFund(
+      .loadTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePipsForExitFund(
         exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
