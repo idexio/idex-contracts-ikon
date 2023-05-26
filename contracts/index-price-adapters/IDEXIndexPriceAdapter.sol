@@ -102,6 +102,36 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
    * @notice Validate encoded payload and return decoded `IndexPrice` struct
    */
   function validateIndexPricePayload(bytes memory payload) public onlyExchange returns (IndexPrice memory) {
+    IndexPrice memory indexPrice = _validateIndexPricePayload(payload);
+
+    if (latestIndexPriceByBaseAssetSymbol[indexPrice.baseAssetSymbol].timestampInMs < indexPrice.timestampInMs) {
+      latestIndexPriceByBaseAssetSymbol[indexPrice.baseAssetSymbol] = indexPrice;
+    }
+
+    return indexPrice;
+  }
+
+  /**
+   * @notice Validate an encoded payload in order to set initial price for a new market
+   */
+  function validateInitialIndexPricePayloadAdmin(bytes memory payload) public onlyAdmin {
+    require(_isActive(), "Exchange not set");
+
+    IndexPrice memory indexPrice = _validateIndexPricePayload(payload);
+
+    require(
+      latestIndexPriceByBaseAssetSymbol[indexPrice.baseAssetSymbol].timestampInMs == 0,
+      "Price already exists for market"
+    );
+
+    latestIndexPriceByBaseAssetSymbol[indexPrice.baseAssetSymbol] = indexPrice;
+  }
+
+  function _isActive() private view returns (bool) {
+    return address(exchange) != address(0x0);
+  }
+
+  function _validateIndexPricePayload(bytes memory payload) private view returns (IndexPrice memory) {
     (IndexPrice memory indexPrice, bytes memory signature) = abi.decode(payload, (IndexPrice, bytes));
 
     // Extract signer from signature
@@ -126,14 +156,6 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
     }
     require(isSignatureValid, "Invalid index price signature");
 
-    if (latestIndexPriceByBaseAssetSymbol[indexPrice.baseAssetSymbol].timestampInMs < indexPrice.timestampInMs) {
-      latestIndexPriceByBaseAssetSymbol[indexPrice.baseAssetSymbol] = indexPrice;
-    }
-
     return indexPrice;
-  }
-
-  function _isActive() private view returns (bool) {
-    return address(exchange) != address(0x0);
   }
 }

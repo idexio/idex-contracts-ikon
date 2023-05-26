@@ -252,4 +252,109 @@ describe('IDEXIndexPriceAdapter', function () {
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);
     });
   });
+
+  describe('validateInitialIndexPricePayloadAdmin', async function () {
+    let exchange: Exchange_v4;
+    let indexPriceAdapter: IDEXIndexPriceAdapter;
+
+    beforeEach(async () => {
+      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+        owner.address,
+        [indexPriceServiceWallet.address],
+      );
+      exchange = (
+        await deployContractsExceptCustodian(
+          owner,
+          owner,
+          owner,
+          indexPriceServiceWallet,
+        )
+      ).exchange;
+    });
+
+    it('should work when no price yet exists', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+
+      await expect(
+        indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/missing price/i);
+
+      await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+        indexPriceToArgumentStruct(
+          indexPriceAdapter.address,
+          await buildIndexPriceWithValue(
+            exchange.address,
+            indexPriceServiceWallet,
+            '1900.00000000',
+          ),
+        ).payload,
+      );
+
+      expect(
+        (
+          await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+        ).toString(),
+      ).to.equal(decimalToPips('1900.00000000'));
+    });
+
+    it('should revert when not sent by admin', async () => {
+      await expect(
+        indexPriceAdapter
+          .connect((await ethers.getSigners())[8])
+          .validateInitialIndexPricePayloadAdmin(
+            indexPriceToArgumentStruct(
+              indexPriceAdapter.address,
+              await buildIndexPriceWithValue(
+                exchange.address,
+                indexPriceServiceWallet,
+                '1900.00000000',
+              ),
+            ).payload,
+          ),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert when exchange is not set', async () => {
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1900.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/exchange not set/i);
+    });
+
+    it('should revert when price already exists', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+
+      await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+        indexPriceToArgumentStruct(
+          indexPriceAdapter.address,
+          await buildIndexPriceWithValue(
+            exchange.address,
+            indexPriceServiceWallet,
+            '1900.00000000',
+          ),
+        ).payload,
+      );
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1900.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/price already exists for market/i);
+    });
+  });
 });
