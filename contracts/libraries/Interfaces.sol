@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.18;
 
-import { Balance, IndexPrice, OverridableMarketFields } from "./Structs.sol";
+import { Balance, IndexPrice, Market, OverridableMarketFields } from "./Structs.sol";
 
 interface IBridgeAdapter {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) external;
@@ -92,6 +92,23 @@ interface IExchange {
   function loadBaseAssetSymbolsWithOpenPositionsByWallet(address wallet) external view returns (string[] memory);
 
   /**
+   * @notice Loads the total count of all markets added
+   *
+   * @return The total count of all markets added
+   *
+   */
+  function loadMarketsLength() external view returns (uint256);
+
+  /**
+   * @notice Loads the Market at the given index by addition order
+   *
+   * @param index The index at which to load
+   *
+   * @return The Market at the given index by addition order
+   */
+  function loadMarket(uint8 index) external view returns (Market memory);
+
+  /**
    * @notice Load the address of the Custodian contract
    *
    * @return The address of the Custodian contract
@@ -178,6 +195,11 @@ interface IOraclePriceAdapter {
    * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
    */
   function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) external view returns (uint64 price);
+
+  /**
+   * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
+   */
+  function setActive(IExchange exchange) external;
 }
 
 /**
