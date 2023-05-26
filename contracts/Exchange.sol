@@ -1161,6 +1161,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   /**
    * @notice Close all open positions and withdraw the net quote balance for an exited wallet. The Chain Propagation
    * Period must have already passed since calling `exitWallet`
+   *
+   * @param wallet Address of exited wallet
    */
   function withdrawExit(address wallet) public {
     (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
@@ -1183,19 +1185,21 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @notice Close all open positions and withdraw the net quote balance for an exited wallet during system recovery,
    * regardless of Chain Propagation Period elapsing
    *
-   * @dev Does not modify `exitFundPositionOpenedAtBlockNumber` since EF already has a position open and `wallet` cannot
-   * be the EF
+   * @param wallet Address of exited wallet
    */
   function withdrawExitAdmin(address wallet) public onlyAdmin onlyWhenExitFundHasOpenPositions {
-    uint64 quantity = Withdrawing.withdrawExitAdmin_delegatecall(
+    (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExitAdmin_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
+      exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol,
+      walletExits
     );
+    exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
 
     emit WalletExitWithdrawn(wallet, quantity);
   }
