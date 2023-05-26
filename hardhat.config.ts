@@ -80,6 +80,7 @@ const config: HardhatUserConfig = {
     timeout: 100000000,
   },
   networks: {
+    hardhat: { allowUnlimitedContractSize: true },
     ropsten: {
       url: process.env.ROPSTEN_URL || '',
       accounts:
