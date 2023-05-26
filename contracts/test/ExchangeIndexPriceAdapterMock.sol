@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { IIndexPriceAdapter } from "../libraries/Interfaces.sol";
+import { IExchange, IIndexPriceAdapter } from "../libraries/Interfaces.sol";
 import { IndexPrice } from "../libraries/Structs.sol";
 
 contract ExchangeIndexPriceAdapterMock {
@@ -12,6 +12,10 @@ contract ExchangeIndexPriceAdapterMock {
 
   constructor(IIndexPriceAdapter indexPriceAdapter_) {
     indexPriceAdapter = indexPriceAdapter_;
+  }
+
+  function loadMarketsLength() public pure returns (uint256) {
+    return 0;
   }
 
   function validateIndexPricePayload(bytes memory payload) public returns (IndexPrice memory) {

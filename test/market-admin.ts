@@ -236,6 +236,20 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/index price timestamp too high/i);
     });
 
+    it('should revert when index price adapter is not whitelisted', async () => {
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+      );
+      indexPrice.timestampInMs += 5;
+
+      await expect(
+        exchange.publishIndexPrices([
+          indexPriceToArgumentStruct(exchange.address, indexPrice),
+        ]),
+      ).to.eventually.be.rejectedWith(/invalid index price adapter/i);
+    });
+
     it('should revert when IPS signature is invalid', async () => {
       const indexPrice = await buildIndexPrice(
         exchange.address,
