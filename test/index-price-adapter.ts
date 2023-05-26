@@ -5,6 +5,7 @@ import {
   baseAssetSymbol,
   buildIndexPrice,
   buildIndexPriceWithTimestamp,
+  buildIndexPriceWithValue,
   deployContractsExceptCustodian,
   expect,
   getLatestBlockTimestampInSeconds,
@@ -27,6 +28,7 @@ describe('IDEXIndexPriceAdapter', function () {
   let ExchangeIndexPriceAdapterMockFactory: ExchangeIndexPriceAdapterMock__factory;
   let IDEXIndexPriceAdapterFactory: IDEXIndexPriceAdapter__factory;
   let indexPriceServiceWallet: SignerWithAddress;
+  let owner: SignerWithAddress;
 
   before(async () => {
     await network.provider.send('hardhat_reset');
@@ -37,36 +39,51 @@ describe('IDEXIndexPriceAdapter', function () {
       'IDEXIndexPriceAdapter',
     );
     indexPriceServiceWallet = (await ethers.getSigners())[5];
+    [owner] = await ethers.getSigners();
   });
 
   describe('deploy', async function () {
-    it('should work for valid wallet', async () => {
-      await IDEXIndexPriceAdapterFactory.deploy([
+    it('should work for valid activator and IPS wallet', async () => {
+      await IDEXIndexPriceAdapterFactory.deploy(owner.address, [
         indexPriceServiceWallet.address,
       ]);
     });
 
-    it('should revert for invalid wallet', async () => {
+    it('should revert for invalid activator', async () => {
       await expect(
-        IDEXIndexPriceAdapterFactory.deploy([ethers.constants.AddressZero]),
+        IDEXIndexPriceAdapterFactory.deploy(ethers.constants.AddressZero, [
+          indexPriceServiceWallet.address,
+        ]),
+      ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
+    });
+
+    it('should revert for invalid IPS wallet', async () => {
+      await expect(
+        IDEXIndexPriceAdapterFactory.deploy(owner.address, [
+          ethers.constants.AddressZero,
+        ]),
       ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
     });
   });
 
-  describe('setExchange', async function () {
+  describe('setActive', async function () {
     let exchange: Exchange_v4;
     let indexPriceAdapter: IDEXIndexPriceAdapter;
+    let oldIndexPriceAdapter: IDEXIndexPriceAdapter;
 
     beforeEach(async () => {
-      const [owner] = await ethers.getSigners();
-      exchange = (await deployContractsExceptCustodian(owner)).exchange;
-      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy([
-        indexPriceServiceWallet.address,
-      ]);
+      const results = await deployContractsExceptCustodian(owner);
+      exchange = results.exchange;
+      oldIndexPriceAdapter = results.indexPriceAdapter;
+
+      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+        owner.address,
+        [indexPriceServiceWallet.address],
+      );
     });
 
     it('should work for valid contract address', async () => {
-      await indexPriceAdapter.setExchange(exchange.address);
+      await indexPriceAdapter.setActive(exchange.address);
 
       await expect(
         indexPriceAdapter.exchangeDomainSeparator(),
@@ -77,30 +94,71 @@ describe('IDEXIndexPriceAdapter', function () {
       );
     });
 
+    it('should migrate latest prices', async () => {
+      await exchange.setDispatcher(owner.address);
+      await exchange.addMarket({
+        exists: true,
+        isActive: false,
+        baseAssetSymbol,
+        indexPriceAtDeactivation: 0,
+        lastIndexPrice: 0,
+        lastIndexPriceTimestampInMs: 0,
+        overridableFields: {
+          initialMarginFraction: '5000000',
+          maintenanceMarginFraction: '3000000',
+          incrementalInitialMarginFraction: '1000000',
+          baselinePositionSize: '14000000000',
+          incrementalPositionSize: '2800000000',
+          maximumPositionSize: '282000000000',
+          minimumPositionSize: '10000000',
+        },
+      });
+      await exchange.connect(owner).activateMarket(baseAssetSymbol);
+      await exchange
+        .connect(owner)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            oldIndexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              owner,
+              '1900.00000000',
+            ),
+          ),
+        ]);
+
+      await expect(
+        indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/missing price/i);
+
+      await indexPriceAdapter.setActive(exchange.address);
+
+      expect(
+        (
+          await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+        ).toString(),
+      ).to.equal(decimalToPips('1900.00000000'));
+    });
+
     it('should revert for invalid exchange address', async () => {
       await expect(
-        indexPriceAdapter.setExchange(ethers.constants.AddressZero),
+        indexPriceAdapter.setActive(ethers.constants.AddressZero),
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
 
-    it('should revert when called twice', async () => {
-      await indexPriceAdapter.setExchange(exchange.address);
-
-      await expect(
-        indexPriceAdapter.setExchange(exchange.address),
-      ).to.eventually.be.rejectedWith(
-        /exchange contract can only be set once/i,
-      );
+    it('should work when called twice', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(exchange.address);
     });
 
-    it('should revert when called not called by owner', async () => {
-      await indexPriceAdapter.setExchange(exchange.address);
+    it('should revert when called not called by activator', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
 
       await expect(
         indexPriceAdapter
           .connect((await ethers.getSigners())[1])
-          .setExchange(exchange.address),
-      ).to.eventually.be.rejectedWith(/caller must be owner/i);
+          .setActive(exchange.address),
+      ).to.eventually.be.rejectedWith(/caller must be activator/i);
     });
   });
 
@@ -109,13 +167,14 @@ describe('IDEXIndexPriceAdapter', function () {
     let indexPriceAdapter: IDEXIndexPriceAdapter;
 
     beforeEach(async () => {
-      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy([
-        indexPriceServiceWallet.address,
-      ]);
+      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+        owner.address,
+        [indexPriceServiceWallet.address],
+      );
       exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
         indexPriceAdapter.address,
       );
-      await indexPriceAdapter.setExchange(exchangeMock.address);
+      await indexPriceAdapter.setActive(exchangeMock.address);
     });
 
     it('should work when price is in storage', async () => {
@@ -175,15 +234,127 @@ describe('IDEXIndexPriceAdapter', function () {
     let indexPriceAdapter: IDEXIndexPriceAdapter;
 
     beforeEach(async () => {
-      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy([
-        indexPriceServiceWallet.address,
-      ]);
+      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+        owner.address,
+        [indexPriceServiceWallet.address],
+      );
     });
 
     it('should revert when not called by exchange', async () => {
       await expect(
         indexPriceAdapter.validateIndexPricePayload('0x00'),
+      ).to.eventually.be.rejectedWith(/exchange not set/i);
+
+      const exchange = (await deployContractsExceptCustodian(owner)).exchange;
+      await indexPriceAdapter.setActive(exchange.address);
+      await expect(
+        indexPriceAdapter.validateIndexPricePayload('0x00'),
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);
+    });
+  });
+
+  describe('validateInitialIndexPricePayloadAdmin', async function () {
+    let exchange: Exchange_v4;
+    let indexPriceAdapter: IDEXIndexPriceAdapter;
+
+    beforeEach(async () => {
+      indexPriceAdapter = await IDEXIndexPriceAdapterFactory.deploy(
+        owner.address,
+        [indexPriceServiceWallet.address],
+      );
+      exchange = (
+        await deployContractsExceptCustodian(
+          owner,
+          owner,
+          owner,
+          indexPriceServiceWallet,
+        )
+      ).exchange;
+    });
+
+    it('should work when no price yet exists', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+
+      await expect(
+        indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/missing price/i);
+
+      await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+        indexPriceToArgumentStruct(
+          indexPriceAdapter.address,
+          await buildIndexPriceWithValue(
+            exchange.address,
+            indexPriceServiceWallet,
+            '1900.00000000',
+          ),
+        ).payload,
+      );
+
+      expect(
+        (
+          await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+        ).toString(),
+      ).to.equal(decimalToPips('1900.00000000'));
+    });
+
+    it('should revert when not sent by admin', async () => {
+      await expect(
+        indexPriceAdapter
+          .connect((await ethers.getSigners())[8])
+          .validateInitialIndexPricePayloadAdmin(
+            indexPriceToArgumentStruct(
+              indexPriceAdapter.address,
+              await buildIndexPriceWithValue(
+                exchange.address,
+                indexPriceServiceWallet,
+                '1900.00000000',
+              ),
+            ).payload,
+          ),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert when exchange is not set', async () => {
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1900.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/exchange not set/i);
+    });
+
+    it('should revert when price already exists', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+
+      await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+        indexPriceToArgumentStruct(
+          indexPriceAdapter.address,
+          await buildIndexPriceWithValue(
+            exchange.address,
+            indexPriceServiceWallet,
+            '1900.00000000',
+          ),
+        ).payload,
+      );
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1900.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/price already exists for market/i);
     });
   });
 });

@@ -140,8 +140,8 @@ library WalletInMaintenanceLiquidation {
         marketsByBaseAssetSymbol
       );
     require(
-      Math.abs(Math.doublePipsToPips(totalAccountValueInDoublePips)) <
-        Math.triplePipsToPips(totalMaintenanceMarginRequirementInTriplePips),
+      Math.doublePipsToPips(totalAccountValueInDoublePips) <
+        Math.toInt64(Math.triplePipsToPips(totalMaintenanceMarginRequirementInTriplePips)),
       "Maintenance margin requirement met"
     );
 
