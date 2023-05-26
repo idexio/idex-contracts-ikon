@@ -103,10 +103,11 @@ library WalletInMaintenanceAcquisitionDeleveraging {
         marketsByBaseAssetSymbol
       );
     require(
-      Math.abs(Math.doublePipsToPips(liquidatingWalletTotalAccountValueInDoublePips)) <
-        Math.triplePipsToPips(liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips),
+      Math.doublePipsToPips(liquidatingWalletTotalAccountValueInDoublePips) <
+        Math.toInt64(Math.triplePipsToPips(liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips)),
       "Maintenance margin requirement met"
     );
+
     // Do not proceed with deleverage if the Insurance Fund can acquire the wallet's positions
     _validateInsuranceFundCannotLiquidateWallet(
       arguments,

@@ -141,7 +141,7 @@ library OraclePriceMargin {
     returns (
       int64 totalExitAccountValue,
       int256 totalAccountValueInDoublePips,
-      uint256 maintenanceMarginRequirementInTriplePip
+      uint256 totalMaintenanceMarginRequirementInTriplePips
     )
   {
     totalExitAccountValue = _loadTotalExitAccountValue(
@@ -160,7 +160,7 @@ library OraclePriceMargin {
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketsByBaseAssetSymbol
     );
-    maintenanceMarginRequirementInTriplePip = _loadTotalMaintenanceMarginRequirementInTriplePips(
+    totalMaintenanceMarginRequirementInTriplePips = _loadTotalMaintenanceMarginRequirementInTriplePips(
       oraclePriceAdapter,
       wallet,
       balanceTracking,
@@ -168,68 +168,6 @@ library OraclePriceMargin {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-  }
-
-  function _loadTotalAccountValueInDoublePips(
-    IOraclePriceAdapter oraclePriceAdapter,
-    int64 outstandingWalletFunding,
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (int256 totalAccountValueInDoublePips) {
-    totalAccountValueInDoublePips =
-      int256(
-        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
-          outstandingWalletFunding
-      ) *
-      Math.toInt64(Constants.PIP_PRICE_MULTIPLIER);
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-
-      totalAccountValueInDoublePips +=
-        int256(balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol)) *
-        Math.toInt64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol));
-    }
-  }
-
-  function _loadTotalExitAccountValue(
-    IOraclePriceAdapter oraclePriceAdapter,
-    int64 outstandingWalletFunding,
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private view returns (int64 exitAccountValue) {
-    exitAccountValue =
-      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
-      outstandingWalletFunding;
-
-    Balance memory balanceStruct;
-    Market memory market;
-    uint64 quoteQuantityForPosition;
-
-    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
-    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
-      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
-
-      quoteQuantityForPosition = LiquidationValidations.calculateQuoteQuantityAtExitPrice(
-        balanceStruct.costBasis,
-        oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol),
-        balanceStruct.balance
-      );
-
-      if (balanceStruct.balance < 0) {
-        // Short positions have negative value
-        exitAccountValue -= Math.toInt64(quoteQuantityForPosition);
-      } else {
-        // Long positions have positive value
-        exitAccountValue += Math.toInt64(quoteQuantityForPosition);
-      }
-    }
   }
 
   function _loadMarginRequirement(
@@ -378,6 +316,68 @@ library OraclePriceMargin {
         Math.toInt64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol)),
         Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
+    }
+  }
+
+  function _loadTotalAccountValueInDoublePips(
+    IOraclePriceAdapter oraclePriceAdapter,
+    int64 outstandingWalletFunding,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (int256 totalAccountValueInDoublePips) {
+    totalAccountValueInDoublePips =
+      int256(
+        balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
+          outstandingWalletFunding
+      ) *
+      Math.toInt64(Constants.PIP_PRICE_MULTIPLIER);
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      Market memory market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+
+      totalAccountValueInDoublePips +=
+        int256(balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol)) *
+        Math.toInt64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol));
+    }
+  }
+
+  function _loadTotalExitAccountValue(
+    IOraclePriceAdapter oraclePriceAdapter,
+    int64 outstandingWalletFunding,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private view returns (int64 exitAccountValue) {
+    exitAccountValue =
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, Constants.QUOTE_ASSET_SYMBOL) +
+      outstandingWalletFunding;
+
+    Balance memory balanceStruct;
+    Market memory market;
+    uint64 quoteQuantityForPosition;
+
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      balanceStruct = balanceTracking.loadBalanceStructFromMigrationSourceIfNeeded(wallet, baseAssetSymbols[i]);
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+
+      quoteQuantityForPosition = LiquidationValidations.calculateQuoteQuantityAtExitPrice(
+        balanceStruct.costBasis,
+        oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol),
+        balanceStruct.balance
+      );
+
+      if (balanceStruct.balance < 0) {
+        // Short positions have negative value
+        exitAccountValue -= Math.toInt64(quoteQuantityForPosition);
+      } else {
+        // Long positions have positive value
+        exitAccountValue += Math.toInt64(quoteQuantityForPosition);
+      }
     }
   }
 
