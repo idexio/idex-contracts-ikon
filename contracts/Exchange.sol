@@ -268,7 +268,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     require(Address.isContract(address(oraclePriceAdapter_)), "Invalid Oracle Price Adapter address");
     oraclePriceAdapter = oraclePriceAdapter_;
 
-    // Deposits must be manually enabled via `setDepositIndex` and `setDepositIndex`
+    // Deposits must be manually enabled via `setDepositIndex` and `setDepositEnabled`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;
   }
 
