@@ -325,13 +325,17 @@ describe('Exchange', function () {
       ).to.equal('0');
     });
 
-    it('should revert for EF', async function () {
+    it('should revert for wallet not exited', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
       exchange.withdrawExit(trader1Wallet.address);
 
       await expect(
+        exchange.withdrawExitAdmin(trader2Wallet.address),
+      ).to.eventually.be.rejectedWith(/wallet not exited/i);
+
+      await expect(
         exchange.withdrawExitAdmin(exitFundWallet.address),
-      ).to.eventually.be.rejectedWith(/cannot withdraw EF/i);
+      ).to.eventually.be.rejectedWith(/wallet not exited/i);
     });
 
     it('should revert when not called by admin', async function () {

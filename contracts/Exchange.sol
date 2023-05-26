@@ -69,6 +69,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   mapping(string => uint64) public lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // Wallet-specific market parameter overrides
   mapping(string => mapping(address => MarketOverrides)) public marketOverridesByBaseAssetSymbolAndWallet;
+  // A list of base asset symbols for all markets in addition order
+  string[] public marketBaseAssetSymbols;
   // Mapping of base asset symbol => market struct
   mapping(string => Market) public marketsByBaseAssetSymbol;
   // Mapping of wallet => last invalidated timestamp in milliseconds
@@ -523,6 +525,27 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
+   * @notice Loads the total count of all markets added
+   *
+   * @return The total count of all markets added
+   *
+   */
+  function loadMarketsLength() public view returns (uint256) {
+    return marketBaseAssetSymbols.length;
+  }
+
+  /**
+   * @notice Loads the Market at the given index by addition order
+   *
+   * @param index The index at which to load
+   *
+   * @return The Market at the given index by addition order
+   */
+  function loadMarket(uint8 index) public view returns (Market memory) {
+    return marketsByBaseAssetSymbol[marketBaseAssetSymbols[index]];
+  }
+
+  /**
    * @notice Load the balance of quote asset the wallet can withdraw after exiting, in pips. Note that due to changing
    * prices the value returned is only an estimate and may not exactly match the value actually transferred after exit
    *
@@ -911,6 +934,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       oraclePriceAdapter,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketBaseAssetSymbols,
       marketsByBaseAssetSymbol
     );
   }
@@ -936,7 +960,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * closure deleveraging during system recovery
    */
   function publishIndexPrices(IndexPricePayload[] memory encodedIndexPrices) public onlyDispatcher {
-    MarketAdmin.publishIndexPrices_delegatecall(encodedIndexPrices, marketsByBaseAssetSymbol);
+    MarketAdmin.publishIndexPrices_delegatecall(encodedIndexPrices, indexPriceAdapters, marketsByBaseAssetSymbol);
   }
 
   /**
@@ -1175,6 +1199,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   /**
    * @notice Close all open positions and withdraw the net quote balance for an exited wallet. The Chain Propagation
    * Period must have already passed since calling `exitWallet`
+   *
+   * @param wallet Address of exited wallet
    */
   function withdrawExit(address wallet) public {
     (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
@@ -1197,19 +1223,21 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @notice Close all open positions and withdraw the net quote balance for an exited wallet during system recovery,
    * regardless of Chain Propagation Period elapsing
    *
-   * @dev Does not modify `exitFundPositionOpenedAtBlockNumber` since EF already has a position open and `wallet` cannot
-   * be the EF
+   * @param wallet Address of exited wallet
    */
   function withdrawExitAdmin(address wallet) public onlyAdmin onlyWhenExitFundHasOpenPositions {
-    uint64 quantity = Withdrawing.withdrawExitAdmin_delegatecall(
+    (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExitAdmin_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
+      exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      marketsByBaseAssetSymbol,
+      walletExits
     );
+    exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
 
     emit WalletExitWithdrawn(wallet, quantity);
   }
