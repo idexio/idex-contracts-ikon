@@ -6,12 +6,12 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { Constants } from "../libraries/Constants.sol";
 import { Hashing } from "../libraries/Hashing.sol";
-import { IExchange, IIndexPriceAdapter } from "../libraries/Interfaces.sol";
 import { IndexPrice, Market } from "../libraries/Structs.sol";
 import { Owned } from "../Owned.sol";
 import { String } from "../libraries/String.sol";
+import { IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 
-contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
+contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapter, Owned {
   bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
     keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
 
@@ -41,11 +41,11 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   }
 
   /**
-   * @notice Instantiate a new `IDEXIndexPriceAdapter` contract
+   * @notice Instantiate a new `IDEXIndexAndOraclePriceAdapter` contract
    *
    * @param indexPriceServiceWallets_ Addresses of IPS wallets whitelisted to sign index prices
    */
-  constructor(address activator_, address[] memory indexPriceServiceWallets_) {
+  constructor(address activator_, address[] memory indexPriceServiceWallets_) Owned() {
     require(activator_ != address(0x0), "Invalid activator address");
     activator = activator_;
 
@@ -68,9 +68,9 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
   /**
    * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
    */
-  function setActive(IExchange exchange_) public onlyActivator {
+  function setActive(IExchange exchange_) public override(IIndexPriceAdapter, IOraclePriceAdapter) onlyActivator {
     if (_isActive()) {
-      // If this adapter is being used for both oracle and index price roles, this function will validly be called twice
+      // When used for both oracle and index price roles, this function will validly be called twice
       return;
     }
 
@@ -100,6 +100,8 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
 
   /**
    * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   *
+   * @dev If this adapter has not yet been set active, `onlyExchange` will revert
    */
   function validateIndexPricePayload(bytes memory payload) public onlyExchange returns (IndexPrice memory) {
     IndexPrice memory indexPrice = _validateIndexPricePayload(payload);
