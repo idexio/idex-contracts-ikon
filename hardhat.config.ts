@@ -66,7 +66,7 @@ const solidity = process.env.COVERAGE
           settings: {
             optimizer: {
               enabled: true,
-              runs: 200,
+              runs: 150,
             },
             viaIR: true,
           },

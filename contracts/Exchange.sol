@@ -72,7 +72,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   // A list of base asset symbols for all markets in addition order
   string[] public marketBaseAssetSymbols;
   // Mapping of base asset symbol => market struct
-  mapping(string => Market) public marketsByBaseAssetSymbol;
+  mapping(string => Market) private _marketsByBaseAssetSymbol;
   // Mapping of wallet => last invalidated timestamp in milliseconds
   mapping(address => NonceInvalidation[]) public nonceInvalidationsByWallet;
   // Currently whitelisted Oracle Price Adapter, used for on-chain exits
@@ -490,7 +490,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
     }
   }
@@ -542,7 +542,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @return The Market at the given index by addition order
    */
   function loadMarket(uint8 index) public view returns (Market memory) {
-    return marketsByBaseAssetSymbol[marketBaseAssetSymbols[index]];
+    return _marketsByBaseAssetSymbol[marketBaseAssetSymbols[index]];
   }
 
   /**
@@ -569,7 +569,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -651,7 +651,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
       nonceInvalidationsByWallet,
       _partiallyFilledOrderQuantities,
       walletExits
@@ -689,7 +689,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -706,7 +706,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -728,7 +728,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -750,7 +750,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -771,7 +771,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -793,7 +793,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -815,7 +815,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -837,7 +837,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
       walletExits
     );
   }
@@ -860,7 +860,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -875,7 +875,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
       walletExits
     );
 
@@ -915,7 +915,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
 
     emit Withdrawn(withdrawal.wallet, withdrawal.grossQuantity, newExchangeBalance);
@@ -935,7 +935,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketBaseAssetSymbols,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -943,14 +943,14 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @notice Activate a market, which allows positions to be opened and funding payments made
    */
   function activateMarket(string memory baseAssetSymbol) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.activateMarket_delegatecall(baseAssetSymbol, marketsByBaseAssetSymbol);
+    MarketAdmin.activateMarket_delegatecall(baseAssetSymbol, _marketsByBaseAssetSymbol);
   }
 
   /**
    * @notice Deactivate a market
    */
   function deactivateMarket(string memory baseAssetSymbol) public onlyDispatcherWhenExitFundHasNoPositions {
-    MarketAdmin.deactivateMarket_delegatecall(baseAssetSymbol, marketsByBaseAssetSymbol);
+    MarketAdmin.deactivateMarket_delegatecall(baseAssetSymbol, _marketsByBaseAssetSymbol);
   }
 
   /**
@@ -960,7 +960,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * closure deleveraging during system recovery
    */
   function publishIndexPrices(IndexPricePayload[] memory encodedIndexPrices) public onlyDispatcher {
-    MarketAdmin.publishIndexPrices_delegatecall(encodedIndexPrices, indexPriceAdapters, marketsByBaseAssetSymbol);
+    MarketAdmin.publishIndexPrices_delegatecall(encodedIndexPrices, indexPriceAdapters, _marketsByBaseAssetSymbol);
   }
 
   /**
@@ -975,10 +975,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     OverridableMarketFields memory overridableFields,
     address wallet
   ) public onlyGovernance {
-    require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
+    require(_marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
 
     if (wallet == address(0x0)) {
-      marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = overridableFields;
+      _marketsByBaseAssetSymbol[baseAssetSymbol].overridableFields = overridableFields;
     } else {
       marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverrides({
         exists: true,
@@ -994,7 +994,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param wallet The wallet to unset overrides for
    */
   function unsetMarketOverridesForWallet(string memory baseAssetSymbol, address wallet) public onlyAdminOrDispatcher {
-    require(marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
+    require(_marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Invalid market");
     require(wallet != address(0x0), "Invalid wallet");
     require(
       marketOverridesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet].exists,
@@ -1030,7 +1030,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingRate,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
 
     emit FundingRatePublished(baseAssetSymbol, fundingRate);
@@ -1048,7 +1048,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-      marketsByBaseAssetSymbol
+      _marketsByBaseAssetSymbol
     );
   }
 
@@ -1063,7 +1063,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1082,7 +1082,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1101,7 +1101,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1119,7 +1119,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1137,7 +1137,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1155,7 +1155,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1173,7 +1173,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol
       );
   }
 
@@ -1211,7 +1211,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
       walletExits
     );
     exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
@@ -1234,7 +1234,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol,
+      _marketsByBaseAssetSymbol,
       walletExits
     );
     exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
