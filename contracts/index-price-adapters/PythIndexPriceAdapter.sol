@@ -68,6 +68,8 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     priceIds[0] = priceId;
 
     uint256 fee = pyth.getUpdateFee(updateData);
+    require(address(this).balance >= fee, "Insufficient balance for update fee");
+
     PythStructs.PriceFeed[] memory priceFeeds = pyth.parsePriceFeedUpdates{ value: fee }(
       updateData,
       priceIds,

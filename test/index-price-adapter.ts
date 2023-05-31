@@ -22,6 +22,10 @@ import {
   Exchange_v4,
   IDEXIndexAndOraclePriceAdapter,
   IDEXIndexAndOraclePriceAdapter__factory,
+  PythIndexPriceAdapter,
+  PythIndexPriceAdapter__factory,
+  PythMock,
+  PythMock__factory,
 } from '../typechain-types';
 
 describe('IDEXIndexAndOraclePriceAdapter', function () {
@@ -359,3 +363,347 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
     });
   });
 });
+
+describe('PythIndexPriceAdapter', function () {
+  let ownerWallet: SignerWithAddress;
+  let pyth: PythMock;
+  let PythMockFactory: PythMock__factory;
+  let PythIndexPriceAdapterFactory: PythIndexPriceAdapter__factory;
+
+  const oneDayInSeconds = 1 * 24 * 60 * 60;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+    [PythMockFactory, PythIndexPriceAdapterFactory] = await Promise.all([
+      ethers.getContractFactory('PythMock'),
+      ethers.getContractFactory('PythIndexPriceAdapter'),
+    ]);
+
+    ownerWallet = (await ethers.getSigners())[0];
+  });
+
+  beforeEach(async () => {
+    pyth = await PythMockFactory.deploy(oneDayInSeconds, 1);
+  });
+
+  describe('deploy', async function () {
+    it('should work for valid arguments', async () => {
+      await PythIndexPriceAdapterFactory.deploy(
+        pyth.address,
+        [baseAssetSymbol],
+        [ethers.utils.randomBytes(32)],
+      );
+    });
+
+    it('should revert for invalid Pyth contract', async () => {
+      await expect(
+        PythIndexPriceAdapterFactory.deploy(
+          ethers.constants.AddressZero,
+          [baseAssetSymbol],
+          [ethers.utils.randomBytes(32)],
+        ),
+      ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
+    });
+
+    it('should revert for mismatched argument lengths', async () => {
+      await expect(
+        PythIndexPriceAdapterFactory.deploy(
+          pyth.address,
+          [baseAssetSymbol, baseAssetSymbol],
+          [ethers.utils.randomBytes(32)],
+        ),
+      ).to.eventually.be.rejectedWith(/argument length mismatch/i);
+
+      await expect(
+        PythIndexPriceAdapterFactory.deploy(
+          pyth.address,
+          [baseAssetSymbol],
+          [ethers.utils.randomBytes(32), ethers.utils.randomBytes(32)],
+        ),
+      ).to.eventually.be.rejectedWith(/argument length mismatch/i);
+    });
+
+    it('should revert for invalid price ID', async () => {
+      await expect(
+        PythIndexPriceAdapterFactory.deploy(
+          pyth.address,
+          [baseAssetSymbol],
+          [
+            '0x0000000000000000000000000000000000000000000000000000000000000000',
+          ],
+        ),
+      ).to.eventually.be.rejectedWith(/invalid price id/i);
+    });
+  });
+
+  describe('setActive', async function () {
+    let adapter: PythIndexPriceAdapter;
+    let exchange: Exchange_v4;
+    const priceId = ethers.utils.randomBytes(32);
+
+    beforeEach(async () => {
+      adapter = await PythIndexPriceAdapterFactory.deploy(
+        pyth.address,
+        [baseAssetSymbol],
+        [priceId],
+      );
+      const results = await deployContractsExceptCustodian(
+        (
+          await ethers.getSigners()
+        )[0],
+      );
+      exchange = results.exchange;
+    });
+
+    it('should work', async () => {
+      await adapter.setActive(exchange.address);
+
+      await expect(adapter.exchange()).to.eventually.equal(exchange.address);
+    });
+
+    it('should revert for non-contract address', async () => {
+      await expect(
+        adapter.setActive(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
+    });
+
+    it('should revert if called twice', async () => {
+      await adapter.setActive(exchange.address);
+
+      await expect(
+        adapter.setActive(exchange.address),
+      ).to.eventually.be.rejectedWith(/adapter already active/i);
+    });
+  });
+
+  describe('validateIndexPricePayload', async function () {
+    let adapter: PythIndexPriceAdapter;
+    let exchange: ExchangeIndexPriceAdapterMock;
+    let ExchangeIndexPriceAdapterMockFactory: ExchangeIndexPriceAdapterMock__factory;
+    const priceId = ethers.utils.randomBytes(32);
+
+    before(async () => {
+      ExchangeIndexPriceAdapterMockFactory = await ethers.getContractFactory(
+        'ExchangeIndexPriceAdapterMock',
+      );
+    });
+
+    beforeEach(async () => {
+      adapter = await PythIndexPriceAdapterFactory.deploy(
+        pyth.address,
+        [baseAssetSymbol],
+        [priceId],
+      );
+      exchange = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        adapter.address,
+      );
+    });
+
+    it('should work for valid payload with funding with 8 decimals', async () => {
+      await adapter.setActive(exchange.address);
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+
+      await exchange.validateIndexPricePayload(
+        await buildPythPricePayload(priceId, decimalToPips('2000.00000000'), 8),
+      );
+
+      const events = await exchange.queryFilter(
+        exchange.filters.ValidatedIndexPrice(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.indexPrice.price).to.equal(
+        decimalToPips('2000.00000000'),
+      );
+    });
+
+    it('should work for valid payload with funding with 6 decimals', async () => {
+      await adapter.setActive(exchange.address);
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+
+      await exchange.validateIndexPricePayload(
+        await buildPythPricePayload(priceId, decimalToPips('2000.00000000'), 6),
+      );
+
+      const events = await exchange.queryFilter(
+        exchange.filters.ValidatedIndexPrice(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.indexPrice.price).to.equal(
+        decimalToPips('200000.00000000'),
+      );
+    });
+
+    it('should work for valid payload with funding with 10 decimals', async () => {
+      await adapter.setActive(exchange.address);
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+
+      await exchange.validateIndexPricePayload(
+        await buildPythPricePayload(
+          priceId,
+          decimalToPips('2000.00000000'),
+          10,
+        ),
+      );
+
+      const events = await exchange.queryFilter(
+        exchange.filters.ValidatedIndexPrice(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.indexPrice.price).to.equal(
+        decimalToPips('20.00000000'),
+      );
+    });
+
+    it('should revert for invalid price ID', async () => {
+      await adapter.setActive(exchange.address);
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+
+      await expect(
+        exchange.validateIndexPricePayload(
+          await buildPythPricePayload(
+            ethers.utils.randomBytes(32),
+            decimalToPips('2000.00000000'),
+          ),
+        ),
+      ).to.eventually.be.rejectedWith(/invalid priceId/i);
+    });
+
+    it('should revert for zero price', async () => {
+      await adapter.setActive(exchange.address);
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+
+      await expect(
+        exchange.validateIndexPricePayload(
+          await buildPythPricePayload(priceId, decimalToPips('0.00000000')),
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
+
+    it('should revert for negative price', async () => {
+      await adapter.setActive(exchange.address);
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+
+      await expect(
+        exchange.validateIndexPricePayload(
+          await buildPythPricePayload(priceId, decimalToPips('-2000.00000000')),
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
+
+    it('should revert when balance is insufficient for fee', async () => {
+      await adapter.setActive(exchange.address);
+
+      await expect(
+        exchange.validateIndexPricePayload(
+          await buildPythPricePayload(priceId, decimalToPips('2000.00000000')),
+        ),
+      ).to.eventually.be.rejectedWith(/insufficient balance for update fee/i);
+    });
+
+    it('should revert Exchange is not set', async () => {
+      await expect(
+        adapter.validateIndexPricePayload(
+          await buildPythPricePayload(priceId, decimalToPips('2000.00000000')),
+        ),
+      ).to.eventually.be.rejectedWith(/caller must be exchange contract/i);
+    });
+
+    it('should revert when caller is not Exchange', async () => {
+      await adapter.setActive(adapter.address);
+
+      await expect(
+        adapter.validateIndexPricePayload(
+          await buildPythPricePayload(priceId, decimalToPips('2000.00000000')),
+        ),
+      ).to.eventually.be.rejectedWith(/caller must be exchange contract/i);
+    });
+  });
+
+  describe('withdrawNativeAsset', async function () {
+    let adapter: PythIndexPriceAdapter;
+    let destinationWallet: SignerWithAddress;
+    const priceId = ethers.utils.randomBytes(32);
+
+    beforeEach(async () => {
+      adapter = await PythIndexPriceAdapterFactory.deploy(
+        pyth.address,
+        [baseAssetSymbol],
+        [priceId],
+      );
+      destinationWallet = (await ethers.getSigners())[1];
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+    });
+
+    it('should work when caller is admin', async () => {
+      await adapter.withdrawNativeAsset(
+        destinationWallet.address,
+        ethers.utils.parseEther('1.0'),
+      );
+    });
+
+    it('should revert when caller is not admin', async () => {
+      await expect(
+        adapter
+          .connect((await ethers.getSigners())[10])
+          .withdrawNativeAsset(
+            destinationWallet.address,
+            ethers.utils.parseEther('1.0'),
+          ),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+});
+
+async function buildPythPricePayload(
+  priceId: Uint8Array,
+  price: string,
+  decimals = 8,
+) {
+  const timestamp = await getLatestBlockTimestampInSeconds();
+
+  const pythPrice = ethers.utils.defaultAbiCoder.encode(
+    [
+      'tuple(bytes32,tuple(int64,uint64,int32,uint256),tuple(int64,uint64,int32,uint256))',
+    ],
+    [
+      [
+        priceId,
+        [price, 100, -1 * decimals, timestamp],
+        [price, 100, -1 * decimals, timestamp],
+      ],
+    ],
+  );
+
+  return ethers.utils.defaultAbiCoder.encode(
+    ['bytes32', 'bytes'],
+    [priceId, pythPrice],
+  );
+}

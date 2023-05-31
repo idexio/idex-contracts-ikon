@@ -6,6 +6,7 @@ import {
   ChainlinkOraclePriceAdapter__factory,
   PythMock,
   PythMock__factory,
+  PythOraclePriceAdapter,
   PythOraclePriceAdapter__factory,
 } from '../typechain-types';
 import {
@@ -75,6 +76,7 @@ describe('oracle price adapters', function () {
   });
 
   describe('PythOraclePriceAdapter', function () {
+    let pyth: PythMock;
     let PythMockFactory: PythMock__factory;
     let PythOraclePriceAdapterFactory: PythOraclePriceAdapter__factory;
 
@@ -86,6 +88,10 @@ describe('oracle price adapters', function () {
         ethers.getContractFactory('PythMock'),
         ethers.getContractFactory('PythOraclePriceAdapter'),
       ]);
+    });
+
+    beforeEach(async () => {
+      pyth = await PythMockFactory.deploy(oneDayInSeconds, 1);
     });
 
     describe('deploy', async function () {
@@ -112,7 +118,7 @@ describe('oracle price adapters', function () {
       it('should revert for mismatched argument lengths', async () => {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
-            ethers.constants.AddressZero,
+            pyth.address,
             [baseAssetSymbol, baseAssetSymbol],
             [ethers.utils.randomBytes(32)],
           ),
@@ -120,34 +126,46 @@ describe('oracle price adapters', function () {
 
         await expect(
           PythOraclePriceAdapterFactory.deploy(
-            ethers.constants.AddressZero,
+            pyth.address,
             [baseAssetSymbol],
             [ethers.utils.randomBytes(32), ethers.utils.randomBytes(32)],
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
       });
+
+      it('should revert for invalid price ID', async () => {
+        await expect(
+          PythOraclePriceAdapterFactory.deploy(
+            pyth.address,
+            [baseAssetSymbol],
+            [
+              '0x0000000000000000000000000000000000000000000000000000000000000000',
+            ],
+          ),
+        ).to.eventually.be.rejectedWith(/invalid price id/i);
+      });
     });
 
     describe('loadPriceForBaseAssetSymbol', async function () {
-      let pyth: PythMock;
+      let adapter: PythOraclePriceAdapter;
       const price = decimalToPips('2000.00000000');
       const priceId = ethers.utils.randomBytes(32);
 
       beforeEach(async () => {
-        pyth = await PythMockFactory.deploy(oneDayInSeconds, 1);
+        adapter = await PythOraclePriceAdapterFactory.deploy(
+          pyth.address,
+          [baseAssetSymbol],
+          [priceId],
+        );
+      });
+
+      it('should work for valid symbol with 8 decimals', async () => {
         await updatePythPrice(
           pyth,
           priceId,
           price,
           await getLatestBlockTimestampInSeconds(),
-        );
-      });
-
-      it('should work for valid symbol with 8 decimals', async () => {
-        const adapter = await PythOraclePriceAdapterFactory.deploy(
-          pyth.address,
-          [baseAssetSymbol],
-          [priceId],
+          8,
         );
 
         expect(
@@ -155,6 +173,83 @@ describe('oracle price adapters', function () {
             await adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
           ).toString(),
         ).to.equal(price);
+      });
+
+      it('should work for valid symbol with 6 decimals', async () => {
+        await updatePythPrice(
+          pyth,
+          priceId,
+          price,
+          await getLatestBlockTimestampInSeconds(),
+          6,
+        );
+
+        expect(
+          (
+            await adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+          ).toString(),
+        ).to.equal(decimalToPips('200000.00000000'));
+      });
+
+      it('should work for valid symbol with 10 decimals', async () => {
+        await updatePythPrice(
+          pyth,
+          priceId,
+          price,
+          await getLatestBlockTimestampInSeconds(),
+          10,
+        );
+
+        expect(
+          (
+            await adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+          ).toString(),
+        ).to.equal(decimalToPips('20.00000000'));
+      });
+
+      it('should revert for invalid base asset symbol', async () => {
+        await expect(
+          adapter.loadPriceForBaseAssetSymbol('XYZ'),
+        ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+      });
+
+      it('should revert for zero price', async () => {
+        await updatePythPrice(
+          pyth,
+          priceId,
+          decimalToPips('0.00000000'),
+          await getLatestBlockTimestampInSeconds(),
+          8,
+        );
+
+        await expect(
+          adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+        ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+      });
+
+      it('should revert for negative price', async () => {
+        await updatePythPrice(
+          pyth,
+          priceId,
+          decimalToPips('-2000.00000000'),
+          await getLatestBlockTimestampInSeconds(),
+          8,
+        );
+
+        await expect(
+          adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+        ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+      });
+    });
+
+    describe('setActive', async function () {
+      it('should work', async () => {
+        const adapter = await PythOraclePriceAdapterFactory.deploy(
+          pyth.address,
+          [baseAssetSymbol],
+          [ethers.utils.randomBytes(32)],
+        );
+        await adapter.setActive(ethers.constants.AddressZero);
       });
     });
   });
@@ -165,6 +260,7 @@ async function updatePythPrice(
   priceId: Uint8Array,
   price: string,
   timestamp: number,
+  decimals = 8,
 ) {
   await pyth.updatePriceFeeds(
     [
@@ -172,7 +268,13 @@ async function updatePythPrice(
         [
           'tuple(bytes32,tuple(int64,uint64,int32,uint256),tuple(int64,uint64,int32,uint256))',
         ],
-        [[priceId, [price, 100, -8, timestamp], [price, 100, -8, timestamp]]],
+        [
+          [
+            priceId,
+            [price, 100, -1 * decimals, timestamp],
+            [price, 100, -1 * decimals, timestamp],
+          ],
+        ],
       ),
     ],
     { value: 1 },
