@@ -1225,7 +1225,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    *
    * @param wallet Address of exited wallet
    */
-  function withdrawExitAdmin(address wallet) public onlyAdmin onlyWhenExitFundHasOpenPositions {
+  function withdrawExitAdmin(address wallet) public onlyAdminOrDispatcher onlyWhenExitFundHasOpenPositions {
     (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExitAdmin_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
       exitFundPositionOpenedAtBlockNumber,
