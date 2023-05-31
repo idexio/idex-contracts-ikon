@@ -6,7 +6,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import { AssetUnitConversions } from "../libraries/AssetUnitConversions.sol";
-import { IOraclePriceAdapter } from "../libraries/Interfaces.sol";
+import { IExchange, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 
 contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
   mapping(string => IChainlinkAggregator) public chainlinkAggregatorsByBaseAssetSymbol;
@@ -36,6 +36,14 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
     (, int256 answer, , , ) = chainlinkAggregator.latestRoundData();
     require(answer > 0, "Unexpected non-positive feed price");
 
-    return AssetUnitConversions.assetUnitsToPips(uint256(answer), chainlinkAggregator.decimals());
+    price = AssetUnitConversions.assetUnitsToPips(uint256(answer), chainlinkAggregator.decimals());
+    require(price > 0, "Unexpected non-positive price");
   }
+
+  /**
+   * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
+   *
+   * @dev No-op, this contract has no state to initialize on activation
+   */
+  function setActive(IExchange) public {}
 }
