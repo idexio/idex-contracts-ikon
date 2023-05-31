@@ -36,13 +36,14 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
     (, int256 answer, , , ) = chainlinkAggregator.latestRoundData();
     require(answer > 0, "Unexpected non-positive feed price");
 
-    return AssetUnitConversions.assetUnitsToPips(uint256(answer), chainlinkAggregator.decimals());
+    price = AssetUnitConversions.assetUnitsToPips(uint256(answer), chainlinkAggregator.decimals());
+    require(price > 0, "Unexpected non-positive price");
   }
 
   /**
    * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
    *
-   * @dev No-op
+   * @dev No-op, this contract has no state to initialize on activation
    */
   function setActive(IExchange) public {}
 }
