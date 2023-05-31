@@ -66,18 +66,18 @@ library FundingMultiplierQuartetHelper {
       return _calculateAggregatePaymentForQuartet(self[startIndex], startOffset, endOffset, positionSize);
     }
 
-    int64 aggregateMultiplier = _calculateAggregatePaymentForQuartet(
+    int64 aggregatePayment = _calculateAggregatePaymentForQuartet(
       self[startIndex],
       startOffset,
       _QUARTET_SIZE - 1,
       positionSize
     );
     for (uint256 i = startIndex + 1; i < endIndex; i++) {
-      aggregateMultiplier += _calculateAggregatePaymentForQuartet(self[i], 0, _QUARTET_SIZE - 1, positionSize);
+      aggregatePayment += _calculateAggregatePaymentForQuartet(self[i], 0, _QUARTET_SIZE - 1, positionSize);
     }
-    aggregateMultiplier += _calculateAggregatePaymentForQuartet(self[endIndex], 0, endOffset, positionSize);
+    aggregatePayment += _calculateAggregatePaymentForQuartet(self[endIndex], 0, endOffset, positionSize);
 
-    return aggregateMultiplier;
+    return aggregatePayment;
   }
 
   /**

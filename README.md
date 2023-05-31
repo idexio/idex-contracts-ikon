@@ -294,4 +294,4 @@ The smart contracts in this repo are covered by a [bug bounty via Immunefi](http
 
 ## License
 
-The IDEX Ikon Smart Contracts and related code are released under the [MIT Licence](https://spdx.org/licenses/MIT.html).
+The IDEX Ikon Smart Contracts and related code are released under the [MIT License](https://spdx.org/licenses/MIT.html).
