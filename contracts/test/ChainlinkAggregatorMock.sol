@@ -7,16 +7,20 @@ import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contra
 import { Owned } from "../Owned.sol";
 
 contract ChainlinkAggregatorMock is IChainlinkAggregator, Owned {
+  uint8 public decimals;
+
   int256 public price;
 
-  constructor() Owned() {}
+  constructor() Owned() {
+    decimals = 8;
+  }
+
+  function setDecimals(uint8 decimals_) external {
+    decimals = decimals_;
+  }
 
   function setPrice(int256 newPrice) external {
     price = newPrice;
-  }
-
-  function decimals() external pure override returns (uint8) {
-    return 8;
   }
 
   function description() external pure returns (string memory) {
