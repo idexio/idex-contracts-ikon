@@ -113,6 +113,10 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
 
   /**
    * @notice Validate an encoded payload in order to set initial price for a new market
+   *
+   * @dev When adding a new market, `MarketAdmin` sets the initial price from the current oracle price adapter. This
+   * contract sources oracle price data from index price payloads it has already seen, so to avoid reversion when
+   * adding a new market an index price payload corresponding to the new market must first be provided to this function
    */
   function validateInitialIndexPricePayloadAdmin(bytes memory payload) public onlyAdmin {
     require(_isActive(), "Exchange not set");
@@ -133,6 +137,8 @@ contract IDEXIndexPriceAdapter is IIndexPriceAdapter, Owned {
 
   function _validateIndexPricePayload(bytes memory payload) private view returns (IndexPrice memory) {
     (IndexPrice memory indexPrice, bytes memory signature) = abi.decode(payload, (IndexPrice, bytes));
+
+    require(indexPrice.price > 0, "Unexpected non-positive price");
 
     // Extract signer from signature
     address signer = Hashing.getSigner(

@@ -251,6 +251,28 @@ describe('IDEXIndexPriceAdapter', function () {
         indexPriceAdapter.validateIndexPricePayload('0x00'),
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);
     });
+
+    it('should revert when price is zero', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      await expect(
+        exchangeMock.validateIndexPricePayload(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithTimestamp(
+              exchangeMock.address,
+              indexPriceServiceWallet,
+              (await getLatestBlockTimestampInSeconds()) * 1000 - 10000,
+              baseAssetSymbol,
+              '0.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
   });
 
   describe('validateInitialIndexPricePayloadAdmin', async function () {
@@ -295,6 +317,28 @@ describe('IDEXIndexPriceAdapter', function () {
           await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
         ).toString(),
       ).to.equal(decimalToPips('1900.00000000'));
+    });
+
+    it('should revert when price is zero', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithTimestamp(
+              exchangeMock.address,
+              indexPriceServiceWallet,
+              (await getLatestBlockTimestampInSeconds()) * 1000 - 10000,
+              baseAssetSymbol,
+              '0.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
     });
 
     it('should revert when not sent by admin', async () => {

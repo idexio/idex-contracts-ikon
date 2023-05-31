@@ -60,5 +60,34 @@ describe('ChainlinkOraclePriceAdapter', function () {
         adapter.loadPriceForBaseAssetSymbol('XYZ'),
       ).to.eventually.be.rejectedWith(/missing aggregator for symbol/i);
     });
+
+    it('should revert for negative feed price', async () => {
+      const chainlinkAggregator = await ChainlinkAggregatorFactory.deploy();
+
+      const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+        [baseAssetSymbol],
+        [chainlinkAggregator.address],
+      );
+
+      await chainlinkAggregator.setPrice(-100);
+      await expect(
+        adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive feed price/i);
+    });
+
+    it('should revert for negative price after conversion to pips', async () => {
+      const chainlinkAggregator = await ChainlinkAggregatorFactory.deploy();
+
+      const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+        [baseAssetSymbol],
+        [chainlinkAggregator.address],
+      );
+
+      await chainlinkAggregator.setPrice(1000);
+      await chainlinkAggregator.setDecimals(20);
+      await expect(
+        adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
   });
 });
