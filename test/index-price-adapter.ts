@@ -256,6 +256,28 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
         indexPriceAdapter.validateIndexPricePayload('0x00'),
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);
     });
+
+    it('should revert when price is zero', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      await expect(
+        exchangeMock.validateIndexPricePayload(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithTimestamp(
+              exchangeMock.address,
+              indexPriceServiceWallet,
+              (await getLatestBlockTimestampInSeconds()) * 1000 - 10000,
+              baseAssetSymbol,
+              '0.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
   });
 
   describe('validateInitialIndexPricePayloadAdmin', async function () {
@@ -300,6 +322,28 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
           await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
         ).toString(),
       ).to.equal(decimalToPips('1900.00000000'));
+    });
+
+    it('should revert when price is zero', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithTimestamp(
+              exchangeMock.address,
+              indexPriceServiceWallet,
+              (await getLatestBlockTimestampInSeconds()) * 1000 - 10000,
+              baseAssetSymbol,
+              '0.00000000',
+            ),
+          ).payload,
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
     });
 
     it('should revert when not sent by admin', async () => {
@@ -423,6 +467,16 @@ describe('PythIndexPriceAdapter', function () {
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
     });
 
+    it('should revert for invalid base asset symbol', async () => {
+      await expect(
+        PythIndexPriceAdapterFactory.deploy(
+          pyth.address,
+          [''],
+          [ethers.utils.randomBytes(32)],
+        ),
+      ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+    });
+
     it('should revert for invalid price ID', async () => {
       await expect(
         PythIndexPriceAdapterFactory.deploy(
@@ -433,6 +487,64 @@ describe('PythIndexPriceAdapter', function () {
           ],
         ),
       ).to.eventually.be.rejectedWith(/invalid price id/i);
+    });
+  });
+
+  describe('addBaseAssetSymbolAndPriceId', async function () {
+    let adapter: PythIndexPriceAdapter;
+    const priceId = ethers.utils.randomBytes(32);
+
+    beforeEach(async () => {
+      adapter = await PythIndexPriceAdapterFactory.deploy(
+        pyth.address,
+        [baseAssetSymbol],
+        [priceId],
+      );
+    });
+
+    it('should work for valid base asset symbol and price ID', async () => {
+      await adapter.addBaseAssetSymbolAndPriceId(
+        'XYZ',
+        ethers.utils.randomBytes(32),
+      );
+    });
+
+    it('should revert when not sent by admin', async () => {
+      await expect(
+        adapter
+          .connect((await ethers.getSigners())[5])
+          .addBaseAssetSymbolAndPriceId('XYZ', ethers.utils.randomBytes(32)),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert for invalid base asset symbol', async () => {
+      await expect(
+        adapter.addBaseAssetSymbolAndPriceId('', ethers.utils.randomBytes(32)),
+      ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+    });
+
+    it('should revert for invalid price ID', async () => {
+      await expect(
+        adapter.addBaseAssetSymbolAndPriceId(
+          'XYZ',
+          '0x0000000000000000000000000000000000000000000000000000000000000000',
+        ),
+      ).to.eventually.be.rejectedWith(/invalid price id/i);
+    });
+
+    it('should revert for already added base asset symbol', async () => {
+      await expect(
+        adapter.addBaseAssetSymbolAndPriceId(
+          baseAssetSymbol,
+          ethers.utils.randomBytes(32),
+        ),
+      ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
+    });
+
+    it('should revert for already added price ID', async () => {
+      await expect(
+        adapter.addBaseAssetSymbolAndPriceId('XYZ', priceId),
+      ).to.eventually.be.rejectedWith(/already added price ID/i);
     });
   });
 
@@ -595,6 +707,21 @@ describe('PythIndexPriceAdapter', function () {
       await expect(
         exchange.validateIndexPricePayload(
           await buildPythPricePayload(priceId, decimalToPips('0.00000000')),
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
+
+    it('should revert for zero price after pip conversion', async () => {
+      await adapter.setActive(exchange.address);
+
+      await ownerWallet.sendTransaction({
+        to: adapter.address,
+        value: ethers.utils.parseEther('1.0'),
+      });
+
+      await expect(
+        exchange.validateIndexPricePayload(
+          await buildPythPricePayload(priceId, decimalToPips('0.00000001'), 20),
         ),
       ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
     });

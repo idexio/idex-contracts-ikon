@@ -11,6 +11,8 @@ import { IExchange, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 
 contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
   // Mapping of Pyth price IDs to market base asset symbols
+  mapping(bytes32 => string) public baseAssetSymbolsByPriceId;
+  // Mapping of market base asset symbols to Pyth price IDs
   mapping(string => bytes32) public priceIdsByBaseAssetSymbol;
   // Address of Pyth contract
   IPyth public immutable pyth;
@@ -23,9 +25,30 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
     require(baseAssetSymbols.length == priceIds.length, "Argument length mismatch");
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      require(bytes(baseAssetSymbols[i]).length > 0, "Invalid base asset symbol");
       require(priceIds[i] != bytes32(0x0), "Invalid price ID");
+
+      baseAssetSymbolsByPriceId[priceIds[i]] = baseAssetSymbols[i];
       priceIdsByBaseAssetSymbol[baseAssetSymbols[i]] = priceIds[i];
     }
+  }
+
+  /*
+   * @notice Adds a new base asset symbol to price ID mapping for use by `loadPriceForBaseAssetSymbol`. Neither the
+   * symbol nor corresponding ID can already have been added
+   *
+   * @param baseAssetSymbol The symbol of the base asset symbol
+   * @param priceId The Pyth price feed ID
+   */
+  function addBaseAssetSymbolAndPriceId(string memory baseAssetSymbol, bytes32 priceId) public onlyAdmin {
+    require(priceId != bytes32(0x0), "Invalid price ID");
+    require(bytes(baseAssetSymbolsByPriceId[priceId]).length == 0, "Already added price ID");
+
+    require(bytes(baseAssetSymbol).length > 0, "Invalid base asset symbol");
+    require(priceIdsByBaseAssetSymbol[baseAssetSymbol] == bytes32(0x0), "Already added base asset symbol");
+
+    baseAssetSymbolsByPriceId[priceId] = baseAssetSymbol;
+    priceIdsByBaseAssetSymbol[baseAssetSymbol] = priceId;
   }
 
   /**
@@ -37,7 +60,10 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
 
     PythStructs.Price memory pythPrice = pyth.getPrice(priceId);
 
-    return _priceToPips(pythPrice.price, pythPrice.expo);
+    uint64 priceInPips = _priceToPips(pythPrice.price, pythPrice.expo);
+    require(priceInPips > 0, "Unexpected non-positive price");
+
+    return priceInPips;
   }
 
   /**

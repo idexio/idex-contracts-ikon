@@ -338,7 +338,7 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/wallet not exited/i);
     });
 
-    it('should revert when not called by admin', async function () {
+    it('should revert when not called by admin or dispatch', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
       exchange.withdrawExit(trader1Wallet.address);
 

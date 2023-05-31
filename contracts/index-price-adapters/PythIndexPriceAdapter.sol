@@ -13,13 +13,14 @@ import { Time } from "../libraries/Time.sol";
 import { IExchange, IIndexPriceAdapter } from "../libraries/Interfaces.sol";
 
 contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
-  // Mapping of market base asset symbols to Pyth price IDs
+  // Mapping of Pyth price IDs to market base asset symbols
   mapping(bytes32 => string) public baseAssetSymbolsByPriceId;
-  // Address of Pyth contract
-  IPyth public immutable pyth;
-
   // Address of Exchange contract
   IExchange public exchange;
+  // Mapping of market base asset symbols to Pyth price IDs
+  mapping(string => bytes32) public priceIdsByBaseAssetSymbol;
+  // Address of Pyth contract
+  IPyth public immutable pyth;
 
   constructor(address pyth_, string[] memory baseAssetSymbols, bytes32[] memory priceIds) {
     require(Address.isContract(pyth_), "Invalid Pyth contract address");
@@ -29,8 +30,11 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     require(baseAssetSymbols.length == priceIds.length, "Argument length mismatch");
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      require(bytes(baseAssetSymbols[i]).length > 0, "Invalid base asset symbol");
       require(priceIds[i] != bytes32(0x0), "Invalid price ID");
+
       baseAssetSymbolsByPriceId[priceIds[i]] = baseAssetSymbols[i];
+      priceIdsByBaseAssetSymbol[baseAssetSymbols[i]] = priceIds[i];
     }
   }
 
@@ -42,6 +46,24 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
   modifier onlyExchange() {
     require(msg.sender == address(exchange), "Caller must be Exchange contract");
     _;
+  }
+
+  /*
+   * @notice Adds a new price ID to base asset symbol mapping for use by `validateIndexPricePayload`. Neither the
+   * symbol nor corresponding ID can already have been added
+   *
+   * @param baseAssetSymbol The symbol of the base asset symbol
+   * @param priceId The Pyth price feed ID
+   */
+  function addBaseAssetSymbolAndPriceId(string memory baseAssetSymbol, bytes32 priceId) public onlyAdmin {
+    require(priceId != bytes32(0x0), "Invalid price ID");
+    require(bytes(baseAssetSymbolsByPriceId[priceId]).length == 0, "Already added price ID");
+
+    require(bytes(baseAssetSymbol).length > 0, "Invalid base asset symbol");
+    require(priceIdsByBaseAssetSymbol[baseAssetSymbol] == bytes32(0x0), "Already added base asset symbol");
+
+    baseAssetSymbolsByPriceId[priceId] = baseAssetSymbol;
+    priceIdsByBaseAssetSymbol[baseAssetSymbol] = priceId;
   }
 
   /**
@@ -56,7 +78,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
   }
 
   /**
-   * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   * @notice Validate encoded payload and return `IndexPrice` struct
    */
   function validateIndexPricePayload(bytes memory payload) public onlyExchange returns (IndexPrice memory) {
     (bytes32 priceId, bytes memory encodedPrice) = abi.decode(payload, (bytes32, bytes));
@@ -80,11 +102,14 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     string memory baseAssetSymbol = baseAssetSymbolsByPriceId[priceId];
     require(bytes(baseAssetSymbol).length > 0, "Invalid priceId");
 
+    uint64 priceInPips = _priceToPips(priceFeeds[0].price.price, priceFeeds[0].price.expo);
+    require(priceInPips > 0, "Unexpected non-positive price");
+
     return
       IndexPrice({
         baseAssetSymbol: baseAssetSymbolsByPriceId[priceId],
         timestampInMs: SafeCast.toUint64(priceFeeds[0].price.publishTime * 1000),
-        price: _priceToPips(priceFeeds[0].price.price, priceFeeds[0].price.expo)
+        price: priceInPips
       });
   }
 

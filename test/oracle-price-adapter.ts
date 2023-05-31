@@ -72,6 +72,35 @@ describe('oracle price adapters', function () {
           adapter.loadPriceForBaseAssetSymbol('XYZ'),
         ).to.eventually.be.rejectedWith(/missing aggregator for symbol/i);
       });
+
+      it('should revert for negative feed price', async () => {
+        const chainlinkAggregator = await ChainlinkAggregatorFactory.deploy();
+
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [chainlinkAggregator.address],
+        );
+
+        await chainlinkAggregator.setPrice(-100);
+        await expect(
+          adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+        ).to.eventually.be.rejectedWith(/unexpected non-positive feed price/i);
+      });
+
+      it('should revert for negative price after conversion to pips', async () => {
+        const chainlinkAggregator = await ChainlinkAggregatorFactory.deploy();
+
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [chainlinkAggregator.address],
+        );
+
+        await chainlinkAggregator.setPrice(1000);
+        await chainlinkAggregator.setDecimals(20);
+        await expect(
+          adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+        ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+      });
     });
   });
 
@@ -133,6 +162,16 @@ describe('oracle price adapters', function () {
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
       });
 
+      it('should revert for invalid base asset symbol', async () => {
+        await expect(
+          PythOraclePriceAdapterFactory.deploy(
+            pyth.address,
+            [''],
+            [ethers.utils.randomBytes(32)],
+          ),
+        ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+      });
+
       it('should revert for invalid price ID', async () => {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
@@ -143,6 +182,67 @@ describe('oracle price adapters', function () {
             ],
           ),
         ).to.eventually.be.rejectedWith(/invalid price id/i);
+      });
+    });
+
+    describe('addBaseAssetSymbolAndPriceId', async function () {
+      let adapter: PythOraclePriceAdapter;
+      const priceId = ethers.utils.randomBytes(32);
+
+      beforeEach(async () => {
+        adapter = await PythOraclePriceAdapterFactory.deploy(
+          pyth.address,
+          [baseAssetSymbol],
+          [priceId],
+        );
+      });
+
+      it('should work for valid base asset symbol and price ID', async () => {
+        await adapter.addBaseAssetSymbolAndPriceId(
+          'XYZ',
+          ethers.utils.randomBytes(32),
+        );
+      });
+
+      it('should revert when not sent by admin', async () => {
+        await expect(
+          adapter
+            .connect((await ethers.getSigners())[5])
+            .addBaseAssetSymbolAndPriceId('XYZ', ethers.utils.randomBytes(32)),
+        ).to.eventually.be.rejectedWith(/caller must be admin/i);
+      });
+
+      it('should revert for invalid base asset symbol', async () => {
+        await expect(
+          adapter.addBaseAssetSymbolAndPriceId(
+            '',
+            ethers.utils.randomBytes(32),
+          ),
+        ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+      });
+
+      it('should revert for invalid price ID', async () => {
+        await expect(
+          adapter.addBaseAssetSymbolAndPriceId(
+            'XYZ',
+            '0x0000000000000000000000000000000000000000000000000000000000000000',
+          ),
+        ).to.eventually.be.rejectedWith(/invalid price id/i);
+      });
+
+      it('should revert for already added base asset symbol', async () => {
+        await expect(
+          adapter.addBaseAssetSymbolAndPriceId(
+            baseAssetSymbol,
+            ethers.utils.randomBytes(32),
+          ),
+        ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
+      });
+
+      it('should revert for already added price ID', async () => {
+        await expect(
+          adapter.addBaseAssetSymbolAndPriceId('XYZ', priceId),
+        ).to.eventually.be.rejectedWith(/already added price ID/i);
       });
     });
 
@@ -220,6 +320,20 @@ describe('oracle price adapters', function () {
           decimalToPips('0.00000000'),
           await getLatestBlockTimestampInSeconds(),
           8,
+        );
+
+        await expect(
+          adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+        ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+      });
+
+      it('should revert for zero price after pip conversion', async () => {
+        await updatePythPrice(
+          pyth,
+          priceId,
+          decimalToPips('0.00000001'),
+          await getLatestBlockTimestampInSeconds(),
+          20,
         );
 
         await expect(

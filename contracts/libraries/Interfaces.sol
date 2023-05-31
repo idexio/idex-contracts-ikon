@@ -192,7 +192,7 @@ interface IExchange {
  */
 interface IIndexPriceAdapter {
   /**
-   * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   * @notice Validate encoded payload and return `IndexPrice` struct
    */
   function validateIndexPricePayload(bytes calldata payload) external returns (IndexPrice memory);
 

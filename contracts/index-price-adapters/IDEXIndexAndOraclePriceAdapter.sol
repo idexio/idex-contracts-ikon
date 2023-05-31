@@ -6,10 +6,10 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { Constants } from "../libraries/Constants.sol";
 import { Hashing } from "../libraries/Hashing.sol";
-import { IndexPrice, Market } from "../libraries/Structs.sol";
 import { Owned } from "../Owned.sol";
 import { String } from "../libraries/String.sol";
 import { IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
+import { IndexPrice, Market } from "../libraries/Structs.sol";
 
 contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapter, Owned {
   bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
@@ -43,6 +43,7 @@ contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapt
   /**
    * @notice Instantiate a new `IDEXIndexAndOraclePriceAdapter` contract
    *
+   * @param activator_ Address whitelisted to call `setActive`
    * @param indexPriceServiceWallets_ Addresses of IPS wallets whitelisted to sign index prices
    */
   constructor(address activator_, address[] memory indexPriceServiceWallets_) Owned() {
@@ -99,7 +100,7 @@ contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapt
   }
 
   /**
-   * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   * @notice Validate encoded payload and return `IndexPrice` struct
    *
    * @dev If this adapter has not yet been set active, `onlyExchange` will revert
    */
@@ -115,6 +116,10 @@ contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapt
 
   /**
    * @notice Validate an encoded payload in order to set initial price for a new market
+   *
+   * @dev When adding a new market, `MarketAdmin` sets the initial price from the current oracle price adapter. This
+   * contract sources oracle price data from index price payloads it has already seen, so to avoid reversion when
+   * adding a new market an index price payload corresponding to the new market must first be provided to this function
    */
   function validateInitialIndexPricePayloadAdmin(bytes memory payload) public onlyAdmin {
     require(_isActive(), "Exchange not set");
@@ -135,6 +140,8 @@ contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapt
 
   function _validateIndexPricePayload(bytes memory payload) private view returns (IndexPrice memory) {
     (IndexPrice memory indexPrice, bytes memory signature) = abi.decode(payload, (IndexPrice, bytes));
+
+    require(indexPrice.price > 0, "Unexpected non-positive price");
 
     // Extract signer from signature
     address signer = Hashing.getSigner(
