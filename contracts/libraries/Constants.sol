@@ -36,9 +36,7 @@ library Constants {
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";
 
   bytes32 public constant DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH =
-    keccak256(
-      "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees."
-    );
+    keccak256("Sign this free message to prove you control this wallet");
 
   // 1 week at 3s/block
   uint256 public constant EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS = (7 * 24 * 60 * 60) / 3;
