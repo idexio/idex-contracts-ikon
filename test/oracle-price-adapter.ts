@@ -46,6 +46,15 @@ describe('oracle price adapters', function () {
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
       });
 
+      it('should revert for invalid base asset symbol', async () => {
+        await expect(
+          ChainlinkOraclePriceAdapterFactory.deploy(
+            [''],
+            [(await ChainlinkAggregatorFactory.deploy()).address],
+          ),
+        ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+      });
+
       it('should revert for invalid aggregator address', async () => {
         await expect(
           ChainlinkOraclePriceAdapterFactory.deploy(
@@ -58,6 +67,98 @@ describe('oracle price adapters', function () {
         ).to.eventually.be.rejectedWith(
           /invalid chainlink aggregator address/i,
         );
+      });
+    });
+
+    describe('addBaseAssetSymbolAndAggregator', async function () {
+      it('should work for valid base asset symbol and aggregator', async () => {
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [(await ChainlinkAggregatorFactory.deploy()).address],
+        );
+
+        await adapter.addBaseAssetSymbolAndAggregator(
+          'XYZ',
+          (
+            await ChainlinkAggregatorFactory.deploy()
+          ).address,
+        );
+      });
+
+      it('should revert when not sent by admin', async () => {
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [(await ChainlinkAggregatorFactory.deploy()).address],
+        );
+
+        await expect(
+          adapter
+            .connect((await ethers.getSigners())[5])
+            .addBaseAssetSymbolAndAggregator(
+              'XYZ',
+              (
+                await ChainlinkAggregatorFactory.deploy()
+              ).address,
+            ),
+        ).to.eventually.be.rejectedWith(/caller must be admin/i);
+      });
+
+      it('should revert for invalid base asset symbol', async () => {
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [(await ChainlinkAggregatorFactory.deploy()).address],
+        );
+
+        await expect(
+          adapter.addBaseAssetSymbolAndAggregator(
+            '',
+            (
+              await ChainlinkAggregatorFactory.deploy()
+            ).address,
+          ),
+        ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+      });
+
+      it('should revert for invalid aggregator address', async () => {
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [(await ChainlinkAggregatorFactory.deploy()).address],
+        );
+
+        await expect(
+          adapter.addBaseAssetSymbolAndAggregator(
+            'XYZ',
+            ethers.constants.AddressZero,
+          ),
+        ).to.eventually.be.rejectedWith(/invalid chainlink aggregator/i);
+      });
+
+      it('should revert for already added base asset symbol', async () => {
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [(await ChainlinkAggregatorFactory.deploy()).address],
+        );
+
+        await expect(
+          adapter.addBaseAssetSymbolAndAggregator(
+            baseAssetSymbol,
+            (
+              await ChainlinkAggregatorFactory.deploy()
+            ).address,
+          ),
+        ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
+      });
+
+      it('should revert for already added aggregator', async () => {
+        const aggregator = await ChainlinkAggregatorFactory.deploy();
+        const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
+          [baseAssetSymbol],
+          [aggregator.address],
+        );
+
+        await expect(
+          adapter.addBaseAssetSymbolAndAggregator('XYZ', aggregator.address),
+        ).to.eventually.be.rejectedWith(/already added chainlink aggregator/i);
       });
     });
 

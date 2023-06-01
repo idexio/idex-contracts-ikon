@@ -6,9 +6,11 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { AggregatorV3Interface as IChainlinkAggregator } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import { AssetUnitConversions } from "../libraries/AssetUnitConversions.sol";
+import { Owned } from "../Owned.sol";
 import { IExchange, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 
-contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
+contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter, Owned {
+  mapping(IChainlinkAggregator => string) public baseAssetSymbolsByChainlinkAggregator;
   mapping(string => IChainlinkAggregator) public chainlinkAggregatorsByBaseAssetSymbol;
 
   /**
@@ -17,13 +19,43 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter {
    * @param baseAssetSymbols Base asset symbols
    * @param chainlinkAggregators Addresses of Chainlink aggregators corresponding to base asset symbols
    */
-  constructor(string[] memory baseAssetSymbols, IChainlinkAggregator[] memory chainlinkAggregators) {
+  constructor(string[] memory baseAssetSymbols, IChainlinkAggregator[] memory chainlinkAggregators) Owned() {
     require(baseAssetSymbols.length == chainlinkAggregators.length, "Argument length mismatch");
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      require(bytes(baseAssetSymbols[i]).length > 0, "Invalid base asset symbol");
       require(Address.isContract(address(chainlinkAggregators[i])), "Invalid Chainlink aggregator address");
+
+      baseAssetSymbolsByChainlinkAggregator[chainlinkAggregators[i]] = baseAssetSymbols[i];
       chainlinkAggregatorsByBaseAssetSymbol[baseAssetSymbols[i]] = chainlinkAggregators[i];
     }
+  }
+
+  /*
+   * @notice Adds a new base asset symbol to aggregator contract address mapping for use by
+   * `loadPriceForBaseAssetSymbol`. Neither the contract address nor corresponding ID can already have been added
+   *
+   * @param baseAssetSymbol The symbol of the base asset symbol
+   * @param priceId The Pyth price feed ID
+   */
+  function addBaseAssetSymbolAndAggregator(
+    string memory baseAssetSymbol,
+    IChainlinkAggregator chainlinkAggregator
+  ) public onlyAdmin {
+    require(
+      bytes(baseAssetSymbolsByChainlinkAggregator[chainlinkAggregator]).length == 0,
+      "Already added Chainlink aggregator"
+    );
+    require(Address.isContract(address(chainlinkAggregator)), "Invalid Chainlink aggregator address");
+
+    require(bytes(baseAssetSymbol).length > 0, "Invalid base asset symbol");
+    require(
+      address(chainlinkAggregatorsByBaseAssetSymbol[baseAssetSymbol]) == address(0x0),
+      "Already added base asset symbol"
+    );
+
+    baseAssetSymbolsByChainlinkAggregator[chainlinkAggregator] = baseAssetSymbol;
+    chainlinkAggregatorsByBaseAssetSymbol[baseAssetSymbol] = chainlinkAggregator;
   }
 
   /**

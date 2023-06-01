@@ -64,6 +64,8 @@ library Constants {
   // Max int64
   uint64 public constant MAX_MAXIMUM_POSITION_SIZE = uint64(type(int64).max);
 
+  uint256 public constant MAX_NUMBER_OF_MARKETS = type(uint8).max;
+
   // Positions smaller than this threshold will skip quote quantity validation for Position Below Minimum liquidations
   // and skip non-negative total quote validation Wallet Exits
   uint64 public constant MINIMUM_QUOTE_QUANTITY_VALIDATION_THRESHOLD = 10000;

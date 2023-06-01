@@ -4,6 +4,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import type {
+  ChainlinkOraclePriceAdapter,
   Exchange_v4,
   IDEXIndexAndOraclePriceAdapter,
 } from '../typechain-types';
@@ -77,6 +78,31 @@ describe('Exchange', function () {
           .connect((await ethers.getSigners())[1])
           .addMarket(marketStruct),
       ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
+    });
+
+    it('should revert when max number of markets reached', async () => {
+      const { exchange, oraclePriceAdapter } =
+        await deployAndAssociateContracts(ownerWallet);
+      const ChainlinkAggregatorMockFactory = await ethers.getContractFactory(
+        'ChainlinkAggregatorMock',
+      );
+
+      for (let i = 0; i < 254; i += 1) {
+        const aggregator = await ChainlinkAggregatorMockFactory.deploy();
+        await aggregator.setPrice(200000);
+
+        await (
+          oraclePriceAdapter as ChainlinkOraclePriceAdapter
+        ).addBaseAssetSymbolAndAggregator(`XYZ${i}`, aggregator.address);
+        await exchange.addMarket({
+          ...marketStruct,
+          baseAssetSymbol: `XYZ${i}`,
+        });
+      }
+
+      await expect(
+        exchange.addMarket(marketStruct),
+      ).to.eventually.be.rejectedWith(/max number of markets reached/i);
     });
 
     it('should revert for existing base asset symbol', async () => {
