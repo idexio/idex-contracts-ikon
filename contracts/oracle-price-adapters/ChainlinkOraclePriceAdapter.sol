@@ -33,20 +33,21 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter, Owned {
 
   /*
    * @notice Adds a new base asset symbol to aggregator contract address mapping for use by
-   * `loadPriceForBaseAssetSymbol`. Neither the contract address nor corresponding ID can already have been added
+   * `loadPriceForBaseAssetSymbol`. Neither the contract address nor corresponding aggregator can already have been
+   * added
    *
    * @param baseAssetSymbol The symbol of the base asset symbol
-   * @param priceId The Pyth price feed ID
+   * @param priceId The Chainlink aggregator contract address
    */
   function addBaseAssetSymbolAndAggregator(
     string memory baseAssetSymbol,
     IChainlinkAggregator chainlinkAggregator
   ) public onlyAdmin {
+    require(Address.isContract(address(chainlinkAggregator)), "Invalid Chainlink aggregator address");
     require(
       bytes(baseAssetSymbolsByChainlinkAggregator[chainlinkAggregator]).length == 0,
       "Already added Chainlink aggregator"
     );
-    require(Address.isContract(address(chainlinkAggregator)), "Invalid Chainlink aggregator address");
 
     require(bytes(baseAssetSymbol).length > 0, "Invalid base asset symbol");
     require(
