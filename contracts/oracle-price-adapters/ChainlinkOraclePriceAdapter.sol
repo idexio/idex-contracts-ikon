@@ -31,13 +31,13 @@ contract ChainlinkOraclePriceAdapter is IOraclePriceAdapter, Owned {
     }
   }
 
-  /*
+  /**
    * @notice Adds a new base asset symbol to aggregator contract address mapping for use by
    * `loadPriceForBaseAssetSymbol`. Neither the contract address nor corresponding aggregator can already have been
    * added
    *
    * @param baseAssetSymbol The symbol of the base asset symbol
-   * @param priceId The Chainlink aggregator contract address
+   * @param chainlinkAggregator The Chainlink aggregator contract address
    */
   function addBaseAssetSymbolAndAggregator(
     string memory baseAssetSymbol,
