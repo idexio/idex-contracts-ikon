@@ -14,18 +14,14 @@ import { IndexPrice, Market } from "../libraries/Structs.sol";
 contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapter, Owned {
   bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
     keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
-
-  address public activator;
-
+  // Address whitelisted to call `setActive`
+  address public immutable activator;
   // Address of Exchange contract
   IExchange public exchange;
-
   // EIP-712 domain separator hash for Exchange
   bytes32 public exchangeDomainSeparator;
-
   // IPS wallet addresses whitelisted to sign index price payloads
   address[] public indexPriceServiceWallets;
-
   // Mapping of base asset symbol => index price struct
   mapping(string => IndexPrice) public latestIndexPriceByBaseAssetSymbol;
 

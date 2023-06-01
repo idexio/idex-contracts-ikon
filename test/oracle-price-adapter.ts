@@ -128,18 +128,18 @@ describe('oracle price adapters', function () {
         const pyth = await PythMockFactory.deploy(oneDayInSeconds, 1);
 
         await PythOraclePriceAdapterFactory.deploy(
-          pyth.address,
           [baseAssetSymbol],
           [ethers.utils.randomBytes(32)],
+          pyth.address,
         );
       });
 
       it('should revert for invalid Pyth contract', async () => {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
-            ethers.constants.AddressZero,
             [baseAssetSymbol],
             [ethers.utils.randomBytes(32)],
+            ethers.constants.AddressZero,
           ),
         ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
       });
@@ -147,17 +147,17 @@ describe('oracle price adapters', function () {
       it('should revert for mismatched argument lengths', async () => {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
-            pyth.address,
             [baseAssetSymbol, baseAssetSymbol],
             [ethers.utils.randomBytes(32)],
+            pyth.address,
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
 
         await expect(
           PythOraclePriceAdapterFactory.deploy(
-            pyth.address,
             [baseAssetSymbol],
             [ethers.utils.randomBytes(32), ethers.utils.randomBytes(32)],
+            pyth.address,
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
       });
@@ -165,9 +165,9 @@ describe('oracle price adapters', function () {
       it('should revert for invalid base asset symbol', async () => {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
-            pyth.address,
             [''],
             [ethers.utils.randomBytes(32)],
+            pyth.address,
           ),
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
       });
@@ -175,11 +175,11 @@ describe('oracle price adapters', function () {
       it('should revert for invalid price ID', async () => {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
-            pyth.address,
             [baseAssetSymbol],
             [
               '0x0000000000000000000000000000000000000000000000000000000000000000',
             ],
+            pyth.address,
           ),
         ).to.eventually.be.rejectedWith(/invalid price id/i);
       });
@@ -191,9 +191,9 @@ describe('oracle price adapters', function () {
 
       beforeEach(async () => {
         adapter = await PythOraclePriceAdapterFactory.deploy(
-          pyth.address,
           [baseAssetSymbol],
           [priceId],
+          pyth.address,
         );
       });
 
@@ -253,9 +253,9 @@ describe('oracle price adapters', function () {
 
       beforeEach(async () => {
         adapter = await PythOraclePriceAdapterFactory.deploy(
-          pyth.address,
           [baseAssetSymbol],
           [priceId],
+          pyth.address,
         );
       });
 
@@ -359,9 +359,9 @@ describe('oracle price adapters', function () {
     describe('setActive', async function () {
       it('should work', async () => {
         const adapter = await PythOraclePriceAdapterFactory.deploy(
-          pyth.address,
           [baseAssetSymbol],
           [ethers.utils.randomBytes(32)],
+          pyth.address,
         );
         await adapter.setActive(ethers.constants.AddressZero);
       });

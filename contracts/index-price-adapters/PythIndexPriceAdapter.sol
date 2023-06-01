@@ -13,6 +13,8 @@ import { Time } from "../libraries/Time.sol";
 import { IExchange, IIndexPriceAdapter } from "../libraries/Interfaces.sol";
 
 contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
+  // Address whitelisted to call `setActive`
+  address public immutable activator;
   // Mapping of Pyth price IDs to market base asset symbols
   mapping(bytes32 => string) public baseAssetSymbolsByPriceId;
   // Address of Exchange contract
@@ -22,10 +24,17 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
   // Address of Pyth contract
   IPyth public immutable pyth;
 
-  constructor(address pyth_, string[] memory baseAssetSymbols, bytes32[] memory priceIds) {
-    require(Address.isContract(pyth_), "Invalid Pyth contract address");
-
-    pyth = IPyth(pyth_);
+  /**
+   * @notice Instantiate a new `PythIndexPriceAdapter` contract
+   *
+   * @param activator_ Address whitelisted to call `setActive`
+   * @param baseAssetSymbols List of base asset symbols to associate with price IDs
+   * @param priceIds List of price IDs to associate with base asset symbols
+   * @param pyth_ Address of Pyth contract
+   */
+  constructor(address activator_, string[] memory baseAssetSymbols, bytes32[] memory priceIds, address pyth_) {
+    require(activator_ != address(0x0), "Invalid activator address");
+    activator = activator_;
 
     require(baseAssetSymbols.length == priceIds.length, "Argument length mismatch");
 
@@ -36,12 +45,20 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
       baseAssetSymbolsByPriceId[priceIds[i]] = baseAssetSymbols[i];
       priceIdsByBaseAssetSymbol[baseAssetSymbols[i]] = priceIds[i];
     }
+
+    require(Address.isContract(pyth_), "Invalid Pyth contract address");
+    pyth = IPyth(pyth_);
   }
 
   /**
    * @notice Allow incoming native asset to fund contract for network update fees
    */
   receive() external payable {}
+
+  modifier onlyActivator() {
+    require(msg.sender == activator, "Caller must be activator");
+    _;
+  }
 
   modifier onlyExchange() {
     require(msg.sender == address(exchange), "Caller must be Exchange contract");
@@ -69,7 +86,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
   /**
    * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
    */
-  function setActive(IExchange exchange_) public {
+  function setActive(IExchange exchange_) public onlyActivator {
     require(!_isActive(), "Adapter already active");
 
     require(Address.isContract(address(exchange_)), "Invalid Exchange contract address");
@@ -96,18 +113,18 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
       updateData,
       priceIds,
       0,
-      Time.getOneDayFromNow()
+      Time.getOneDayFromNowInS()
     );
 
     string memory baseAssetSymbol = baseAssetSymbolsByPriceId[priceId];
-    require(bytes(baseAssetSymbol).length > 0, "Invalid priceId");
+    require(bytes(baseAssetSymbol).length > 0, "Unknown price ID");
 
     uint64 priceInPips = _priceToPips(priceFeeds[0].price.price, priceFeeds[0].price.expo);
     require(priceInPips > 0, "Unexpected non-positive price");
 
     return
       IndexPrice({
-        baseAssetSymbol: baseAssetSymbolsByPriceId[priceId],
+        baseAssetSymbol: baseAssetSymbol,
         timestampInMs: SafeCast.toUint64(priceFeeds[0].price.publishTime * 1000),
         price: priceInPips
       });

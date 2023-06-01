@@ -17,7 +17,14 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
   // Address of Pyth contract
   IPyth public immutable pyth;
 
-  constructor(address pyth_, string[] memory baseAssetSymbols, bytes32[] memory priceIds) Owned() {
+  /**
+   * @notice Instantiate a new `PythOraclePriceAdapter` contract
+   *
+   * @param baseAssetSymbols List of base asset symbols to associate with price IDs
+   * @param priceIds List of price IDs to associate with base asset symbols
+   * @param pyth_ Address of Pyth contract
+   */
+  constructor(string[] memory baseAssetSymbols, bytes32[] memory priceIds, address pyth_) Owned() {
     require(Address.isContract(pyth_), "Invalid Pyth contract address");
 
     pyth = IPyth(pyth_);
@@ -69,7 +76,7 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
   /**
    * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
    *
-   * @dev No-op
+   * @dev No-op, this contract has no state to initialize on activation
    */
   function setActive(IExchange exchange_) public {}
 

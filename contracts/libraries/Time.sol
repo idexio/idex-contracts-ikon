@@ -6,7 +6,7 @@ library Time {
   uint64 private constant _SECONDS_IN_ONE_DAY = (24 * 60 * 60); // 24 hours/day * 60 min/hour * 60 seconds/min
   uint64 private constant _MS_IN_ONE_SECOND = 1000;
 
-  function getOneDayFromNow() internal view returns (uint64) {
+  function getOneDayFromNowInS() internal view returns (uint64) {
     return uint64(block.timestamp) + _SECONDS_IN_ONE_DAY;
   }
 

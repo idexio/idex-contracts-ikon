@@ -59,7 +59,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
           ethers.constants.AddressZero,
           [indexPriceServiceWallet.address],
         ),
-      ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
+      ).to.eventually.be.rejectedWith(/invalid activator/i);
     });
 
     it('should revert for invalid IPS wallet', async () => {
@@ -433,18 +433,31 @@ describe('PythIndexPriceAdapter', function () {
   describe('deploy', async function () {
     it('should work for valid arguments', async () => {
       await PythIndexPriceAdapterFactory.deploy(
-        pyth.address,
+        ownerWallet.address,
         [baseAssetSymbol],
         [ethers.utils.randomBytes(32)],
+        pyth.address,
       );
     });
 
-    it('should revert for invalid Pyth contract', async () => {
+    it('should revert for invalid activator', async () => {
       await expect(
         PythIndexPriceAdapterFactory.deploy(
           ethers.constants.AddressZero,
           [baseAssetSymbol],
           [ethers.utils.randomBytes(32)],
+          pyth.address,
+        ),
+      ).to.eventually.be.rejectedWith(/invalid activator/i);
+    });
+
+    it('should revert for invalid Pyth contract', async () => {
+      await expect(
+        PythIndexPriceAdapterFactory.deploy(
+          ownerWallet.address,
+          [baseAssetSymbol],
+          [ethers.utils.randomBytes(32)],
+          ethers.constants.AddressZero,
         ),
       ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
     });
@@ -452,17 +465,19 @@ describe('PythIndexPriceAdapter', function () {
     it('should revert for mismatched argument lengths', async () => {
       await expect(
         PythIndexPriceAdapterFactory.deploy(
-          pyth.address,
+          ownerWallet.address,
           [baseAssetSymbol, baseAssetSymbol],
           [ethers.utils.randomBytes(32)],
+          pyth.address,
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
 
       await expect(
         PythIndexPriceAdapterFactory.deploy(
-          pyth.address,
+          ownerWallet.address,
           [baseAssetSymbol],
           [ethers.utils.randomBytes(32), ethers.utils.randomBytes(32)],
+          pyth.address,
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
     });
@@ -470,9 +485,10 @@ describe('PythIndexPriceAdapter', function () {
     it('should revert for invalid base asset symbol', async () => {
       await expect(
         PythIndexPriceAdapterFactory.deploy(
-          pyth.address,
+          ownerWallet.address,
           [''],
           [ethers.utils.randomBytes(32)],
+          pyth.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
     });
@@ -480,11 +496,12 @@ describe('PythIndexPriceAdapter', function () {
     it('should revert for invalid price ID', async () => {
       await expect(
         PythIndexPriceAdapterFactory.deploy(
-          pyth.address,
+          ownerWallet.address,
           [baseAssetSymbol],
           [
             '0x0000000000000000000000000000000000000000000000000000000000000000',
           ],
+          pyth.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid price id/i);
     });
@@ -496,9 +513,10 @@ describe('PythIndexPriceAdapter', function () {
 
     beforeEach(async () => {
       adapter = await PythIndexPriceAdapterFactory.deploy(
-        pyth.address,
+        ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        pyth.address,
       );
     });
 
@@ -555,9 +573,10 @@ describe('PythIndexPriceAdapter', function () {
 
     beforeEach(async () => {
       adapter = await PythIndexPriceAdapterFactory.deploy(
-        pyth.address,
+        ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        pyth.address,
       );
       const results = await deployContractsExceptCustodian(
         (
@@ -571,6 +590,14 @@ describe('PythIndexPriceAdapter', function () {
       await adapter.setActive(exchange.address);
 
       await expect(adapter.exchange()).to.eventually.equal(exchange.address);
+    });
+
+    it('should revert when not called by activator', async () => {
+      await expect(
+        adapter
+          .connect((await ethers.getSigners())[10])
+          .setActive(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/caller must be activator/i);
     });
 
     it('should revert for non-contract address', async () => {
@@ -602,9 +629,10 @@ describe('PythIndexPriceAdapter', function () {
 
     beforeEach(async () => {
       adapter = await PythIndexPriceAdapterFactory.deploy(
-        pyth.address,
+        ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        pyth.address,
       );
       exchange = await ExchangeIndexPriceAdapterMockFactory.deploy(
         adapter.address,
@@ -693,7 +721,7 @@ describe('PythIndexPriceAdapter', function () {
             decimalToPips('2000.00000000'),
           ),
         ),
-      ).to.eventually.be.rejectedWith(/invalid priceId/i);
+      ).to.eventually.be.rejectedWith(/unknown price id/i);
     });
 
     it('should revert for zero price', async () => {
@@ -777,9 +805,10 @@ describe('PythIndexPriceAdapter', function () {
 
     beforeEach(async () => {
       adapter = await PythIndexPriceAdapterFactory.deploy(
-        pyth.address,
+        ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        pyth.address,
       );
       destinationWallet = (await ethers.getSigners())[1];
 
