@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import { ethers, network } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
@@ -9,6 +10,7 @@ import {
   deployContractsExceptCustodian,
   expect,
   getLatestBlockTimestampInSeconds,
+  quoteAssetSymbol,
 } from './helpers';
 import {
   hardhatChainId,
@@ -26,6 +28,10 @@ import {
   PythIndexPriceAdapter__factory,
   PythMock,
   PythMock__factory,
+  StorkVerifierMock,
+  StorkVerifierMock__factory,
+  StorkIndexAndOraclePriceAdapter,
+  StorkIndexAndOraclePriceAdapter__factory,
 } from '../typechain-types';
 
 describe('IDEXIndexAndOraclePriceAdapter', function () {
@@ -838,6 +844,78 @@ describe('PythIndexPriceAdapter', function () {
   });
 });
 
+describe.only('StorkIndexAndOraclePriceAdapter', function () {
+  let ownerWallet: SignerWithAddress;
+  let publisherWallet: SignerWithAddress;
+  let storkVerifier: StorkVerifierMock;
+  let StorkVerifierMockFactory: StorkVerifierMock__factory;
+  let StorkIndexAndOraclePriceAdapterFactory: StorkIndexAndOraclePriceAdapter__factory;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+    [StorkVerifierMockFactory, StorkIndexAndOraclePriceAdapterFactory] =
+      await Promise.all([
+        ethers.getContractFactory('StorkVerifierMock'),
+        ethers.getContractFactory('StorkIndexAndOraclePriceAdapter'),
+      ]);
+
+    ownerWallet = (await ethers.getSigners())[0];
+    publisherWallet = (await ethers.getSigners())[5];
+  });
+
+  beforeEach(async () => {
+    storkVerifier = await StorkVerifierMockFactory.deploy();
+  });
+
+  describe('deploy', async function () {
+    it('should work for valid arguments', async () => {
+      await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+    });
+  });
+
+  describe.only('validateInitialIndexPricePayloadAdmin', async function () {
+    let exchange: Exchange_v4;
+    let storkAdapter: StorkIndexAndOraclePriceAdapter;
+
+    beforeEach(async () => {
+      storkAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+      exchange = (await deployContractsExceptCustodian(ownerWallet)).exchange;
+    });
+
+    it('should work when no price yet exists', async () => {
+      const priceInDecimal = '1900.00000000';
+
+      await storkAdapter.setActive(exchange.address);
+
+      await expect(
+        storkAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/missing price/i);
+
+      await storkAdapter.validateInitialIndexPricePayloadAdmin(
+        buildStorkPricePayload(
+          baseAssetSymbol,
+          publisherWallet,
+          priceInDecimal,
+        ),
+      );
+
+      expect(
+        (
+          await storkAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+        ).toString(),
+      ).to.equal(decimalToPips(priceInDecimal));
+    });
+  });
+});
+
 async function buildPythPricePayload(
   priceId: Uint8Array,
   price: string,
@@ -861,5 +939,39 @@ async function buildPythPricePayload(
   return ethers.utils.defaultAbiCoder.encode(
     ['bytes32', 'bytes'],
     [priceId, pythPrice],
+  );
+}
+
+async function buildStorkPricePayload(
+  baseAssetSymbol: string,
+  publisherWallet: SignerWithAddress,
+  price: string,
+) {
+  const storkPrice = new BigNumber(price)
+    .shiftedBy(18)
+    .integerValue(BigNumber.ROUND_DOWN)
+    .toFixed(0);
+  const timestamp = await getLatestBlockTimestampInSeconds();
+
+  const hash = ethers.utils.solidityKeccak256(
+    ['address', 'string', 'uint256', 'uint256'],
+    [
+      publisherWallet.address,
+      `${baseAssetSymbol}${quoteAssetSymbol}`,
+      timestamp,
+      storkPrice,
+    ],
+  );
+
+  const signature = await publisherWallet.signMessage(
+    ethers.utils.arrayify(hash),
+  );
+  const r = signature.slice(0, 66);
+  const s = '0x' + signature.slice(66, 130);
+  const v = '0x' + signature.slice(130, 132);
+
+  return ethers.utils.defaultAbiCoder.encode(
+    ['address', 'string', 'uint256', 'uint256', 'bytes32', 'bytes32', 'uint8'],
+    [publisherWallet.address, baseAssetSymbol, timestamp, storkPrice, r, s, v],
   );
 }

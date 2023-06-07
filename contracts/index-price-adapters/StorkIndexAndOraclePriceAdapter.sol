@@ -3,7 +3,9 @@
 pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+import { AssetUnitConversions } from "../libraries/AssetUnitConversions.sol";
 import { Constants } from "../libraries/Constants.sol";
 import { Hashing } from "../libraries/Hashing.sol";
 import { Owned } from "../Owned.sol";
@@ -11,19 +13,29 @@ import { String } from "../libraries/String.sol";
 import { IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 import { IndexPrice, Market } from "../libraries/Structs.sol";
 
-contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapter, Owned {
-  bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
-    keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
+// https://docs.stork.network/verifying-stork-prices-on-chain/evm-verification-contract-v0
+interface IStorkVerifier {
+  function verifySignature(
+    address oracle_pubkey,
+    string memory asset_pair_id,
+    uint256 timestamp,
+    uint256 price,
+    bytes32 r,
+    bytes32 s,
+    uint8 v
+  ) external pure returns (bool);
+}
+
+contract StorkIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapter, Owned {
   // Address whitelisted to call `setActive`
   address public immutable activator;
   // Address of Exchange contract
   IExchange public exchange;
-  // EIP-712 domain separator hash for Exchange
-  bytes32 public exchangeDomainSeparator;
   // IPS wallet addresses whitelisted to sign index price payloads
-  address[] public indexPriceServiceWallets;
+  address[] public publisherWallets;
   // Mapping of base asset symbol => index price struct
   mapping(string => IndexPrice) public latestIndexPriceByBaseAssetSymbol;
+  IStorkVerifier public immutable verifier;
 
   modifier onlyActivator() {
     require(msg.sender == activator, "Caller must be activator");
@@ -37,20 +49,23 @@ contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapt
   }
 
   /**
-   * @notice Instantiate a new `IDEXIndexAndOraclePriceAdapter` contract
+   * @notice Instantiate a new `StorkIndexAndOraclePriceAdapter` contract
    *
    * @param activator_ Address whitelisted to call `setActive`
-   * @param indexPriceServiceWallets_ Addresses of IPS wallets whitelisted to sign index prices
+   * @param publisherWallets_ Addresses of oracle publisher wallets whitelisted to sign index prices
    */
-  constructor(address activator_, address[] memory indexPriceServiceWallets_) Owned() {
+  constructor(address activator_, address[] memory publisherWallets_, IStorkVerifier verifier_) Owned() {
     require(activator_ != address(0x0), "Invalid activator address");
     activator = activator_;
 
-    require(indexPriceServiceWallets_.length > 0, "Missing IPS wallets");
-    for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {
-      require(indexPriceServiceWallets_[i] != address(0x0), "Invalid IPS wallet");
+    require(publisherWallets_.length > 0, "Missing publisher wallets");
+    for (uint8 i = 0; i < publisherWallets_.length; i++) {
+      require(publisherWallets_[i] != address(0x0), "Invalid publisher wallet");
     }
-    indexPriceServiceWallets = indexPriceServiceWallets_;
+    publisherWallets = publisherWallets_;
+
+    require(Address.isContract(address(verifier_)), "Invalid verifier address");
+    verifier = verifier_;
   }
 
   /**
@@ -75,15 +90,6 @@ contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapt
     require(Address.isContract(address(exchange_)), "Invalid Exchange contract address");
 
     exchange = exchange_;
-    exchangeDomainSeparator = keccak256(
-      abi.encode(
-        Constants.EIP_712_TYPE_HASH_DOMAIN,
-        keccak256(bytes(Constants.EIP_712_DOMAIN_NAME)),
-        keccak256(bytes(Constants.EIP_712_DOMAIN_VERSION)),
-        block.chainid,
-        exchange_
-      )
-    );
 
     Market memory market;
     for (uint8 i = 0; i < exchange.loadMarketsLength(); i++) {
@@ -136,32 +142,51 @@ contract IDEXIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdapt
   }
 
   function _validateIndexPricePayload(bytes memory payload) private view returns (IndexPrice memory) {
-    (IndexPrice memory indexPrice, bytes memory signature) = abi.decode(payload, (IndexPrice, bytes));
-
-    require(indexPrice.price > 0, "Unexpected non-positive price");
-
-    // Extract signer from signature
-    address signer = Hashing.getSigner(
-      exchangeDomainSeparator,
-      keccak256(
-        abi.encode(
-          EIP_712_TYPE_HASH_INDEX_PRICE,
-          keccak256(bytes(indexPrice.baseAssetSymbol)),
-          keccak256(bytes(Constants.QUOTE_ASSET_SYMBOL)),
-          indexPrice.timestampInMs,
-          keccak256(bytes(String.pipsToDecimalString(indexPrice.price)))
-        )
-      ),
-      signature
-    );
+    (
+      address publisherWallet,
+      string memory baseAssetSymbol,
+      uint256 timestamp,
+      uint256 price,
+      bytes32 r,
+      bytes32 s,
+      uint8 v
+    ) = abi.decode(payload, (address, string, uint256, uint256, bytes32, bytes32, uint8));
 
     // Verify signer is whitelisted
-    bool isSignatureValid = false;
-    for (uint8 i = 0; i < indexPriceServiceWallets.length; i++) {
-      isSignatureValid = isSignatureValid || signer == indexPriceServiceWallets[i];
-    }
-    require(isSignatureValid, "Invalid index price signature");
+    require(_isPublisherWalletValid(publisherWallet), "Invalid index price signature");
 
-    return indexPrice;
+    require(price > 0, "Unexpected non-positive price");
+
+    require(
+      verifier.verifySignature(
+        publisherWallet,
+        string(abi.encodePacked(baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL)),
+        timestamp,
+        price,
+        r,
+        s,
+        v
+      )
+    );
+
+    uint64 priceInPips = AssetUnitConversions.assetUnitsToPips(price, 18);
+    require(priceInPips > 0, "Unexpected non-positive price");
+
+    return
+      IndexPrice({
+        baseAssetSymbol: baseAssetSymbol,
+        timestampInMs: SafeCast.toUint64(timestamp * 1000),
+        price: AssetUnitConversions.assetUnitsToPips(price, 18)
+      });
+  }
+
+  function _isPublisherWalletValid(address publisherWallet) private view returns (bool) {
+    for (uint8 i = 0; i < publisherWallets.length; i++) {
+      if (publisherWallet == publisherWallets[i]) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
