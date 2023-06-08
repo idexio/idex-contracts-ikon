@@ -17,6 +17,11 @@ library WalletExitLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an exited wallet liquidation with `liquidateWalletExit`
+   */
+  event LiquidatedWalletExit(address liquidatingWallet);
+
   struct ValidateExitQuoteQuantityArguments {
     Market market;
     int64 exitAccountValue;
@@ -77,6 +82,8 @@ library WalletExitLiquidation {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+
+    emit LiquidatedWalletExit(arguments.liquidatingWallet);
   }
 
   // Wrap balance update to avoid stack too deep error

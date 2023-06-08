@@ -17,6 +17,12 @@ library PositionBelowMinimumLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a position below minimum liquidation with
+   * `liquidatePositionBelowMinimum`
+   */
+  event LiquidatedPositionBelowMinimum(string baseAssetSymbol, address liquidatingWallet);
+
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
     PositionBelowMinimumLiquidationArguments memory arguments,
@@ -83,6 +89,8 @@ library PositionBelowMinimumLiquidation {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+
+    emit LiquidatedPositionBelowMinimum(arguments.baseAssetSymbol, arguments.liquidatingWallet);
   }
 
   function _updateBalances(

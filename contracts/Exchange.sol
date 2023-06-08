@@ -111,6 +111,33 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event DelegateKeyExpirationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
+   * @notice Emitted when the Dispatcher Wallet submits an exited wallet position deleverage with
+   * `deleverageExitAcquisition`
+   */
+  event DeleveragedExitAcquisition(string baseAssetSymbol, address counterpartyWallet, address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an Exit Fund closure deleverage with `deleverageExitFundClosure`
+   */
+  event DeleveragedExitFundClosure(string baseAssetSymbol, address counterpartyWallet, address exitFundWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance deleverage with
+   * `deleverageInMaintenanceAcquisition`
+   */
+  event DeleveragedInMaintenanceAcquisition(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet
+  );
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an Insurance Fund closure deleverage with
+   * `deleverageInsuranceFundClosure`
+   */
+  event DeleveragedInsuranceFundClosure(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address insuranceFundWallet
+  );
+  /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
   event Deposited(
@@ -146,8 +173,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
   /**
-   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
-   * `executeTrade`
+   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
   event TradeExecuted(
     address buyWallet,
@@ -183,6 +209,30 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * `withdrawExit`
    */
   event WalletExitWithdrawn(address wallet, uint64 quantity);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a position below minimum liquidation with
+   * `liquidatePositionBelowMinimum`
+   */
+  event LiquidatedPositionBelowMinimum(string baseAssetSymbol, address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a position in deactivated market liquidation with
+   * `liquidatePositionInDeactivatedMarket`
+   */
+  event LiquidatedPositionInDeactivatedMarket(string baseAssetSymbol, address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an exited wallet liquidation with `liquidateWalletExit`
+   */
+  event LiquidatedWalletExit(address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance liquidation with
+   * `liquidateWalletInMaintenance`
+   */
+  event LiquidatedWalletInMaintenance(address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance liquidation during system recovery with
+   * `liquidateWalletInMaintenanceDuringSystemRecovery`
+   */
+  event LiquidatedWalletInMaintenanceDuringSystemRecovery(address liquidatingWallet);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */

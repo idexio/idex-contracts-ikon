@@ -19,6 +19,21 @@ library ClosureDeleveraging {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an Exit Fund closure deleverage with `deleverageExitFundClosure`
+   */
+  event DeleveragedExitFundClosure(string baseAssetSymbol, address counterpartyWallet, address exitFundWallet);
+
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an Insurance Fund closure deleverage with
+   * `deleverageInsuranceFundClosure`
+   */
+  event DeleveragedInsuranceFundClosure(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address insuranceFundWallet
+  );
+
   // solhint-disable-next-line func-name-mixedcase
   function deleverage_delegatecall(
     ClosureDeleverageArguments memory arguments,
@@ -74,6 +89,8 @@ library ClosureDeleveraging {
     // EF closure deleveraging can potentially change the `exitFundPositionOpenedAtBlockNumber` by setting it to zero,
     // whereas IF closure cannot
     if (deleverageType == DeleverageType.ExitFundClosure) {
+      emit DeleveragedExitFundClosure(arguments.baseAssetSymbol, arguments.counterpartyWallet, exitFundWallet);
+
       return
         ExitFund.getExitFundPositionOpenedAtBlockNumber(
           exitFundPositionOpenedAtBlockNumber,
@@ -81,6 +98,12 @@ library ClosureDeleveraging {
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
         );
+    } else {
+      emit DeleveragedInsuranceFundClosure(
+        arguments.baseAssetSymbol,
+        arguments.counterpartyWallet,
+        insuranceFundWallet
+      );
     }
 
     // IF closure never changes `exitFundPositionOpenedAtBlockNumber`

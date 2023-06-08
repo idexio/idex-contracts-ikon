@@ -126,6 +126,13 @@ describe('Exchange', function () {
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.DeleveragedInMaintenanceAcquisition(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
     });
 
     it('should work for valid wallet when IF has open position and cannot acquire within margin limits', async function () {
@@ -759,6 +766,18 @@ describe('Exchange', function () {
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('21980.00000000'),
       });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.DeleveragedInsuranceFundClosure(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(events[0].args?.counterpartyWallet).to.equal(
+        counterpartyWallet.address,
+      );
+      expect(events[0].args?.insuranceFundWallet).to.equal(
+        insuranceFundWallet.address,
+      );
     });
 
     it('should revert when not sent by dispatcher', async function () {
@@ -887,6 +906,16 @@ describe('Exchange', function () {
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
       });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.DeleveragedExitAcquisition(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(events[0].args?.counterpartyWallet).to.equal(
+        trader1Wallet.address,
+      );
+      expect(events[0].args?.liquidatingWallet).to.equal(trader2Wallet.address);
     });
 
     it('should work for valid wallet with short position', async function () {
@@ -1643,6 +1672,16 @@ describe('Exchange', function () {
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
       });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.DeleveragedExitFundClosure(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(events[0].args?.counterpartyWallet).to.equal(
+        trader2Wallet.address,
+      );
+      expect(events[0].args?.exitFundWallet).to.equal(exitFundWallet.address);
     });
 
     it('should work for open short position', async function () {

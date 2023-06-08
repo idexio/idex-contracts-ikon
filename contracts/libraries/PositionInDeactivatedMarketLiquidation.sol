@@ -13,6 +13,12 @@ library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
   using SortedStringSet for string[];
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a position in deactivated market liquidation with
+   * `liquidatePositionInDeactivatedMarket`
+   */
+  event LiquidatedPositionInDeactivatedMarket(string baseAssetSymbol, address liquidatingWallet);
+
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
     PositionInDeactivatedMarketLiquidationArguments memory arguments,
@@ -56,5 +62,7 @@ library PositionInDeactivatedMarketLiquidation {
       arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet
     );
+
+    emit LiquidatedPositionInDeactivatedMarket(arguments.baseAssetSymbol, arguments.liquidatingWallet);
   }
 }
