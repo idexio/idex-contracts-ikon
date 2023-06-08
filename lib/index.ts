@@ -144,7 +144,7 @@ export const decimalToAssetUnits = (
 ): string => pipsToAssetUnits(decimalToPips(decimal), decimals);
 
 export const delegatedKeyAuthorizationMessage =
-  "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.";
+  'Sign this free message to prove you control this wallet';
 
 /**
  * Convert decimal quantity string to integer pips as expected by contract structs. Truncates
