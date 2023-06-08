@@ -32,7 +32,18 @@ describe('Exchange', function () {
 
   beforeEach(async () => {
     [ownerWallet] = await ethers.getSigners();
-    const results = await deployAndAssociateContracts(ownerWallet);
+    const results = await deployAndAssociateContracts(
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      0,
+      true,
+      ethers.constants.AddressZero,
+      [baseAssetSymbol, 'XYZ'],
+    );
     exchange = results.exchange;
     indexPriceAdapter = results.indexPriceAdapter;
     indexPriceServiceWallet = ownerWallet;
@@ -56,6 +67,18 @@ describe('Exchange', function () {
   });
 
   describe('activateMarket', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+      await exchange.activateMarket('XYZ');
+
+      const events = await exchange.queryFilter(
+        exchange.filters.MarketActivated(),
+      );
+      expect(events).to.have.lengthOf(2);
+      expect(events[1].args?.baseAssetSymbol).to.equal('XYZ');
+    });
+
     it('should revert when not called by dispatcher wallet', async () => {
       await expect(
         exchange
@@ -72,6 +95,15 @@ describe('Exchange', function () {
   });
 
   describe('addMarket', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+
+      const events = await exchange.queryFilter(exchange.filters.MarketAdded());
+      expect(events).to.have.lengthOf(2);
+      expect(events[1].args?.baseAssetSymbol).to.equal('XYZ');
+    });
+
     it('should revert when not called by admin', async () => {
       await expect(
         exchange
@@ -191,6 +223,19 @@ describe('Exchange', function () {
   });
 
   describe('deactivateMarket', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+      await exchange.activateMarket('XYZ');
+      await exchange.deactivateMarket('XYZ');
+
+      const events = await exchange.queryFilter(
+        exchange.filters.MarketDeactivated(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal('XYZ');
+    });
+
     it('should revert when not called by dispatcher', async () => {
       await expect(
         exchange

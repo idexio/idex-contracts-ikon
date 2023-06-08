@@ -48,6 +48,20 @@ library Withdrawing {
     address quoteTokenAddress;
   }
 
+  /**
+   * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
+   */
+  event WalletExited(address wallet, uint256 effectiveBlockNumber);
+  /**
+   * @notice Emitted when a user withdraws available quote token balance through the Exit Wallet mechanism with
+   * `withdrawExit`
+   */
+  event WalletExitWithdrawn(address wallet, uint64 quantity);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
+   */
+  event Withdrawn(address wallet, uint64 quantity, int64 newExchangeBalance);
+
   // solhint-disable-next-line func-name-mixedcase
   function exitWallet_delegatecall(
     uint256 chainPropagationPeriodInBlocks,
@@ -55,13 +69,15 @@ library Withdrawing {
     address insuranceFundWallet,
     address wallet,
     mapping(address => WalletExit) storage walletExits
-  ) external returns (uint256 blockThreshold) {
+  ) external {
     require(!walletExits[wallet].exists, "Wallet already exited");
     require(wallet != exitFundWallet, "Cannot exit EF");
     require(wallet != insuranceFundWallet, "Cannot exit IF");
 
-    blockThreshold = block.number + chainPropagationPeriodInBlocks;
+    uint256 blockThreshold = block.number + chainPropagationPeriodInBlocks;
     walletExits[wallet] = WalletExit(true, uint64(blockThreshold), WalletExitAcquisitionDeleveragePriceStrategy.None);
+
+    emit WalletExited(wallet, blockThreshold);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -85,7 +101,7 @@ library Withdrawing {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public returns (int64 newExchangeBalance) {
+  ) public {
     // Validate preconditions
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
       _validateExitFundWithdrawDelayElapsed(arguments.exitFundPositionOpenedAtBlockNumber);
@@ -107,7 +123,7 @@ library Withdrawing {
     );
 
     // Update wallet balances
-    newExchangeBalance = balanceTracking.updateForWithdrawal(arguments.withdrawal, arguments.feeWallet);
+    int64 newExchangeBalance = balanceTracking.updateForWithdrawal(arguments.withdrawal, arguments.feeWallet);
 
     // EF has no margin requirements but may not withdraw quote balance below zero
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
@@ -127,6 +143,8 @@ library Withdrawing {
 
     // Replay prevention
     completedWithdrawalHashes[withdrawalHash] = true;
+
+    emit Withdrawn(arguments.withdrawal.wallet, arguments.withdrawal.grossQuantity, newExchangeBalance);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -140,7 +158,7 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => WalletExit) storage walletExits
-  ) public returns (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) {
+  ) public returns (uint256 exitFundPositionOpenedAtBlockNumber_) {
     Funding.applyOutstandingWalletFunding(
       arguments.wallet,
       balanceTracking,
@@ -183,16 +201,16 @@ library Withdrawing {
       AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_TOKEN_DECIMALS)
     );
 
-    return (
+    // Quote quantity validated to be non-negative by `validateExitQuoteQuantityAndCoerceIfNeeded`
+    emit WalletExitWithdrawn(arguments.wallet, uint64(walletQuoteQuantityToWithdraw));
+
+    return
       ExitFund.getExitFundPositionOpenedAtBlockNumber(
         exitFundPositionOpenedAtBlockNumber,
         arguments.exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
-      ),
-      // Quote quantity validated to be non-negative by `validateExitQuoteQuantityAndCoerceIfNeeded`
-      uint64(walletQuoteQuantityToWithdraw)
-    );
+      );
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -206,7 +224,7 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => WalletExit) storage walletExits
-  ) public returns (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) {
+  ) public returns (uint256 exitFundPositionOpenedAtBlockNumber_) {
     require(walletExits[arguments.wallet].exists, "Wallet not exited");
 
     Funding.applyOutstandingWalletFunding(
@@ -218,34 +236,36 @@ library Withdrawing {
       marketsByBaseAssetSymbol
     );
 
-    int64 walletQuoteQuantityToWithdraw = validateExitQuoteQuantityAndCoerceIfNeeded(
-      false,
-      _updatePositionsForWalletExit(
-        arguments,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
+    // Quote quantity validated to be non-negative by `validateExitQuoteQuantityAndCoerceIfNeeded`
+    uint64 walletQuoteQuantityToWithdraw = uint64(
+      validateExitQuoteQuantityAndCoerceIfNeeded(
+        false,
+        _updatePositionsForWalletExit(
+          arguments,
+          balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+          marketOverridesByBaseAssetSymbolAndWallet,
+          marketsByBaseAssetSymbol
+        )
       )
     );
 
     arguments.custodian.withdraw(
       arguments.wallet,
       arguments.quoteTokenAddress,
-      AssetUnitConversions.pipsToAssetUnits(uint64(walletQuoteQuantityToWithdraw), Constants.QUOTE_TOKEN_DECIMALS)
+      AssetUnitConversions.pipsToAssetUnits(walletQuoteQuantityToWithdraw, Constants.QUOTE_TOKEN_DECIMALS)
     );
 
-    return (
+    emit WalletExitWithdrawn(arguments.wallet, walletQuoteQuantityToWithdraw);
+
+    return
       ExitFund.getExitFundPositionOpenedAtBlockNumber(
         exitFundPositionOpenedAtBlockNumber,
         arguments.exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
-      ),
-      // Quote quantity validated to be non-negative by `validateExitQuoteQuantityAndCoerceIfNeeded`
-      uint64(walletQuoteQuantityToWithdraw)
-    );
+      );
   }
 
   function validateExitQuoteQuantityAndCoerceIfNeeded(

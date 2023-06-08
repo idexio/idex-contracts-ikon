@@ -3,8 +3,10 @@
 pragma solidity 0.8.18;
 
 import { BalanceTracking } from "./BalanceTracking.sol";
+import { Constants } from "./Constants.sol";
 import { Funding } from "./Funding.sol";
 import { IndexPriceMargin } from "./IndexPriceMargin.sol";
+import { OrderSide } from "./Enums.sol";
 import { TradeValidations } from "./TradeValidations.sol";
 import { WalletExits } from "./WalletExits.sol";
 import { ExecuteTradeArguments, FundingMultiplierQuartet, Market, MarketOverrides, Order, NonceInvalidation, WalletExit } from "./Structs.sol";
@@ -21,6 +23,21 @@ library Trading {
     address feeWallet;
     address insuranceFundWallet;
   }
+
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
+   */
+  event TradeExecuted(
+    address buyWallet,
+    address sellWallet,
+    string baseAssetSymbol,
+    string quoteAssetSymbol,
+    uint64 baseQuantity,
+    uint64 quoteQuantity,
+    OrderSide makerSide,
+    int64 makerFeeQuantity,
+    uint64 takerFeeQuantity
+  );
 
   // Placing arguments in calldata avoids a stack too deep error from the Yul optimizer
   // solhint-disable-next-line func-name-mixedcase
@@ -76,6 +93,22 @@ library Trading {
       nonceInvalidationsByWallet,
       partiallyFilledOrderQuantities
     );
+
+    _emitTradeExecutedEvent(arguments.externalArguments);
+  }
+
+  function _emitTradeExecutedEvent(ExecuteTradeArguments memory tradeArguments) private {
+    emit TradeExecuted(
+      tradeArguments.buy.wallet,
+      tradeArguments.sell.wallet,
+      tradeArguments.trade.baseAssetSymbol,
+      Constants.QUOTE_ASSET_SYMBOL,
+      tradeArguments.trade.baseQuantity,
+      tradeArguments.trade.quoteQuantity,
+      tradeArguments.trade.makerSide,
+      tradeArguments.trade.makerFeeQuantity,
+      tradeArguments.trade.takerFeeQuantity
+    );
   }
 
   function _executeTradeAfterFunding(
@@ -113,28 +146,6 @@ library Trading {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
-  }
-
-  function _validateTradeAndUpdateOrderBalancesAndFilledQuantities(
-    Arguments memory arguments,
-    mapping(bytes32 => bool) storage completedOrderHashes,
-    mapping(string => Market) storage marketsByBaseAssetSymbol,
-    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
-    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
-  ) private returns (Market memory) {
-    (bytes32 buyHash, bytes32 sellHash, Market memory market) = TradeValidations.validateTrade(
-      arguments.externalArguments,
-      arguments.delegateKeyExpirationPeriodInMs,
-      arguments.domainSeparator,
-      arguments.exitFundWallet,
-      arguments.insuranceFundWallet,
-      marketsByBaseAssetSymbol,
-      nonceInvalidationsByWallet
-    );
-
-    _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);
-
-    return market;
   }
 
   function _updateOrderFilledQuantities(
@@ -212,5 +223,27 @@ library Trading {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
     );
+  }
+
+  function _validateTradeAndUpdateOrderBalancesAndFilledQuantities(
+    Arguments memory arguments,
+    mapping(bytes32 => bool) storage completedOrderHashes,
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => NonceInvalidation[]) storage nonceInvalidationsByWallet,
+    mapping(bytes32 => uint64) storage partiallyFilledOrderQuantities
+  ) private returns (Market memory) {
+    (bytes32 buyHash, bytes32 sellHash, Market memory market) = TradeValidations.validateTrade(
+      arguments.externalArguments,
+      arguments.delegateKeyExpirationPeriodInMs,
+      arguments.domainSeparator,
+      arguments.exitFundWallet,
+      arguments.insuranceFundWallet,
+      marketsByBaseAssetSymbol,
+      nonceInvalidationsByWallet
+    );
+
+    _updateOrderFilledQuantities(arguments, buyHash, sellHash, completedOrderHashes, partiallyFilledOrderQuantities);
+
+    return market;
   }
 }
