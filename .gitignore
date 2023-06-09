@@ -12,3 +12,4 @@ artifacts
 # Etherscan verification
 exchangeArguments.js
 governanaceArguments.js
+indexArguments.js
