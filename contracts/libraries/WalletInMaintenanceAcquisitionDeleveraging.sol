@@ -24,7 +24,9 @@ library WalletInMaintenanceAcquisitionDeleveraging {
   event DeleveragedInMaintenanceAcquisition(
     string baseAssetSymbol,
     address counterpartyWallet,
-    address liquidatingWallet
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
   );
 
   // solhint-disable-next-line func-name-mixedcase
@@ -86,7 +88,9 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     emit DeleveragedInMaintenanceAcquisition(
       arguments.baseAssetSymbol,
       arguments.counterpartyWallet,
-      arguments.liquidatingWallet
+      arguments.liquidatingWallet,
+      arguments.liquidationBaseQuantity,
+      arguments.liquidationQuoteQuantity
     );
   }
 

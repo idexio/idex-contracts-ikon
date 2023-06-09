@@ -17,7 +17,7 @@ import {
   getLatestBlockTimestampInSeconds,
   quoteAssetSymbol,
 } from './helpers';
-import { indexPriceToArgumentStruct } from '../lib';
+import { decimalToPips, indexPriceToArgumentStruct } from '../lib';
 
 describe('Exchange', function () {
   let exchange: Exchange_v4;
@@ -252,6 +252,42 @@ describe('Exchange', function () {
   });
 
   describe('publishIndexPrices', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+      await exchange.activateMarket('XYZ');
+
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+      );
+      const indexPrice2 = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+        'XYZ',
+      );
+
+      await exchange.publishIndexPrices([
+        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice2),
+      ]);
+
+      const events = await exchange.queryFilter(
+        exchange.filters.IndexPricePublished(),
+      );
+      expect(events).to.have.lengthOf(2);
+      expect(events[0].args?.baseAssetSymbol).to.equal(
+        indexPrice.baseAssetSymbol,
+      );
+      expect(events[0].args?.timestampInMs).to.equal(indexPrice.timestampInMs);
+      expect(events[0].args?.price).to.equal(decimalToPips(indexPrice.price));
+      expect(events[1].args?.baseAssetSymbol).to.equal(
+        indexPrice2.baseAssetSymbol,
+      );
+      expect(events[1].args?.timestampInMs).to.equal(indexPrice2.timestampInMs);
+      expect(events[1].args?.price).to.equal(decimalToPips(indexPrice2.price));
+    });
+
     it('should revert when not called by dispatcher', async () => {
       const indexPrice = await buildIndexPrice(
         exchange.address,

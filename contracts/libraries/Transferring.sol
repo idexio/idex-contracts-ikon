@@ -27,9 +27,10 @@ library Transferring {
    * @notice Emitted when the Dispatcher Wallet submits a transfer with `transfer`
    */
   event Transferred(
-    address sourceWallet,
     address destinationWallet,
+    address sourceWallet,
     uint64 quantity,
+    int64 newDestinationWalletExchangeBalance,
     int64 newSourceWalletExchangeBalance
   );
 
@@ -83,7 +84,8 @@ library Transferring {
     );
 
     // Update wallet balances
-    int64 newSourceWalletExchangeBalance = balanceTracking.updateForTransfer(arguments.transfer, arguments.feeWallet);
+    (int64 newDestinationWalletExchangeBalance, int64 newSourceWalletExchangeBalance) = balanceTracking
+      .updateForTransfer(arguments.transfer, arguments.feeWallet);
 
     // Wallet must still maintain initial margin requirement after withdrawal
     IndexPriceMargin.validateInitialMarginRequirement(
@@ -98,9 +100,10 @@ library Transferring {
     completedTransferHashes[transferHash] = true;
 
     emit Transferred(
-      arguments.transfer.sourceWallet,
       arguments.transfer.destinationWallet,
+      arguments.transfer.sourceWallet,
       arguments.transfer.grossQuantity,
+      newDestinationWalletExchangeBalance,
       newSourceWalletExchangeBalance
     );
   }

@@ -49,7 +49,13 @@ library WalletExitAcquisitionDeleveraging {
    * @notice Emitted when the Dispatcher Wallet submits an exited wallet position deleverage with
    * `deleverageExitAcquisition`
    */
-  event DeleveragedExitAcquisition(string baseAssetSymbol, address counterpartyWallet, address liquidatingWallet);
+  event DeleveragedExitAcquisition(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
 
   // solhint-disable-next-line func-name-mixedcase
   function deleverage_delegatecall(
@@ -111,7 +117,9 @@ library WalletExitAcquisitionDeleveraging {
     emit DeleveragedExitAcquisition(
       arguments.baseAssetSymbol,
       arguments.counterpartyWallet,
-      arguments.liquidatingWallet
+      arguments.liquidatingWallet,
+      arguments.liquidationBaseQuantity,
+      arguments.liquidationQuoteQuantity
     );
   }
 

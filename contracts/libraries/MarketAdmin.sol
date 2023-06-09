@@ -29,6 +29,10 @@ library MarketAdmin {
    * @notice Emitted when the Dispatch Wallet activates a previously activated market with `activateMarket`
    */
   event MarketDeactivated(string baseAssetSymbol);
+  /**
+   * @notice Emitted when the Dispatcher Wallet publishes a new index price with `publishIndexPrices`
+   */
+  event IndexPricePublished(string baseAssetSymbol, uint64 timestampInMs, uint64 price);
 
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
@@ -123,6 +127,8 @@ library MarketAdmin {
 
       market.lastIndexPrice = indexPrice.price;
       market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
+
+      emit IndexPricePublished(indexPrice.baseAssetSymbol, indexPrice.timestampInMs, indexPrice.price);
     }
   }
 }

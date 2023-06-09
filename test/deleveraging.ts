@@ -133,6 +133,12 @@ describe('Exchange', function () {
       expect(events).to.have.lengthOf(1);
       expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
       expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('21980.00000000'),
+      );
     });
 
     it('should work for valid wallet when IF has open position and cannot acquire within margin limits', async function () {
@@ -778,6 +784,12 @@ describe('Exchange', function () {
       expect(events[0].args?.insuranceFundWallet).to.equal(
         insuranceFundWallet.address,
       );
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('21980.00000000'),
+      );
     });
 
     it('should revert when not sent by dispatcher', async function () {
@@ -916,6 +928,12 @@ describe('Exchange', function () {
         trader1Wallet.address,
       );
       expect(events[0].args?.liquidatingWallet).to.equal(trader2Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for valid wallet with short position', async function () {
@@ -1682,6 +1700,12 @@ describe('Exchange', function () {
         trader2Wallet.address,
       );
       expect(events[0].args?.exitFundWallet).to.equal(exitFundWallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for open short position', async function () {

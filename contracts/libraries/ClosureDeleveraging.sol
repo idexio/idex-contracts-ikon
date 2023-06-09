@@ -22,7 +22,13 @@ library ClosureDeleveraging {
   /**
    * @notice Emitted when the Dispatcher Wallet submits an Exit Fund closure deleverage with `deleverageExitFundClosure`
    */
-  event DeleveragedExitFundClosure(string baseAssetSymbol, address counterpartyWallet, address exitFundWallet);
+  event DeleveragedExitFundClosure(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address exitFundWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
 
   /**
    * @notice Emitted when the Dispatcher Wallet submits an Insurance Fund closure deleverage with
@@ -31,7 +37,9 @@ library ClosureDeleveraging {
   event DeleveragedInsuranceFundClosure(
     string baseAssetSymbol,
     address counterpartyWallet,
-    address insuranceFundWallet
+    address insuranceFundWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
   );
 
   // solhint-disable-next-line func-name-mixedcase
@@ -89,7 +97,7 @@ library ClosureDeleveraging {
     // EF closure deleveraging can potentially change the `exitFundPositionOpenedAtBlockNumber` by setting it to zero,
     // whereas IF closure cannot
     if (deleverageType == DeleverageType.ExitFundClosure) {
-      emit DeleveragedExitFundClosure(arguments.baseAssetSymbol, arguments.counterpartyWallet, exitFundWallet);
+      _emitDeleveragedExitFundClosure(arguments, exitFundWallet);
 
       return
         ExitFund.getExitFundPositionOpenedAtBlockNumber(
@@ -99,15 +107,37 @@ library ClosureDeleveraging {
           baseAssetSymbolsWithOpenPositionsByWallet
         );
     } else {
-      emit DeleveragedInsuranceFundClosure(
-        arguments.baseAssetSymbol,
-        arguments.counterpartyWallet,
-        insuranceFundWallet
-      );
-    }
+      _emitDeleveragedInsuranceFundClosure(arguments, insuranceFundWallet);
 
-    // IF closure never changes `exitFundPositionOpenedAtBlockNumber`
-    return exitFundPositionOpenedAtBlockNumber;
+      // IF closure never changes `exitFundPositionOpenedAtBlockNumber`
+      return exitFundPositionOpenedAtBlockNumber;
+    }
+  }
+
+  function _emitDeleveragedExitFundClosure(
+    ClosureDeleverageArguments memory arguments,
+    address exitFundWallet
+  ) private {
+    emit DeleveragedExitFundClosure(
+      arguments.baseAssetSymbol,
+      arguments.counterpartyWallet,
+      exitFundWallet,
+      arguments.liquidationBaseQuantity,
+      arguments.liquidationQuoteQuantity
+    );
+  }
+
+  function _emitDeleveragedInsuranceFundClosure(
+    ClosureDeleverageArguments memory arguments,
+    address insuranceFundWallet
+  ) private {
+    emit DeleveragedInsuranceFundClosure(
+      arguments.baseAssetSymbol,
+      arguments.counterpartyWallet,
+      insuranceFundWallet,
+      arguments.liquidationBaseQuantity,
+      arguments.liquidationQuoteQuantity
+    );
   }
 
   function _validateArgumentsAndDeleverage(

@@ -171,6 +171,12 @@ describe('Exchange', function () {
       expect(events).to.have.lengthOf(1);
       expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
       expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for valid wallet with quote below validation threshold', async function () {
@@ -354,6 +360,12 @@ describe('Exchange', function () {
       expect(events).to.have.lengthOf(1);
       expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
       expect(events[0].args?.liquidatingWallet).to.equal(trader2Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for valid short wallet position and market', async function () {
@@ -376,6 +388,12 @@ describe('Exchange', function () {
       expect(events).to.have.lengthOf(1);
       expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
       expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should revert for invalid market', async function () {

@@ -21,7 +21,12 @@ library PositionBelowMinimumLiquidation {
    * @notice Emitted when the Dispatcher Wallet submits a position below minimum liquidation with
    * `liquidatePositionBelowMinimum`
    */
-  event LiquidatedPositionBelowMinimum(string baseAssetSymbol, address liquidatingWallet);
+  event LiquidatedPositionBelowMinimum(
+    string baseAssetSymbol,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
 
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
@@ -69,7 +74,7 @@ library PositionBelowMinimumLiquidation {
       "Maintenance margin requirement not met"
     );
 
-    _validateAndLiquidatePositionBelowMinimum(
+    uint64 liquidationBaseQuantity = _validateAndLiquidatePositionBelowMinimum(
       arguments,
       exitFundWallet,
       insuranceFundWallet,
@@ -90,7 +95,19 @@ library PositionBelowMinimumLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    emit LiquidatedPositionBelowMinimum(arguments.baseAssetSymbol, arguments.liquidatingWallet);
+    _emitLiquidatedPositionBelowMinimum(arguments, liquidationBaseQuantity);
+  }
+
+  function _emitLiquidatedPositionBelowMinimum(
+    PositionBelowMinimumLiquidationArguments memory arguments,
+    uint64 liquidationBaseQuantity
+  ) private {
+    emit LiquidatedPositionBelowMinimum(
+      arguments.baseAssetSymbol,
+      arguments.liquidatingWallet,
+      liquidationBaseQuantity,
+      arguments.liquidationQuoteQuantity
+    );
   }
 
   function _updateBalances(
@@ -127,7 +144,7 @@ library PositionBelowMinimumLiquidation {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) private {
+  ) private returns (uint64 liquidationBaseQuantity) {
     Market memory market = Validations.loadAndValidateActiveMarket(
       arguments.baseAssetSymbol,
       arguments.liquidatingWallet,
@@ -148,6 +165,7 @@ library PositionBelowMinimumLiquidation {
           .minimumPositionSize,
       "Position size above minimum"
     );
+    liquidationBaseQuantity = Math.abs(positionSize);
 
     // Validate quote quantity
     _validateQuoteQuantity(

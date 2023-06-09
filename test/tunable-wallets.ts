@@ -134,6 +134,13 @@ describe('Exchange', function () {
       expect(await exchange.dispatcherWallet()).to.equal(
         dispatcherWallet.address,
       );
+
+      const events = await exchange.queryFilter(
+        exchange.filters.DispatcherChanged(),
+      );
+      expect(events).to.have.lengthOf(2);
+      expect(events[1].args?.previousValue).to.equal(ownerWallet.address);
+      expect(events[1].args?.newValue).to.equal(dispatcherWallet.address);
     });
 
     it('should revert for invalid wallet', async () => {

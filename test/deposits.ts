@@ -246,16 +246,36 @@ describe('Exchange', function () {
   describe('setDepositEnabled', function () {
     it('should work', async function () {
       await expect(exchange.isDepositEnabled()).to.eventually.equal(true);
+      let events = await exchange.queryFilter(
+        exchange.filters.DepositsEnabled(),
+      );
+      expect(events).to.have.lengthOf(1);
 
       await exchange.setDepositEnabled(false);
 
       await expect(exchange.isDepositEnabled()).to.eventually.equal(false);
+      events = await exchange.queryFilter(exchange.filters.DepositsDisabled());
+      expect(events).to.have.lengthOf(1);
     });
 
     it('should revert when not sent by admin', async function () {
       await expect(
         exchange.connect(traderWallet).setDepositEnabled(false),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert when already enabled', async function () {
+      await expect(
+        exchange.setDepositEnabled(true),
+      ).to.eventually.be.rejectedWith(/deposits already enabled/i);
+    });
+
+    it('should revert when already disabled', async function () {
+      await exchange.setDepositEnabled(false);
+
+      await expect(
+        exchange.setDepositEnabled(false),
+      ).to.eventually.be.rejectedWith(/deposits already disabled/i);
     });
   });
 });
