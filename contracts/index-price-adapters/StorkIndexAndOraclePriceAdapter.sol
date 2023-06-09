@@ -7,16 +7,16 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import { AssetUnitConversions } from "../libraries/AssetUnitConversions.sol";
 import { Constants } from "../libraries/Constants.sol";
-import { Hashing } from "../libraries/Hashing.sol";
 import { Owned } from "../Owned.sol";
-import { String } from "../libraries/String.sol";
 import { IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 import { IndexPrice, Market } from "../libraries/Structs.sol";
 
 // https://docs.stork.network/verifying-stork-prices-on-chain/evm-verification-contract-v0
 interface IStorkVerifier {
   function verifySignature(
+    // solhint-disable-next-line func-param-name-mixedcase, var-name-mixedcase
     address oracle_pubkey,
+    // solhint-disable-next-line func-param-name-mixedcase, var-name-mixedcase
     string memory asset_pair_id,
     uint256 timestamp,
     uint256 price,
@@ -31,7 +31,7 @@ contract StorkIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdap
   address public immutable activator;
   // Address of Exchange contract
   IExchange public exchange;
-  // IPS wallet addresses whitelisted to sign index price payloads
+  // Publisher wallet addresses whitelisted to sign index price payloads
   address[] public publisherWallets;
   // Mapping of base asset symbol => index price struct
   mapping(string => IndexPrice) public latestIndexPriceByBaseAssetSymbol;
@@ -153,7 +153,7 @@ contract StorkIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdap
     ) = abi.decode(payload, (address, string, uint256, uint256, bytes32, bytes32, uint8));
 
     // Verify signer is whitelisted
-    require(_isPublisherWalletValid(publisherWallet), "Invalid index price signature");
+    require(_isPublisherWalletValid(publisherWallet), "Invalid index price signer");
 
     require(price > 0, "Unexpected non-positive price");
 
@@ -166,7 +166,8 @@ contract StorkIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdap
         r,
         s,
         v
-      )
+      ),
+      "Invalid index price signature"
     );
 
     uint64 priceInPips = AssetUnitConversions.assetUnitsToPips(price, 18);
@@ -176,7 +177,7 @@ contract StorkIndexAndOraclePriceAdapter is IIndexPriceAdapter, IOraclePriceAdap
       IndexPrice({
         baseAssetSymbol: baseAssetSymbol,
         timestampInMs: SafeCast.toUint64(timestamp * 1000),
-        price: AssetUnitConversions.assetUnitsToPips(price, 18)
+        price: priceInPips
       });
   }
 
