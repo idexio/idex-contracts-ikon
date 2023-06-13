@@ -135,31 +135,6 @@ describe('Exchange', function () {
   });
 
   describe('executeTrade', () => {
-    it('test', async function () {
-      await exchange
-        .connect(dispatcherWallet)
-        .executeTrade(
-          ...getExecuteTradeArguments(
-            buyOrder,
-            buyOrderSignature,
-            sellOrder,
-            sellOrderSignature,
-            trade,
-          ),
-        );
-
-      const aggregator = await (
-        await ethers.getContractFactory('ExchangeWalletStateAggregator')
-      ).deploy(exchange.address);
-
-      console.log(
-        await aggregator.loadWalletStates([
-          trader1Wallet.address,
-          trader2Wallet.address,
-        ]),
-      );
-    });
-
     it('should work for limit orders with maker sell', async function () {
       await exchange
         .connect(dispatcherWallet)

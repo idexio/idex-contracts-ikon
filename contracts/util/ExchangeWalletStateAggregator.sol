@@ -4,8 +4,9 @@ pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
-import { IExchange } from "./libraries/Interfaces.sol";
-import { Balance, Market, NonceInvalidation, WalletExit } from "./libraries/Structs.sol";
+import { Constants } from "../libraries/Constants.sol";
+import { IExchange } from "../libraries/Interfaces.sol";
+import { Balance, Market, NonceInvalidation, WalletExit } from "../libraries/Structs.sol";
 
 interface IExchangeExtended is IExchange {
   function loadLastNonceInvalidationForWallet(
@@ -33,6 +34,7 @@ contract ExchangeWalletStateAggregator {
   function loadWalletStates(address[] memory wallets) public view returns (WalletState[] memory walletStates) {
     walletStates = new WalletState[](wallets.length);
 
+    // Construct an array of base asset symbols for all listed markets
     uint256 marketsLength = exchange.loadMarketsLength();
     string[] memory baseAssetSymbols = new string[](marketsLength);
     for (uint8 i = 0; i < marketsLength; ++i) {
@@ -43,9 +45,11 @@ contract ExchangeWalletStateAggregator {
       walletStates[i].nonceInvalidation = exchange.loadLastNonceInvalidationForWallet(wallets[i]);
       walletStates[i].walletExit = exchange.walletExits(wallets[i]);
 
-      walletStates[i].balances = new Balance[](marketsLength);
+      // The first element in the balances array is reserved for the quote asset
+      walletStates[i].balances = new Balance[](marketsLength + 1);
+      walletStates[i].balances[0] = exchange.loadBalanceStructBySymbol(wallets[i], Constants.QUOTE_ASSET_SYMBOL);
       for (uint8 j = 0; j < marketsLength; ++j) {
-        walletStates[i].balances[j] = exchange.loadBalanceStructBySymbol(wallets[i], baseAssetSymbols[j]);
+        walletStates[i].balances[j + 1] = exchange.loadBalanceStructBySymbol(wallets[i], baseAssetSymbols[j]);
       }
     }
   }
