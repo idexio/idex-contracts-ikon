@@ -189,6 +189,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
+   * @notice Emitted when the Dispatcher Wallet publishes a new index price with `publishIndexPrices`
+   */
+  event IndexPricePublished(string baseAssetSymbol, uint64 timestampInMs, uint64 price);
+  /**
    * @notice Emitted when the Dispatcher Wallet submits a position below minimum liquidation with
    * `liquidatePositionBelowMinimum`
    */
@@ -247,10 +251,6 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
    */
   event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
-  /**
-   * @notice Emitted when the Dispatcher Wallet publishes a new index price with `publishIndexPrices`
-   */
-  event IndexPricePublished(string baseAssetSymbol, uint64 timestampInMs, uint64 price);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
