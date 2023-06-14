@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ikon’s on-chain components span three primary contracts, each with attendant controls and governance. Ikon’s primary contracts also interact with an extensible set of bridge adapter contracts.
+Ikon’s on-chain components span three primary contracts, each with attendant controls and governance. Ikon’s primary contracts also interact with an extensible set of bridge adapter contracts, index price adapter contracts, and oracle price adapter contracts.
 
 ## Custodian Contract
 
@@ -28,9 +28,10 @@ The Governance contract also implements field update logic for sensitive Exchang
 
 - The admin is the only agent whitelisted to change several Exchange settings:
   - Bridge adapter contract address whitelist
-  - Index price service wallet address whitelist
-  - Insurance fund wallet address, provided that neither the existing nor new wallet has any open non-quote positions
+  - Index price adapter contract address whitelist
+  - Insurance fund wallet address, provided that neither the existing nor new wallet has any open non-quote positions and the new wallet is not exited
   - Market configuration override values, subject to limits as defined in Exchange contract’s [fixed parameter settings](#market-override-fixed-parameter-settings).
+  - Oracle price adapter contract address
 - Updating any of the governed fields is a two-step process.
   - The admin first calls an update initiation with the new value(s), which initiates the Field  Update Period.
   - Once the Field Update Period expires, the admin or the dispatcher wallet can make a second call that completes the change to the setting. The dispatcher wallet is authorized to finalize an update in order to synchronize configuration changes between on-chain and off-chain systems.
@@ -56,15 +57,17 @@ The Exchange contract implements the majority of exchange functionality, includi
 - The admin can change the Chain Propagation Period with no delay, subject to the Minimum Chain Propagation Period and Maximum Chain Propagation Period limits.
 - The admin can change the Delegated Key Expiration Period with no delay, subject to the Minimum Delegated Key Expiration Period and Maximum Delegated Key Expiration Period limits.
 - The admin can change the Position Below Minimum Liquidation Price Tolerance Multiplier with no delay to a non-negative value less than or equal to the Maximum Fee Rate.
+- The admin can enable or disable deposits with no delay.
 - Exchange tracks a single exit fund wallet address, and the exit fund wallet can be changed with no delay by the admin, provided that neither the existing nor new wallet has any open positions or quote balance.
 - The admin can withdraw any positive quote balance from the exit fund after a fixed delay after the exit fund opens its first non-quote position.
 - Exchange tracks a single fee wallet address, and the fee wallet can be changed with no delay by the admin.
-- The admin can change or remove an addresses as the dispatcher wallet with no delay. The dispatcher wallet is authorized to call operator-only contract functions: `executeTrade`, `liquidatePositionBelowMinimum`, `liquidatePositionInDeactivatedMarket`, `liquidateWalletInMaintenance`, `liquidateWalletInMaintenanceDuringSystemRecovery`, `liquidateWalletExited`, `deleverageInMaintenanceAcquisition`, `deleverageInsuranceFundClosure`, `deleverageExitAcquisition`, `deleverageExitFundClosure`, `transfer`, `withdraw`, `activateMarket`, `deactivateMarket`, `publishIndexPrices`, and `publishFundingMultiplier`.
-- The admin can add new markets with no delay, with new market fields subject to limits. The dispatcher wallet can activate and deactivate markets.
+- The admin can change or remove an address as the dispatcher wallet with no delay. The dispatcher wallet is authorized to call operator-only contract functions: `executeTrade`, `liquidatePositionBelowMinimum`, `liquidatePositionInDeactivatedMarket`, `liquidateWalletInMaintenance`, `liquidateWalletInMaintenanceDuringSystemRecovery`, `liquidateWalletExited`, `deleverageInMaintenanceAcquisition`, `deleverageInsuranceFundClosure`, `deleverageExitAcquisition`, `deleverageExitFundClosure`, `transfer`, `withdraw`, `activateMarket`, `deactivateMarket`, `publishIndexPrices`, and `publishFundingMultiplier`.
+- The admin can add new markets with no delay, up to the maximum number of markets, with new market fields subject to limits. The dispatcher wallet can activate and deactivate markets.
 - The admin can skim any tokens mistakenly sent to the Exchange contract rather than deposited.
 - Wallet exits are user-initiated, and 1) prevent the target wallet from deposits, trades, normal withdrawals, and transfers and 2) subsequently allow the user to close all open positions and withdraw any positive quote balance.
   - User calls `exitWallet` on Exchange.
   - Exchange records the exit and block number, immediately blocks deposits, and starts the Chain Propagation Period.
+  - Exchange allows the admin or the dispatcher wallet to close all open positions for the wallet at the exit price and withdraw any positive quote balance via `withdrawExitAdmin`.
   - After the Chain Propagation Period expires:
     - Exchange blocks any trades, normal withdrawals, and transfers for the wallet.
     - Exchange allows the user to close all open positions at the exit price and withdraw any positive quote balance via `withdrawExit`.
@@ -93,7 +96,7 @@ These settings have been pre-determined and may be hard-coded or implicit in the
 - Owner Change Period: immediate
 - Admin Change Period: immediate
 - Minimum Chain Propagation Period: 0
-- Maximum Chain Propagation Period: 1 week
+- Maximum Chain Propagation Period: 1 day
 - Chain Propagation Change Period: immediate
 - Minimum Delegated Key Expiration Period: 0
 - Maximum Delegated Key Expiration Period: 1 year
@@ -102,6 +105,7 @@ These settings have been pre-determined and may be hard-coded or implicit in the
 - Exit Fund Withdraw Delay: 1 week
 - Fee Wallet Change Period: immediate
 - Dispatcher Wallet Change Period: immediate
+- Maximum Number of Markets: 255
 - Market Override Field Limits <a id="market-override-fixed-parameter-settings"></a>
   - Minimum Initial Margin Fraction: 0.005
   - Minimum Maintenance Margin Fraction: 0.003
@@ -110,7 +114,7 @@ These settings have been pre-determined and may be hard-coded or implicit in the
   - Incremental Position Size: > 0
   - Maximum Maximum Position Size: 2^63 - 1
   - Maximum Minimum Position Size: 2^63 - 2
-- Maximum Fee Rate: 20%
+- Maximum Fee Rate: 5%
 
 ### Changeable Parameters
 
@@ -140,3 +144,11 @@ These settings have been pre-determined and may be hard-coded or implicit in the
 - Deposit Change Period: immediate
 - Withdrawal Change Period: immediate
 - Slippage Change Period: immediate.
+
+## Index and Oracle Price Adapter Contracts
+
+The Exchange contract integrates with an extensible set of index price adapter contracts (IPAC) and oracle price adapter contracts (OPAC). IPACs contain the necessary logic to validate index prices from a range of sources. OPACs provide on-chain pricing information when index pricing is unavailable.
+
+- A whitelist defines the supported IPAC addresses, and the admin can update the whitelist according to [Governance’s](#governance-contract) field update logic.
+- A single OPAC is whitelisted for oracle pricing, and the admin can change the OPAC according to [Governance’s](#governance-contract) field update logic.
+- IPACs and OPACs implement controls and governance as required by the underlying providers.
