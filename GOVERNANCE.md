@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ikon’s on-chain components span three primary contracts, each with attendant controls and governance. Ikon’s primary contracts also interact with an extensible set of bridge adapter contracts, index price adapter contracts, and oracle price adapter contracts.
+Ikon’s on-chain components span three primary contracts, each with attendant controls and governance. Ikon’s primary contracts also interact with an extensible set of cross-chain bridge adapter contracts, index price adapter contracts, and oracle price adapter contracts.
 
 ## Custodian Contract
 
