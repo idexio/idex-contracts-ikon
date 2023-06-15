@@ -93,7 +93,8 @@ library Depositing {
     int64 newExchangeBalance = balanceTracking.updateForDeposit(arguments.destinationWallet, quantityTransferred);
 
     emit Deposited(
-      arguments.depositIndex,
+      // The Exchange will update the stored deposit index after this function returns
+      arguments.depositIndex + 1,
       arguments.sourceWallet,
       arguments.destinationWallet,
       quantity,
