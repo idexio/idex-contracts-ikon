@@ -116,7 +116,7 @@ describe('Exchange', function () {
 
       expect(depositedEvents).to.have.lengthOf(1);
       expect(depositedEvents[0].args?.quantity).to.equal(
-        decimalToPips('5.00000000'),
+        decimalToPips('4.50000000'),
       );
       expect(depositedEvents[0].args?.newExchangeBalance).to.equal(
         decimalToPips('4.50000000'),
