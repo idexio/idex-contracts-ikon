@@ -135,8 +135,8 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     uint256 amountLD,
     bytes memory payload
   ) public override {
+    require(msg.sender == address(router), "Caller must be Router");
     require(isDepositEnabled, "Deposits disabled");
-
     require(token == address(quoteAsset), "Invalid token");
 
     address destinationWallet = abi.decode(payload, (address));
