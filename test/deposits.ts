@@ -76,6 +76,7 @@ describe('Exchange', function () {
       );
 
       expect(depositedEvents).to.have.lengthOf(1);
+      expect(depositedEvents[0].args?.index).to.equal(1);
       expect(depositedEvents[0].args?.quantity).to.equal(
         decimalToPips('5.00000000'),
       );
@@ -115,6 +116,7 @@ describe('Exchange', function () {
       );
 
       expect(depositedEvents).to.have.lengthOf(1);
+      expect(depositedEvents[0].args?.index).to.equal(1);
       expect(depositedEvents[0].args?.quantity).to.equal(
         decimalToPips('4.50000000'),
       );

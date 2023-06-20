@@ -13,6 +13,8 @@ interface IExchangeExtended is IExchange {
     address wallet
   ) external view returns (NonceInvalidation memory nonceInvalidation);
 
+  function loadOutstandingWalletFunding(address wallet) external view returns (int64);
+
   function walletExits(address wallet) external view returns (WalletExit memory walletExit);
 }
 
@@ -48,6 +50,7 @@ contract ExchangeWalletStateAggregator {
       // The first element in the balances array is reserved for the quote asset
       walletStates[i].balances = new Balance[](marketsLength + 1);
       walletStates[i].balances[0] = exchange.loadBalanceStructBySymbol(wallets[i], Constants.QUOTE_ASSET_SYMBOL);
+      walletStates[i].balances[0].balance += exchange.loadOutstandingWalletFunding(wallets[i]);
       for (uint8 j = 0; j < marketsLength; ++j) {
         walletStates[i].balances[j + 1] = exchange.loadBalanceStructBySymbol(wallets[i], baseAssetSymbols[j]);
       }
