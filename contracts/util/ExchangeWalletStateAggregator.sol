@@ -18,13 +18,13 @@ interface IExchangeExtended is IExchange {
   function walletExits(address wallet) external view returns (WalletExit memory walletExit);
 }
 
-contract ExchangeWalletStateAggregator {
-  struct WalletState {
-    Balance[] balances;
-    WalletExit walletExit;
-    NonceInvalidation nonceInvalidation;
-  }
+struct WalletState {
+  Balance[] balances;
+  WalletExit walletExit;
+  NonceInvalidation nonceInvalidation;
+}
 
+contract ExchangeWalletStateAggregator {
   IExchangeExtended public immutable exchange;
 
   constructor(address exchange_) {
