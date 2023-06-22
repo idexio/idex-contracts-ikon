@@ -77,6 +77,13 @@ library TradeValidations {
 
     _validateExecutionConditionsForOrder(buy, trade, true, exitFundWallet, insuranceFundWallet);
     _validateExecutionConditionsForOrder(sell, trade, false, exitFundWallet, insuranceFundWallet);
+
+    if (buy.isLiquidationAcquisitionOnly) {
+      require(sell.wallet == insuranceFundWallet, "Sell wallet must be IF");
+    }
+    if (sell.isLiquidationAcquisitionOnly) {
+      require(buy.wallet == insuranceFundWallet, "Buy wallet must be IF");
+    }
   }
 
   function _validateExecutionConditionsForOrder(
@@ -156,7 +163,7 @@ library TradeValidations {
     Order memory buy,
     Order memory sell,
     Trade memory trade
-  ) private pure returns (bytes32, bytes32) {
+  ) private view returns (bytes32, bytes32) {
     bytes32 buyOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, buy);
     bytes32 sellOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, sell);
 
@@ -167,7 +174,7 @@ library TradeValidations {
     string memory baseAssetSymbol,
     bytes32 domainSeparator,
     Order memory order
-  ) private pure returns (bytes32) {
+  ) private view returns (bytes32) {
     bytes32 orderHash = Hashing.getOrderHash(order, baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL);
 
     bool isSignatureValid = order.isSignedByDelegatedKey

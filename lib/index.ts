@@ -110,6 +110,7 @@ export interface Order {
   isReduceOnly?: boolean;
   timeInForce?: OrderTimeInForce;
   selfTradePrevention?: OrderSelfTradePrevention;
+  isLiquidationAcquisitionOnly?: boolean;
   delegatedPublicKey?: string;
   clientOrderId?: string;
 }
@@ -255,6 +256,7 @@ export const getOrderSignatureTypedData = (
         { name: 'isReduceOnly', type: 'bool' },
         { name: 'timeInForce', type: 'uint8' },
         { name: 'selfTradePrevention', type: 'uint8' },
+        { name: 'isLiquidationAcquisitionOnly', type: 'bool' },
         { name: 'delegatedPublicKey', type: 'address' },
         { name: 'clientOrderId', type: 'string' },
       ],
@@ -276,6 +278,7 @@ export const getOrderSignatureTypedData = (
       isReduceOnly: !!order.isReduceOnly,
       timeInForce: order.timeInForce || 0,
       selfTradePrevention: order.selfTradePrevention || 0,
+      isLiquidationAcquisitionOnly: !!order.isLiquidationAcquisitionOnly,
       delegatedPublicKey:
         order.delegatedPublicKey || ethers.constants.AddressZero,
       clientOrderId: order.clientOrderId || '',
@@ -451,6 +454,7 @@ const orderToArgumentStruct = (
     isReduceOnly: !!o.isReduceOnly,
     timeInForce: o.timeInForce || 0,
     selfTradePrevention: o.selfTradePrevention || 0,
+    isLiquidationAcquisitionOnly: !!o.isLiquidationAcquisitionOnly,
     walletSignature,
     isSignedByDelegatedKey: !!delegatedKeyAuthorization,
     delegatedKeyAuthorization: delegatedKeyAuthorization

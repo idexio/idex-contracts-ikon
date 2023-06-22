@@ -76,6 +76,7 @@ library Hashing {
             order.isReduceOnly,
             uint8(order.timeInForce),
             uint8(order.selfTradePrevention),
+            order.isLiquidationAcquisitionOnly,
             order.delegatedKeyAuthorization.delegatedPublicKey,
             keccak256(bytes(order.clientOrderId))
           )
