@@ -193,6 +193,21 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event IndexPricePublished(string baseAssetSymbol, uint64 timestampInMs, uint64 price);
   /**
+   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade` and one of the orders
+   * has the `isLiquidationAcquisitionOnly` asserted
+   */
+  event LiquidationAcquisitionExecuted(
+    address buyWallet,
+    address sellWallet,
+    string baseAssetSymbol,
+    string quoteAssetSymbol,
+    uint64 baseQuantity,
+    uint64 quoteQuantity,
+    OrderSide makerSide,
+    int64 makerFeeQuantity,
+    uint64 takerFeeQuantity
+  );
+  /**
    * @notice Emitted when the Dispatcher Wallet submits a position below minimum liquidation with
    * `liquidatePositionBelowMinimum`
    */

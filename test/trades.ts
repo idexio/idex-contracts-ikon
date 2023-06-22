@@ -165,6 +165,21 @@ describe('Exchange', function () {
           )
         ).balance.toString(),
       ).to.equal(decimalToPips('-10.00000000'));
+
+      const tradeEvents = await exchange.queryFilter(
+        exchange.filters.TradeExecuted(),
+      );
+      expect(tradeEvents).to.have.lengthOf(1);
+      expect(tradeEvents[0].args?.buyWallet).to.equal(trader2Wallet.address);
+      expect(tradeEvents[0].args?.sellWallet).to.equal(trader1Wallet.address);
+      expect(tradeEvents[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(tradeEvents[0].args?.quoteAssetSymbol).to.equal(quoteAssetSymbol);
+      expect(tradeEvents[0].args?.baseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(tradeEvents[0].args?.quoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work when increasing position sizes', async function () {
@@ -524,6 +539,23 @@ describe('Exchange', function () {
             insuranceFundDelegatedKeyAuthorization,
           ),
         );
+
+      const tradeEvents = await exchange.queryFilter(
+        exchange.filters.LiquidationAcquisitionExecuted(),
+      );
+      expect(tradeEvents).to.have.lengthOf(1);
+      expect(tradeEvents[0].args?.buyWallet).to.equal(
+        insuranceFundWallet.address,
+      );
+      expect(tradeEvents[0].args?.sellWallet).to.equal(trader2Wallet.address);
+      expect(tradeEvents[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(tradeEvents[0].args?.quoteAssetSymbol).to.equal(quoteAssetSymbol);
+      expect(tradeEvents[0].args?.baseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(tradeEvents[0].args?.quoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for IF sell reducing position when signed by DK', async function () {
@@ -717,6 +749,23 @@ describe('Exchange', function () {
             insuranceFundDelegatedKeyAuthorization,
           ),
         );
+
+      const tradeEvents = await exchange.queryFilter(
+        exchange.filters.LiquidationAcquisitionExecuted(),
+      );
+      expect(tradeEvents).to.have.lengthOf(1);
+      expect(tradeEvents[0].args?.buyWallet).to.equal(trader1Wallet.address);
+      expect(tradeEvents[0].args?.sellWallet).to.equal(
+        insuranceFundWallet.address,
+      );
+      expect(tradeEvents[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(tradeEvents[0].args?.quoteAssetSymbol).to.equal(quoteAssetSymbol);
+      expect(tradeEvents[0].args?.baseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(tradeEvents[0].args?.quoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for buy order signed by DK', async function () {

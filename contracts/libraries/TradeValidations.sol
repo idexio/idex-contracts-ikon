@@ -163,7 +163,7 @@ library TradeValidations {
     Order memory buy,
     Order memory sell,
     Trade memory trade
-  ) private view returns (bytes32, bytes32) {
+  ) private pure returns (bytes32, bytes32) {
     bytes32 buyOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, buy);
     bytes32 sellOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, sell);
 
@@ -174,7 +174,7 @@ library TradeValidations {
     string memory baseAssetSymbol,
     bytes32 domainSeparator,
     Order memory order
-  ) private view returns (bytes32) {
+  ) private pure returns (bytes32) {
     bytes32 orderHash = Hashing.getOrderHash(order, baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL);
 
     bool isSignatureValid = order.isSignedByDelegatedKey
