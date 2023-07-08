@@ -58,7 +58,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   // Deposit index
   uint64 public depositIndex;
   // Zero only if Exit Fund has no open positions or quote balance
-  uint256 public exitFundPositionOpenedAtBlockNumber;
+  uint256 public exitFundPositionOpenedAtBlockTimestamp;
   // List of whitelisted Index Price Adapter contracts
   IIndexPriceAdapter[] public indexPriceAdapters;
   // Must be true or `deposit` will revert
@@ -86,7 +86,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
 
   // State variables - tunable parameters //
 
-  uint256 public chainPropagationPeriodInBlocks;
+  uint256 public chainPropagationPeriodInS;
   uint64 public delegateKeyExpirationPeriodInMs;
   // Slippage tolerance to account for rounding errors when validating liquidation prices for very small position sizes
   uint64 public positionBelowMinimumLiquidationPriceToleranceMultiplier;
@@ -260,7 +260,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   /**
    * @notice Emitted when a user invalidates an order nonce with `invalidateNonce`
    */
-  event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockNumber);
+  event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockTimestamp);
   /**
    * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
    * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
@@ -298,7 +298,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   /**
    * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
    */
-  event WalletExited(address wallet, uint256 effectiveBlockNumber);
+  event WalletExited(address wallet, uint256 effectiveBlockTimestamp);
   /**
    * @notice Emitted when a user withdraws available quote token balance through the Exit Wallet mechanism with
    * `withdrawExit`
@@ -398,22 +398,19 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   // Tunable parameters //
 
   /**
-   * @notice Sets a new Chain Propagation Period - the block delay after which order nonce invalidations are respected
-   * by `executeTrade` and wallet exits are respected by `executeTrade` and `withdraw`
+   * @notice Sets a new Chain Propagation Period - the block timestamp delay after which order nonce invalidations are
+   * respected by `executeTrade` and wallet exits are respected by `executeTrade` and `withdraw`
    *
-   * @param newChainPropagationPeriodInBlocks The new Chain Propagation Period expressed as a number of blocks. Must
-   * be less than `Constants.MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS`
+   * @param newChainPropagationPeriodInS The new Chain Propagation Period expressed in seconds. Must be less than
+   * `Constants.MAX_CHAIN_PROPAGATION_PERIOD_IN_S`
    */
-  function setChainPropagationPeriod(uint256 newChainPropagationPeriodInBlocks) public onlyAdmin {
-    require(
-      newChainPropagationPeriodInBlocks <= Constants.MAX_CHAIN_PROPAGATION_PERIOD_IN_BLOCKS,
-      "Must be less than max"
-    );
+  function setChainPropagationPeriod(uint256 newChainPropagationPeriodInS) public onlyAdmin {
+    require(newChainPropagationPeriodInS <= Constants.MAX_CHAIN_PROPAGATION_PERIOD_IN_S, "Must be less than max");
 
-    uint256 oldChainPropagationPeriodInBlocks = chainPropagationPeriodInBlocks;
-    chainPropagationPeriodInBlocks = newChainPropagationPeriodInBlocks;
+    uint256 oldChainPropagationPeriodInS = chainPropagationPeriodInS;
+    chainPropagationPeriodInS = newChainPropagationPeriodInS;
 
-    emit ChainPropagationPeriodChanged(oldChainPropagationPeriodInBlocks, newChainPropagationPeriodInBlocks);
+    emit ChainPropagationPeriodChanged(oldChainPropagationPeriodInS, newChainPropagationPeriodInS);
   }
 
   /**
@@ -855,7 +852,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   ) public onlyDispatcherWhenExitFundHasNoPositions {
     WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
+      exitFundPositionOpenedAtBlockTimestamp, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       LiquidationType.WalletInMaintenance,
@@ -875,9 +872,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function liquidateWalletInMaintenanceDuringSystemRecovery(
     WalletLiquidationArguments memory liquidationArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
-    exitFundPositionOpenedAtBlockNumber = WalletInMaintenanceLiquidation.liquidate_delegatecall(
+    exitFundPositionOpenedAtBlockTimestamp = WalletInMaintenanceLiquidation.liquidate_delegatecall(
       liquidationArguments,
-      exitFundPositionOpenedAtBlockNumber,
+      exitFundPositionOpenedAtBlockTimestamp,
       exitFundWallet,
       insuranceFundWallet,
       LiquidationType.WalletInMaintenanceDuringSystemRecovery,
@@ -943,7 +940,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     ClosureDeleveraging.deleverage_delegatecall(
       deleverageArguments,
       DeleverageType.InsuranceFundClosure,
-      exitFundPositionOpenedAtBlockNumber, // Will always be 0 per modifier
+      exitFundPositionOpenedAtBlockTimestamp, // Will always be 0 per modifier
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -985,10 +982,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function deleverageExitFundClosure(
     ClosureDeleverageArguments memory deleverageArguments
   ) public onlyDispatcherWhenExitFundHasOpenPositions {
-    exitFundPositionOpenedAtBlockNumber = ClosureDeleveraging.deleverage_delegatecall(
+    exitFundPositionOpenedAtBlockTimestamp = ClosureDeleveraging.deleverage_delegatecall(
       deleverageArguments,
       DeleverageType.ExitFundClosure,
-      exitFundPositionOpenedAtBlockNumber,
+      exitFundPositionOpenedAtBlockTimestamp,
       exitFundWallet,
       insuranceFundWallet,
       _balanceTracking,
@@ -1032,7 +1029,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         withdrawal,
         _domainSeparatorV4(),
         custodian,
-        exitFundPositionOpenedAtBlockNumber,
+        exitFundPositionOpenedAtBlockTimestamp,
         exitFundWallet,
         feeWallet,
         quoteTokenAddress
@@ -1313,7 +1310,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   function exitWallet() public {
     Withdrawing.exitWallet_delegatecall(
-      chainPropagationPeriodInBlocks,
+      chainPropagationPeriodInS,
       exitFundWallet,
       insuranceFundWallet,
       msg.sender,
@@ -1328,9 +1325,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param wallet Address of exited wallet
    */
   function withdrawExit(address wallet) public {
-    uint256 exitFundPositionOpenedAtBlockNumber_ = Withdrawing.withdrawExit_delegatecall(
+    uint256 exitFundPositionOpenedAtBlockTimestamp_ = Withdrawing.withdrawExit_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
-      exitFundPositionOpenedAtBlockNumber,
+      exitFundPositionOpenedAtBlockTimestamp,
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -1340,7 +1337,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       walletExits
     );
 
-    exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
+    exitFundPositionOpenedAtBlockTimestamp = exitFundPositionOpenedAtBlockTimestamp_;
   }
 
   /**
@@ -1350,9 +1347,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param wallet Address of exited wallet
    */
   function withdrawExitAdmin(address wallet) public onlyAdminOrDispatcher onlyWhenExitFundHasOpenPositions {
-    uint256 exitFundPositionOpenedAtBlockNumber_ = Withdrawing.withdrawExitAdmin_delegatecall(
+    uint256 exitFundPositionOpenedAtBlockTimestamp_ = Withdrawing.withdrawExitAdmin_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
-      exitFundPositionOpenedAtBlockNumber,
+      exitFundPositionOpenedAtBlockTimestamp,
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       fundingMultipliersByBaseAssetSymbol,
@@ -1361,7 +1358,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       _marketsByBaseAssetSymbol,
       walletExits
     );
-    exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
+    exitFundPositionOpenedAtBlockTimestamp = exitFundPositionOpenedAtBlockTimestamp_;
   }
 
   /**
@@ -1386,12 +1383,12 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * provided
    */
   function invalidateNonce(uint128 nonce) public {
-    (uint64 timestampInMs, uint256 effectiveBlockNumber) = nonceInvalidationsByWallet.invalidateNonce(
+    (uint64 timestampInMs, uint256 effectiveBlockTimestamp) = nonceInvalidationsByWallet.invalidateNonce(
       nonce,
-      chainPropagationPeriodInBlocks
+      chainPropagationPeriodInS
     );
 
-    emit OrderNonceInvalidated(msg.sender, nonce, timestampInMs, effectiveBlockNumber);
+    emit OrderNonceInvalidated(msg.sender, nonce, timestampInMs, effectiveBlockTimestamp);
   }
 
   function _onlyDispatcher() private view {

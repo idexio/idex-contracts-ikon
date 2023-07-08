@@ -1,8 +1,9 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { ethers, network } from 'hardhat';
 
 import {
   decimalToPips,
+  fieldUpgradeDelayInS,
   fundingPeriodLengthInMs,
   IndexPrice,
   indexPriceToArgumentStruct,
@@ -25,7 +26,6 @@ import {
   deployAndAssociateContracts,
   executeTrade,
   expect,
-  fieldUpgradeDelayInBlocks,
   fundWallets,
   quoteAssetSymbol,
 } from './helpers';
@@ -189,7 +189,7 @@ describe('Exchange', function () {
           overrides,
           insuranceFundWallet.address,
         );
-      await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(
@@ -285,7 +285,7 @@ describe('Exchange', function () {
         marketOverrides,
         insuranceFundWallet.address,
       );
-      await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance.finalizeMarketOverridesUpgrade(
         baseAssetSymbol,
         marketOverrides,
@@ -514,7 +514,7 @@ describe('Exchange', function () {
           overrides,
           insuranceFundWallet.address,
         );
-      await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(
@@ -1470,7 +1470,7 @@ describe('Exchange', function () {
           overrides,
           insuranceFundWallet.address,
         );
-      await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(

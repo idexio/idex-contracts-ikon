@@ -1,4 +1,4 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
@@ -15,6 +15,7 @@ import type {
 import {
   decimalToAssetUnits,
   decimalToPips,
+  fieldUpgradeDelayInS,
   getWithdrawArguments,
   getWithdrawalSignatureTypedData,
   Withdrawal,
@@ -241,7 +242,7 @@ describe('ExchangeStargateAdapter', function () {
       );
 
       await governance.initiateBridgeAdaptersUpgrade([adapter.address]);
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance.finalizeBridgeAdaptersUpgrade([adapter.address]);
 
       await adapter.setWithdrawEnabled(true);
@@ -303,7 +304,7 @@ describe('ExchangeStargateAdapter', function () {
         adapter2.address,
         adapter.address,
       ]);
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance.finalizeBridgeAdaptersUpgrade([
         adapter2.address,
         adapter.address,

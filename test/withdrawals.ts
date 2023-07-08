@@ -1,10 +1,11 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { ethers, network } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 
 import {
   decimalToPips,
+  exitFundWithdrawDelayInS,
   getWithdrawArguments,
   getWithdrawalSignatureTypedData,
   indexPriceToArgumentStruct,
@@ -179,7 +180,7 @@ describe('Exchange', function () {
       });
 
       // Expire EF withdraw delay
-      await mine(300000, { interval: 0 });
+      await time.increase(exitFundWithdrawDelayInS);
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1.00000000';
@@ -225,7 +226,7 @@ describe('Exchange', function () {
       });
 
       // Expire EF withdraw delay
-      await mine(300000, { interval: 0 });
+      await time.increase(exitFundWithdrawDelayInS);
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1000.00000000';

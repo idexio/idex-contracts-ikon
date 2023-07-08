@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js';
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
@@ -10,7 +10,12 @@ import type {
   LiquidationValidationsMock,
   USDC,
 } from '../typechain-types';
-import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
+import {
+  decimalToPips,
+  fieldUpgradeDelayInS,
+  IndexPrice,
+  indexPriceToArgumentStruct,
+} from '../lib';
 import {
   baseAssetSymbol,
   buildIndexPrice,
@@ -146,7 +151,7 @@ describe('Exchange', function () {
           overrides,
           trader1Wallet.address,
         );
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(
@@ -254,7 +259,7 @@ describe('Exchange', function () {
           overrides,
           trader1Wallet.address,
         );
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(

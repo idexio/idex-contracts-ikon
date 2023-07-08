@@ -270,7 +270,7 @@ While not expected as part of normal operations, IDEX’s off-chain components o
 
 - Some functionality, such as [Wallet In Maintenance During System Recovery](#wallet-in-maintenance-during-system-recovery) liquidation and [Exit Fund Closure](#exit-fund-closure) deleveraging are included solely to aid in offline system recovery.
 - Wallet exits provide a mechanism for users to withdraw funds from the exchange in offline scenarios. **The value of open positions during exit withdrawals is different from the value of open positions in other situations.** See [wallet exits](#wallet-exits) for details.
-- Any positive exit fund wallet USDC balance may be withdrawn after a period determined by `Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS`. Exchange’s `_exitFundPositionOpenedAtBlockNumber` tracks the block at which the exit fund first acquires a position, starting the withdrawal delay clock.
+- Any positive exit fund wallet USDC balance may be withdrawn after a period determined by `Constants.EXIT_FUND_WITHDRAW_DELAY_IN_S`. Exchange’s `_exitFundPositionOpenedAtBlockTimestamp` tracks the block timestamp at which the exit fund first acquires a position, starting the withdrawal delay clock.
 
 ### Nonces and Invalidation
 

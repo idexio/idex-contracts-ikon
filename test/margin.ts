@@ -1,8 +1,7 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
-import { IndexPrice } from '../lib';
 import {
   baseAssetSymbol,
   buildIndexPrice,
@@ -11,6 +10,7 @@ import {
   expect,
   fundWallets,
 } from './helpers';
+import { fieldUpgradeDelayInS, IndexPrice } from '../lib';
 import type {
   ChainlinkAggregatorMock,
   Exchange_v4,
@@ -118,7 +118,7 @@ describe('Exchange', function () {
               overrides,
               trader1Wallet.address,
             );
-          await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+          await time.increase(fieldUpgradeDelayInS);
           await governance
             .connect(dispatcherWallet)
             .finalizeMarketOverridesUpgrade(

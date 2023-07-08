@@ -36,7 +36,7 @@ library WalletInMaintenanceLiquidation {
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
     WalletLiquidationArguments calldata arguments,
-    uint256 currentExitFundPositionOpenedAtBlockNumber,
+    uint256 currentExitFundPositionOpenedAtBlockTimestamp,
     address exitFundWallet,
     address insuranceFundWallet,
     LiquidationType liquidationType,
@@ -84,8 +84,8 @@ library WalletInMaintenanceLiquidation {
     );
 
     if (liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
-      resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundPositionOpenedAtBlockNumber(
-        currentExitFundPositionOpenedAtBlockNumber,
+      resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundPositionOpenedAtBlockTimestamp(
+        currentExitFundPositionOpenedAtBlockTimestamp,
         exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
@@ -93,7 +93,7 @@ library WalletInMaintenanceLiquidation {
 
       emit LiquidatedWalletInMaintenanceDuringSystemRecovery(arguments.liquidatingWallet);
     } else {
-      resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockNumber;
+      resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockTimestamp;
 
       // Validate that the Insurance Fund still meets its initial margin requirements
       IndexPriceMargin.validateInitialMarginRequirement(

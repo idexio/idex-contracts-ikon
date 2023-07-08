@@ -32,7 +32,7 @@ library Withdrawing {
     // Exchange state
     bytes32 domainSeparator;
     ICustodian custodian;
-    uint256 exitFundPositionOpenedAtBlockNumber;
+    uint256 exitFundPositionOpenedAtBlockTimestamp;
     address exitFundWallet;
     address feeWallet;
     address quoteTokenAddress;
@@ -51,7 +51,7 @@ library Withdrawing {
   /**
    * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
    */
-  event WalletExited(address wallet, uint256 effectiveBlockNumber);
+  event WalletExited(address wallet, uint256 exitFundPositionOpenedAtBlockTimestamp);
   /**
    * @notice Emitted when a user withdraws available quote token balance through the Exit Wallet mechanism with
    * `withdrawExit`
@@ -64,7 +64,7 @@ library Withdrawing {
 
   // solhint-disable-next-line func-name-mixedcase
   function exitWallet_delegatecall(
-    uint256 chainPropagationPeriodInBlocks,
+    uint256 chainPropagationPeriodInS,
     address exitFundWallet,
     address insuranceFundWallet,
     address wallet,
@@ -74,10 +74,14 @@ library Withdrawing {
     require(wallet != exitFundWallet, "Cannot exit EF");
     require(wallet != insuranceFundWallet, "Cannot exit IF");
 
-    uint256 blockThreshold = block.number + chainPropagationPeriodInBlocks;
-    walletExits[wallet] = WalletExit(true, uint64(blockThreshold), WalletExitAcquisitionDeleveragePriceStrategy.None);
+    uint256 blockTimestampThreshold = block.timestamp + chainPropagationPeriodInS;
+    walletExits[wallet] = WalletExit(
+      true,
+      uint64(blockTimestampThreshold),
+      WalletExitAcquisitionDeleveragePriceStrategy.None
+    );
 
-    emit WalletExited(wallet, blockThreshold);
+    emit WalletExited(wallet, blockTimestampThreshold);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -104,7 +108,7 @@ library Withdrawing {
   ) public {
     // Validate preconditions
     if (arguments.withdrawal.wallet == arguments.exitFundWallet) {
-      _validateExitFundWithdrawDelayElapsed(arguments.exitFundPositionOpenedAtBlockNumber);
+      _validateExitFundWithdrawDelayElapsed(arguments.exitFundPositionOpenedAtBlockTimestamp);
     }
     require(
       Validations.isFeeQuantityValid(arguments.withdrawal.gasFee, arguments.withdrawal.grossQuantity),
@@ -150,7 +154,7 @@ library Withdrawing {
   // solhint-disable-next-line func-name-mixedcase
   function withdrawExit_delegatecall(
     WithdrawExitArguments memory arguments,
-    uint256 exitFundPositionOpenedAtBlockNumber,
+    uint256 exitFundPositionOpenedAtBlockTimestamp,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
@@ -158,7 +162,7 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => WalletExit) storage walletExits
-  ) public returns (uint256 exitFundPositionOpenedAtBlockNumber_) {
+  ) public returns (uint256 exitFundPositionOpenedAtBlockTimestamp_) {
     Funding.applyOutstandingWalletFunding(
       arguments.wallet,
       balanceTracking,
@@ -173,7 +177,7 @@ library Withdrawing {
     int64 walletQuoteQuantityToWithdraw;
     if (isExitFundWallet) {
       // Do not require prior exit for EF as it is already subject to a specific EF withdrawal delay
-      _validateExitFundWithdrawDelayElapsed(exitFundPositionOpenedAtBlockNumber);
+      _validateExitFundWithdrawDelayElapsed(exitFundPositionOpenedAtBlockTimestamp);
 
       // The EF wallet can withdraw its positive quote balance
       walletQuoteQuantityToWithdraw = balanceTracking.updateExitFundWalletForExit(arguments.exitFundWallet);
@@ -205,8 +209,8 @@ library Withdrawing {
     emit WalletExitWithdrawn(arguments.wallet, uint64(walletQuoteQuantityToWithdraw));
 
     return
-      ExitFund.getExitFundPositionOpenedAtBlockNumber(
-        exitFundPositionOpenedAtBlockNumber,
+      ExitFund.getExitFundPositionOpenedAtBlockTimestamp(
+        exitFundPositionOpenedAtBlockTimestamp,
         arguments.exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
@@ -216,7 +220,7 @@ library Withdrawing {
   // solhint-disable-next-line func-name-mixedcase
   function withdrawExitAdmin_delegatecall(
     WithdrawExitArguments memory arguments,
-    uint256 exitFundPositionOpenedAtBlockNumber,
+    uint256 exitFundPositionOpenedAtBlockTimestamp,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
@@ -224,7 +228,7 @@ library Withdrawing {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => WalletExit) storage walletExits
-  ) public returns (uint256 exitFundPositionOpenedAtBlockNumber_) {
+  ) public returns (uint256 exitFundPositionOpenedAtBlockTimestamp_) {
     require(walletExits[arguments.wallet].exists, "Wallet not exited");
 
     Funding.applyOutstandingWalletFunding(
@@ -260,8 +264,8 @@ library Withdrawing {
     emit WalletExitWithdrawn(arguments.wallet, walletQuoteQuantityToWithdraw);
 
     return
-      ExitFund.getExitFundPositionOpenedAtBlockNumber(
-        exitFundPositionOpenedAtBlockNumber,
+      ExitFund.getExitFundPositionOpenedAtBlockTimestamp(
+        exitFundPositionOpenedAtBlockTimestamp,
         arguments.exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
@@ -391,9 +395,9 @@ library Withdrawing {
     }
   }
 
-  function _validateExitFundWithdrawDelayElapsed(uint256 exitFundPositionOpenedAtBlockNumber) private view {
+  function _validateExitFundWithdrawDelayElapsed(uint256 exitFundPositionOpenedAtBlockTimestamp) private view {
     require(
-      block.number >= exitFundPositionOpenedAtBlockNumber + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_BLOCKS,
+      block.timestamp >= exitFundPositionOpenedAtBlockTimestamp + Constants.EXIT_FUND_WITHDRAW_DELAY_IN_S,
       "EF position opened too recently"
     );
   }

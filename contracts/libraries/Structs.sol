@@ -131,7 +131,7 @@ struct MarketOverrides {
  */
 struct NonceInvalidation {
   uint64 timestampInMs;
-  uint256 effectiveBlockNumber;
+  uint256 effectiveBlockTimestamp;
 }
 
 /**
@@ -255,8 +255,8 @@ struct Transfer {
 
 struct WalletExit {
   bool exists;
-  // We can safely downcast here as 2^64 blocks would take billions of years to exceed
-  uint64 effectiveBlockNumber;
+  // We can safely downcast here as 2^64 epoch seconds would take billions of years to exceed
+  uint64 effectiveBlockTimestamp;
   WalletExitAcquisitionDeleveragePriceStrategy deleveragePriceStrategy;
 }
 

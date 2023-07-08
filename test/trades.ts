@@ -1,4 +1,4 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
@@ -16,6 +16,7 @@ import {
 } from './helpers';
 import {
   decimalToPips,
+  fieldUpgradeDelayInS,
   getDelegatedKeyAuthorizationSignatureTypedData,
   getExecuteTradeArguments,
   getOrderSignatureTypedData,
@@ -954,7 +955,8 @@ describe('Exchange', function () {
           overrides,
           trader2Wallet.address,
         );
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
+
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(
@@ -1017,7 +1019,9 @@ describe('Exchange', function () {
           overrides,
           trader1Wallet.address,
         );
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+
+      await time.increase(fieldUpgradeDelayInS);
+
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(
