@@ -249,7 +249,7 @@ struct Transfer {
   uint64 grossQuantity;
   // Gas fee deducted from transfer quantity to cover dispatcher tx costs
   uint64 gasFee;
-  // The ECDSA signature of the transfer hash as produced by Hashing.getTransferHash
+  // The ECDSA signature of the transfer hash as produced by Hashing.getTransferWalletHash
   bytes walletSignature;
 }
 
