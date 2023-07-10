@@ -14,6 +14,8 @@ contract USDC is ERC20 {
 
   uint256 public fee;
 
+  bool public isTransferDisabled;
+
   constructor() ERC20("USD Coin", "USDC") {
     _mint(msg.sender, INITIAL_SUPPLY);
   }
@@ -26,11 +28,19 @@ contract USDC is ERC20 {
     _mint(wallet, NUM_TOKENS_RELEASED_BY_FAUCET);
   }
 
+  function setIsTransferDisabled(bool isTransferDisabled_) public {
+    isTransferDisabled = isTransferDisabled_;
+  }
+
   function setFee(uint256 fee_) public {
     fee = fee_;
   }
 
   function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+    if (isTransferDisabled) {
+      return false;
+    }
+
     _transfer(_msgSender(), recipient, amount - fee);
 
     return true;

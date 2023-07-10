@@ -177,7 +177,7 @@ library WalletInMaintenanceAcquisitionDeleveraging {
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    // Validate that the deleveraged wallet still meets its initial margin requirements
+    // Validate that the counterparty wallet still meets its initial margin requirements
     IndexPriceMargin.validateInitialMarginRequirement(
       arguments.counterpartyWallet,
       balanceTracking,

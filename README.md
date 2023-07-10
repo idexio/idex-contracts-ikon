@@ -261,7 +261,7 @@ The Ikon controls and governance design is captured in its own [spec](./GOVERNAN
 Previous versions of IDEX introduced an upgrade model that allows contract logic upgrades within major releases without requiring users to move or redeposit funds. Ikon extends this upgrade model to cover its new capabilities.
 
 - In Ikon, exchange state data continues to be stored in the Exchange contract rather than an external contract. Wallet balance information, captured in `_balanceTracking`, is the primary data that must migrate in the case of an upgrade. Ikon includes a lazy balance loading mechanism in the form of BalanceTracking’s `loadBalance*` functions to seamlessly maintain balance information at a minimum of gas overhead.
-- `Constants.SIGNATURE_HASH_VERSION` is incremented as part of any upgrade. As a result, open orders and active delegated keys must be replaced, and it is unnecessary to migrate `_completedOrderHashes`, `_completedTransferHashes`, `_completedWithdrawalHashes`, `_partiallyFilledOrderQuantitiesInPips`, and `_nonceInvalidations`. `_walletExits` are also unnecessary to migrate as users may exit wallets again.
+- `Constants.EIP_712_DOMAIN_VERSION` is incremented as part of any upgrade. As a result, open orders and active delegated keys must be replaced, and it is unnecessary to migrate `_completedOrderHashes`, `_completedTransferHashes`, `_completedWithdrawalHashes`, `_partiallyFilledOrderQuantitiesInPips`, and `_nonceInvalidations`. `_walletExits` are also unnecessary to migrate as users may exit wallets again.
 - `_depositIndex` is manually set on deployment via a call to `setDepositIndex`.
 
 ### Offline Operation

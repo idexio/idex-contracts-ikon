@@ -67,7 +67,7 @@ contract Custodian is ICustodian {
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
   function withdraw(address wallet, address asset, uint256 quantityInAssetUnits) public override onlyExchange {
-    IERC20(asset).transfer(wallet, quantityInAssetUnits);
+    require(IERC20(asset).transfer(wallet, quantityInAssetUnits), "Quote asset transfer failed");
   }
 
   /**

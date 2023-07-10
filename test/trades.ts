@@ -447,7 +447,7 @@ describe('Exchange', function () {
         );
     });
 
-    it('should work for IF buy reducing position when signed by DK against liquidity acquisition sell order', async function () {
+    it('should work for IF buy reducing position when signed by DK against liquidity acquisition sell', async function () {
       await exchange
         .connect(dispatcherWallet)
         .executeTrade(
@@ -504,6 +504,7 @@ describe('Exchange', function () {
         quantity: '10.00000000',
         price: '0.00000000',
         isReduceOnly: true,
+        isLiquidationAcquisitionOnly: true,
       };
       insuranceFundBuyOrder.delegatedPublicKey = delegatedKeyWallet.address;
       const insuranceFundOrderSignature =
@@ -713,6 +714,7 @@ describe('Exchange', function () {
         quantity: '10.00000000',
         price: '0.00000000',
         isReduceOnly: true,
+        isLiquidationAcquisitionOnly: true,
       };
       insuranceFundSellOrder.delegatedPublicKey = delegatedKeyWallet.address;
       const insuranceFundSellOrderSignature =
@@ -1712,7 +1714,7 @@ describe('Exchange', function () {
       );
     });
 
-    it('should revert for liquidation acquisition buy order not against IF order', async function () {
+    it('should revert for liquidation acquisition buy order not against liquidation acquisition sell order', async function () {
       buyOrder.isLiquidationAcquisitionOnly = true;
       buyOrderSignature = await trader2Wallet._signTypedData(
         ...getOrderSignatureTypedData(buyOrder, exchange.address),
@@ -1730,10 +1732,12 @@ describe('Exchange', function () {
               trade,
             ),
           ),
-      ).to.eventually.be.rejectedWith(/sell wallet must be IF/i);
+      ).to.eventually.be.rejectedWith(
+        /both orders must be liquidation acquisition/i,
+      );
     });
 
-    it('should revert for liquidation acquisition sell order not against IF order', async function () {
+    it('should revert for liquidation acquisition sell order not against liquidation acquisition buy order', async function () {
       sellOrder.isLiquidationAcquisitionOnly = true;
       sellOrderSignature = await trader1Wallet._signTypedData(
         ...getOrderSignatureTypedData(sellOrder, exchange.address),
@@ -1751,7 +1755,35 @@ describe('Exchange', function () {
               trade,
             ),
           ),
-      ).to.eventually.be.rejectedWith(/buy wallet must be IF/i);
+      ).to.eventually.be.rejectedWith(
+        /both orders must be liquidation acquisition/i,
+      );
+    });
+
+    it('should revert for liquidation acquisition orders not involving IF', async function () {
+      buyOrder.isLiquidationAcquisitionOnly = true;
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      sellOrder.isLiquidationAcquisitionOnly = true;
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/one order wallet must be IF/i);
     });
 
     it('should revert for invalidated buy nonce', async function () {
