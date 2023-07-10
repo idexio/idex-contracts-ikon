@@ -11,7 +11,7 @@ library Constants {
 
   string public constant EIP_712_DOMAIN_NAME = "IDEX";
 
-  string public constant EIP_712_DOMAIN_VERSION = "105";
+  string public constant EIP_712_DOMAIN_VERSION = "4.0.0";
 
   // https://eips.ethereum.org/EIPS/eip-712#definition-of-domainseparator
   bytes32 public constant EIP_712_TYPE_HASH_DOMAIN =

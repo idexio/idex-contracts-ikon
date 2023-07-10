@@ -56,7 +56,7 @@ export const fundingPeriodLengthInMs = 8 * 60 * 60 * 1000;
 /** The fixed number of digits following the decimal in quantities expressed as pips */
 export const pipsDecimals = 8;
 
-export const signatureHashVersion = 105;
+export const signatureHashVersion = '4.0.0';
 
 export enum OrderSelfTradePrevention {
   DecreaseAndCancel,

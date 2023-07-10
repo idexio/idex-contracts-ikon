@@ -27,13 +27,13 @@ library ExitFund {
       return block.timestamp;
     }
 
-    // Position or quote was open before but both are now closed, reset block number. Note that quote must be
+    // Position or quote was open before but both are now closed, reset block timestamp. Note that quote must be
     // drawn down to zero before resetting since EF quote withdrawals are not possible after reset
     if (currentExitFundBalanceOpenedAtBlockTimestamp > 0 && !(isPositionOpen || isQuoteOpen)) {
       return 0;
     }
 
-    // No change in balance or quote opened block number
+    // No change in balance or quote opened block timestamp
     return currentExitFundBalanceOpenedAtBlockTimestamp;
   }
 
