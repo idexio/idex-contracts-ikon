@@ -371,8 +371,8 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Initiates Index Price Adapter upgrade process. Once block delay has passed the process can be finalized
-   * with `finalizeIndexPriceAdaptersUpgrade`
+   * @notice Initiates Index Price Adapter upgrade process. Once block timestamp delay has passed the process can be
+   * finalized with `finalizeIndexPriceAdaptersUpgrade`
    *
    * @param newIndexPriceAdapters The Index Price Adapter contract addresses
    */
