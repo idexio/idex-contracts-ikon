@@ -82,7 +82,7 @@ The Exchange contract implements the majority of exchange functionality, includi
     - Exchange validates:
       - The new nonce is not more than one day in the future.
       - The new nonce is newer than the last invalidated nonce, if present.
-      - The current block is at or greater than the last invalidation's effective block timestamp, if present.
+      - The current block timestamp is at or greater than the last invalidation's effective block timestamp, if present.
     - Exchange records the invalidation, and starts enforcing it in the trade function after the Chain Propagation Period.
   - Off-chain, on detecting the `OrderNonceInvalidated` event:
     - All orders opened prior to the target nonce for the wallet are canceled.
