@@ -51,7 +51,7 @@ library Depositing {
     require(arguments.destinationWallet != arguments.exitFundWallet, "Cannot deposit to EF");
 
     // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and trades which respect
-    // the Chain Propagation Period given by `effectiveBlockNumber` via `_isWalletExitFinalized`
+    // the Chain Propagation Period given by `effectiveBlockTimestamp` via `_isWalletExitFinalized`
     require(!walletExits[arguments.sourceWallet].exists, "Source wallet exited");
     require(!walletExits[arguments.destinationWallet].exists, "Destination wallet exited");
 

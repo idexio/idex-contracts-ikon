@@ -51,7 +51,7 @@ library Withdrawing {
   /**
    * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
    */
-  event WalletExited(address wallet, uint256 exitFundPositionOpenedAtBlockTimestamp);
+  event WalletExited(address wallet, uint256 effectiveBlockTimestamp);
   /**
    * @notice Emitted when a user withdraws available quote token balance through the Exit Wallet mechanism with
    * `withdrawExit`
