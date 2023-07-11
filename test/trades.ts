@@ -918,6 +918,117 @@ describe('Exchange', function () {
         );
     });
 
+    it('should work when position is above max and reduced', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      const overrides = {
+        initialMarginFraction: '5000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '100000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+
+      buyOrder.quantity = '1.00000000';
+      buyOrder.wallet = trader1Wallet.address;
+      buyOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      sellOrder.quantity = '1.00000000';
+      sellOrder.wallet = trader2Wallet.address;
+      sellOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+
+      trade.baseQuantity = '1.00000000';
+      trade.quoteQuantity = '2000.00000000';
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+    });
+
+    it('should revert when order buy argument is not buy side', async function () {
+      buyOrder.side = OrderSide.Sell;
+      buyOrder.quantity = '10.00000000';
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/order arguments do not match sides/i);
+    });
+
+    it('should revert when order sell argument is not sell side', async function () {
+      sellOrder.side = OrderSide.Buy;
+      sellOrder.quantity = '10.00000000';
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/order arguments do not match sides/i);
+    });
+
     it('should revert when buy side exceeds max position size', async function () {
       buyOrder.quantity = '20.00000000';
       buyOrderSignature = await trader2Wallet._signTypedData(
