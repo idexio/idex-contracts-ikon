@@ -137,7 +137,8 @@ describe('ExchangeStargateAdapter', function () {
       await usdc.transfer(adapter.address, depositQuantityInAssetUnits);
       await adapter.setDepositEnabled(true);
 
-      await adapter.sgReceive(
+      await stargateRouterMock.sgReceive(
+        adapter.address,
         1,
         '0x',
         0,
@@ -147,9 +148,33 @@ describe('ExchangeStargateAdapter', function () {
       );
     });
 
-    it('should revert when deposits are disabled', async () => {
+    it('should revert when not sent by Router', async () => {
+      const depositQuantityInAssetUnits = decimalToAssetUnits(
+        '1.00000000',
+        quoteAssetDecimals,
+      );
+      await usdc.transfer(adapter.address, depositQuantityInAssetUnits);
+      await adapter.setDepositEnabled(true);
+
       await expect(
         adapter.sgReceive(
+          1,
+          '0x',
+          0,
+          usdc.address,
+          depositQuantityInAssetUnits,
+          ethers.utils.defaultAbiCoder.encode(
+            ['address'],
+            [ownerWallet.address],
+          ),
+        ),
+      ).to.eventually.be.rejectedWith(/caller must be router/i);
+    });
+
+    it('should revert when deposits are disabled', async () => {
+      await expect(
+        stargateRouterMock.sgReceive(
+          adapter.address,
           1,
           '0x',
           0,
@@ -167,7 +192,8 @@ describe('ExchangeStargateAdapter', function () {
       await adapter.setDepositEnabled(true);
 
       await expect(
-        adapter.sgReceive(
+        stargateRouterMock.sgReceive(
+          adapter.address,
           1,
           '0x',
           0,
@@ -185,7 +211,8 @@ describe('ExchangeStargateAdapter', function () {
       await adapter.setDepositEnabled(true);
 
       await expect(
-        adapter.sgReceive(
+        stargateRouterMock.sgReceive(
+          adapter.address,
           1,
           '0x',
           0,

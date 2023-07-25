@@ -97,7 +97,7 @@ library Depositing {
       arguments.depositIndex + 1,
       arguments.sourceWallet,
       arguments.destinationWallet,
-      quantity,
+      quantityTransferred,
       newExchangeBalance
     );
   }

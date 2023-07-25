@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { IStargateRouter } from "../bridge-adapters/ExchangeStargateAdapter.sol";
+import { IStargateReceiver, IStargateRouter } from "../bridge-adapters/ExchangeStargateAdapter.sol";
 
 contract StargateRouterMock is IStargateRouter {
   uint256 public fee;
@@ -13,6 +13,18 @@ contract StargateRouterMock is IStargateRouter {
   constructor(uint256 fee_, address quoteTokenAddress_) {
     quoteTokenAddress = quoteTokenAddress_;
     fee = fee_;
+  }
+
+  function sgReceive(
+    IStargateReceiver adapter,
+    uint16 chainId,
+    bytes calldata srcAddress,
+    uint256 nonce,
+    address token,
+    uint256 amountLD,
+    bytes memory payload
+  ) public {
+    adapter.sgReceive(chainId, srcAddress, nonce, token, amountLD, payload);
   }
 
   function swap(
