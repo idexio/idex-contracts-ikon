@@ -69,7 +69,8 @@ library LiquidationValidations {
 
     // Allow additional pip buffers for integer rounding
     require(
-      expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
+      expectedLiquidationQuoteQuantity - (expectedLiquidationQuoteQuantity == 0 ? 0 : 1) <= quoteQuantity &&
+        expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
     );
   }
@@ -133,7 +134,7 @@ library LiquidationValidations {
 
     // Allow additional pip buffers for integer rounding
     require(
-      expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
+      expectedLiquidationQuoteQuantity - (expectedLiquidationQuoteQuantity == 0 ? 0 : 1) <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
       "Invalid quote quantity"
     );
@@ -153,7 +154,8 @@ library LiquidationValidations {
 
     // Allow additional pip buffers for integer rounding
     require(
-      expectedLiquidationQuoteQuantity - 1 <= quoteQuantity && expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
+      expectedLiquidationQuoteQuantity - (expectedLiquidationQuoteQuantity == 0 ? 0 : 1) <= quoteQuantity &&
+        expectedLiquidationQuoteQuantity + 1 >= quoteQuantity,
       "Invalid quote quantity"
     );
   }
@@ -176,7 +178,7 @@ library LiquidationValidations {
 
     // Allow additional pip buffers for integer rounding
     require(
-      expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
+      expectedLiquidationQuoteQuantity - (expectedLiquidationQuoteQuantity == 0 ? 0 : 1) <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
       "Invalid quote quantity"
     );

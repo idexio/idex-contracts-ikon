@@ -26,6 +26,7 @@ library MarketAdmin {
     string[] storage marketBaseAssetSymbols,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) public {
+    require(marketBaseAssetSymbols.length < Constants.MAX_NUMBER_OF_MARKETS, "Max number of markets reached");
     require(!marketsByBaseAssetSymbol[newMarket.baseAssetSymbol].exists, "Market already exists");
     require(
       !String.isEqual(newMarket.baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL),

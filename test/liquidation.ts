@@ -29,6 +29,7 @@ describe('Exchange', function () {
   let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
+  let liquidationValidationsMock: LiquidationValidationsMock;
   let ownerWallet: SignerWithAddress;
   let dispatcherWallet: SignerWithAddress;
   let trader1Wallet: SignerWithAddress;
@@ -37,6 +38,10 @@ describe('Exchange', function () {
 
   before(async () => {
     await network.provider.send('hardhat_reset');
+
+    liquidationValidationsMock = await (
+      await ethers.getContractFactory('LiquidationValidationsMock')
+    ).deploy();
   });
 
   beforeEach(async () => {
@@ -86,14 +91,6 @@ describe('Exchange', function () {
   });
 
   describe('calculateQuoteQuantityAtBankruptcyPrice', async function () {
-    let liquidationValidationsMock: LiquidationValidationsMock;
-
-    beforeEach(async () => {
-      liquidationValidationsMock = await (
-        await ethers.getContractFactory('LiquidationValidationsMock')
-      ).deploy();
-    });
-
     it('should return 0 for zero totalMaintenanceMarginRequirement', async function () {
       await expect(
         liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
@@ -772,6 +769,133 @@ describe('Exchange', function () {
           liquidationQuoteQuantities: ['21500.00000000'].map(decimalToPips),
         }),
       ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
+    });
+  });
+
+  describe('validateDeactivatedMarketLiquidationQuoteQuantity', async function () {
+    it('should work for zero expected quote quantity', async function () {
+      await expect(
+        liquidationValidationsMock.validateDeactivatedMarketLiquidationQuoteQuantity(
+          decimalToPips('20000.00000000'),
+          0,
+          0,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateDeactivatedMarketLiquidationQuoteQuantity(
+          decimalToPips('20000.00000000'),
+          0,
+          1,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateDeactivatedMarketLiquidationQuoteQuantity(
+          decimalToPips('20000.00000000'),
+          0,
+          2,
+        ),
+      ).to.eventually.be.rejected;
+    });
+  });
+
+  describe('validateQuoteQuantityAtExitPrice', async function () {
+    it('should work for zero expected quote quantity', async function () {
+      await expect(
+        liquidationValidationsMock.validateQuoteQuantityAtExitPrice(
+          0,
+          decimalToPips('20000.00000000'),
+          0,
+          0,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateQuoteQuantityAtExitPrice(
+          0,
+          decimalToPips('20000.00000000'),
+          0,
+          1,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateQuoteQuantityAtExitPrice(
+          0,
+          decimalToPips('20000.00000000'),
+          0,
+          2,
+        ),
+      ).to.eventually.be.rejected;
+    });
+  });
+
+  describe('validateInsuranceFundClosureQuoteQuantity', async function () {
+    it('should work for zero expected quote quantity', async function () {
+      await expect(
+        liquidationValidationsMock.validateInsuranceFundClosureQuoteQuantity(
+          0,
+          0,
+          decimalToPips('10.00000000'),
+          0,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateInsuranceFundClosureQuoteQuantity(
+          0,
+          0,
+          decimalToPips('10.00000000'),
+          1,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateInsuranceFundClosureQuoteQuantity(
+          0,
+          0,
+          decimalToPips('10.00000000'),
+          2,
+        ),
+      ).to.eventually.be.rejected;
+    });
+  });
+
+  describe('validateQuoteQuantityAtBankruptcyPrice', async function () {
+    it('should work for zero expected quote quantity', async function () {
+      await expect(
+        liquidationValidationsMock.validateQuoteQuantityAtBankruptcyPrice(
+          decimalToPips('2000.00000000'),
+          0,
+          0,
+          0,
+          0,
+          0,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateQuoteQuantityAtBankruptcyPrice(
+          decimalToPips('2000.00000000'),
+          0,
+          1,
+          0,
+          0,
+          0,
+        ),
+      ).to.eventually.be.fulfilled;
+
+      await expect(
+        liquidationValidationsMock.validateQuoteQuantityAtBankruptcyPrice(
+          decimalToPips('2000.00000000'),
+          0,
+          2,
+          0,
+          0,
+          0,
+        ),
+      ).to.eventually.be.rejected;
     });
   });
 });

@@ -308,6 +308,7 @@ export async function deployContractsExceptCustodian(
     ExchangeFactory,
     governance,
     indexPriceAdapter,
+    oraclePriceAdapter,
     usdc,
   };
 }
@@ -331,6 +332,7 @@ export async function deployAndAssociateContracts(
     ExchangeFactory,
     indexPriceAdapter,
     governance,
+    oraclePriceAdapter,
     usdc,
   } = await deployContractsExceptCustodian(
     owner,
@@ -368,6 +370,7 @@ export async function deployAndAssociateContracts(
     ExchangeFactory,
     governance,
     indexPriceAdapter,
+    oraclePriceAdapter,
     usdc,
   };
 }

@@ -32,7 +32,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
    * @param priceIds List of price IDs to associate with base asset symbols
    * @param pyth_ Address of Pyth contract
    */
-  constructor(address activator_, string[] memory baseAssetSymbols, bytes32[] memory priceIds, address pyth_) {
+  constructor(address activator_, string[] memory baseAssetSymbols, bytes32[] memory priceIds, address pyth_) Owned() {
     require(activator_ != address(0x0), "Invalid activator address");
     activator = activator_;
 

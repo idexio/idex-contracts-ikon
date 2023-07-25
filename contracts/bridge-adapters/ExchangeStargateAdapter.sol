@@ -96,7 +96,12 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   /**
    * @notice Instantiate a new `ExchangeStargateAdapter` contract
    */
-  constructor(address custodian_, uint64 minimumWithdrawQuantityMultiplier_, address router_, address quoteAsset_) {
+  constructor(
+    address custodian_,
+    uint64 minimumWithdrawQuantityMultiplier_,
+    address router_,
+    address quoteAsset_
+  ) Owned() {
     require(Address.isContract(custodian_), "Invalid Custodian address");
     custodian = ICustodian(custodian_);
 
