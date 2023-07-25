@@ -12,6 +12,8 @@ contract USDC is ERC20 {
 
   uint256 public constant NUM_TOKENS_RELEASED_BY_FAUCET = 10 ** 3;
 
+  uint256 public fee;
+
   constructor() ERC20("USD Coin", "USDC") {
     _mint(msg.sender, INITIAL_SUPPLY);
   }
@@ -22,5 +24,21 @@ contract USDC is ERC20 {
 
   function faucet(address wallet) public {
     _mint(wallet, NUM_TOKENS_RELEASED_BY_FAUCET);
+  }
+
+  function setFee(uint256 fee_) public {
+    fee = fee_;
+  }
+
+  function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+    _transfer(_msgSender(), recipient, amount - fee);
+
+    return true;
+  }
+
+  function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+    _transfer(sender, recipient, amount - fee);
+
+    return true;
   }
 }
