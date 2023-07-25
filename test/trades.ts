@@ -165,6 +165,21 @@ describe('Exchange', function () {
           )
         ).balance.toString(),
       ).to.equal(decimalToPips('-10.00000000'));
+
+      const tradeEvents = await exchange.queryFilter(
+        exchange.filters.TradeExecuted(),
+      );
+      expect(tradeEvents).to.have.lengthOf(1);
+      expect(tradeEvents[0].args?.buyWallet).to.equal(trader2Wallet.address);
+      expect(tradeEvents[0].args?.sellWallet).to.equal(trader1Wallet.address);
+      expect(tradeEvents[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(tradeEvents[0].args?.quoteAssetSymbol).to.equal(quoteAssetSymbol);
+      expect(tradeEvents[0].args?.baseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(tradeEvents[0].args?.quoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work when increasing position sizes', async function () {
@@ -431,6 +446,118 @@ describe('Exchange', function () {
         );
     });
 
+    it('should work for IF buy reducing position when signed by DK against liquidity acquisition sell order', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '2150.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader1Wallet.address,
+        liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+      });
+
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const insuranceFundDelegatedKeyAuthorizationFields = {
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const insuranceFundDelegatedKeyAuthorization = {
+        ...insuranceFundDelegatedKeyAuthorizationFields,
+        signature: await insuranceFundWallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
+            insuranceFundDelegatedKeyAuthorizationFields,
+            exchange.address,
+          ),
+        ),
+      };
+      const insuranceFundBuyOrder: Order = {
+        nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
+        wallet: insuranceFundWallet.address,
+        market: `${baseAssetSymbol}-USD`,
+        type: OrderType.Market,
+        side: OrderSide.Buy,
+        quantity: '10.00000000',
+        price: '0.00000000',
+        isReduceOnly: true,
+      };
+      insuranceFundBuyOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      const insuranceFundOrderSignature =
+        await delegatedKeyWallet._signTypedData(
+          ...getOrderSignatureTypedData(
+            insuranceFundBuyOrder,
+            exchange.address,
+          ),
+        );
+
+      sellOrder = {
+        nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
+        wallet: trader2Wallet.address,
+        market: `${baseAssetSymbol}-USD`,
+        type: OrderType.Limit,
+        side: OrderSide.Sell,
+        quantity: '10.00000000',
+        price: '2000.00000000',
+        isLiquidationAcquisitionOnly: true,
+      };
+      sellOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            insuranceFundBuyOrder,
+            insuranceFundOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+            insuranceFundDelegatedKeyAuthorization,
+          ),
+        );
+
+      const tradeEvents = await exchange.queryFilter(
+        exchange.filters.LiquidationAcquisitionExecuted(),
+      );
+      expect(tradeEvents).to.have.lengthOf(1);
+      expect(tradeEvents[0].args?.buyWallet).to.equal(
+        insuranceFundWallet.address,
+      );
+      expect(tradeEvents[0].args?.sellWallet).to.equal(trader2Wallet.address);
+      expect(tradeEvents[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(tradeEvents[0].args?.quoteAssetSymbol).to.equal(quoteAssetSymbol);
+      expect(tradeEvents[0].args?.baseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(tradeEvents[0].args?.quoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
+    });
+
     it('should work for IF sell reducing position when signed by DK', async function () {
       await exchange
         .connect(dispatcherWallet)
@@ -525,6 +652,120 @@ describe('Exchange', function () {
             insuranceFundDelegatedKeyAuthorization,
           ),
         );
+    });
+
+    it('should work for IF sell reducing position when signed by DK against liquidity acquisition buy', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1850.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader2Wallet.address,
+        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
+      });
+
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const insuranceFundDelegatedKeyAuthorizationFields = {
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const insuranceFundDelegatedKeyAuthorization = {
+        ...insuranceFundDelegatedKeyAuthorizationFields,
+        signature: await insuranceFundWallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
+            insuranceFundDelegatedKeyAuthorizationFields,
+            exchange.address,
+          ),
+        ),
+      };
+      const insuranceFundSellOrder: Order = {
+        nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
+        wallet: insuranceFundWallet.address,
+        market: `${baseAssetSymbol}-USD`,
+        type: OrderType.Market,
+        side: OrderSide.Sell,
+        quantity: '10.00000000',
+        price: '0.00000000',
+        isReduceOnly: true,
+      };
+      insuranceFundSellOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      const insuranceFundSellOrderSignature =
+        await delegatedKeyWallet._signTypedData(
+          ...getOrderSignatureTypedData(
+            insuranceFundSellOrder,
+            exchange.address,
+          ),
+        );
+
+      buyOrder = {
+        nonce: uuidv1({ msecs: new Date().getTime() + 1000 }),
+        wallet: trader1Wallet.address,
+        market: `${baseAssetSymbol}-USD`,
+        type: OrderType.Limit,
+        side: OrderSide.Buy,
+        quantity: '10.00000000',
+        price: '2000.00000000',
+        isLiquidationAcquisitionOnly: true,
+      };
+      buyOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            insuranceFundSellOrder,
+            insuranceFundSellOrderSignature,
+            trade,
+            undefined,
+            insuranceFundDelegatedKeyAuthorization,
+          ),
+        );
+
+      const tradeEvents = await exchange.queryFilter(
+        exchange.filters.LiquidationAcquisitionExecuted(),
+      );
+      expect(tradeEvents).to.have.lengthOf(1);
+      expect(tradeEvents[0].args?.buyWallet).to.equal(trader1Wallet.address);
+      expect(tradeEvents[0].args?.sellWallet).to.equal(
+        insuranceFundWallet.address,
+      );
+      expect(tradeEvents[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(tradeEvents[0].args?.quoteAssetSymbol).to.equal(quoteAssetSymbol);
+      expect(tradeEvents[0].args?.baseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(tradeEvents[0].args?.quoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for buy order signed by DK', async function () {
@@ -1465,6 +1706,48 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(
         /IF order must be reduce only and signed by DK/i,
       );
+    });
+
+    it('should revert for liquidation acquisition buy order not against IF order', async function () {
+      buyOrder.isLiquidationAcquisitionOnly = true;
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/sell wallet must be IF/i);
+    });
+
+    it('should revert for liquidation acquisition sell order not against IF order', async function () {
+      sellOrder.isLiquidationAcquisitionOnly = true;
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/buy wallet must be IF/i);
     });
 
     it('should revert for invalidated buy nonce', async function () {

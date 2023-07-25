@@ -206,6 +206,8 @@ struct Order {
   OrderTimeInForce timeInForce;
   // STP behavior specified by wallet for order
   OrderSelfTradePrevention selfTradePrevention;
+  // Asserted when order can only reduce IF positions
+  bool isLiquidationAcquisitionOnly;
   // Asserted when signed by delegated key instead of custody wallet
   bool isSignedByDelegatedKey;
   // If non-zero, an authorization for a delegate key signer authorized by the custody wallet

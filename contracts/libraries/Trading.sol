@@ -25,6 +25,22 @@ library Trading {
   }
 
   /**
+   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade` and one of the orders
+   * has the `isLiquidationAcquisitionOnly` asserted
+   */
+  event LiquidationAcquisitionExecuted(
+    address buyWallet,
+    address sellWallet,
+    string baseAssetSymbol,
+    string quoteAssetSymbol,
+    uint64 baseQuantity,
+    uint64 quoteQuantity,
+    OrderSide makerSide,
+    int64 makerFeeQuantity,
+    uint64 takerFeeQuantity
+  );
+
+  /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
   event TradeExecuted(
@@ -98,17 +114,31 @@ library Trading {
   }
 
   function _emitTradeExecutedEvent(ExecuteTradeArguments memory tradeArguments) private {
-    emit TradeExecuted(
-      tradeArguments.buy.wallet,
-      tradeArguments.sell.wallet,
-      tradeArguments.trade.baseAssetSymbol,
-      Constants.QUOTE_ASSET_SYMBOL,
-      tradeArguments.trade.baseQuantity,
-      tradeArguments.trade.quoteQuantity,
-      tradeArguments.trade.makerSide,
-      tradeArguments.trade.makerFeeQuantity,
-      tradeArguments.trade.takerFeeQuantity
-    );
+    if (tradeArguments.buy.isLiquidationAcquisitionOnly || tradeArguments.sell.isLiquidationAcquisitionOnly) {
+      emit LiquidationAcquisitionExecuted(
+        tradeArguments.buy.wallet,
+        tradeArguments.sell.wallet,
+        tradeArguments.trade.baseAssetSymbol,
+        Constants.QUOTE_ASSET_SYMBOL,
+        tradeArguments.trade.baseQuantity,
+        tradeArguments.trade.quoteQuantity,
+        tradeArguments.trade.makerSide,
+        tradeArguments.trade.makerFeeQuantity,
+        tradeArguments.trade.takerFeeQuantity
+      );
+    } else {
+      emit TradeExecuted(
+        tradeArguments.buy.wallet,
+        tradeArguments.sell.wallet,
+        tradeArguments.trade.baseAssetSymbol,
+        Constants.QUOTE_ASSET_SYMBOL,
+        tradeArguments.trade.baseQuantity,
+        tradeArguments.trade.quoteQuantity,
+        tradeArguments.trade.makerSide,
+        tradeArguments.trade.makerFeeQuantity,
+        tradeArguments.trade.takerFeeQuantity
+      );
+    }
   }
 
   function _executeTradeAfterFunding(
