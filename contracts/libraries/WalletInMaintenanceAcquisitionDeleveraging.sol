@@ -17,6 +17,18 @@ library WalletInMaintenanceAcquisitionDeleveraging {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance deleverage with
+   * `deleverageInMaintenanceAcquisition`
+   */
+  event DeleveragedInMaintenanceAcquisition(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+
   // solhint-disable-next-line func-name-mixedcase
   function deleverage_delegatecall(
     AcquisitionDeleverageArguments memory arguments,
@@ -71,6 +83,14 @@ library WalletInMaintenanceAcquisitionDeleveraging {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol
+    );
+
+    emit DeleveragedInMaintenanceAcquisition(
+      arguments.baseAssetSymbol,
+      arguments.counterpartyWallet,
+      arguments.liquidatingWallet,
+      arguments.liquidationBaseQuantity,
+      arguments.liquidationQuoteQuantity
     );
   }
 

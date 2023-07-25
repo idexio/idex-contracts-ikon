@@ -26,12 +26,23 @@ library Depositing {
     address quoteTokenAddress;
   }
 
+  /**
+   * @notice Emitted when a user deposits quote tokens with `deposit`
+   */
+  event Deposited(
+    uint64 index,
+    address sourceWallet,
+    address destinationWallet,
+    uint64 quantity,
+    int64 newExchangeBalance
+  );
+
   // solhint-disable-next-line func-name-mixedcase
   function deposit_delegatecall(
     DepositArguments memory arguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => WalletExit) storage walletExits
-  ) public returns (uint64 quantity, int64 newExchangeBalance) {
+  ) public {
     // Deposits are disabled until `setDepositIndex` is called successfully
     require(
       arguments.depositIndex != Constants.DEPOSIT_INDEX_NOT_SET && arguments.isDepositEnabled,
@@ -44,7 +55,11 @@ library Depositing {
     require(!walletExits[arguments.sourceWallet].exists, "Source wallet exited");
     require(!walletExits[arguments.destinationWallet].exists, "Destination wallet exited");
 
-    quantity = AssetUnitConversions.assetUnitsToPips(arguments.quantityInAssetUnits, Constants.QUOTE_TOKEN_DECIMALS);
+    uint64 quantity = AssetUnitConversions.assetUnitsToPips(
+      arguments.quantityInAssetUnits,
+      Constants.QUOTE_TOKEN_DECIMALS
+    );
+
     require(quantity > 0, "Quantity is too low");
     require(quantity < uint64(type(int64).max), "Quantity is too large");
 
@@ -75,6 +90,15 @@ library Depositing {
     );
 
     // Update balance with actual transferred quantity
-    newExchangeBalance = balanceTracking.updateForDeposit(arguments.destinationWallet, quantityTransferred);
+    int64 newExchangeBalance = balanceTracking.updateForDeposit(arguments.destinationWallet, quantityTransferred);
+
+    emit Deposited(
+      // The Exchange will update the stored deposit index after this function returns
+      arguments.depositIndex + 1,
+      arguments.sourceWallet,
+      arguments.destinationWallet,
+      quantity,
+      newExchangeBalance
+    );
   }
 }

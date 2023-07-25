@@ -45,6 +45,18 @@ library WalletExitAcquisitionDeleveraging {
     uint256 liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips;
   }
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an exited wallet position deleverage with
+   * `deleverageExitAcquisition`
+   */
+  event DeleveragedExitAcquisition(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+
   // solhint-disable-next-line func-name-mixedcase
   function deleverage_delegatecall(
     AcquisitionDeleverageArguments memory arguments,
@@ -100,6 +112,14 @@ library WalletExitAcquisitionDeleveraging {
       marketOverridesByBaseAssetSymbolAndWallet,
       marketsByBaseAssetSymbol,
       walletExits
+    );
+
+    emit DeleveragedExitAcquisition(
+      arguments.baseAssetSymbol,
+      arguments.counterpartyWallet,
+      arguments.liquidatingWallet,
+      arguments.liquidationBaseQuantity,
+      arguments.liquidationQuoteQuantity
     );
   }
 

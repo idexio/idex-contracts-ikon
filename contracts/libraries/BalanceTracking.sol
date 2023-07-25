@@ -345,7 +345,7 @@ library BalanceTracking {
     Storage storage self,
     Transfer memory transfer,
     address feeWallet
-  ) internal returns (int64 newSourceWalletExchangeBalance) {
+  ) internal returns (int64 newDestinationWalletExchangeBalance, int64 newSourceWalletExchangeBalance) {
     Balance storage balanceStruct;
 
     // Remove quote amount from source wallet balance
@@ -357,6 +357,7 @@ library BalanceTracking {
     // Send quote amount minus gas fee (if any) to destination wallet balance
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, transfer.destinationWallet, Constants.QUOTE_ASSET_SYMBOL);
     balanceStruct.balance += Math.toInt64(transfer.grossQuantity - transfer.gasFee);
+    newDestinationWalletExchangeBalance = balanceStruct.balance;
 
     if (transfer.gasFee > 0) {
       balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);

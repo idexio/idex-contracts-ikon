@@ -111,6 +111,49 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event DelegateKeyExpirationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
+   * @notice Emitted when the Dispatcher Wallet submits an exited wallet position deleverage with
+   * `deleverageExitAcquisition`
+   */
+  event DeleveragedExitAcquisition(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an Exit Fund closure deleverage with `deleverageExitFundClosure`
+   */
+  event DeleveragedExitFundClosure(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address exitFundWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance deleverage with
+   * `deleverageInMaintenanceAcquisition`
+   */
+  event DeleveragedInMaintenanceAcquisition(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an Insurance Fund closure deleverage with
+   * `deleverageInsuranceFundClosure`
+   */
+  event DeleveragedInsuranceFundClosure(
+    string baseAssetSymbol,
+    address counterpartyWallet,
+    address insuranceFundWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+  /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
   event Deposited(
@@ -120,6 +163,19 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     uint64 quantity,
     int64 newExchangeBalance
   );
+  /**
+   * @notice Emitted when an admin disables deposits with `setDepositEnabled`
+   */
+  event DepositsDisabled();
+  /**
+   * @notice Emitted when an admin enables deposits with `setDepositEnabled`
+   */
+  event DepositsEnabled();
+  /**
+   * @notice Emitted when an admin changes the Dispatcher Wallet tunable parameter with `setDispatcher` or clears it
+   * with `removeDispatcher`
+   */
+  event DispatcherChanged(address previousValue, address newValue);
   /**
    * @notice Emitted when an admin changes the Exit Fund Wallet tunable parameter with `setExitFundWallet`
    */
@@ -133,7 +189,57 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event FundingRatePublished(string baseAssetSymbol, int64 fundingRate);
   /**
-   * @notice Emitted when admin unsets market overrides with `unsetMarketOverridesForWallet`
+   * @notice Emitted when the Dispatcher Wallet publishes a new index price with `publishIndexPrices`
+   */
+  event IndexPricePublished(string baseAssetSymbol, uint64 timestampInMs, uint64 price);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a position below minimum liquidation with
+   * `liquidatePositionBelowMinimum`
+   */
+  event LiquidatedPositionBelowMinimum(
+    string baseAssetSymbol,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a position in deactivated market liquidation with
+   * `liquidatePositionInDeactivatedMarket`
+   */
+  event LiquidatedPositionInDeactivatedMarket(
+    string baseAssetSymbol,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits an exited wallet liquidation with `liquidateWalletExit`
+   */
+  event LiquidatedWalletExit(address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance liquidation with
+   * `liquidateWalletInMaintenance`
+   */
+  event LiquidatedWalletInMaintenance(address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance liquidation during system recovery with
+   * `liquidateWalletInMaintenanceDuringSystemRecovery`
+   */
+  event LiquidatedWalletInMaintenanceDuringSystemRecovery(address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatch Wallet activates a previously added market with `activateMarket`
+   */
+  event MarketActivated(string baseAssetSymbol);
+  /**
+   * @notice Emitted when admin adds a new market with `addMarket`
+   */
+  event MarketAdded(string baseAssetSymbol);
+  /**
+   * @notice Emitted when the Dispatcher Wallet activates a previously activated market with `activateMarket`
+   */
+  event MarketDeactivated(string baseAssetSymbol);
+  /**
+   * @notice Emitted when an admin or the Dispatcher Wallet unsets market overrides with `unsetMarketOverridesForWallet`
    */
   event MarketOverridesUnset(string baseAssetSymbol, address wallet);
   /**
@@ -146,8 +252,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
   /**
-   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with
-   * `executeTrade`
+   * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
   event TradeExecuted(
     address buyWallet,
@@ -164,9 +269,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @notice Emitted when the Dispatcher Wallet submits a transfer with `transfer`
    */
   event Transferred(
-    address sourceWallet,
     address destinationWallet,
+    address sourceWallet,
     uint64 quantity,
+    int64 newDestinationWalletExchangeBalance,
     int64 newSourceWalletExchangeBalance
   );
   /**
@@ -379,6 +485,14 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param isEnabled Enables deposit if true, disables if false
    */
   function setDepositEnabled(bool isEnabled) public onlyAdmin {
+    if (isEnabled) {
+      require(!isDepositEnabled, "Deposits already enabled");
+      emit DepositsEnabled();
+    } else {
+      require(isDepositEnabled, "Deposits already disabled");
+      emit DepositsDisabled();
+    }
+
     isDepositEnabled = isEnabled;
   }
 
@@ -584,6 +698,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function setDispatcher(address newDispatcherWallet) public onlyAdmin {
     require(newDispatcherWallet != address(0x0), "Invalid wallet address");
     require(newDispatcherWallet != dispatcherWallet, "Must be different from current");
+
+    emit DispatcherChanged(dispatcherWallet, newDispatcherWallet);
+
     dispatcherWallet = newDispatcherWallet;
   }
 
@@ -592,6 +709,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * restricted by the `onlyDispatcherWhenExitFundHasNoPositions` modifier until a new wallet is set with `setDispatcher`
    */
   function removeDispatcher() public onlyAdmin {
+    emit DispatcherChanged(dispatcherWallet, address(0x0));
+
     dispatcherWallet = address(0x0);
   }
 
@@ -607,7 +726,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function deposit(uint256 quantityInAssetUnits, address destinationWallet) public {
     address destinationWallet_ = destinationWallet == address(0x0) ? msg.sender : destinationWallet;
 
-    (uint64 quantity, int64 newExchangeBalance) = Depositing.deposit_delegatecall(
+    Depositing.deposit_delegatecall(
       Depositing.DepositArguments(
         destinationWallet_,
         msg.sender,
@@ -623,8 +742,6 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     );
 
     depositIndex++;
-
-    emit Deposited(depositIndex, msg.sender, destinationWallet_, quantity, newExchangeBalance);
   }
 
   // Trades //
@@ -655,18 +772,6 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       nonceInvalidationsByWallet,
       _partiallyFilledOrderQuantities,
       walletExits
-    );
-
-    emit TradeExecuted(
-      tradeArguments.buy.wallet,
-      tradeArguments.sell.wallet,
-      tradeArguments.trade.baseAssetSymbol,
-      Constants.QUOTE_ASSET_SYMBOL,
-      tradeArguments.trade.baseQuantity,
-      tradeArguments.trade.quoteQuantity,
-      tradeArguments.trade.makerSide,
-      tradeArguments.trade.makerFeeQuantity,
-      tradeArguments.trade.takerFeeQuantity
     );
   }
 
@@ -867,7 +972,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   // Transfers //
 
   function transfer(Transfer memory transfer_) public onlyDispatcherWhenExitFundHasNoPositions {
-    int64 newSourceWalletExchangeBalance = Transferring.transfer_delegatecall(
+    Transferring.transfer_delegatecall(
       Transferring.Arguments(transfer_, _domainSeparatorV4(), exitFundWallet, insuranceFundWallet, feeWallet),
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
@@ -877,13 +982,6 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       marketOverridesByBaseAssetSymbolAndWallet,
       _marketsByBaseAssetSymbol,
       walletExits
-    );
-
-    emit Transferred(
-      transfer_.sourceWallet,
-      transfer_.destinationWallet,
-      transfer_.grossQuantity,
-      newSourceWalletExchangeBalance
     );
   }
 
@@ -898,7 +996,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function withdraw(Withdrawal memory withdrawal) public onlyDispatcherWhenExitFundHasNoPositions {
     require(!WalletExits.isWalletExitFinalized(withdrawal.wallet, walletExits), "Wallet exited");
 
-    int64 newExchangeBalance = Withdrawing.withdraw_delegatecall(
+    Withdrawing.withdraw_delegatecall(
       Withdrawing.WithdrawArguments(
         withdrawal,
         _domainSeparatorV4(),
@@ -917,8 +1015,6 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       marketOverridesByBaseAssetSymbolAndWallet,
       _marketsByBaseAssetSymbol
     );
-
-    emit Withdrawn(withdrawal.wallet, withdrawal.grossQuantity, newExchangeBalance);
   }
 
   // Market management //
@@ -1185,15 +1281,13 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * `withdrawExit`
    */
   function exitWallet() public {
-    uint256 blockThreshold = Withdrawing.exitWallet_delegatecall(
+    Withdrawing.exitWallet_delegatecall(
       chainPropagationPeriodInBlocks,
       exitFundWallet,
       insuranceFundWallet,
       msg.sender,
       walletExits
     );
-
-    emit WalletExited(msg.sender, blockThreshold);
   }
 
   /**
@@ -1203,7 +1297,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param wallet Address of exited wallet
    */
   function withdrawExit(address wallet) public {
-    (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
+    uint256 exitFundPositionOpenedAtBlockNumber_ = Withdrawing.withdrawExit_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
       exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
@@ -1214,9 +1308,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       _marketsByBaseAssetSymbol,
       walletExits
     );
-    exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
 
-    emit WalletExitWithdrawn(wallet, quantity);
+    exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
   }
 
   /**
@@ -1226,7 +1319,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param wallet Address of exited wallet
    */
   function withdrawExitAdmin(address wallet) public onlyAdminOrDispatcher onlyWhenExitFundHasOpenPositions {
-    (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExitAdmin_delegatecall(
+    uint256 exitFundPositionOpenedAtBlockNumber_ = Withdrawing.withdrawExitAdmin_delegatecall(
       Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
       exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
@@ -1238,8 +1331,6 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       walletExits
     );
     exitFundPositionOpenedAtBlockNumber = exitFundPositionOpenedAtBlockNumber_;
-
-    emit WalletExitWithdrawn(wallet, quantity);
   }
 
   /**

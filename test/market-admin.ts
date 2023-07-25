@@ -17,7 +17,7 @@ import {
   getLatestBlockTimestampInSeconds,
   quoteAssetSymbol,
 } from './helpers';
-import { indexPriceToArgumentStruct } from '../lib';
+import { decimalToPips, indexPriceToArgumentStruct } from '../lib';
 
 describe('Exchange', function () {
   let exchange: Exchange_v4;
@@ -32,7 +32,18 @@ describe('Exchange', function () {
 
   beforeEach(async () => {
     [ownerWallet] = await ethers.getSigners();
-    const results = await deployAndAssociateContracts(ownerWallet);
+    const results = await deployAndAssociateContracts(
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      ownerWallet,
+      0,
+      true,
+      ethers.constants.AddressZero,
+      [baseAssetSymbol, 'XYZ'],
+    );
     exchange = results.exchange;
     indexPriceAdapter = results.indexPriceAdapter;
     indexPriceServiceWallet = ownerWallet;
@@ -56,6 +67,18 @@ describe('Exchange', function () {
   });
 
   describe('activateMarket', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+      await exchange.activateMarket('XYZ');
+
+      const events = await exchange.queryFilter(
+        exchange.filters.MarketActivated(),
+      );
+      expect(events).to.have.lengthOf(2);
+      expect(events[1].args?.baseAssetSymbol).to.equal('XYZ');
+    });
+
     it('should revert when not called by dispatcher wallet', async () => {
       await expect(
         exchange
@@ -72,6 +95,15 @@ describe('Exchange', function () {
   });
 
   describe('addMarket', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+
+      const events = await exchange.queryFilter(exchange.filters.MarketAdded());
+      expect(events).to.have.lengthOf(2);
+      expect(events[1].args?.baseAssetSymbol).to.equal('XYZ');
+    });
+
     it('should revert when not called by admin', async () => {
       await expect(
         exchange
@@ -191,6 +223,19 @@ describe('Exchange', function () {
   });
 
   describe('deactivateMarket', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+      await exchange.activateMarket('XYZ');
+      await exchange.deactivateMarket('XYZ');
+
+      const events = await exchange.queryFilter(
+        exchange.filters.MarketDeactivated(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal('XYZ');
+    });
+
     it('should revert when not called by dispatcher', async () => {
       await expect(
         exchange
@@ -207,6 +252,42 @@ describe('Exchange', function () {
   });
 
   describe('publishIndexPrices', async function () {
+    it('should work', async () => {
+      marketStruct.baseAssetSymbol = 'XYZ';
+      await exchange.addMarket(marketStruct);
+      await exchange.activateMarket('XYZ');
+
+      const indexPrice = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+      );
+      const indexPrice2 = await buildIndexPrice(
+        exchange.address,
+        indexPriceServiceWallet,
+        'XYZ',
+      );
+
+      await exchange.publishIndexPrices([
+        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice2),
+      ]);
+
+      const events = await exchange.queryFilter(
+        exchange.filters.IndexPricePublished(),
+      );
+      expect(events).to.have.lengthOf(2);
+      expect(events[0].args?.baseAssetSymbol).to.equal(
+        indexPrice.baseAssetSymbol,
+      );
+      expect(events[0].args?.timestampInMs).to.equal(indexPrice.timestampInMs);
+      expect(events[0].args?.price).to.equal(decimalToPips(indexPrice.price));
+      expect(events[1].args?.baseAssetSymbol).to.equal(
+        indexPrice2.baseAssetSymbol,
+      );
+      expect(events[1].args?.timestampInMs).to.equal(indexPrice2.timestampInMs);
+      expect(events[1].args?.price).to.equal(decimalToPips(indexPrice2.price));
+    });
+
     it('should revert when not called by dispatcher', async () => {
       const indexPrice = await buildIndexPrice(
         exchange.address,

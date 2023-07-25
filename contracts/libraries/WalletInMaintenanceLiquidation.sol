@@ -21,6 +21,17 @@ library WalletInMaintenanceLiquidation {
   using MarketHelper for Market;
   using SortedStringSet for string[];
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance liquidation with
+   * `liquidateWalletInMaintenance`
+   */
+  event LiquidatedWalletInMaintenance(address liquidatingWallet);
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a wallet in maintenance liquidation during system recovery with
+   * `liquidateWalletInMaintenanceDuringSystemRecovery`
+   */
+  event LiquidatedWalletInMaintenanceDuringSystemRecovery(address liquidatingWallet);
+
   // Placing arguments in calldata avoids a stack too deep error from the Yul optimizer
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
@@ -79,6 +90,8 @@ library WalletInMaintenanceLiquidation {
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
       );
+
+      emit LiquidatedWalletInMaintenanceDuringSystemRecovery(arguments.liquidatingWallet);
     } else {
       resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockNumber;
 
@@ -90,6 +103,8 @@ library WalletInMaintenanceLiquidation {
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
       );
+
+      emit LiquidatedWalletInMaintenance(arguments.liquidatingWallet);
     }
   }
 

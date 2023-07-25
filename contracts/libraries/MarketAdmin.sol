@@ -17,6 +17,23 @@ import { IndexPricePayload, FundingMultiplierQuartet, IndexPrice, Market } from 
 library MarketAdmin {
   using MarketHelper for Market;
 
+  /**
+   * @notice Emitted when the Dispatch Wallet activates a previously added market with `activateMarket`
+   */
+  event MarketActivated(string baseAssetSymbol);
+  /**
+   * @notice Emitted when admin adds a new market with `addMarket`
+   */
+  event MarketAdded(string baseAssetSymbol);
+  /**
+   * @notice Emitted when the Dispatch Wallet activates a previously activated market with `activateMarket`
+   */
+  event MarketDeactivated(string baseAssetSymbol);
+  /**
+   * @notice Emitted when the Dispatcher Wallet publishes a new index price with `publishIndexPrices`
+   */
+  event IndexPricePublished(string baseAssetSymbol, uint64 timestampInMs, uint64 price);
+
   // solhint-disable-next-line func-name-mixedcase
   function addMarket_delegatecall(
     Market memory newMarket,
@@ -48,6 +65,8 @@ library MarketAdmin {
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol
     );
+
+    emit MarketAdded(newMarket.baseAssetSymbol);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -60,6 +79,8 @@ library MarketAdmin {
 
     market.isActive = true;
     market.indexPriceAtDeactivation = 0;
+
+    emit MarketActivated(baseAssetSymbol);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -72,6 +93,8 @@ library MarketAdmin {
 
     market.isActive = false;
     market.indexPriceAtDeactivation = market.lastIndexPrice;
+
+    emit MarketDeactivated(baseAssetSymbol);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -104,6 +127,8 @@ library MarketAdmin {
 
       market.lastIndexPrice = indexPrice.price;
       market.lastIndexPriceTimestampInMs = indexPrice.timestampInMs;
+
+      emit IndexPricePublished(indexPrice.baseAssetSymbol, indexPrice.timestampInMs, indexPrice.price);
     }
   }
 }

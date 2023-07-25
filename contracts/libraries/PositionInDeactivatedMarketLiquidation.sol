@@ -5,6 +5,7 @@ pragma solidity 0.8.18;
 import { BalanceTracking } from "./BalanceTracking.sol";
 import { Funding } from "./Funding.sol";
 import { LiquidationValidations } from "./LiquidationValidations.sol";
+import { Math } from "./Math.sol";
 import { SortedStringSet } from "./SortedStringSet.sol";
 import { Validations } from "./Validations.sol";
 import { FundingMultiplierQuartet, Market, PositionInDeactivatedMarketLiquidationArguments } from "./Structs.sol";
@@ -12,6 +13,17 @@ import { FundingMultiplierQuartet, Market, PositionInDeactivatedMarketLiquidatio
 library PositionInDeactivatedMarketLiquidation {
   using BalanceTracking for BalanceTracking.Storage;
   using SortedStringSet for string[];
+
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a position in deactivated market liquidation with
+   * `liquidatePositionInDeactivatedMarket`
+   */
+  event LiquidatedPositionInDeactivatedMarket(
+    string baseAssetSymbol,
+    address liquidatingWallet,
+    uint64 liquidationBaseQuantity,
+    uint64 liquidationQuoteQuantity
+  );
 
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
@@ -40,9 +52,13 @@ library PositionInDeactivatedMarketLiquidation {
     );
 
     // Validate quote quantity
+    int64 positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      arguments.liquidatingWallet,
+      market.baseAssetSymbol
+    );
     LiquidationValidations.validateDeactivatedMarketLiquidationQuoteQuantity(
       market.indexPriceAtDeactivation,
-      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(arguments.liquidatingWallet, market.baseAssetSymbol),
+      positionSize,
       arguments.liquidationQuoteQuantity
     );
 
@@ -55,6 +71,13 @@ library PositionInDeactivatedMarketLiquidation {
       arguments.liquidatingWallet,
       arguments.liquidationQuoteQuantity,
       baseAssetSymbolsWithOpenPositionsByWallet
+    );
+
+    emit LiquidatedPositionInDeactivatedMarket(
+      arguments.baseAssetSymbol,
+      arguments.liquidatingWallet,
+      Math.abs(positionSize),
+      arguments.liquidationQuoteQuantity
     );
   }
 }

@@ -1,3 +1,4 @@
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
 
 import {
@@ -348,10 +349,11 @@ describe('Exchange', function () {
 
   describe('removeDispatcher', async function () {
     let exchange: Exchange_v4;
+    let ownerWallet: SignerWithAddress;
 
     beforeEach(async () => {
-      const [owner] = await ethers.getSigners();
-      const results = await deployAndAssociateContracts(owner);
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
       exchange = results.exchange;
     });
 
@@ -360,6 +362,13 @@ describe('Exchange', function () {
       await expect(exchange.dispatcherWallet()).to.eventually.equal(
         ethers.constants.AddressZero,
       );
+
+      const events = await exchange.queryFilter(
+        exchange.filters.DispatcherChanged(),
+      );
+      expect(events).to.have.lengthOf(2);
+      expect(events[1].args?.previousValue).to.equal(ownerWallet.address);
+      expect(events[1].args?.newValue).to.equal(ethers.constants.AddressZero);
     });
 
     it('should revert when not called by admin', async () => {

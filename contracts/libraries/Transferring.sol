@@ -23,6 +23,17 @@ library Transferring {
     address feeWallet;
   }
 
+  /**
+   * @notice Emitted when the Dispatcher Wallet submits a transfer with `transfer`
+   */
+  event Transferred(
+    address destinationWallet,
+    address sourceWallet,
+    uint64 quantity,
+    int64 newDestinationWalletExchangeBalance,
+    int64 newSourceWalletExchangeBalance
+  );
+
   // solhint-disable-next-line func-name-mixedcase
   function transfer_delegatecall(
     Arguments memory arguments,
@@ -34,7 +45,7 @@ library Transferring {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
     mapping(address => WalletExit) storage walletExits
-  ) public returns (int64 newSourceWalletExchangeBalance) {
+  ) public {
     require(!WalletExits.isWalletExitFinalized(arguments.transfer.sourceWallet, walletExits), "Source wallet exited");
     require(
       !WalletExits.isWalletExitFinalized(arguments.transfer.destinationWallet, walletExits),
@@ -73,7 +84,8 @@ library Transferring {
     );
 
     // Update wallet balances
-    newSourceWalletExchangeBalance = balanceTracking.updateForTransfer(arguments.transfer, arguments.feeWallet);
+    (int64 newDestinationWalletExchangeBalance, int64 newSourceWalletExchangeBalance) = balanceTracking
+      .updateForTransfer(arguments.transfer, arguments.feeWallet);
 
     // Wallet must still maintain initial margin requirement after withdrawal
     IndexPriceMargin.validateInitialMarginRequirement(
@@ -86,6 +98,14 @@ library Transferring {
 
     // Replay prevention
     completedTransferHashes[transferHash] = true;
+
+    emit Transferred(
+      arguments.transfer.destinationWallet,
+      arguments.transfer.sourceWallet,
+      arguments.transfer.grossQuantity,
+      newDestinationWalletExchangeBalance,
+      newSourceWalletExchangeBalance
+    );
   }
 
   function _validateTransferSignature(Arguments memory arguments) private pure returns (bytes32) {

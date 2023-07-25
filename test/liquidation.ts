@@ -164,6 +164,19 @@ describe('Exchange', function () {
         liquidatingWallet: trader1Wallet.address,
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
       });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.LiquidatedPositionBelowMinimum(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for valid wallet with quote below validation threshold', async function () {
@@ -340,6 +353,19 @@ describe('Exchange', function () {
           liquidatingWallet: trader2Wallet.address,
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.LiquidatedPositionInDeactivatedMarket(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(events[0].args?.liquidatingWallet).to.equal(trader2Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should work for valid short wallet position and market', async function () {
@@ -355,6 +381,19 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.LiquidatedPositionInDeactivatedMarket(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.baseAssetSymbol).to.equal(baseAssetSymbol);
+      expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
+      expect(events[0].args?.liquidationBaseQuantity).to.equal(
+        decimalToPips('10.00000000'),
+      );
+      expect(events[0].args?.liquidationQuoteQuantity).to.equal(
+        decimalToPips('20000.00000000'),
+      );
     });
 
     it('should revert for invalid market', async function () {
@@ -469,6 +508,12 @@ describe('Exchange', function () {
         liquidatingWallet: trader1Wallet.address,
         liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
       });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.LiquidatedWalletInMaintenance(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
     });
 
     it('should work for valid wallet with one pip quote difference', async function () {
@@ -608,6 +653,12 @@ describe('Exchange', function () {
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
         });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.LiquidatedWalletInMaintenanceDuringSystemRecovery(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
     });
 
     it('should revert when EF has no open balances', async function () {
@@ -676,6 +727,12 @@ describe('Exchange', function () {
         liquidatingWallet: trader1Wallet.address,
         liquidationQuoteQuantities: ['20000.00000000'].map(decimalToPips),
       });
+
+      const events = await exchange.queryFilter(
+        exchange.filters.LiquidatedWalletExit(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
     });
 
     it('should work for valid wallet with negative EAV', async function () {
