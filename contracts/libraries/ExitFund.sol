@@ -8,10 +8,10 @@ pragma solidity 0.8.18;
 library ExitFund {
   using BalanceTracking for BalanceTracking.Storage;
 
-  // Returns the block number at which an EF position initially opened; zero if EF has no open positions or quote
+  // Returns the block timestamp at which an EF position initially opened; zero if EF has no open positions or quote
   // balance
-  function getExitFundPositionOpenedAtBlockNumber(
-    uint256 currentExitFundBalanceOpenedAtBlockNumber,
+  function getExitFundPositionOpenedAtBlockTimestamp(
+    uint256 currentExitFundBalanceOpenedAtBlockTimestamp,
     address exitFundWallet,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet
@@ -22,19 +22,19 @@ library ExitFund {
       Constants.QUOTE_ASSET_SYMBOL
     ) > 0;
 
-    // Position opened when none was before, return current block number
-    if (currentExitFundBalanceOpenedAtBlockNumber == 0 && isPositionOpen) {
-      return block.number;
+    // Position opened when none was before, return current block timestamp
+    if (currentExitFundBalanceOpenedAtBlockTimestamp == 0 && isPositionOpen) {
+      return block.timestamp;
     }
 
-    // Position or quote was open before but both are now closed, reset block number. Note that quote must be
+    // Position or quote was open before but both are now closed, reset block timestamp. Note that quote must be
     // drawn down to zero before resetting since EF quote withdrawals are not possible after reset
-    if (currentExitFundBalanceOpenedAtBlockNumber > 0 && !(isPositionOpen || isQuoteOpen)) {
+    if (currentExitFundBalanceOpenedAtBlockTimestamp > 0 && !(isPositionOpen || isQuoteOpen)) {
       return 0;
     }
 
-    // No change in balance or quote opened block number
-    return currentExitFundBalanceOpenedAtBlockNumber;
+    // No change in balance or quote opened block timestamp
+    return currentExitFundBalanceOpenedAtBlockTimestamp;
   }
 
   function doesWalletHaveOpenPositionsOrQuoteBalance(

@@ -46,7 +46,7 @@ library ClosureDeleveraging {
   function deleverage_delegatecall(
     ClosureDeleverageArguments memory arguments,
     DeleverageType deleverageType,
-    uint256 exitFundPositionOpenedAtBlockNumber,
+    uint256 exitFundPositionOpenedAtBlockTimestamp,
     address exitFundWallet,
     address insuranceFundWallet,
     BalanceTracking.Storage storage balanceTracking,
@@ -94,14 +94,14 @@ library ClosureDeleveraging {
       marketsByBaseAssetSymbol
     );
 
-    // EF closure deleveraging can potentially change the `exitFundPositionOpenedAtBlockNumber` by setting it to zero,
-    // whereas IF closure cannot
+    // EF closure deleveraging can potentially change the `exitFundPositionOpenedAtBlockTimestamp` by setting it to
+    // zero, whereas IF closure cannot
     if (deleverageType == DeleverageType.ExitFundClosure) {
       _emitDeleveragedExitFundClosure(arguments, exitFundWallet);
 
       return
-        ExitFund.getExitFundPositionOpenedAtBlockNumber(
-          exitFundPositionOpenedAtBlockNumber,
+        ExitFund.getExitFundPositionOpenedAtBlockTimestamp(
+          exitFundPositionOpenedAtBlockTimestamp,
           exitFundWallet,
           balanceTracking,
           baseAssetSymbolsWithOpenPositionsByWallet
@@ -109,8 +109,8 @@ library ClosureDeleveraging {
     } else {
       _emitDeleveragedInsuranceFundClosure(arguments, insuranceFundWallet);
 
-      // IF closure never changes `exitFundPositionOpenedAtBlockNumber`
-      return exitFundPositionOpenedAtBlockNumber;
+      // IF closure never changes `exitFundPositionOpenedAtBlockTimestamp`
+      return exitFundPositionOpenedAtBlockTimestamp;
     }
   }
 

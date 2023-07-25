@@ -14,7 +14,7 @@ import { IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter, IOraclePrice
 contract Governance is Owned {
   // State variables //
 
-  uint256 public immutable blockDelay;
+  uint256 public immutable blockTimestampDelay;
   ICustodian public custodian;
 
   // State variables - upgrade tracking //
@@ -33,38 +33,38 @@ contract Governance is Owned {
   struct ContractUpgrade {
     bool exists;
     address newContract;
-    uint256 blockThreshold;
+    uint256 blockTimestampThreshold;
   }
 
   struct BridgeAdaptersUpgrade {
     bool exists;
     IBridgeAdapter[] newBridgeAdapters;
-    uint256 blockThreshold;
+    uint256 blockTimestampThreshold;
   }
 
   struct IndexPriceAdaptersUpgrade {
     bool exists;
     IIndexPriceAdapter[] newIndexPriceAdapters;
-    uint256 blockThreshold;
+    uint256 blockTimestampThreshold;
   }
 
   struct InsuranceFundWalletUpgrade {
     bool exists;
     address newInsuranceFundWallet;
-    uint256 blockThreshold;
+    uint256 blockTimestampThreshold;
   }
 
   struct MarketOverridesUpgrade {
     bool exists;
     OverridableMarketFields newMarketOverrides;
-    uint256 blockThreshold;
+    uint256 blockTimestampThreshold;
   }
 
   /**
    * @notice Emitted when admin initiates Bridge Adapter upgrade with
    * `initiateBridgeAdaptersUpgrade`
    */
-  event BridgeAdaptersUpgradeInitiated(IBridgeAdapter[] newBridgeAdapters, uint256 blockThreshold);
+  event BridgeAdaptersUpgradeInitiated(IBridgeAdapter[] newBridgeAdapters, uint256 blockTimestampThreshold);
   /**
    * @notice Emitted when admin cancels previously started Bridge Adapter upgrade with
    * `cancelBridgeAdaptersUpgrade`
@@ -79,7 +79,7 @@ contract Governance is Owned {
    * @notice Emitted when admin initiates upgrade of `Exchange` contract address on `Custodian` via
    * `initiateExchangeUpgrade`
    */
-  event ExchangeUpgradeInitiated(address oldExchange, address newExchange, uint256 blockThreshold);
+  event ExchangeUpgradeInitiated(address oldExchange, address newExchange, uint256 blockTimestampThreshold);
   /**
    * @notice Emitted when admin cancels previously started `Exchange` upgrade with `cancelExchangeUpgrade`
    */
@@ -92,7 +92,7 @@ contract Governance is Owned {
    * @notice Emitted when admin initiates upgrade of `Governance` contract address on `Custodian` via
    * `initiateGovernanceUpgrade`
    */
-  event GovernanceUpgradeInitiated(address oldGovernance, address newGovernance, uint256 blockThreshold);
+  event GovernanceUpgradeInitiated(address oldGovernance, address newGovernance, uint256 blockTimestampThreshold);
   /**
    * @notice Emitted when admin cancels previously started `Governance` upgrade with `cancelGovernanceUpgrade`
    */
@@ -105,7 +105,7 @@ contract Governance is Owned {
   /**
    * @notice Emitted when admin initiates Index Price Adapter  upgrade with `initiateIndexPriceAdaptersUpgrade`
    */
-  event IndexPriceAdaptersUpgradeInitiated(IIndexPriceAdapter[] newIndexPriceAdapters, uint256 blockThreshold);
+  event IndexPriceAdaptersUpgradeInitiated(IIndexPriceAdapter[] newIndexPriceAdapters, uint256 blockTimestampThreshold);
   /**
    * @notice Emitted when admin cancels previously started Index Price Adapter upgrade with
    * `cancelIndexPriceAdaptersUpgrade`
@@ -118,7 +118,7 @@ contract Governance is Owned {
   /**
    * @notice Emitted when admin initiates IF wallet upgrade with `initiateInsuranceFundWalletUpgrade`
    */
-  event InsuranceFundWalletUpgradeInitiated(address newInsuranceFundWallet, uint256 blockThreshold);
+  event InsuranceFundWalletUpgradeInitiated(address newInsuranceFundWallet, uint256 blockTimestampThreshold);
   /**
    * @notice Emitted when admin cancels previously started IF wallet upgrade with `cancelInsuranceFundWalletUpgrade`
    */
@@ -134,7 +134,7 @@ contract Governance is Owned {
     string baseAssetSymbol,
     address wallet,
     OverridableMarketFields overridableFields,
-    uint256 blockThreshold
+    uint256 blockTimestampThreshold
   );
   /**
    * @notice Emitted when admin cancels previously started market override upgrade with `cancelMarketOverridesUpgrade`
@@ -151,7 +151,7 @@ contract Governance is Owned {
   /**
    * @notice Emitted when admin initiates Oracle Price Adapter upgrade with `initiateOraclePriceAdapterUpgrade`
    */
-  event OraclePriceAdapterUpgradeInitiated(IOraclePriceAdapter newOraclePriceAdapter, uint256 blockThreshold);
+  event OraclePriceAdapterUpgradeInitiated(IOraclePriceAdapter newOraclePriceAdapter, uint256 blockTimestampThreshold);
   /**
    * @notice Emitted when admin cancels previously started Oracle Price Adapter upgrade with `cancelOraclePriceAdapterUpgrade`
    */
@@ -172,14 +172,14 @@ contract Governance is Owned {
   /**
    * @notice Instantiate a new `Governance` contract
    *
-   * @dev Sets `owner` and `admin` to `msg.sender`. Sets the values for `blockDelay` governing `Exchange`
+   * @dev Sets `owner` and `admin` to `msg.sender`. Sets the values for `blockTimestampDelay` governing `Exchange`
    * and `Governance` upgrades. This value is immutable, and cannot be changed after construction
    *
-   * @param blockDelay_ The minimum number of blocks that must be mined after initiating an `Exchange`
-   * or `Governance` upgrade before the upgrade may be finalized
+   * @param blockTimestampDelay_ The minimum number of seconds that must elapse after initiating an `Exchange` or
+   * `Governance` upgrade before the upgrade may be finalized
    */
-  constructor(uint256 blockDelay_) Owned() {
-    blockDelay = blockDelay_;
+  constructor(uint256 blockTimestampDelay_) Owned() {
+    blockTimestampDelay = blockTimestampDelay_;
   }
 
   /**
@@ -201,8 +201,8 @@ contract Governance is Owned {
   // Exchange upgrade //
 
   /**
-   * @notice Initiates `Exchange` contract upgrade process on `Custodian`. Once `blockDelay` has passed
-   * the process can be finalized with `finalizeExchangeUpgrade`
+   * @notice Initiates `Exchange` contract upgrade process on `Custodian`. Once `blockTimestampDelay` has passed the
+   * process can be finalized with `finalizeExchangeUpgrade`
    *
    * @param newExchange The address of the new `Exchange` contract
    */
@@ -211,9 +211,13 @@ contract Governance is Owned {
     require(newExchange != address(_loadExchange()), "Must be different from current Exchange");
     require(!currentExchangeUpgrade.exists, "Exchange upgrade already in progress");
 
-    currentExchangeUpgrade = ContractUpgrade(true, newExchange, block.number + blockDelay);
+    currentExchangeUpgrade = ContractUpgrade(true, newExchange, block.timestamp + blockTimestampDelay);
 
-    emit ExchangeUpgradeInitiated(address(_loadExchange()), newExchange, currentExchangeUpgrade.blockThreshold);
+    emit ExchangeUpgradeInitiated(
+      address(_loadExchange()),
+      newExchange,
+      currentExchangeUpgrade.blockTimestampThreshold
+    );
   }
 
   /**
@@ -230,7 +234,7 @@ contract Governance is Owned {
 
   /**
    * @notice Finalizes the `Exchange` contract upgrade by changing the contract address on the `Custodian`
-   * contract with `setExchange`. The number of blocks specified by `blockDelay` must have passed since calling
+   * contract with `setExchange`. The number of seconds specified by `blockTimestampDelay` must have passed since calling
    * `initiateExchangeUpgrade`
    *
    * @param newExchange The address of the new `Exchange` contract. Must equal the address provided to
@@ -239,7 +243,7 @@ contract Governance is Owned {
   function finalizeExchangeUpgrade(address newExchange) public onlyAdmin {
     require(currentExchangeUpgrade.exists, "No Exchange upgrade in progress");
     require(currentExchangeUpgrade.newContract == newExchange, "Address mismatch");
-    require(block.number >= currentExchangeUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(block.timestamp >= currentExchangeUpgrade.blockTimestampThreshold, "Block threshold not yet reached");
 
     address oldExchange = address(_loadExchange());
     custodian.setExchange(newExchange);
@@ -251,7 +255,7 @@ contract Governance is Owned {
   // Governance upgrade //
 
   /**
-   * @notice Initiates `Governance` contract upgrade process on `Custodian`. Once `blockDelay` has passed
+   * @notice Initiates `Governance` contract upgrade process on `Custodian`. Once `blockTimestampDelay` has passed
    * the process can be finalized with `finalizeGovernanceUpgrade`
    *
    * @param newGovernance The address of the new `Governance` contract
@@ -261,9 +265,13 @@ contract Governance is Owned {
     require(newGovernance != custodian.governance(), "Must be different from current Governance");
     require(!currentGovernanceUpgrade.exists, "Governance upgrade already in progress");
 
-    currentGovernanceUpgrade = ContractUpgrade(true, newGovernance, block.number + blockDelay);
+    currentGovernanceUpgrade = ContractUpgrade(true, newGovernance, block.timestamp + blockTimestampDelay);
 
-    emit GovernanceUpgradeInitiated(custodian.governance(), newGovernance, currentGovernanceUpgrade.blockThreshold);
+    emit GovernanceUpgradeInitiated(
+      custodian.governance(),
+      newGovernance,
+      currentGovernanceUpgrade.blockTimestampThreshold
+    );
   }
 
   /**
@@ -279,12 +287,12 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the `Governance` contract upgrade by changing the contract address on the `Custodian`
-   * contract with `setGovernance`. The number of blocks specified by `blockDelay` must have passed since calling
+   * @notice Finalizes the `Governance` contract upgrade by changing the contract address on the `Custodian` contract
+   * with `setGovernance`. The number of seconds specified by `blockTimestampDelay` must have passed since calling
    * `initiateGovernanceUpgrade`.
    *
-   * @dev After successfully calling this function, this contract will become useless since it is no
-   * longer whitelisted in the `Custodian`
+   * @dev After successfully calling this function, this contract will become useless since it is no longer whitelisted
+   * in the `Custodian`
    *
    * @param newGovernance The address of the new `Governance` contract. Must equal the address provided to
    * `initiateGovernanceUpgrade`
@@ -292,7 +300,7 @@ contract Governance is Owned {
   function finalizeGovernanceUpgrade(address newGovernance) public onlyAdmin {
     require(currentGovernanceUpgrade.exists, "No Governance upgrade in progress");
     require(currentGovernanceUpgrade.newContract == newGovernance, "Address mismatch");
-    require(block.number >= currentGovernanceUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(block.timestamp >= currentGovernanceUpgrade.blockTimestampThreshold, "Block threshold not yet reached");
 
     address oldGovernance = custodian.governance();
     custodian.setGovernance(newGovernance);
@@ -318,9 +326,9 @@ contract Governance is Owned {
 
     currentBridgeAdaptersUpgrade.exists = true;
     currentBridgeAdaptersUpgrade.newBridgeAdapters = newBridgeAdapters;
-    currentBridgeAdaptersUpgrade.blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+    currentBridgeAdaptersUpgrade.blockTimestampThreshold = block.timestamp + Constants.FIELD_UPGRADE_DELAY_IN_S;
 
-    emit BridgeAdaptersUpgradeInitiated(newBridgeAdapters, currentBridgeAdaptersUpgrade.blockThreshold);
+    emit BridgeAdaptersUpgradeInitiated(newBridgeAdapters, currentBridgeAdaptersUpgrade.blockTimestampThreshold);
   }
 
   /**
@@ -335,8 +343,8 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the Bridge Adapter upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateBridgeAdaptersUpgrade`
+   * @notice Finalizes the Bridge Adapter upgrade. The number of seconds specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_S` must have passed since calling `initiateBridgeAdaptersUpgrade`
    *
    * @param newBridgeAdapters The new Bridge Adapter contract addresses. Must match the order and values of the
    * addresses provided to `initiateBridgeAdaptersUpgrade`
@@ -344,7 +352,10 @@ contract Governance is Owned {
   function finalizeBridgeAdaptersUpgrade(IBridgeAdapter[] memory newBridgeAdapters) public onlyAdminOrDispatcher {
     require(currentBridgeAdaptersUpgrade.exists, "No adapter upgrade in progress");
 
-    require(block.number >= currentBridgeAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(
+      block.timestamp >= currentBridgeAdaptersUpgrade.blockTimestampThreshold,
+      "Block timestamp threshold not yet reached"
+    );
 
     // Verify provided addresses match originals
     require(currentBridgeAdaptersUpgrade.newBridgeAdapters.length == newBridgeAdapters.length, "Address mismatch");
@@ -360,8 +371,8 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Initiates Index Price Adapter upgrade process. Once block delay has passed the process can be finalized
-   * with `finalizeIndexPriceAdaptersUpgrade`
+   * @notice Initiates Index Price Adapter upgrade process. Once block timestamp delay has passed the process can be
+   * finalized with `finalizeIndexPriceAdaptersUpgrade`
    *
    * @param newIndexPriceAdapters The Index Price Adapter contract addresses
    */
@@ -375,10 +386,13 @@ contract Governance is Owned {
     currentIndexPriceAdaptersUpgrade = IndexPriceAdaptersUpgrade(
       true,
       newIndexPriceAdapters,
-      block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS
+      block.timestamp + Constants.FIELD_UPGRADE_DELAY_IN_S
     );
 
-    emit IndexPriceAdaptersUpgradeInitiated(newIndexPriceAdapters, currentIndexPriceAdaptersUpgrade.blockThreshold);
+    emit IndexPriceAdaptersUpgradeInitiated(
+      newIndexPriceAdapters,
+      currentIndexPriceAdaptersUpgrade.blockTimestampThreshold
+    );
   }
 
   /**
@@ -393,8 +407,8 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the Index Price Adapter upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateIndexPriceAdaptersUpgrade`
+   * @notice Finalizes the Index Price Adapter upgrade. The number of seconds specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_S` must have passed since calling `initiateIndexPriceAdaptersUpgrade`
    *
    * @param newIndexPriceAdapters The addresses of the new Index Price Adapter contracts. Must match the order and
    * values of the addresses provided to `initiateIndexPriceAdaptersUpgrade`
@@ -416,7 +430,10 @@ contract Governance is Owned {
       newIndexPriceAdapters[i].setActive(_loadExchange());
     }
 
-    require(block.number >= currentIndexPriceAdaptersUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(
+      block.timestamp >= currentIndexPriceAdaptersUpgrade.blockTimestampThreshold,
+      "Block timestamp threshold not yet reached"
+    );
 
     _loadExchange().setIndexPriceAdapters(newIndexPriceAdapters);
 
@@ -440,10 +457,13 @@ contract Governance is Owned {
     currentInsuranceFundWalletUpgrade = InsuranceFundWalletUpgrade(
       true,
       newInsuranceFundWallet,
-      block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS
+      block.timestamp + Constants.FIELD_UPGRADE_DELAY_IN_S
     );
 
-    emit InsuranceFundWalletUpgradeInitiated(newInsuranceFundWallet, currentInsuranceFundWalletUpgrade.blockThreshold);
+    emit InsuranceFundWalletUpgradeInitiated(
+      newInsuranceFundWallet,
+      currentInsuranceFundWalletUpgrade.blockTimestampThreshold
+    );
   }
 
   /**
@@ -458,8 +478,8 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the IF wallet upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateInsuranceFundWalletUpgrade`
+   * @notice Finalizes the IF wallet upgrade. The number of seconds specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_S` must have passed since calling `initiateInsuranceFundWalletUpgrade`
    *
    * @param newInsuranceFundWallet The address of the new IF wallet. Must equal the address provided to
    * `initiateInsuranceFundWalletUpgrade`
@@ -467,7 +487,10 @@ contract Governance is Owned {
   function finalizeInsuranceFundWalletUpgrade(address newInsuranceFundWallet) public onlyAdminOrDispatcher {
     require(currentInsuranceFundWalletUpgrade.exists, "No IF wallet upgrade in progress");
     require(currentInsuranceFundWalletUpgrade.newInsuranceFundWallet == newInsuranceFundWallet, "Address mismatch");
-    require(block.number >= currentInsuranceFundWalletUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(
+      block.timestamp >= currentInsuranceFundWalletUpgrade.blockTimestampThreshold,
+      "Block timestamp threshold not yet reached"
+    );
 
     require(
       _loadExchange().loadBaseAssetSymbolsWithOpenPositionsByWallet(_loadExchange().insuranceFundWallet()).length == 0,
@@ -486,8 +509,8 @@ contract Governance is Owned {
 
   /**
    * @notice Initiates market override upgrade process for `wallet`. If `wallet` is zero address, then the overrides
-   * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` has passed the
-   * process can be finalized with `finalizeMarketOverridesUpgrade`
+   * will become the new default values for the market. Once `Constants.FIELD_UPGRADE_DELAY_IN_S` has passed the process
+   * can be finalized with `finalizeMarketOverridesUpgrade`
    *
    * @param baseAssetSymbol The base asset symbol for the market
    * @param overridableFields New values for overridable fields
@@ -505,14 +528,14 @@ contract Governance is Owned {
 
     Validations.validateOverridableMarketFields(overridableFields);
 
-    uint256 blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+    uint256 blockTimestampThreshold = block.timestamp + Constants.FIELD_UPGRADE_DELAY_IN_S;
     currentMarketOverridesUpgradesByBaseAssetSymbolAndWallet[baseAssetSymbol][wallet] = MarketOverridesUpgrade(
       true,
       overridableFields,
-      blockThreshold
+      blockTimestampThreshold
     );
 
-    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, overridableFields, blockThreshold);
+    emit MarketOverridesUpgradeInitiated(baseAssetSymbol, wallet, overridableFields, blockTimestampThreshold);
   }
 
   /**
@@ -531,8 +554,8 @@ contract Governance is Owned {
 
   /**
    * @notice Finalizes a market override upgrade process by changing the market's default overridable field values if
-   * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateMarketOverridesUpgrade`
+   * `wallet` is the zero address, or assigning wallet-specific overrides otherwise. The number of seconds specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_S` must have passed since calling `initiateMarketOverridesUpgrade`
    */
   function finalizeMarketOverridesUpgrade(
     string memory baseAssetSymbol,
@@ -543,7 +566,7 @@ contract Governance is Owned {
       wallet
     ];
     require(upgrade.exists, "No market override upgrade in progress for wallet");
-    require(block.number >= upgrade.blockThreshold, "Block threshold not yet reached");
+    require(block.timestamp >= upgrade.blockTimestampThreshold, "Block timestamp threshold not yet reached");
 
     require(
       upgrade.newMarketOverrides.initialMarginFraction == overridableFields.initialMarginFraction &&
@@ -577,9 +600,12 @@ contract Governance is Owned {
 
     currentOraclePriceAdapterUpgrade.exists = true;
     currentOraclePriceAdapterUpgrade.newContract = address(newOraclePriceAdapter);
-    currentOraclePriceAdapterUpgrade.blockThreshold = block.number + Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS;
+    currentOraclePriceAdapterUpgrade.blockTimestampThreshold = block.timestamp + Constants.FIELD_UPGRADE_DELAY_IN_S;
 
-    emit OraclePriceAdapterUpgradeInitiated(newOraclePriceAdapter, currentBridgeAdaptersUpgrade.blockThreshold);
+    emit OraclePriceAdapterUpgradeInitiated(
+      newOraclePriceAdapter,
+      currentBridgeAdaptersUpgrade.blockTimestampThreshold
+    );
   }
 
   /**
@@ -594,8 +620,8 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the Oracle Price Adapter upgrade. The number of blocks specified by
-   * `Constants.FIELD_UPGRADE_DELAY_IN_BLOCKS` must have passed since calling `initiateOraclePriceAdapterUpgrade`
+   * @notice Finalizes the Oracle Price Adapter upgrade. The number of seconds specified by
+   * `Constants.FIELD_UPGRADE_DELAY_IN_S` must have passed since calling `initiateOraclePriceAdapterUpgrade`
    *
    * @param newOraclePriceAdapter The address of the new Oracle Price Adapter contract. Must equal the address provided
    * to `initiateOraclePriceAdapterUpgrade`
@@ -605,7 +631,10 @@ contract Governance is Owned {
 
     require(currentOraclePriceAdapterUpgrade.newContract == address(newOraclePriceAdapter), "Address mismatch");
 
-    require(block.number >= currentOraclePriceAdapterUpgrade.blockThreshold, "Block threshold not yet reached");
+    require(
+      block.timestamp >= currentOraclePriceAdapterUpgrade.blockTimestampThreshold,
+      "Block timestamp threshold not yet reached"
+    );
 
     newOraclePriceAdapter.setActive(_loadExchange());
     _loadExchange().setOraclePriceAdapter(newOraclePriceAdapter);

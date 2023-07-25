@@ -10,6 +10,6 @@ library WalletExits {
     mapping(address => WalletExit) storage walletExits
   ) internal view returns (bool) {
     WalletExit memory exit = walletExits[wallet];
-    return exit.exists && exit.effectiveBlockNumber <= block.number;
+    return exit.exists && exit.effectiveBlockTimestamp <= block.timestamp;
   }
 }

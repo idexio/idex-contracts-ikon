@@ -36,7 +36,7 @@ library WalletInMaintenanceLiquidation {
   // solhint-disable-next-line func-name-mixedcase
   function liquidate_delegatecall(
     WalletLiquidationArguments calldata arguments,
-    uint256 currentExitFundPositionOpenedAtBlockNumber,
+    uint256 currentExitFundPositionOpenedAtBlockTimestamp,
     address exitFundWallet,
     address insuranceFundWallet,
     LiquidationType liquidationType,
@@ -46,7 +46,7 @@ library WalletInMaintenanceLiquidation {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) public returns (uint256 resultingExitFundPositionOpenedAtBlockNumber) {
+  ) public returns (uint256 resultingExitFundPositionOpenedAtBlockTimestamp) {
     require(arguments.liquidatingWallet != exitFundWallet, "Cannot liquidate EF");
     require(arguments.liquidatingWallet != insuranceFundWallet, "Cannot liquidate IF");
     if (liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
@@ -84,8 +84,8 @@ library WalletInMaintenanceLiquidation {
     );
 
     if (liquidationType == LiquidationType.WalletInMaintenanceDuringSystemRecovery) {
-      resultingExitFundPositionOpenedAtBlockNumber = ExitFund.getExitFundPositionOpenedAtBlockNumber(
-        currentExitFundPositionOpenedAtBlockNumber,
+      resultingExitFundPositionOpenedAtBlockTimestamp = ExitFund.getExitFundPositionOpenedAtBlockTimestamp(
+        currentExitFundPositionOpenedAtBlockTimestamp,
         exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet
@@ -93,7 +93,7 @@ library WalletInMaintenanceLiquidation {
 
       emit LiquidatedWalletInMaintenanceDuringSystemRecovery(arguments.liquidatingWallet);
     } else {
-      resultingExitFundPositionOpenedAtBlockNumber = currentExitFundPositionOpenedAtBlockNumber;
+      resultingExitFundPositionOpenedAtBlockTimestamp = currentExitFundPositionOpenedAtBlockTimestamp;
 
       // Validate that the Insurance Fund still meets its initial margin requirements
       IndexPriceMargin.validateInitialMarginRequirement(

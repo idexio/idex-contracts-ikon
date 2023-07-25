@@ -66,7 +66,7 @@ The Exchange contract implements the majority of exchange functionality, includi
 - The admin can skim any tokens mistakenly sent to the Exchange contract rather than deposited.
 - Wallet exits are user-initiated, and 1) prevent the target wallet from deposits, trades, normal withdrawals, and transfers and 2) subsequently allow the user to close all open positions and withdraw any positive quote balance.
   - User calls `exitWallet` on Exchange.
-  - Exchange records the exit and block number, immediately blocks deposits, and starts the Chain Propagation Period.
+  - Exchange records the exit and block timestamp, immediately blocks deposits, and starts the Chain Propagation Period.
   - Exchange allows the admin or the dispatcher wallet to close all open positions for the wallet at the exit price and withdraw any positive quote balance via `withdrawExitAdmin`.
   - After the Chain Propagation Period expires:
     - Exchange blocks any trades, normal withdrawals, and transfers for the wallet.
@@ -82,7 +82,7 @@ The Exchange contract implements the majority of exchange functionality, includi
     - Exchange validates:
       - The new nonce is not more than one day in the future.
       - The new nonce is newer than the last invalidated nonce, if present.
-      - The current block is at or greater than the last invalidation's effective block number, if present.
+      - The current block timestamp is at or greater than the last invalidation's effective block timestamp, if present.
     - Exchange records the invalidation, and starts enforcing it in the trade function after the Chain Propagation Period.
   - Off-chain, on detecting the `OrderNonceInvalidated` event:
     - All orders opened prior to the target nonce for the wallet are canceled.

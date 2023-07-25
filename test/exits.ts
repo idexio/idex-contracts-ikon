@@ -1,4 +1,4 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
@@ -9,7 +9,7 @@ import type {
   USDC,
   WithdrawExitValidationsMock,
 } from '../typechain-types';
-import { decimalToPips, IndexPrice } from '../lib';
+import { decimalToPips, exitFundWithdrawDelayInS, IndexPrice } from '../lib';
 import {
   baseAssetSymbol,
   buildIndexPrice,
@@ -188,7 +188,7 @@ describe('Exchange', function () {
       await exchange.withdrawExit(trader1Wallet.address);
 
       // Expire EF withdraw delay
-      await mine(300000, { interval: 0 });
+      await time.increase(exitFundWithdrawDelayInS);
 
       // Deposit additional quote to allow for EF exit withdrawal
       await fundWallets([ownerWallet], exchange, usdc, '100000.0');

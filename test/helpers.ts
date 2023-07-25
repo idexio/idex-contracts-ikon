@@ -26,8 +26,6 @@ import {
 } from '../lib';
 import { Exchange_v4, USDC } from '../typechain-types';
 
-export const fieldUpgradeDelayInBlocks = (1 * 24 * 60 * 60) / 3;
-
 export const quoteAssetDecimals = 6;
 
 export const baseAssetSymbol = 'ETH';

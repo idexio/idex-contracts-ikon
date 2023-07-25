@@ -1,7 +1,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
-import { mine, time } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 
 import {
   baseAssetSymbol,
@@ -15,6 +15,7 @@ import {
 } from './helpers';
 import {
   decimalToPips,
+  fieldUpgradeDelayInS,
   fundingPeriodLengthInMs,
   getExecuteTradeArguments,
   getOrderSignatureTypedData,
@@ -446,7 +447,7 @@ describe.skip('Gas measurement', function () {
           overrides,
           ethers.constants.AddressZero,
         );
-      await mine((1 * 24 * 60 * 60) / 3, { interval: 0 });
+      await time.increase(fieldUpgradeDelayInS);
       await governance
         .connect(dispatcherWallet)
         .finalizeMarketOverridesUpgrade(

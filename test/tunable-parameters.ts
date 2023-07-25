@@ -23,9 +23,9 @@ describe('Exchange', function () {
     it('should work for valid argument', async () => {
       await exchange.connect(ownerWallet).setChainPropagationPeriod(22);
 
-      expect(
-        (await exchange.chainPropagationPeriodInBlocks()).toString(),
-      ).to.equal('22');
+      expect((await exchange.chainPropagationPeriodInS()).toString()).to.equal(
+        '22',
+      );
     });
 
     it('should revert for argument over max', async () => {

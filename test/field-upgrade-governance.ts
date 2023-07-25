@@ -1,17 +1,17 @@
 import { expect } from 'chai';
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import { Exchange_v4__factory } from '../typechain-types';
 
+import { fieldUpgradeDelayInS } from '../lib';
 import {
   baseAssetSymbol,
   bootstrapLiquidatedWallet,
   buildIndexPrice,
   deployAndAssociateContracts,
   executeTrade,
-  fieldUpgradeDelayInBlocks,
   fundWallets,
 } from './helpers';
 import type {
@@ -152,7 +152,7 @@ describe('Governance', function () {
       it('should work after block delay when upgrade was initiated', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]);
         expect(
@@ -181,7 +181,7 @@ describe('Governance', function () {
 
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
@@ -201,13 +201,15 @@ describe('Governance', function () {
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]),
-        ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
+        ).to.eventually.be.rejectedWith(
+          /block timestamp threshold not yet reached/i,
+        );
       });
 
       it('should revert on address length mismatch', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([
@@ -220,7 +222,7 @@ describe('Governance', function () {
       it('should revert on address  mismatch', async () => {
         await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([ownerWallet.address]),
@@ -336,7 +338,7 @@ describe('Governance', function () {
             newIndexPriceAdapter.address,
           ]);
 
-          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+          await time.increase(fieldUpgradeDelayInS);
 
           await governance.finalizeIndexPriceAdaptersUpgrade([
             newIndexPriceAdapter.address,
@@ -369,7 +371,9 @@ describe('Governance', function () {
             governance.finalizeIndexPriceAdaptersUpgrade([
               newIndexPriceAdapter.address,
             ]),
-          ).to.eventually.be.rejectedWith(/block threshold not yet reached/i);
+          ).to.eventually.be.rejectedWith(
+            /block timestamp threshold not yet reached/i,
+          );
         });
 
         it('should revert on address length mismatch', async () => {
@@ -377,7 +381,7 @@ describe('Governance', function () {
             newIndexPriceAdapter.address,
           ]);
 
-          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+          await time.increase(fieldUpgradeDelayInS);
 
           await expect(
             governance.finalizeIndexPriceAdaptersUpgrade([
@@ -392,7 +396,7 @@ describe('Governance', function () {
             newIndexPriceAdapter.address,
           ]);
 
-          await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+          await time.increase(fieldUpgradeDelayInS);
 
           await expect(
             governance.finalizeIndexPriceAdaptersUpgrade([ownerWallet.address]),
@@ -523,7 +527,7 @@ describe('Governance', function () {
           newOraclePriceAdapter.address,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeOraclePriceAdapterUpgrade(
           newOraclePriceAdapter.address,
@@ -556,7 +560,9 @@ describe('Governance', function () {
           governance.finalizeOraclePriceAdapterUpgrade(
             newOraclePriceAdapter.address,
           ),
-        ).to.eventually.be.rejectedWith(/block threshold not yet reached/i);
+        ).to.eventually.be.rejectedWith(
+          /block timestamp threshold not yet reached/i,
+        );
       });
 
       it('should revert on address mismatch', async () => {
@@ -564,7 +570,7 @@ describe('Governance', function () {
           newOraclePriceAdapter.address,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeOraclePriceAdapterUpgrade(ownerWallet.address),
@@ -576,7 +582,7 @@ describe('Governance', function () {
           newOraclePriceAdapter.address,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance
@@ -695,7 +701,7 @@ describe('Governance', function () {
           newInsuranceFundWallet.address,
         );
 
-        await mine((2 * 24 * 60 * 60) / 3, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeInsuranceFundWalletUpgrade(
           newInsuranceFundWallet.address,
@@ -726,7 +732,7 @@ describe('Governance', function () {
           newInsuranceFundWallet.address,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeInsuranceFundWalletUpgrade(ownerWallet.address),
@@ -742,7 +748,9 @@ describe('Governance', function () {
           governance.finalizeInsuranceFundWalletUpgrade(
             newInsuranceFundWallet.address,
           ),
-        ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
+        ).to.eventually.be.rejectedWith(
+          /block timestamp threshold not yet reached/i,
+        );
       });
 
       it('should revert when current IF has open position', async () => {
@@ -752,7 +760,7 @@ describe('Governance', function () {
           newInsuranceFundWallet.address,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           results.governance.finalizeInsuranceFundWalletUpgrade(
@@ -780,7 +788,7 @@ describe('Governance', function () {
           trader1Wallet.address,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeInsuranceFundWalletUpgrade(trader1Wallet.address),
@@ -792,7 +800,7 @@ describe('Governance', function () {
           newInsuranceFundWallet.address,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await exchange.connect(newInsuranceFundWallet).exitWallet();
 
@@ -925,7 +933,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
@@ -949,7 +957,7 @@ describe('Governance', function () {
           ethers.constants.AddressZero,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
@@ -973,7 +981,7 @@ describe('Governance', function () {
           ethers.constants.AddressZero,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeMarketOverridesUpgrade(
@@ -1009,7 +1017,9 @@ describe('Governance', function () {
             marketOverrides,
             walletToOverride,
           ),
-        ).to.eventually.be.rejectedWith(/Block threshold not yet reached/i);
+        ).to.eventually.be.rejectedWith(
+          /block timestamp threshold not yet reached/i,
+        );
       });
 
       it('should revert on field mismatch', async () => {
@@ -1019,7 +1029,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeMarketOverridesUpgrade(
@@ -1053,7 +1063,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
@@ -1082,7 +1092,7 @@ describe('Governance', function () {
           walletToOverride,
         );
 
-        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+        await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
