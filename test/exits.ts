@@ -11,11 +11,13 @@ import type {
 } from '../typechain-types';
 import { decimalToPips, IndexPrice } from '../lib';
 import {
+  baseAssetSymbol,
   buildIndexPrice,
   deployAndAssociateContracts,
   executeTrade,
   expect,
   fundWallets,
+  quoteAssetSymbol,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -285,6 +287,74 @@ describe('Exchange', function () {
           ),
         ).to.eventually.be.rejectedWith(/negative quote after exit/i);
       });
+    });
+  });
+
+  describe('withdrawExitAdmin', function () {
+    it('should work for exited wallet during system recovery', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      exchange.withdrawExit(trader1Wallet.address);
+      await exchange.setChainPropagationPeriod(10000);
+      await exchange.connect(trader2Wallet).exitWallet();
+
+      await exchange.withdrawExitAdmin(trader2Wallet.address);
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader2Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal('0');
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader2Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadQuoteQuantityAvailableForExitWithdrawal(
+            trader2Wallet.address,
+          )
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should revert for wallet not exited', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      exchange.withdrawExit(trader1Wallet.address);
+
+      await expect(
+        exchange.withdrawExitAdmin(trader2Wallet.address),
+      ).to.eventually.be.rejectedWith(/wallet not exited/i);
+
+      await expect(
+        exchange.withdrawExitAdmin(exitFundWallet.address),
+      ).to.eventually.be.rejectedWith(/wallet not exited/i);
+    });
+
+    it('should revert when not called by admin or dispatch', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      exchange.withdrawExit(trader1Wallet.address);
+
+      await expect(
+        exchange
+          .connect(trader1Wallet)
+          .withdrawExitAdmin(exitFundWallet.address),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert when not in system recovery', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.withdrawExitAdmin(trader1Wallet.address),
+      ).to.eventually.be.rejectedWith(/exit fund has no positions/i);
     });
   });
 
