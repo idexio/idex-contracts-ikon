@@ -660,6 +660,22 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
+   * @notice Loads the last nonce invalidation created by a wallet
+   *
+   * @param wallet The wallet address
+   *
+   * @return nonceInvalidation The most recent nonce invalidation struct created by the wallet with `invalidateNonce`. Struct will be
+   * empty if wallet has never invalidated a nonce
+   */
+  function loadLastNonceInvalidationForWallet(
+    address wallet
+  ) public view returns (NonceInvalidation memory nonceInvalidation) {
+    if (nonceInvalidationsByWallet[wallet].length > 0) {
+      nonceInvalidation = nonceInvalidationsByWallet[wallet][nonceInvalidationsByWallet[wallet].length - 1];
+    }
+  }
+
+  /**
    * @notice Load the balance of quote asset the wallet can withdraw after exiting, in pips. Note that due to changing
    * prices the value returned is only an estimate and may not exactly match the value actually transferred after exit
    *

@@ -1,34 +1,47 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
+
 import {
   AcquisitionDeleverageArgumentsStruct,
+  BalanceStruct,
   ClosureDeleverageArgumentsStruct,
   ExecuteTradeArgumentsStruct,
   IndexPricePayloadStruct,
   MarketStruct,
+  NonceInvalidationStruct,
   TradeStruct,
   OrderStruct,
+  OverridableMarketFieldsStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
   PositionInDeactivatedMarketLiquidationArgumentsStruct,
   TransferStruct,
   WalletLiquidationArgumentsStruct,
   WithdrawalStruct,
 } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
+import {
+  WalletExitStruct,
+  WalletStateStruct,
+} from '../typechain-types/contracts/util/ExchangeWalletStateAggregator.sol/ExchangeWalletStateAggregator';
 
 import * as contracts from './contracts';
 
 export {
   AcquisitionDeleverageArgumentsStruct,
+  BalanceStruct,
   ClosureDeleverageArgumentsStruct,
   ExecuteTradeArgumentsStruct,
   IndexPricePayloadStruct,
   TradeStruct,
   MarketStruct,
+  NonceInvalidationStruct,
   OrderStruct,
+  OverridableMarketFieldsStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
   PositionInDeactivatedMarketLiquidationArgumentsStruct,
   TransferStruct,
+  WalletExitStruct,
   WalletLiquidationArgumentsStruct,
+  WalletStateStruct,
   WithdrawalStruct,
 };
 

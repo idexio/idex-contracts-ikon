@@ -6,7 +6,7 @@ module.exports = {
   },
   matrixOutputPath: "./coverage/testMatrix.json",
   mochaJsonOutputPath: "./coverage/mochaOutput.json",
-  skipFiles: ['test/OraclePriceAdapterMock.sol'],
+  skipFiles: ['test/OraclePriceAdapterMock.sol', 'util/ExchangeWalletStateAggregator.sol'],
   solcOptimizerDetails: {
     peephole: false,
     inliner: false,

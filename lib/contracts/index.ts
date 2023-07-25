@@ -8,6 +8,7 @@ import ChainlinkAggregator from './ChainlinkAggregator';
 import CustodianContract from './CustodianContract';
 import ExchangeContract from './ExchangeContract';
 import ExchangeStargateAdapterContract from './ExchangeStargateAdapterContract';
+import ExchangeWalletStateAggregatorContract from './ExchangeWalletStateAggregatorContract';
 import GovernanceContract from './GovernanceContract';
 import IDEXIndexAndOraclePriceAdapterContract from './IDEXIndexAndOraclePriceAdapterContract';
 import StorkIndexAndOraclePriceAdapterContract from './StorkIndexAndOraclePriceAdapterContract';
@@ -20,6 +21,7 @@ export {
   CustodianContract,
   ExchangeContract,
   ExchangeStargateAdapterContract,
+  ExchangeWalletStateAggregatorContract,
   GovernanceContract,
   IDEXIndexAndOraclePriceAdapterContract,
   StorkIndexAndOraclePriceAdapterContract,

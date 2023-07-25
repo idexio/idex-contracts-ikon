@@ -1,11 +1,12 @@
 import * as dotenv from 'dotenv';
 
-import { HardhatUserConfig } from 'hardhat/config';
+import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-waffle';
 import '@typechain/hardhat';
 import 'hardhat-contract-sizer';
 import 'hardhat-gas-reporter';
 import 'solidity-coverage';
+import { HardhatUserConfig } from 'hardhat/config';
 
 /*
 import * as path from 'path';
@@ -83,11 +84,25 @@ const config: HardhatUserConfig = {
     hardhat: {
       allowUnlimitedContractSize: !!process.env.COVERAGE,
     },
-    ropsten: {
-      url: process.env.ROPSTEN_URL || '',
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    private: {
+      chainId: 1001,
+      url: 'https://geth-test-private-eth.idex.market:8545',
     },
+  },
+  etherscan: {
+    apiKey: {
+      private: 'abc',
+    },
+    customChains: [
+      {
+        network: 'private',
+        chainId: 1001,
+        urls: {
+          apiURL: 'https://geth-test-private-eth.idex.market/api',
+          browserURL: 'https://geth-test-private-eth.idex.market/',
+        },
+      },
+    ],
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
