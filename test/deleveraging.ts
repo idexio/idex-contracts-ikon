@@ -386,12 +386,7 @@ describe('Exchange', function () {
           ),
         ]);
 
-      await fundWallets(
-        [insuranceFundWallet],
-        exchange,
-        usdc,
-        '17000.00000000',
-      );
+      await fundWallets([insuranceFundWallet], exchange, usdc, '9000.00000000');
 
       await exchange
         .connect(dispatcherWallet)
@@ -408,7 +403,7 @@ describe('Exchange', function () {
 
       await exchange
         .connect(dispatcherWallet)
-        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('-0.5'));
+        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('-0.02'));
 
       await expect(
         exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
@@ -416,11 +411,11 @@ describe('Exchange', function () {
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '19545.80645161',
-            '283414.19354838',
+            '20165.16129032',
+            '292394.83870967',
           ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('19545.80645161'),
+          liquidationQuoteQuantity: decimalToPips('20165.16129032'),
         }),
       ).to.eventually.be.rejectedWith(/insurance fund can acquire/i);
     });
@@ -1181,7 +1176,7 @@ describe('Exchange', function () {
         [insuranceFundWallet],
         exchange,
         usdc,
-        '17000.00000000',
+        '11600.00000000',
       );
 
       await exchange
@@ -1199,7 +1194,7 @@ describe('Exchange', function () {
 
       await exchange
         .connect(dispatcherWallet)
-        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('-0.5'));
+        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('-0.02'));
 
       await exchange.connect(trader1Wallet).exitWallet();
 
@@ -1209,11 +1204,11 @@ describe('Exchange', function () {
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
           validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '19545.80645161',
-            '283414.19354838',
+            '20000.00000000',
+            '290000.00000000',
           ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('19545.80645161'),
+          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/insurance fund can acquire/i);
     });

@@ -80,6 +80,11 @@ library Funding {
     Market memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
     require(market.exists && market.isActive, "No active market found");
 
+    require(
+      Math.abs(fundingRate) < market.overridableFields.maintenanceMarginFraction,
+      "Funding rate exceeds maintenance margin fraction"
+    );
+
     // The last publish timestamp will always be non-zero as set during market creation by `backfillFundingMultipliersForMarket`
     uint64 lastPublishTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     // Previous funding rate exists, next publish timestamp is exactly one period length from previous period start
