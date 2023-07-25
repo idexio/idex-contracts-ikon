@@ -27,8 +27,8 @@ library BalanceTracking {
     uint64 maintenanceMarginFraction;
     Market market;
     IOraclePriceAdapter oraclePriceAdapter;
-    int64 totalAccountValue;
-    uint64 totalMaintenanceMarginRequirement;
+    int256 totalAccountValueInDoublePips;
+    uint256 totalMaintenanceMarginRequirementInTriplePips;
     address wallet;
   }
 
@@ -193,8 +193,8 @@ library BalanceTracking {
         oraclePrice,
         arguments.maintenanceMarginFraction,
         positionSize,
-        arguments.totalAccountValue,
-        arguments.totalMaintenanceMarginRequirement
+        arguments.totalAccountValueInDoublePips,
+        arguments.totalMaintenanceMarginRequirementInTriplePips
       )
       : LiquidationValidations.calculateQuoteQuantityAtExitPrice(balanceStruct.costBasis, oraclePrice, positionSize);
 

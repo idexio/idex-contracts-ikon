@@ -126,9 +126,9 @@ library ClosureDeleveraging {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view {
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
+    (int256 totalAccountValueInDoublePips, uint256 totalMaintenanceMarginRequirementInTriplePips) = IndexPriceMargin
     // Use margin calculation specific to EF that accounts for its unlimited leverage
-      .loadTotalAccountValueAndMaintenanceMarginRequirementForExitFund(
+      .loadTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePipsForExitFund(
         exitFundWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -147,8 +147,8 @@ library ClosureDeleveraging {
       arguments.liquidationQuoteQuantity,
       // Use market default values instead of wallet-specific overrides for the EF, since its margin fraction is zero
       market.overridableFields.maintenanceMarginFraction,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
+      totalAccountValueInDoublePips,
+      totalMaintenanceMarginRequirementInTriplePips
     );
   }
 

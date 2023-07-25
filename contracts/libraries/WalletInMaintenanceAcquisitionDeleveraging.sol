@@ -93,9 +93,9 @@ library WalletInMaintenanceAcquisitionDeleveraging {
 
     // Validate that the liquidating account has fallen below margin requirements
     (
-      int64 liquidatingWalletTotalAccountValue,
-      uint64 liquidatingWalletTotalMaintenanceMarginRequirement
-    ) = IndexPriceMargin.loadTotalAccountValueAndMaintenanceMarginRequirement(
+      int256 liquidatingWalletTotalAccountValueInDoublePips,
+      uint256 liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips
+    ) = IndexPriceMargin.loadTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
         arguments.liquidatingWallet,
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -103,7 +103,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
         marketsByBaseAssetSymbol
       );
     require(
-      liquidatingWalletTotalAccountValue < Math.toInt64(liquidatingWalletTotalMaintenanceMarginRequirement),
+      Math.doublePipsToPips(liquidatingWalletTotalAccountValueInDoublePips) <
+        Math.toInt64(Math.triplePipsToPips(liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips)),
       "Maintenance margin requirement met"
     );
 
@@ -112,8 +113,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
       arguments,
       insuranceFundWallet,
       insuranceFundWalletOutstandingFundingPayment,
-      liquidatingWalletTotalAccountValue,
-      liquidatingWalletTotalMaintenanceMarginRequirement,
+      liquidatingWalletTotalAccountValueInDoublePips,
+      liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -124,8 +125,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     _validateDeleverageQuoteQuantityAndUpdatePositions(
       arguments,
       exitFundWallet,
-      liquidatingWalletTotalAccountValue,
-      liquidatingWalletTotalMaintenanceMarginRequirement,
+      liquidatingWalletTotalAccountValueInDoublePips,
+      liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -168,8 +169,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
 
   function _validateDeleverageQuoteQuantity(
     AcquisitionDeleverageArguments memory arguments,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
+    int256 totalAccountValueInDoublePips,
+    uint256 totalMaintenanceMarginRequirementInTriplePips,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -197,16 +198,16 @@ library WalletInMaintenanceAcquisitionDeleveraging {
         .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
         .overridableFields
         .maintenanceMarginFraction,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement
+      totalAccountValueInDoublePips,
+      totalMaintenanceMarginRequirementInTriplePips
     );
   }
 
   function _validateDeleverageQuoteQuantityAndUpdatePositions(
     AcquisitionDeleverageArguments memory arguments,
     address exitFundWallet,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement,
+    int256 totalAccountValueInDoublePips,
+    uint256 totalMaintenanceMarginRequirementInTriplePips,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
@@ -215,8 +216,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
   ) private {
     Market memory market = _validateDeleverageQuoteQuantity(
       arguments,
-      totalAccountValue,
-      totalMaintenanceMarginRequirement,
+      totalAccountValueInDoublePips,
+      totalMaintenanceMarginRequirementInTriplePips,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -239,8 +240,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     AcquisitionDeleverageArguments memory arguments,
     address insuranceFundWallet,
     int64 insuranceFundWalletOutstandingFundingPayment,
-    int64 liquidatingWalletTotalAccountValue,
-    uint64 liquidatingWalletTotalMaintenanceMarginRequirement,
+    int256 liquidatingWalletTotalAccountValueInDoublePips,
+    uint256 liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
@@ -271,8 +272,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
         arguments,
         baseAssetSymbolsForInsuranceFundAndLiquidatingWallet,
         i,
-        liquidatingWalletTotalAccountValue,
-        liquidatingWalletTotalMaintenanceMarginRequirement,
+        liquidatingWalletTotalAccountValueInDoublePips,
+        liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips,
         loadArguments,
         balanceTracking,
         marketOverridesByBaseAssetSymbolAndWallet
@@ -291,8 +292,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
     AcquisitionDeleverageArguments memory arguments,
     string[] memory baseAssetSymbolsForInsuranceFundAndLiquidatingWallet,
     uint8 index,
-    int64 liquidatingWalletTotalAccountValue,
-    uint64 liquidatingWalletTotalMaintenanceMarginRequirement,
+    int256 liquidatingWalletTotalAccountValueInDoublePips,
+    uint256 liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips,
     IndexPriceMargin.ValidateInsuranceFundCannotLiquidateWalletArguments memory loadArguments,
     BalanceTracking.Storage storage balanceTracking,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
@@ -312,8 +313,8 @@ library WalletInMaintenanceAcquisitionDeleveraging {
           .loadMarketWithOverridesForWallet(arguments.liquidatingWallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maintenanceMarginFraction,
-        liquidatingWalletTotalAccountValue,
-        liquidatingWalletTotalMaintenanceMarginRequirement
+        liquidatingWalletTotalAccountValueInDoublePips,
+        liquidatingWalletTotalMaintenanceMarginRequirementInTriplePips
       );
     } else {
       require(

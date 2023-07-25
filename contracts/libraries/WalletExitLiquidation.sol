@@ -21,8 +21,8 @@ library WalletExitLiquidation {
     Market market;
     int64 exitAccountValue;
     uint64 quoteQuantity;
-    int64 totalAccountValue;
-    uint64 totalMaintenanceMarginRequirement;
+    int256 totalAccountValueInDoublePips;
+    uint256 totalMaintenanceMarginRequirementInTriplePips;
     address wallet;
   }
 
@@ -120,15 +120,16 @@ library WalletExitLiquidation {
     ValidateExitQuoteQuantityArguments memory validateExitQuoteQuantityArguments;
     (
       validateExitQuoteQuantityArguments.exitAccountValue,
-      validateExitQuoteQuantityArguments.totalAccountValue,
-      validateExitQuoteQuantityArguments.totalMaintenanceMarginRequirement
-    ) = IndexPriceMargin.loadExitAccountValueAndTotalAccountValueAndMaintenanceMarginRequirement(
-      arguments.liquidatingWallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
+      validateExitQuoteQuantityArguments.totalAccountValueInDoublePips,
+      validateExitQuoteQuantityArguments.totalMaintenanceMarginRequirementInTriplePips
+    ) = IndexPriceMargin
+      .loadTotalExitAccountValueAndAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
+        arguments.liquidatingWallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
     validateExitQuoteQuantityArguments.wallet = arguments.liquidatingWallet;
 
     string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[arguments.liquidatingWallet];
@@ -186,8 +187,8 @@ library WalletExitLiquidation {
           .loadMarketWithOverridesForWallet(arguments.wallet, marketOverridesByBaseAssetSymbolAndWallet)
           .overridableFields
           .maintenanceMarginFraction,
-        arguments.totalAccountValue,
-        arguments.totalMaintenanceMarginRequirement
+        arguments.totalAccountValueInDoublePips,
+        arguments.totalMaintenanceMarginRequirementInTriplePips
       );
     } else {
       LiquidationValidations.validateQuoteQuantityAtExitPrice(

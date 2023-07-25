@@ -9,16 +9,16 @@ contract LiquidationValidationsMock {
     uint64 indexPrice,
     uint64 maintenanceMarginFraction,
     int64 positionSize,
-    int64 totalAccountValue,
-    uint64 totalMaintenanceMarginRequirement
+    int256 totalAccountValueInDoublePips,
+    uint256 totalMaintenanceMarginRequirementInTriplePips
   ) public pure returns (uint64) {
     return
       LiquidationValidations.calculateQuoteQuantityAtBankruptcyPrice(
         indexPrice,
         maintenanceMarginFraction,
         positionSize,
-        totalAccountValue,
-        totalMaintenanceMarginRequirement
+        totalAccountValueInDoublePips,
+        totalMaintenanceMarginRequirementInTriplePips
       );
   }
 }
