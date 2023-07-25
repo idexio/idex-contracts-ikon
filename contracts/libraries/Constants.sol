@@ -55,8 +55,8 @@ library Constants {
   // 1 year
   uint256 public constant MAX_DELEGATE_KEY_EXPIRATION_PERIOD_IN_MS = 365 * 24 * 60 * 60 * 1000;
 
-  // 20%
-  uint64 public constant MAX_FEE_MULTIPLIER = 20 * 10 ** 6;
+  // 5%
+  uint64 public constant MAX_FEE_MULTIPLIER = 5 * 10 ** 6;
 
   // 1 year - value must be evenly divisible by `FUNDING_PERIOD_IN_MS`
   uint64 public constant MAX_FUNDING_TIME_PERIOD_PER_UPDATE_IN_MS = 365 * 24 * 60 * 60 * 1000;
