@@ -9,6 +9,8 @@ import CustodianContract from './CustodianContract';
 import ExchangeContract from './ExchangeContract';
 import ExchangeStargateAdapterContract from './ExchangeStargateAdapterContract';
 import GovernanceContract from './GovernanceContract';
+import IDEXIndexAndOraclePriceAdapterContract from './IDEXIndexAndOraclePriceAdapterContract';
+import StorkIndexAndOraclePriceAdapterContract from './StorkIndexAndOraclePriceAdapterContract';
 import USDCContract from './USDCContract';
 
 export {
@@ -19,6 +21,8 @@ export {
   ExchangeContract,
   ExchangeStargateAdapterContract,
   GovernanceContract,
+  IDEXIndexAndOraclePriceAdapterContract,
+  StorkIndexAndOraclePriceAdapterContract,
   USDCContract,
 };
 

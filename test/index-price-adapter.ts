@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import { ethers, network } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
@@ -9,6 +10,7 @@ import {
   deployContractsExceptCustodian,
   expect,
   getLatestBlockTimestampInSeconds,
+  quoteAssetSymbol,
 } from './helpers';
 import {
   hardhatChainId,
@@ -26,6 +28,10 @@ import {
   PythIndexPriceAdapter__factory,
   PythMock,
   PythMock__factory,
+  StorkVerifierMock,
+  StorkVerifierMock__factory,
+  StorkIndexAndOraclePriceAdapter,
+  StorkIndexAndOraclePriceAdapter__factory,
 } from '../typechain-types';
 
 describe('IDEXIndexAndOraclePriceAdapter', function () {
@@ -60,6 +66,12 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
           [indexPriceServiceWallet.address],
         ),
       ).to.eventually.be.rejectedWith(/invalid activator/i);
+    });
+
+    it('should revert for missing IPS wallets', async () => {
+      await expect(
+        IDEXIndexAndOraclePriceAdapterFactory.deploy(owner.address, []),
+      ).to.eventually.be.rejectedWith(/missing IPS wallets/i);
     });
 
     it('should revert for invalid IPS wallet', async () => {
@@ -838,6 +850,522 @@ describe('PythIndexPriceAdapter', function () {
   });
 });
 
+describe('StorkIndexAndOraclePriceAdapter', function () {
+  let ExchangeIndexPriceAdapterMockFactory: ExchangeIndexPriceAdapterMock__factory;
+  let ownerWallet: SignerWithAddress;
+  let publisherWallet: SignerWithAddress;
+  let storkVerifier: StorkVerifierMock;
+  let StorkVerifierMockFactory: StorkVerifierMock__factory;
+  let StorkIndexAndOraclePriceAdapterFactory: StorkIndexAndOraclePriceAdapter__factory;
+
+  before(async () => {
+    await network.provider.send('hardhat_reset');
+    ExchangeIndexPriceAdapterMockFactory = await ethers.getContractFactory(
+      'ExchangeIndexPriceAdapterMock',
+    );
+    [StorkVerifierMockFactory, StorkIndexAndOraclePriceAdapterFactory] =
+      await Promise.all([
+        ethers.getContractFactory('StorkVerifierMock'),
+        ethers.getContractFactory('StorkIndexAndOraclePriceAdapter'),
+      ]);
+
+    ownerWallet = (await ethers.getSigners())[0];
+    publisherWallet = (await ethers.getSigners())[5];
+  });
+
+  beforeEach(async () => {
+    storkVerifier = await StorkVerifierMockFactory.deploy();
+  });
+
+  describe('deploy', async function () {
+    it('should work for valid arguments', async () => {
+      await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+    });
+
+    it('should revert for invalid activator', async () => {
+      await expect(
+        StorkIndexAndOraclePriceAdapterFactory.deploy(
+          ethers.constants.AddressZero,
+          [publisherWallet.address],
+          storkVerifier.address,
+        ),
+      ).to.eventually.be.rejectedWith(/invalid activator/i);
+    });
+
+    it('should revert for missing publisher wallets', async () => {
+      await expect(
+        StorkIndexAndOraclePriceAdapterFactory.deploy(
+          ownerWallet.address,
+          [],
+          storkVerifier.address,
+        ),
+      ).to.eventually.be.rejectedWith(/missing publisher wallets/i);
+    });
+
+    it('should revert for invalid publisher wallet', async () => {
+      await expect(
+        StorkIndexAndOraclePriceAdapterFactory.deploy(
+          ownerWallet.address,
+          [ethers.constants.AddressZero],
+          storkVerifier.address,
+        ),
+      ).to.eventually.be.rejectedWith(/invalid publisher wallet/i);
+    });
+
+    it('should revert for invalid verifier address', async () => {
+      await expect(
+        StorkIndexAndOraclePriceAdapterFactory.deploy(
+          ownerWallet.address,
+          [publisherWallet.address],
+          ethers.constants.AddressZero,
+        ),
+      ).to.eventually.be.rejectedWith(/invalid verifier address/i);
+    });
+  });
+
+  describe('loadPriceForBaseAssetSymbol', async function () {
+    let exchangeMock: ExchangeIndexPriceAdapterMock;
+    let indexPriceAdapter: StorkIndexAndOraclePriceAdapter;
+
+    beforeEach(async () => {
+      indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+      exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+    });
+
+    it('should work when price is in storage', async () => {
+      const priceInDecimal = '1900.00000000';
+
+      const indexPricePayload = await buildStorkPricePayload(
+        baseAssetSymbol,
+        publisherWallet,
+        priceInDecimal,
+      );
+
+      await exchangeMock.validateIndexPricePayload(indexPricePayload);
+
+      const price = (
+        await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+      ).toString();
+      expect(price).to.equal(decimalToPips(priceInDecimal));
+    });
+
+    it('should not store outdated price', async () => {
+      const priceInDecimal = '1900.00000000';
+
+      const indexPricePayload = await buildStorkPricePayload(
+        baseAssetSymbol,
+        publisherWallet,
+        priceInDecimal,
+      );
+
+      await exchangeMock.validateIndexPricePayload(indexPricePayload);
+
+      const indexPricePayload2 = await buildStorkPricePayload(
+        baseAssetSymbol,
+        publisherWallet,
+        '1234.67890000',
+        (await getLatestBlockTimestampInSeconds()) - 10000,
+      );
+      await exchangeMock.validateIndexPricePayload(indexPricePayload2);
+
+      const price = (
+        await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+      ).toString();
+      expect(price).to.equal(decimalToPips(priceInDecimal));
+    });
+
+    it('should revert for missing price', async () => {
+      await expect(
+        indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/missing price/i);
+    });
+  });
+
+  describe('setActive', async function () {
+    let exchange: Exchange_v4;
+    let indexPriceAdapter: StorkIndexAndOraclePriceAdapter;
+    let oldIndexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
+
+    beforeEach(async () => {
+      const results = await deployContractsExceptCustodian(ownerWallet);
+      exchange = results.exchange;
+      oldIndexPriceAdapter = results.indexPriceAdapter;
+
+      indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+    });
+
+    it('should work for valid contract address', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+
+      await expect(indexPriceAdapter.exchange()).to.eventually.equal(
+        exchange.address,
+      );
+    });
+
+    it('should migrate latest prices', async () => {
+      await exchange.setDispatcher(ownerWallet.address);
+      await exchange.addMarket({
+        exists: true,
+        isActive: false,
+        baseAssetSymbol,
+        indexPriceAtDeactivation: 0,
+        lastIndexPrice: 0,
+        lastIndexPriceTimestampInMs: 0,
+        overridableFields: {
+          initialMarginFraction: '5000000',
+          maintenanceMarginFraction: '3000000',
+          incrementalInitialMarginFraction: '1000000',
+          baselinePositionSize: '14000000000',
+          incrementalPositionSize: '2800000000',
+          maximumPositionSize: '282000000000',
+          minimumPositionSize: '10000000',
+        },
+      });
+      await exchange.connect(ownerWallet).activateMarket(baseAssetSymbol);
+      await exchange
+        .connect(ownerWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            oldIndexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              ownerWallet,
+              '1900.00000000',
+            ),
+          ),
+        ]);
+
+      await expect(
+        indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/missing price/i);
+
+      await indexPriceAdapter.setActive(exchange.address);
+
+      expect(
+        (
+          await indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+        ).toString(),
+      ).to.equal(decimalToPips('1900.00000000'));
+    });
+
+    it('should revert for invalid exchange address', async () => {
+      await expect(
+        indexPriceAdapter.setActive(ethers.constants.AddressZero),
+      ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
+    });
+
+    it('should work when called twice', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(exchange.address);
+    });
+
+    it('should revert when called not called by activator', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+
+      await expect(
+        indexPriceAdapter
+          .connect((await ethers.getSigners())[1])
+          .setActive(exchange.address),
+      ).to.eventually.be.rejectedWith(/caller must be activator/i);
+    });
+  });
+
+  describe('validateIndexPricePayload', async function () {
+    let indexPriceAdapter: StorkIndexAndOraclePriceAdapter;
+
+    beforeEach(async () => {
+      indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+    });
+
+    it('should revert when not called by exchange', async () => {
+      await expect(
+        indexPriceAdapter.validateIndexPricePayload('0x00'),
+      ).to.eventually.be.rejectedWith(/exchange not set/i);
+
+      const exchange = (await deployContractsExceptCustodian(ownerWallet))
+        .exchange;
+      await indexPriceAdapter.setActive(exchange.address);
+      await expect(
+        indexPriceAdapter.validateIndexPricePayload('0x00'),
+      ).to.eventually.be.rejectedWith(/caller must be exchange/i);
+    });
+
+    it('should revert when price is zero', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      await expect(
+        exchangeMock.validateIndexPricePayload(
+          await buildStorkPricePayload(
+            baseAssetSymbol,
+            publisherWallet,
+            '0.00000000',
+          ),
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
+  });
+
+  describe('validateInitialIndexPricePayloadAdmin', async function () {
+    let exchange: Exchange_v4;
+    let indexPriceAdapter: StorkIndexAndOraclePriceAdapter;
+    let storkAdapter: StorkIndexAndOraclePriceAdapter;
+
+    beforeEach(async () => {
+      exchange = (await deployContractsExceptCustodian(ownerWallet)).exchange;
+      storkAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+      indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [publisherWallet.address],
+        storkVerifier.address,
+      );
+    });
+
+    it('should work when no price yet exists', async () => {
+      const priceInDecimal = '1900.00000000';
+
+      await storkAdapter.setActive(exchange.address);
+
+      await expect(
+        storkAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
+      ).to.eventually.be.rejectedWith(/missing price/i);
+
+      await storkAdapter.validateInitialIndexPricePayloadAdmin(
+        buildStorkPricePayload(
+          baseAssetSymbol,
+          publisherWallet,
+          priceInDecimal,
+        ),
+      );
+
+      expect(
+        (
+          await storkAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol)
+        ).toString(),
+      ).to.equal(decimalToPips(priceInDecimal));
+    });
+
+    it('should revert when price is zero', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          await buildStorkPricePayload(
+            baseAssetSymbol,
+            publisherWallet,
+            '0.00000000',
+            (await getLatestBlockTimestampInSeconds()) - 10000,
+          ),
+        ),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
+
+    it('should revert when not sent by admin', async () => {
+      await expect(
+        indexPriceAdapter
+          .connect((await ethers.getSigners())[8])
+          .validateInitialIndexPricePayloadAdmin(
+            await buildStorkPricePayload(
+              baseAssetSymbol,
+              publisherWallet,
+              '1900.00000000',
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert when exchange is not set', async () => {
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          await buildStorkPricePayload(
+            baseAssetSymbol,
+            publisherWallet,
+            '1900.00000000',
+          ),
+        ),
+      ).to.eventually.be.rejectedWith(/exchange not set/i);
+    });
+
+    it('should revert when price already exists', async () => {
+      await indexPriceAdapter.setActive(exchange.address);
+
+      await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+        await buildStorkPricePayload(
+          baseAssetSymbol,
+          publisherWallet,
+          '1900.00000000',
+        ),
+      );
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          await buildStorkPricePayload(
+            baseAssetSymbol,
+            publisherWallet,
+            '1900.00000000',
+          ),
+        ),
+      ).to.eventually.be.rejectedWith(/price already exists for market/i);
+    });
+
+    it('should revert for invalid signer', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
+          await buildStorkPricePayload(
+            baseAssetSymbol,
+            ownerWallet,
+            '0.00000000',
+            await getLatestBlockTimestampInSeconds(),
+          ),
+        ),
+      ).to.eventually.be.rejectedWith(/invalid index price signer/i);
+    });
+
+    it('should revert for invalid signature', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      const storkPrice = new BigNumber('1900.00000000')
+        .shiftedBy(18)
+        .integerValue(BigNumber.ROUND_DOWN)
+        .toFixed(0);
+      const timestamp = await getLatestBlockTimestampInSeconds();
+
+      const hash = ethers.utils.solidityKeccak256(
+        ['address', 'string', 'uint256', 'uint256'],
+        [
+          publisherWallet.address,
+          `${baseAssetSymbol}${quoteAssetSymbol}`,
+          timestamp,
+          storkPrice,
+        ],
+      );
+
+      const signature = await ownerWallet.signMessage(
+        ethers.utils.arrayify(hash),
+      );
+      const r = signature.slice(0, 66);
+      const s = '0x' + signature.slice(66, 130);
+      const v = '0x' + signature.slice(130, 132);
+
+      const payload = ethers.utils.defaultAbiCoder.encode(
+        [
+          'address',
+          'string',
+          'uint256',
+          'uint256',
+          'bytes32',
+          'bytes32',
+          'uint8',
+        ],
+        [
+          publisherWallet.address,
+          baseAssetSymbol,
+          timestamp,
+          storkPrice,
+          r,
+          s,
+          v,
+        ],
+      );
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(payload),
+      ).to.eventually.be.rejectedWith(/invalid index price signature/i);
+    });
+
+    it('should revert for non-positive price after pip conversion', async () => {
+      const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        indexPriceAdapter.address,
+      );
+      await indexPriceAdapter.setActive(exchangeMock.address);
+
+      const storkPrice = new BigNumber('0.000000001')
+        .shiftedBy(18)
+        .integerValue(BigNumber.ROUND_DOWN)
+        .toFixed(0);
+      const timestamp = await getLatestBlockTimestampInSeconds();
+
+      const hash = ethers.utils.solidityKeccak256(
+        ['address', 'string', 'uint256', 'uint256'],
+        [
+          publisherWallet.address,
+          `${baseAssetSymbol}${quoteAssetSymbol}`,
+          timestamp,
+          storkPrice,
+        ],
+      );
+
+      const signature = await publisherWallet.signMessage(
+        ethers.utils.arrayify(hash),
+      );
+      const r = signature.slice(0, 66);
+      const s = '0x' + signature.slice(66, 130);
+      const v = '0x' + signature.slice(130, 132);
+
+      const payload = ethers.utils.defaultAbiCoder.encode(
+        [
+          'address',
+          'string',
+          'uint256',
+          'uint256',
+          'bytes32',
+          'bytes32',
+          'uint8',
+        ],
+        [
+          publisherWallet.address,
+          baseAssetSymbol,
+          timestamp,
+          storkPrice,
+          r,
+          s,
+          v,
+        ],
+      );
+
+      await expect(
+        indexPriceAdapter.validateInitialIndexPricePayloadAdmin(payload),
+      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+    });
+  });
+});
+
 async function buildPythPricePayload(
   priceId: Uint8Array,
   price: string,
@@ -861,5 +1389,41 @@ async function buildPythPricePayload(
   return ethers.utils.defaultAbiCoder.encode(
     ['bytes32', 'bytes'],
     [priceId, pythPrice],
+  );
+}
+
+async function buildStorkPricePayload(
+  baseAssetSymbol: string,
+  publisherWallet: SignerWithAddress,
+  price: string,
+  timestampOverride?: number,
+) {
+  const storkPrice = new BigNumber(price)
+    .shiftedBy(18)
+    .integerValue(BigNumber.ROUND_DOWN)
+    .toFixed(0);
+  const timestamp =
+    timestampOverride ?? (await getLatestBlockTimestampInSeconds());
+
+  const hash = ethers.utils.solidityKeccak256(
+    ['address', 'string', 'uint256', 'uint256'],
+    [
+      publisherWallet.address,
+      `${baseAssetSymbol}${quoteAssetSymbol}`,
+      timestamp,
+      storkPrice,
+    ],
+  );
+
+  const signature = await publisherWallet.signMessage(
+    ethers.utils.arrayify(hash),
+  );
+  const r = signature.slice(0, 66);
+  const s = '0x' + signature.slice(66, 130);
+  const v = '0x' + signature.slice(130, 132);
+
+  return ethers.utils.defaultAbiCoder.encode(
+    ['address', 'string', 'uint256', 'uint256', 'bytes32', 'bytes32', 'uint8'],
+    [publisherWallet.address, baseAssetSymbol, timestamp, storkPrice, r, s, v],
   );
 }
