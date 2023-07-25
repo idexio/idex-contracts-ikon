@@ -442,6 +442,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param newInsuranceFundWallet The new IF wallet address
    */
   function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
+    require(!walletExits[newInsuranceFundWallet].exists, "IF wallet cannot be exited");
     insuranceFundWallet = newInsuranceFundWallet;
   }
 

@@ -787,6 +787,22 @@ describe('Governance', function () {
         ).to.eventually.be.rejectedWith(/new IF cannot have open positions/i);
       });
 
+      it('should revert when new IF is exited', async () => {
+        await governance.initiateInsuranceFundWalletUpgrade(
+          newInsuranceFundWallet.address,
+        );
+
+        await mine(fieldUpgradeDelayInBlocks, { interval: 0 });
+
+        await exchange.connect(newInsuranceFundWallet).exitWallet();
+
+        await expect(
+          governance.finalizeInsuranceFundWalletUpgrade(
+            newInsuranceFundWallet.address,
+          ),
+        ).to.eventually.be.rejectedWith(/IF wallet cannot be exited/i);
+      });
+
       it('should revert when not called by admin or dispatcher', async () => {
         await expect(
           governance
