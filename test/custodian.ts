@@ -217,6 +217,25 @@ describe('Custodian', function () {
       );
     });
 
+    it('should revert when quote asset transfer fails', async () => {
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      const destinationWallet = (await ethers.getSigners())[1];
+
+      await usdc.transfer(custodian.address, depositQuantity);
+      await usdc.setIsTransferDisabled(true);
+
+      await expect(
+        exchangeWithdrawMock.withdraw(
+          destinationWallet.address,
+          usdc.address,
+          depositQuantity,
+        ),
+      ).to.eventually.be.rejectedWith(/quote asset transfer failed/i);
+    });
+
     it('should revert when not sent from exchange', async () => {
       await expect(
         custodian.withdraw(

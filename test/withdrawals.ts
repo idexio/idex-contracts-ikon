@@ -201,6 +201,18 @@ describe('Exchange', function () {
       );
     });
 
+    it('should revert when quote asset transfer fails', async function () {
+      await usdc.setIsTransferDisabled(true);
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.00100000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/quote asset transfer failed/i);
+    });
+
     it('should revert if EF balance would be negative', async function () {
       const trader2Wallet = (await ethers.getSigners())[10];
       await fundWallets([traderWallet, trader2Wallet], exchange, usdc);

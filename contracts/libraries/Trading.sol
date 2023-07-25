@@ -26,7 +26,7 @@ library Trading {
 
   /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade` and one of the orders
-   * has the `isLiquidationAcquisitionOnly` asserted
+   * has `isLiquidationAcquisitionOnly` asserted
    */
   event LiquidationAcquisitionExecuted(
     address buyWallet,
@@ -114,7 +114,9 @@ library Trading {
   }
 
   function _emitTradeExecutedEvent(ExecuteTradeArguments memory tradeArguments) private {
-    if (tradeArguments.buy.isLiquidationAcquisitionOnly || tradeArguments.sell.isLiquidationAcquisitionOnly) {
+    // Either both or none of the orders will have `isLiquidationAcquisitionOnly` asserted as validated by
+    // `TradeValidations.validateTrade`
+    if (tradeArguments.buy.isLiquidationAcquisitionOnly) {
       emit LiquidationAcquisitionExecuted(
         tradeArguments.buy.wallet,
         tradeArguments.sell.wallet,

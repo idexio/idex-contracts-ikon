@@ -177,7 +177,7 @@ struct PositionInDeactivatedMarketLiquidationArguments {
 }
 
 /**
- * @notice Argument type for `Exchange.executeTrade` and `Hashing.getOrderWalletHash`
+ * @notice Argument type for `Exchange.executeTrade` and `Hashing.getOrderHash`
  */
 struct Order {
   // UUIDv1 unique to wallet
@@ -214,7 +214,7 @@ struct Order {
   DelegatedKeyAuthorization delegatedKeyAuthorization;
   // Optional custom client order ID
   string clientOrderId;
-  // The ECDSA signature of the order hash as produced by Hashing.getOrderWalletHash
+  // The ECDSA signature of the order hash as produced by `Hashing.getOrderHash`
   bytes walletSignature;
 }
 
@@ -249,7 +249,7 @@ struct Transfer {
   uint64 grossQuantity;
   // Gas fee deducted from transfer quantity to cover dispatcher tx costs
   uint64 gasFee;
-  // The ECDSA signature of the transfer hash as produced by Hashing.getTransferWalletHash
+  // The ECDSA signature of the transfer hash as produced by `Hashing.getTransferHash`
   bytes walletSignature;
 }
 
@@ -273,7 +273,7 @@ struct WalletLiquidationArguments {
 }
 
 /**
- * @notice Argument type for `Exchange.withdraw` and `Hashing.getWithdrawalWalletHash`
+ * @notice Argument type for `Exchange.withdraw` and `Hashing.getWithdrawalHash`
  */
 struct Withdrawal {
   // UUIDv1 unique to wallet
@@ -288,6 +288,6 @@ struct Withdrawal {
   bytes bridgeAdapterPayload;
   // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs
   uint64 gasFee;
-  // The ECDSA signature of the withdrawal hash as produced by `Hashing.getWithdrawalWalletHash`
+  // The ECDSA signature of the withdrawal hash as produced by `Hashing.getWithdrawalHash`
   bytes walletSignature;
 }

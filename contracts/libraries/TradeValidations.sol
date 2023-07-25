@@ -78,11 +78,13 @@ library TradeValidations {
     _validateExecutionConditionsForOrder(buy, trade, true, exitFundWallet, insuranceFundWallet);
     _validateExecutionConditionsForOrder(sell, trade, false, exitFundWallet, insuranceFundWallet);
 
-    if (buy.isLiquidationAcquisitionOnly) {
-      require(sell.wallet == insuranceFundWallet, "Sell wallet must be IF");
-    }
-    if (sell.isLiquidationAcquisitionOnly) {
-      require(buy.wallet == insuranceFundWallet, "Buy wallet must be IF");
+    bool isLiquidationAcquisitionTrade = buy.isLiquidationAcquisitionOnly || sell.isLiquidationAcquisitionOnly;
+    if (isLiquidationAcquisitionTrade) {
+      require(
+        buy.isLiquidationAcquisitionOnly && sell.isLiquidationAcquisitionOnly,
+        "Both orders must be liquidation acquisition"
+      );
+      require(sell.wallet == insuranceFundWallet || buy.wallet == insuranceFundWallet, "One order wallet must be IF");
     }
   }
 
