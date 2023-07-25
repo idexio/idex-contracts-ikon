@@ -17,6 +17,7 @@ library Transferring {
     // External arguments
     Transfer transfer;
     // Exchange state
+    bytes32 domainSeparator;
     address exitFundWallet;
     address insuranceFundWallet;
     address feeWallet;
@@ -46,7 +47,7 @@ library Transferring {
       Validations.isFeeQuantityValid(arguments.transfer.gasFee, arguments.transfer.grossQuantity),
       "Excessive transfer fee"
     );
-    bytes32 transferHash = _validateTransferSignature(arguments.transfer);
+    bytes32 transferHash = _validateTransferSignature(arguments);
     require(!completedTransferHashes[transferHash], "Duplicate transfer");
 
     Funding.applyOutstandingWalletFunding(
@@ -82,11 +83,16 @@ library Transferring {
     completedTransferHashes[transferHash] = true;
   }
 
-  function _validateTransferSignature(Transfer memory transfer) private pure returns (bytes32) {
-    bytes32 transferHash = Hashing.getTransferHash(transfer);
+  function _validateTransferSignature(Arguments memory arguments) private pure returns (bytes32) {
+    bytes32 transferHash = Hashing.getTransferHash(arguments.transfer);
 
     require(
-      Hashing.isSignatureValid(transferHash, transfer.walletSignature, transfer.sourceWallet),
+      Hashing.isSignatureValid(
+        arguments.domainSeparator,
+        transferHash,
+        arguments.transfer.walletSignature,
+        arguments.transfer.sourceWallet
+      ),
       "Invalid wallet signature"
     );
 

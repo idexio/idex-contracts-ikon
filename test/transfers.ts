@@ -6,8 +6,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import {
   decimalToPips,
   getTransferArguments,
-  getTransferHash,
-  signatureHashVersion,
+  getTransferSignatureTypedData,
   Transfer,
 } from '../lib';
 import {
@@ -72,14 +71,13 @@ describe('Exchange', function () {
     ).wait();
 
     transfer = {
-      signatureHashVersion,
       nonce: uuidv1(),
       sourceWallet: trader1Wallet.address,
       destinationWallet: trader2Wallet.address,
       quantity: '1.00000000',
     };
-    signature = await trader1Wallet.signMessage(
-      ethers.utils.arrayify(getTransferHash(transfer)),
+    signature = await trader1Wallet._signTypedData(
+      ...getTransferSignatureTypedData(transfer, exchange.address),
     );
   });
 
@@ -144,19 +142,6 @@ describe('Exchange', function () {
           ...getTransferArguments(transfer, '0.00000000', signature),
         ),
       ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
-    });
-
-    it('should revert for invalid signature hash version', async function () {
-      transfer.signatureHashVersion = 177;
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getTransferHash(transfer)),
-      );
-
-      await expect(
-        exchange
-          .connect(dispatcherWallet)
-          .transfer(...getTransferArguments(transfer, '0.00000000', signature)),
-      ).to.eventually.be.rejectedWith(/signature hash version invalid/i);
     });
 
     it('should revert for exited wallet', async function () {

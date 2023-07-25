@@ -71,6 +71,7 @@ library MarketAdmin {
 
   // solhint-disable-next-line func-name-mixedcase
   function publishIndexPrices_delegatecall(
+    bytes32 domainSeparator,
     IndexPrice[] memory indexPrices,
     address[] memory indexPriceServiceWallets,
     mapping(string => Market) storage marketsByBaseAssetSymbol
@@ -83,7 +84,7 @@ library MarketAdmin {
       require(market.exists && market.isActive, "Active market not found");
       require(market.lastIndexPriceTimestampInMs < indexPrices[i].timestampInMs, "Outdated index price");
       require(indexPrices[i].timestampInMs < Time.getOneDayFromNowInMs(), "Index price timestamp too high");
-      _validateIndexPriceSignature(indexPrices[i], indexPriceServiceWallets);
+      _validateIndexPriceSignature(domainSeparator, indexPrices[i], indexPriceServiceWallets);
 
       market.lastIndexPrice = indexPrices[i].price;
       market.lastIndexPriceTimestampInMs = indexPrices[i].timestampInMs;
@@ -91,12 +92,13 @@ library MarketAdmin {
   }
 
   function _validateIndexPriceSignature(
+    bytes32 domainSeparator,
     IndexPrice memory indexPrice,
     address[] memory indexPriceServiceWallets
   ) private pure {
     bytes32 indexPriceHash = Hashing.getIndexPriceHash(indexPrice);
 
-    address signer = Hashing.getSigner(indexPriceHash, indexPrice.signature);
+    address signer = Hashing.getSigner(domainSeparator, indexPriceHash, indexPrice.signature);
     bool isSignatureValid = false;
     for (uint8 i = 0; i < indexPriceServiceWallets.length; i++) {
       isSignatureValid = isSignatureValid || signer == indexPriceServiceWallets[i];

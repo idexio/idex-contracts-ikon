@@ -74,7 +74,6 @@ export enum OrderTriggerType {
 }
 
 export interface IndexPrice {
-  signatureHashVersion: number;
   baseAssetSymbol: string;
   timestampInMs: number;
   price: string; // Decimal string
@@ -82,7 +81,6 @@ export interface IndexPrice {
 }
 
 export interface Order {
-  signatureHashVersion: number;
   nonce: string;
   wallet: string;
   market: string;
@@ -102,7 +100,6 @@ export interface Order {
 }
 
 export interface DelegatedKeyAuthorization {
-  signatureHashVersion: number;
   nonce: string;
   delegatedPublicKey: string;
   signature: string;
@@ -119,7 +116,6 @@ export interface Trade {
 }
 
 export interface Transfer {
-  signatureHashVersion: number;
   nonce: string;
   sourceWallet: string;
   destinationWallet: string;
@@ -127,13 +123,14 @@ export interface Transfer {
 }
 
 export interface Withdrawal {
-  signatureHashVersion: number;
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
   bridgeAdapter: string;
   bridgeAdapterPayload: string;
 }
+
+const hardhatChainId = 31337;
 
 export const compareMarketSymbols = (a: string, b: string): number =>
   Buffer.compare(
@@ -146,6 +143,9 @@ export const decimalToAssetUnits = (
   decimals: number,
 ): string => pipsToAssetUnits(decimalToPips(decimal), decimals);
 
+export const delegatedKeyAuthorizationMessage =
+  "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.";
+
 /**
  * Convert decimal quantity string to integer pips as expected by contract structs. Truncates
  * anything beyond 8 decimals
@@ -156,85 +156,166 @@ export const decimalToPips = (decimal: string): string =>
     .integerValue(BigNumber.ROUND_DOWN)
     .toFixed(0);
 
-export const getIndexPriceHash = (
+export const getDomainSeparator = (
+  contractAddress: string,
+  chainId: number,
+) => {
+  return {
+    name: 'IDEX',
+    version: `${signatureHashVersion}`,
+    chainId,
+    verifyingContract: contractAddress,
+  };
+};
+
+export const getDelegatedKeyAuthorizationSignatureTypedData = (
+  delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      DelegatedKeyAuthorization: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'delegatedPublicKey', type: 'address' },
+        { name: 'message', type: 'string' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(delegatedKeyAuthorization.nonce),
+      delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
+      message: delegatedKeyAuthorizationMessage,
+    },
+  ];
+};
+
+export const getIndexPriceSignatureTypedData = (
   indexPrice: Omit<IndexPrice, 'signature'>,
   quoteAssetSymbol: string,
-): string => {
-  return solidityHashOfParams([
-    ['uint8', indexPrice.signatureHashVersion],
-    ['string', indexPrice.baseAssetSymbol],
-    ['string', quoteAssetSymbol],
-    ['uint64', indexPrice.timestampInMs],
-    ['string', indexPrice.price],
-  ]);
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      IndexPrice: [
+        { name: 'baseAssetSymbol', type: 'string' },
+        { name: 'quoteAssetSymbol', type: 'string' },
+        { name: 'timestampInMs', type: 'uint64' },
+        { name: 'price', type: 'string' },
+      ],
+    },
+    {
+      baseAssetSymbol: indexPrice.baseAssetSymbol,
+      quoteAssetSymbol,
+      timestampInMs: indexPrice.timestampInMs,
+      price: indexPrice.price,
+    },
+  ];
 };
 
-export const getOrderHash = (order: Order): string => {
+export const getOrderSignatureTypedData = (
+  order: Order,
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
   const emptyPipString = '0.00000000';
 
-  let params: TypeValuePair[] = [
-    ['uint8', order.signatureHashVersion],
-    ['uint128', uuidToUint8Array(order.nonce)],
-    ['address', order.wallet],
-    ['string', order.market],
-    ['uint8', order.type],
-    ['uint8', order.side],
-    ['string', order.quantity],
-    ['string', order.price || emptyPipString],
-    ['string', order.triggerPrice || emptyPipString],
-    ['uint8', order.triggerType || 0],
-    ['string', order.callbackRate || emptyPipString],
-    [
-      'uint128',
-      order.conditionalOrderId
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      Order: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'wallet', type: 'address' },
+        { name: 'marketSymbol', type: 'string' },
+        { name: 'orderType', type: 'uint8' },
+        { name: 'orderSide', type: 'uint8' },
+        { name: 'quantity', type: 'string' },
+        { name: 'limitPrice', type: 'string' },
+        { name: 'triggerPrice', type: 'string' },
+        { name: 'triggerType', type: 'uint8' },
+        { name: 'callbackRate', type: 'string' },
+        { name: 'conditionalOrderId', type: 'uint128' },
+        { name: 'isReduceOnly', type: 'bool' },
+        { name: 'timeInForce', type: 'uint8' },
+        { name: 'selfTradePrevention', type: 'uint8' },
+        { name: 'delegatedPublicKey', type: 'address' },
+        { name: 'clientOrderId', type: 'string' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(order.nonce),
+      wallet: order.wallet,
+      marketSymbol: order.market,
+      orderType: order.type,
+      orderSide: order.side,
+      quantity: order.quantity,
+      limitPrice: order.price || emptyPipString,
+      triggerPrice: order.triggerPrice || emptyPipString,
+      triggerType: order.triggerType || 0,
+      callbackRate: order.callbackRate || emptyPipString,
+      conditionalOrderId: order.conditionalOrderId
         ? uuidToUint8Array(order.conditionalOrderId)
         : '0',
-    ],
-    ['bool', !!order.isReduceOnly],
-    ['uint8', order.timeInForce || 0],
-    ['uint8', order.selfTradePrevention || 0],
-    ['address', order.delegatedPublicKey || ethers.constants.AddressZero],
-    ['string', order.clientOrderId || ''],
+      isReduceOnly: !!order.isReduceOnly,
+      timeInForce: order.timeInForce || 0,
+      selfTradePrevention: order.selfTradePrevention || 0,
+      delegatedPublicKey:
+        order.delegatedPublicKey || ethers.constants.AddressZero,
+      clientOrderId: order.clientOrderId || '',
+    },
   ];
-
-  return solidityHashOfParams(params);
 };
 
-export const getDelegatedKeyAuthorizationMessage = (
-  delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
-): string => {
-  const delegateKeyFragment = delegatedKeyAuthorization
-    ? `delegated ${
-        delegatedKeyAuthorization.signatureHashVersion
-      }${addressToUintString(delegatedKeyAuthorization.delegatedPublicKey)}`
-    : '';
-  const message = `Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees.
-
-Message:
-${delegateKeyFragment}${uuidToUintString(delegatedKeyAuthorization.nonce)}`;
-
-  return message;
+export const getTransferSignatureTypedData = (
+  transfer: Transfer,
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      Transfer: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'sourceWallet', type: 'address' },
+        { name: 'destinationWallet', type: 'address' },
+        { name: 'quantity', type: 'string' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(transfer.nonce),
+      sourceWallet: transfer.sourceWallet,
+      destinationWallet: transfer.destinationWallet,
+      quantity: transfer.quantity,
+    },
+  ];
 };
 
-export const getTransferHash = (transfer: Transfer): string => {
-  return solidityHashOfParams([
-    ['uint8', transfer.signatureHashVersion],
-    ['uint128', uuidToUint8Array(transfer.nonce)],
-    ['address', transfer.sourceWallet],
-    ['address', transfer.destinationWallet],
-    ['string', transfer.quantity],
-  ]);
-};
-
-export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
-  return solidityHashOfParams([
-    ['uint8', withdrawal.signatureHashVersion],
-    ['uint128', uuidToUint8Array(withdrawal.nonce)],
-    ['address', withdrawal.wallet],
-    ['string', withdrawal.quantity],
-    ['address', withdrawal.bridgeAdapter],
-    ['bytes', withdrawal.bridgeAdapterPayload],
-  ]);
+export const getWithdrawalSignatureTypedData = (
+  withdrawal: Withdrawal,
+  contractAddress: string,
+  chainId = hardhatChainId,
+): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+  return [
+    getDomainSeparator(contractAddress, chainId),
+    {
+      Withdrawal: [
+        { name: 'nonce', type: 'uint128' },
+        { name: 'wallet', type: 'address' },
+        { name: 'quantity', type: 'string' },
+        { name: 'bridgeAdapter', type: 'address' },
+        { name: 'bridgeAdapterPayload', type: 'bytes' },
+      ],
+    },
+    {
+      nonce: uuidToUint8Array(withdrawal.nonce),
+      wallet: withdrawal.wallet,
+      quantity: withdrawal.quantity,
+      bridgeAdapter: withdrawal.bridgeAdapter,
+      bridgeAdapterPayload: withdrawal.bridgeAdapterPayload,
+    },
+  ];
 };
 
 export const getPublishFundingMutiplierArguments = (
@@ -277,7 +358,6 @@ export const getTransferArguments = (
 ): [TransferStruct] => {
   return [
     {
-      signatureHashVersion: transfer.signatureHashVersion,
       nonce: uuidToHexString(transfer.nonce),
       sourceWallet: transfer.sourceWallet,
       destinationWallet: transfer.destinationWallet,
@@ -295,7 +375,6 @@ export const getWithdrawArguments = (
 ): [WithdrawalStruct] => {
   return [
     {
-      signatureHashVersion: withdrawal.signatureHashVersion,
       nonce: uuidToHexString(withdrawal.nonce),
       wallet: withdrawal.wallet,
       grossQuantity: decimalToPips(withdrawal.quantity),
@@ -309,7 +388,6 @@ export const getWithdrawArguments = (
 
 export const indexPriceToArgumentStruct = (o: IndexPrice) => {
   return {
-    signatureHashVersion: o.signatureHashVersion,
     baseAssetSymbol: o.baseAssetSymbol,
     timestampInMs: o.timestampInMs,
     price: decimalToPips(o.price),
@@ -329,9 +407,6 @@ export const pipsToAssetUnits = (pips: string, decimals: number): string =>
 export const uuidToHexString = (uuid: string): string =>
   `0x${uuid.replace(/-/g, '')}`;
 
-const addressToUintString = (address: string): string =>
-  new BigNumber(address.toLowerCase()).toFixed(0);
-
 const orderToArgumentStruct = (
   o: Order,
   walletSignature: string,
@@ -340,7 +415,6 @@ const orderToArgumentStruct = (
   const emptyPipString = '0.00000000';
 
   return {
-    signatureHashVersion: o.signatureHashVersion,
     nonce: uuidToHexString(o.nonce),
     wallet: o.wallet,
     orderType: o.type,
@@ -359,31 +433,16 @@ const orderToArgumentStruct = (
     isSignedByDelegatedKey: !!delegatedKeyAuthorization,
     delegatedKeyAuthorization: delegatedKeyAuthorization
       ? {
-          signatureHashVersion: delegatedKeyAuthorization.signatureHashVersion,
           nonce: uuidToHexString(delegatedKeyAuthorization.nonce),
           delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
           signature: delegatedKeyAuthorization.signature,
         }
       : {
-          signatureHashVersion: 0,
           nonce: 0,
           delegatedPublicKey: ethers.constants.AddressZero,
           signature: '0x',
         },
   };
-};
-
-type TypeValuePair =
-  | ['string' | 'address', string]
-  | ['uint128' | 'uint256', string | Uint8Array]
-  | ['uint8' | 'uint32' | 'uint64', number]
-  | ['bool', boolean]
-  | ['bytes', string];
-
-const solidityHashOfParams = (params: TypeValuePair[]): string => {
-  const fields = params.map((param) => param[0]);
-  const values = params.map((param) => param[1]);
-  return ethers.utils.solidityKeccak256(fields, values);
 };
 
 const tradeToArgumentStruct = (t: Trade, order: Order) => {
@@ -401,6 +460,3 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
 
 const uuidToUint8Array = (uuid: string): Uint8Array =>
   ethers.utils.arrayify(uuidToHexString(uuid));
-
-const uuidToUintString = (uuid: string): string =>
-  new BigNumber(`0x${uuid.replace(/-/g, '')}`).toFixed(0);

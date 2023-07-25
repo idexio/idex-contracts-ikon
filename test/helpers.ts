@@ -13,8 +13,8 @@ import {
   decimalToAssetUnits,
   decimalToPips,
   getExecuteTradeArguments,
-  getIndexPriceHash,
-  getOrderHash,
+  getIndexPriceSignatureTypedData,
+  getOrderSignatureTypedData,
   indexPriceToArgumentStruct,
   IndexPrice,
   Order,
@@ -89,7 +89,10 @@ export async function bootstrapLiquidatedWallet() {
     usdc,
   );
 
-  const indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+  const indexPrice = await buildIndexPrice(
+    exchange.address,
+    indexPriceServiceWallet,
+  );
 
   await executeTrade(
     exchange,
@@ -100,6 +103,7 @@ export async function bootstrapLiquidatedWallet() {
   );
 
   const liquidationIndexPrice = await buildIndexPriceWithValue(
+    exchange.address,
     indexPriceServiceWallet,
     '2150.00000000',
     baseAssetSymbol,
@@ -136,10 +140,12 @@ const prices = [
 ];
 
 export async function buildIndexPrice(
+  exchangeAddress: string,
   indexPriceServiceWallet: SignerWithAddress,
   baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
   return buildIndexPriceWithTimestamp(
+    exchangeAddress,
     indexPriceServiceWallet,
     (await getLatestBlockTimestampInSeconds()) * 1000 + 1000,
     baseAssetSymbol_,
@@ -147,6 +153,7 @@ export async function buildIndexPrice(
 }
 
 export async function buildIndexPriceWithTimestamp(
+  exchangeAddress: string,
   indexPriceServiceWallet: SignerWithAddress,
   timestampInMs: number,
   baseAssetSymbol_ = baseAssetSymbol,
@@ -157,32 +164,41 @@ export async function buildIndexPriceWithTimestamp(
     timestampInMs,
     price: prices[0],
   };
-  const signature = await indexPriceServiceWallet.signMessage(
-    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+  const signature = await indexPriceServiceWallet._signTypedData(
+    ...getIndexPriceSignatureTypedData(
+      indexPrice,
+      quoteAssetSymbol,
+      exchangeAddress,
+    ),
   );
 
   return { ...indexPrice, signature };
 }
 
 export async function buildIndexPriceWithValue(
+  exchangeAddress: string,
   indexPriceServiceWallet: SignerWithAddress,
   price: string,
   baseAssetSymbol_ = baseAssetSymbol,
 ): Promise<IndexPrice> {
   const indexPrice = {
-    signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
     timestampInMs: (await getLatestBlockTimestampInSeconds()) * 1000 + 1000,
     price,
   };
-  const signature = await indexPriceServiceWallet.signMessage(
-    ethers.utils.arrayify(getIndexPriceHash(indexPrice, quoteAssetSymbol)),
+  const signature = await indexPriceServiceWallet._signTypedData(
+    ...getIndexPriceSignatureTypedData(
+      indexPrice,
+      quoteAssetSymbol,
+      exchangeAddress,
+    ),
   );
 
   return { ...indexPrice, signature };
 }
 
 export async function buildLimitOrder(
+  exchangeAddress: string,
   signer: SignerWithAddress,
   side: OrderSide,
   market = `${baseAssetSymbol}-USDC`,
@@ -190,7 +206,6 @@ export async function buildLimitOrder(
   price = '2000.00000000',
 ) {
   const order: Order = {
-    signatureHashVersion,
     nonce: uuidv1(),
     wallet: signer.address,
     market,
@@ -199,8 +214,8 @@ export async function buildLimitOrder(
     quantity,
     price,
   };
-  const signature = await signer.signMessage(
-    ethers.utils.arrayify(getOrderHash(order)),
+  const signature = await signer._signTypedData(
+    ...getOrderSignatureTypedData(order, exchangeAddress),
   );
 
   return { order, signature };
@@ -417,7 +432,6 @@ export async function executeTrade(
   }
 
   const sellOrder: Order = {
-    signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader1.address,
     market: `${baseAssetSymbol_}-USD`,
@@ -426,12 +440,11 @@ export async function executeTrade(
     quantity,
     price,
   };
-  const sellOrderSignature = await trader1.signMessage(
-    ethers.utils.arrayify(getOrderHash(sellOrder)),
+  const sellOrderSignature = await trader1._signTypedData(
+    ...getOrderSignatureTypedData(sellOrder, exchange.address),
   );
 
   const buyOrder: Order = {
-    signatureHashVersion,
     nonce: uuidv1({ msecs: new Date().getTime() - 100 * 60 * 60 * 1000 }),
     wallet: trader2.address,
     market: `${baseAssetSymbol_}-USD`,
@@ -440,8 +453,8 @@ export async function executeTrade(
     quantity,
     price,
   };
-  const buyOrderSignature = await trader2.signMessage(
-    ethers.utils.arrayify(getOrderHash(buyOrder)),
+  const buyOrderSignature = await trader2._signTypedData(
+    ...getOrderSignatureTypedData(buyOrder, exchange.address),
   );
 
   const trade: Trade = {

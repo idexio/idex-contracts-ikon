@@ -13,46 +13,46 @@ import { DelegatedKeyAuthorization, IndexPrice, Order, Transfer, Withdrawal } fr
  * @notice Library helpers for building hashes and verifying wallet signatures
  */
 library Hashing {
-  function getSigner(bytes32 hash, bytes memory signature) internal pure returns (address) {
-    return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature);
+  function getSigner(
+    bytes32 domainSeparator,
+    bytes32 structHash,
+    bytes memory signature
+  ) internal pure returns (address) {
+    return ECDSA.recover(ECDSA.toTypedDataHash(domainSeparator, structHash), signature);
   }
 
-  function isSignatureValid(bytes memory message, bytes memory signature, address signer) internal pure returns (bool) {
-    return ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature) == signer;
+  function isSignatureValid(
+    bytes32 domainSeparator,
+    bytes32 structHash,
+    bytes memory signature,
+    address signer
+  ) internal pure returns (bool) {
+    return getSigner(domainSeparator, structHash, signature) == signer;
   }
 
-  function isSignatureValid(bytes32 hash, bytes memory signature, address signer) internal pure returns (bool) {
-    return getSigner(hash, signature) == signer;
-  }
-
-  function getDelegatedKeySignatureMessage(
+  function getDelegatedKeyAuthorizationHash(
     DelegatedKeyAuthorization memory delegatedKeyAuthorization
-  ) internal pure returns (bytes memory) {
-    require(
-      delegatedKeyAuthorization.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION,
-      "Signature hash version invalid"
-    );
-
+  ) internal pure returns (bytes32) {
     return
-      abi.encodePacked(
-        Constants.ENCODED_DELEGATE_KEY_SIGNATURE_MESSAGE,
-        Strings.toString(delegatedKeyAuthorization.signatureHashVersion),
-        Strings.toString(uint160(delegatedKeyAuthorization.delegatedPublicKey)),
-        Strings.toString(delegatedKeyAuthorization.nonce)
+      keccak256(
+        abi.encode(
+          Constants.EIP_712_TYPE_HASH_DELEGATED_KEY_AUTHORIZATION,
+          delegatedKeyAuthorization.nonce,
+          delegatedKeyAuthorization.delegatedPublicKey,
+          Constants.DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH
+        )
       );
   }
 
   function getIndexPriceHash(IndexPrice memory indexPrice) internal pure returns (bytes32) {
-    require(indexPrice.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-
     return
       keccak256(
-        abi.encodePacked(
-          indexPrice.signatureHashVersion,
-          indexPrice.baseAssetSymbol,
-          Constants.QUOTE_ASSET_SYMBOL,
+        abi.encode(
+          Constants.EIP_712_TYPE_HASH_INDEX_PRICE,
+          keccak256(bytes(indexPrice.baseAssetSymbol)),
+          keccak256(bytes(Constants.QUOTE_ASSET_SYMBOL)),
           indexPrice.timestampInMs,
-          _pipToDecimal(indexPrice.price)
+          keccak256(bytes(_pipToDecimal(indexPrice.price)))
         )
       );
   }
@@ -67,63 +67,58 @@ library Hashing {
     string memory baseSymbol,
     string memory quoteSymbol
   ) internal pure returns (bytes32) {
-    require(order.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-    // Placing all the fields in a single `abi.encodePacked` call causes a `stack too deep` error
+    // Placing all the fields in a single `abi.encode` call causes a `stack too deep` error
     return
       keccak256(
         abi.encodePacked(
-          abi.encodePacked(
-            order.signatureHashVersion,
+          abi.encode(
+            Constants.EIP_712_TYPE_HASH_ORDER,
             order.nonce,
             order.wallet,
-            string(abi.encodePacked(baseSymbol, "-", quoteSymbol)),
+            keccak256(abi.encodePacked(baseSymbol, "-", quoteSymbol)),
             uint8(order.orderType),
             uint8(order.side),
-            _pipToDecimal(order.quantity)
+            keccak256(bytes(_pipToDecimal(order.quantity))),
+            keccak256(bytes(_pipToDecimal(order.limitPrice)))
           ),
-          abi.encodePacked(
-            _pipToDecimal(order.limitPrice),
-            _pipToDecimal(order.triggerPrice),
-            order.triggerType,
-            _pipToDecimal(order.callbackRate),
+          abi.encode(
+            keccak256(bytes(_pipToDecimal(order.triggerPrice))),
+            uint8(order.triggerType),
+            keccak256(bytes(_pipToDecimal(order.callbackRate))),
             order.conditionalOrderId,
             order.isReduceOnly,
             uint8(order.timeInForce),
-            uint8(order.selfTradePrevention)
-          ),
-          order.delegatedKeyAuthorization.delegatedPublicKey,
-          order.clientOrderId
+            uint8(order.selfTradePrevention),
+            order.delegatedKeyAuthorization.delegatedPublicKey,
+            keccak256(bytes(order.clientOrderId))
+          )
         )
       );
   }
 
   function getTransferHash(Transfer memory transfer) internal pure returns (bytes32) {
-    require(transfer.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-
     return
       keccak256(
-        abi.encodePacked(
-          transfer.signatureHashVersion,
+        abi.encode(
+          Constants.EIP_712_TYPE_HASH_TRANSFER,
           transfer.nonce,
           transfer.sourceWallet,
           transfer.destinationWallet,
-          _pipToDecimal(transfer.grossQuantity)
+          keccak256(bytes(_pipToDecimal(transfer.grossQuantity)))
         )
       );
   }
 
   function getWithdrawalHash(Withdrawal memory withdrawal) internal pure returns (bytes32) {
-    require(withdrawal.signatureHashVersion == Constants.SIGNATURE_HASH_VERSION, "Signature hash version invalid");
-
     return
       keccak256(
-        abi.encodePacked(
-          withdrawal.signatureHashVersion,
+        abi.encode(
+          Constants.EIP_712_TYPE_HASH_WITHDRAWAL,
           withdrawal.nonce,
           withdrawal.wallet,
-          _pipToDecimal(withdrawal.grossQuantity),
+          keccak256(bytes(_pipToDecimal(withdrawal.grossQuantity))),
           withdrawal.bridgeAdapter,
-          withdrawal.bridgeAdapterPayload
+          keccak256(withdrawal.bridgeAdapterPayload)
         )
       );
   }

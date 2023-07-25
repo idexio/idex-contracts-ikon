@@ -52,8 +52,6 @@ struct ClosureDeleverageArguments {
  * @notice Field in `Order` struct for optionally authorizing a delegate key signing wallet
  */
 struct DelegatedKeyAuthorization {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Public component of ECDSA signing key pair
@@ -86,8 +84,6 @@ struct FundingMultiplierQuartet {
  * @notice Index price data signed by index wallet
  */
 struct IndexPrice {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   string baseAssetSymbol;
   // Milliseconds since epoch
   uint64 timestampInMs;
@@ -183,8 +179,6 @@ struct PositionInDeactivatedMarketLiquidationArguments {
  * @notice Argument type for `Exchange.executeTrade` and `Hashing.getOrderWalletHash`
  */
 struct Order {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Custody wallet address that placed order and (if not using delegate wallet) signed hash
@@ -242,8 +236,6 @@ struct Trade {
 }
 
 struct Transfer {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Address of wallet giving funds
@@ -281,8 +273,6 @@ struct WalletLiquidationArguments {
  * @notice Argument type for `Exchange.withdraw` and `Hashing.getWithdrawalWalletHash`
  */
 struct Withdrawal {
-  // Must equal `Constants.SIGNATURE_HASH_VERSION`
-  uint8 signatureHashVersion;
   // UUIDv1 unique to wallet
   uint128 nonce;
   // Address of wallet to which funds will be returned

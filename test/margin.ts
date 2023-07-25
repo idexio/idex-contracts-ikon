@@ -64,7 +64,10 @@ describe('Exchange', function () {
 
     await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
 
-    indexPrice = await buildIndexPrice(indexPriceServiceWallet);
+    indexPrice = await buildIndexPrice(
+      exchange.address,
+      indexPriceServiceWallet,
+    );
 
     await executeTrade(
       exchange,

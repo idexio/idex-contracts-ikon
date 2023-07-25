@@ -16,11 +16,11 @@ import {
   decimalToPips,
   fundingPeriodLengthInMs,
   getExecuteTradeArguments,
-  getOrderHash,
+  getOrderSignatureTypedData,
   getTransferArguments,
-  getTransferHash,
+  getTransferSignatureTypedData,
   getWithdrawArguments,
-  getWithdrawalHash,
+  getWithdrawalSignatureTypedData,
   indexPriceToArgumentStruct,
   Order,
   OrderSide,
@@ -111,12 +111,11 @@ describe.skip('Gas measurement', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          await buildIndexPrice(indexPriceServiceWallet),
+          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         ),
       ]);
 
     buyOrder = {
-      signatureHashVersion,
       nonce: uuidv1(),
       wallet: trader2Wallet.address,
       market: `${baseAssetSymbol}-USD`,
@@ -125,12 +124,11 @@ describe.skip('Gas measurement', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    buyOrderSignature = await trader2Wallet.signMessage(
-      ethers.utils.arrayify(getOrderHash(buyOrder)),
+    buyOrderSignature = await trader2Wallet._signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, exchange.address),
     );
 
     sellOrder = {
-      signatureHashVersion,
       nonce: uuidv1(),
       wallet: trader1Wallet.address,
       market: `${baseAssetSymbol}-USD`,
@@ -139,8 +137,8 @@ describe.skip('Gas measurement', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    sellOrderSignature = await trader1Wallet.signMessage(
-      ethers.utils.arrayify(getOrderHash(sellOrder)),
+    sellOrderSignature = await trader1Wallet._signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, exchange.address),
     );
 
     trade = {
@@ -166,13 +164,13 @@ describe.skip('Gas measurement', function () {
       );
 
     buyOrder.nonce = uuidv1();
-    buyOrderSignature = await trader2Wallet.signMessage(
-      ethers.utils.arrayify(getOrderHash(buyOrder)),
+    buyOrderSignature = await trader2Wallet._signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, exchange.address),
     );
 
     sellOrder.nonce = uuidv1();
-    sellOrderSignature = await trader1Wallet.signMessage(
-      ethers.utils.arrayify(getOrderHash(sellOrder)),
+    sellOrderSignature = await trader1Wallet._signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, exchange.address),
     );
   });
 
@@ -183,6 +181,7 @@ describe.skip('Gas measurement', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2250.00000000',
               baseAssetSymbol,
@@ -223,14 +222,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        buyOrderSignature = await trader2Wallet._signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, exchange.address),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        sellOrderSignature = await trader1Wallet._signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, exchange.address),
         );
 
         await exchange
@@ -253,6 +252,7 @@ describe.skip('Gas measurement', function () {
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
                 await buildIndexPriceWithValue(
+                  exchange.address,
                   indexPriceServiceWallet,
                   '2150.00000000',
                   symbol,
@@ -337,6 +337,7 @@ describe.skip('Gas measurement', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(
             await buildIndexPriceWithValue(
+              exchange.address,
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -380,14 +381,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        buyOrderSignature = await trader2Wallet._signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, exchange.address),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        sellOrderSignature = await trader1Wallet._signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, exchange.address),
         );
 
         await exchange
@@ -410,6 +411,7 @@ describe.skip('Gas measurement', function () {
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
                 await buildIndexPriceWithValue(
+                  exchange.address,
                   indexPriceServiceWallet,
                   '2150.00000000',
                   symbol,
@@ -448,14 +450,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        buyOrderSignature = await trader2Wallet._signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, exchange.address),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        sellOrderSignature = await trader1Wallet._signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, exchange.address),
         );
 
         await exchange
@@ -479,8 +481,8 @@ describe.skip('Gas measurement', function () {
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await exchange
@@ -488,8 +490,8 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       const result = await exchange
@@ -509,14 +511,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        buyOrderSignature = await trader2Wallet._signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, exchange.address),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        sellOrderSignature = await trader1Wallet._signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, exchange.address),
         );
 
         await exchange
@@ -540,8 +542,8 @@ describe.skip('Gas measurement', function () {
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await exchange
@@ -549,8 +551,8 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       const result = await exchange
@@ -568,8 +570,8 @@ describe.skip('Gas measurement', function () {
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       await exchange
@@ -577,8 +579,8 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getWithdrawalHash(withdrawal)),
+      signature = await trader1Wallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
       );
 
       const result = await exchange
@@ -597,8 +599,8 @@ describe.skip('Gas measurement', function () {
         destinationWallet: trader2Wallet.address,
         quantity: '1.00000000',
       };
-      let signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getTransferHash(transfer)),
+      let signature = await trader1Wallet._signTypedData(
+        ...getTransferSignatureTypedData(transfer, exchange.address),
       );
 
       await exchange
@@ -606,8 +608,8 @@ describe.skip('Gas measurement', function () {
         .transfer(...getTransferArguments(transfer, '0.00000000', signature));
 
       transfer.nonce = uuidv1();
-      signature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getTransferHash(transfer)),
+      signature = await trader1Wallet._signTypedData(
+        ...getTransferSignatureTypedData(transfer, exchange.address),
       );
       const result = await exchange
         .connect(dispatcherWallet)
@@ -622,7 +624,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            await buildIndexPrice(indexPriceServiceWallet),
+            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
 
@@ -630,7 +632,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            await buildIndexPrice(indexPriceServiceWallet),
+            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
       console.log((await result.wait()).gasUsed.toString());
@@ -650,7 +652,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -662,7 +668,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -695,7 +705,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -707,7 +721,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -750,7 +768,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -762,7 +784,11 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             baseAssetSymbols.map(async (symbol) =>
               indexPriceToArgumentStruct(
-                await buildIndexPrice(indexPriceServiceWallet, symbol),
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                  symbol,
+                ),
               ),
             ),
           ),
@@ -797,14 +823,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        buyOrderSignature = await trader2Wallet._signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, exchange.address),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        sellOrderSignature = await trader1Wallet._signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, exchange.address),
         );
 
         await exchange
@@ -826,14 +852,14 @@ describe.skip('Gas measurement', function () {
       buyOrder.nonce = uuidv1();
       buyOrder.market = `${baseAssetSymbol}-USD`;
       buyOrder.wallet = trader3Wallet.address;
-      buyOrderSignature = await trader3Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader3Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       sellOrder.nonce = uuidv1();
       sellOrder.market = `${baseAssetSymbol}-USD`;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       const result = await exchange
@@ -876,14 +902,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(buyOrder)),
+        buyOrderSignature = await trader2Wallet._signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, exchange.address),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet.signMessage(
-          ethers.utils.arrayify(getOrderHash(sellOrder)),
+        sellOrderSignature = await trader1Wallet._signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, exchange.address),
         );
 
         await exchange
@@ -901,14 +927,14 @@ describe.skip('Gas measurement', function () {
 
       buyOrder.nonce = uuidv1();
       buyOrder.market = `${baseAssetSymbol}-USD`;
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       sellOrder.nonce = uuidv1();
       sellOrder.market = `${baseAssetSymbol}-USD`;
-      sellOrderSignature = await trader1Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(sellOrder)),
+      sellOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
       );
 
       const result = await exchange
@@ -929,8 +955,8 @@ describe.skip('Gas measurement', function () {
     it('with no outstanding funding payments (limit-market)', async () => {
       buyOrder.type = OrderType.Market;
       buyOrder.price = '0.00000000';
-      buyOrderSignature = await trader2Wallet.signMessage(
-        ethers.utils.arrayify(getOrderHash(buyOrder)),
+      buyOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
       );
 
       const result = await exchange
@@ -1114,6 +1140,7 @@ async function publishFundingRates(
       .publishIndexPrices([
         indexPriceToArgumentStruct(
           await buildIndexPriceWithTimestamp(
+            exchange.address,
             indexPriceServiceWallet,
             nextFundingTimestampInMs,
           ),
