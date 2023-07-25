@@ -2,6 +2,7 @@ import { ethers, network } from 'hardhat';
 
 import { deployAndAssociateContracts, expect } from './helpers';
 import {
+  Custodian,
   Exchange_v4,
   Exchange_v4__factory,
   Governance,
@@ -270,6 +271,7 @@ describe('Governance', function () {
   });
 
   describe('finalizeExchangeUpgrade', () => {
+    let custodian: Custodian;
     let ExchangeFactory: Exchange_v4__factory;
     let governance: Governance;
     let ownerWallet: SignerWithAddress;
@@ -279,6 +281,7 @@ describe('Governance', function () {
       [ownerWallet] = await ethers.getSigners();
       const results = await deployAndAssociateContracts(ownerWallet);
       ExchangeFactory = results.ExchangeFactory;
+      custodian = results.custodian;
       governance = results.governance;
       usdc = results.usdc;
     });
@@ -296,6 +299,10 @@ describe('Governance', function () {
 
       await governance.initiateExchangeUpgrade(newExchange.address);
       await governance.finalizeExchangeUpgrade(newExchange.address);
+
+      await expect(custodian.exchange()).to.eventually.equal(
+        newExchange.address,
+      );
     });
 
     it('should revert when no upgrade was initiated', async () => {
