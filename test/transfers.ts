@@ -144,14 +144,37 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
     });
 
-    it('should revert for exited wallet', async function () {
+    it('should revert for exited source wallet', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
 
       await expect(
         exchange
           .connect(dispatcherWallet)
           .transfer(...getTransferArguments(transfer, '0.00000000', signature)),
-      ).to.eventually.be.rejectedWith(/wallet exited/i);
+      ).to.eventually.be.rejectedWith(/source wallet exited/i);
+    });
+
+    it('should revert for exited destination wallet', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .transfer(...getTransferArguments(transfer, '0.00000000', signature)),
+      ).to.eventually.be.rejectedWith(/destination wallet exited/i);
+    });
+
+    it('should revert for self-transfer', async function () {
+      transfer.destinationWallet = transfer.sourceWallet;
+      signature = await trader1Wallet._signTypedData(
+        ...getTransferSignatureTypedData(transfer, exchange.address),
+      );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .transfer(...getTransferArguments(transfer, '0.00000000', signature)),
+      ).to.eventually.be.rejectedWith(/cannot self-transfer/i);
     });
 
     it('should revert for EF source', async function () {
