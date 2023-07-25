@@ -14,16 +14,18 @@ contract FundingMultiplierMock {
     fundingMultipliers.publishFundingMultiplier(newFundingMultiplier);
   }
 
-  function loadAggregateMultiplier(
+  function loadAggregatePayment(
     uint64 fromTimestampInMs,
     uint64 toTimestampInMs,
-    uint64 lastFundingRatePublishTimestampInMs
+    uint64 lastFundingRatePublishTimestampInMs,
+    int64 positionSize
   ) public view returns (int64) {
     return
-      fundingMultipliers.loadAggregateMultiplier(
+      fundingMultipliers.loadAggregatePayment(
         fromTimestampInMs,
         toTimestampInMs,
-        lastFundingRatePublishTimestampInMs
+        lastFundingRatePublishTimestampInMs,
+        positionSize
       );
   }
 }

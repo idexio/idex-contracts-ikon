@@ -35,19 +35,21 @@ library FundingMultiplierQuartetHelper {
   }
 
   /**
-   * @dev Given a start and end timestamp, scans an array of funding multiplier quartets and calculates the aggreagate
-   * funding rate multiplier
+   * @dev Given a start and end timestamp, scans an array of funding multiplier quartets and calculates the aggregate
+   * funding payment to apply
    *
    * @param self The array of funding multiplier quartets
    * @param fromTimestampInMs The publish timestamp of the first funding multiplier to apply
    * @param toTimestampInMs The publish timestamp of the last funding multiplier to apply
    * @param lastFundingRatePublishTimestampInMs The publish timestamp of the latest funding multiplier in the array
+   * @param positionSize The position size against which all funding multipliers are multiplied
    */
-  function loadAggregateMultiplier(
+  function loadAggregatePayment(
     FundingMultiplierQuartet[] storage self,
     uint64 fromTimestampInMs,
     uint64 toTimestampInMs,
-    uint64 lastFundingRatePublishTimestampInMs
+    uint64 lastFundingRatePublishTimestampInMs,
+    int64 positionSize
   ) internal view returns (int64) {
     (uint256 startIndex, uint64 startOffset) = _calculateIndexAndOffsetForTimestampInMs(
       self,
@@ -61,41 +63,59 @@ library FundingMultiplierQuartetHelper {
     );
 
     if (startIndex == endIndex) {
-      return _calculateAggregateMultiplierForQuartet(self[startIndex], startOffset, endOffset);
+      return _calculateAggregatePaymentForQuartet(self[startIndex], startOffset, endOffset, positionSize);
     }
 
-    int64 aggregateMultiplier = _calculateAggregateMultiplierForQuartet(
+    int64 aggregatePayment = _calculateAggregatePaymentForQuartet(
       self[startIndex],
       startOffset,
-      _QUARTET_SIZE - 1
+      _QUARTET_SIZE - 1,
+      positionSize
     );
     for (uint256 i = startIndex + 1; i < endIndex; i++) {
-      aggregateMultiplier += _calculateAggregateMultiplierForQuartet(self[i], 0, _QUARTET_SIZE - 1);
+      aggregatePayment += _calculateAggregatePaymentForQuartet(self[i], 0, _QUARTET_SIZE - 1, positionSize);
     }
-    aggregateMultiplier += _calculateAggregateMultiplierForQuartet(self[endIndex], 0, endOffset);
+    aggregatePayment += _calculateAggregatePaymentForQuartet(self[endIndex], 0, endOffset, positionSize);
 
-    return aggregateMultiplier;
+    return aggregatePayment;
   }
 
   /**
-   * @dev Calculates the aggreagate funding rate multiplier for one quartet
+   * @dev Calculates the aggregate funding payment for one quartet
    */
-  function _calculateAggregateMultiplierForQuartet(
+  function _calculateAggregatePaymentForQuartet(
     FundingMultiplierQuartet memory fundingMultipliers,
     uint256 startOffset,
-    uint256 endOffset
-  ) private pure returns (int64 aggregateMultiplier) {
+    uint256 endOffset,
+    int64 positionSize
+  ) private pure returns (int64 aggregatePayment) {
     if (startOffset == 0) {
-      aggregateMultiplier += fundingMultipliers.fundingMultiplier0;
+      aggregatePayment += Math.multiplyPipsByFraction(
+        positionSize,
+        fundingMultipliers.fundingMultiplier0,
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
     }
     if (startOffset <= 1 && endOffset >= 1) {
-      aggregateMultiplier += fundingMultipliers.fundingMultiplier1;
+      aggregatePayment += Math.multiplyPipsByFraction(
+        positionSize,
+        fundingMultipliers.fundingMultiplier1,
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
     }
     if (startOffset <= 2 && endOffset >= 2) {
-      aggregateMultiplier += fundingMultipliers.fundingMultiplier2;
+      aggregatePayment += Math.multiplyPipsByFraction(
+        positionSize,
+        fundingMultipliers.fundingMultiplier2,
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
     }
     if (startOffset <= 3 && endOffset == 3) {
-      aggregateMultiplier += fundingMultipliers.fundingMultiplier3;
+      aggregatePayment += Math.multiplyPipsByFraction(
+        positionSize,
+        fundingMultipliers.fundingMultiplier3,
+        int64(Constants.PIP_PRICE_MULTIPLIER)
+      );
     }
   }
 
