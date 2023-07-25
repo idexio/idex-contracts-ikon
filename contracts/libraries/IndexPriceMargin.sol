@@ -16,6 +16,7 @@ library IndexPriceMargin {
 
   struct ValidateInsuranceFundCannotLiquidateWalletArguments {
     address insuranceFundWallet;
+    int64 insuranceFundWalletOutstandingFundingPayment;
     address liquidatingWallet;
     uint64[] liquidationQuoteQuantities;
     Market[] markets;
@@ -345,10 +346,12 @@ library IndexPriceMargin {
       bool isInsuranceFundMaximumPositionSizeExceeded
     )
   {
-    insuranceFundTotalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
-      arguments.insuranceFundWallet,
-      Constants.QUOTE_ASSET_SYMBOL
-    );
+    insuranceFundTotalAccountValue =
+      balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+        arguments.insuranceFundWallet,
+        Constants.QUOTE_ASSET_SYMBOL
+      ) +
+      arguments.insuranceFundWalletOutstandingFundingPayment;
 
     int256 insuranceFundPositionSizeAfterAcquisition;
     int64 liquidatingWalletPositionSize;
