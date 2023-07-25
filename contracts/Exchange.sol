@@ -30,9 +30,9 @@ import { WalletExits } from "./libraries/WalletExits.sol";
 import { WalletInMaintenanceAcquisitionDeleveraging } from "./libraries/WalletInMaintenanceAcquisitionDeleveraging.sol";
 import { WalletInMaintenanceLiquidation } from "./libraries/WalletInMaintenanceLiquidation.sol";
 import { Withdrawing } from "./libraries/Withdrawing.sol";
-import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPrice, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
+import { AcquisitionDeleverageArguments, Balance, ClosureDeleverageArguments, ExecuteTradeArguments, FundingMultiplierQuartet, IndexPricePayload, Market, MarketOverrides, NonceInvalidation, Order, Trade, OverridableMarketFields, PositionBelowMinimumLiquidationArguments, PositionInDeactivatedMarketLiquidationArguments, Transfer, WalletExit, WalletLiquidationArguments, Withdrawal } from "./libraries/Structs.sol";
 import { DeleverageType, LiquidationType, OrderSide } from "./libraries/Enums.sol";
-import { IBridgeAdapter, ICustodian, IExchange } from "./libraries/Interfaces.sol";
+import { IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "./libraries/Interfaces.sol";
 
 // solhint-disable-next-line contract-name-camelcase
 contract Exchange_v4 is EIP712, IExchange, Owned {
@@ -51,7 +51,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   mapping(bytes32 => bool) private _completedTransferHashes;
   // Withdrawals - mapping of withdrawal wallet hash => isComplete
   mapping(bytes32 => bool) private _completedWithdrawalHashes;
-  // List of whitelisted cross-chain bridge adapter contracts
+  // List of whitelisted cross-chain Bridge Adapter contracts
   IBridgeAdapter[] public bridgeAdapters;
   // Fund custody contract
   ICustodian public custodian;
@@ -59,16 +59,22 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   uint64 public depositIndex;
   // Zero only if Exit Fund has no open positions or quote balance
   uint256 public exitFundPositionOpenedAtBlockNumber;
+  // List of whitelisted Index Price Adapter contracts
+  IIndexPriceAdapter[] public indexPriceAdapters;
   // If positive (index increases) longs pay shorts; if negative (index decreases) shorts pay longs
   mapping(string => FundingMultiplierQuartet[]) public fundingMultipliersByBaseAssetSymbol;
   // Milliseconds since epoch, always aligned to funding period
   mapping(string => uint64) public lastFundingRatePublishTimestampInMsByBaseAssetSymbol;
   // Wallet-specific market parameter overrides
   mapping(string => mapping(address => MarketOverrides)) public marketOverridesByBaseAssetSymbolAndWallet;
+  // A list of base asset symbols for all markets in addition order
+  string[] public marketBaseAssetSymbols;
   // Mapping of base asset symbol => market struct
   mapping(string => Market) public marketsByBaseAssetSymbol;
   // Mapping of wallet => last invalidated timestamp in milliseconds
   mapping(address => NonceInvalidation[]) public nonceInvalidationsByWallet;
+  // Currently whitelisted Oracle Price Adapter, used for on-chain exits
+  IOraclePriceAdapter public oraclePriceAdapter;
   // Mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) private _partiallyFilledOrderQuantities;
   // Address of ERC20 contract used as collateral and quote for all markets
@@ -88,7 +94,6 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   address public dispatcherWallet;
   address public exitFundWallet;
   address public feeWallet;
-  address[] public indexPriceServiceWallets;
   address public insuranceFundWallet;
 
   // Events //
@@ -218,8 +223,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param balanceMigrationSource Previous Exchange contract to migrate wallet balances from. Not used if zero
    * @param exitFundWallet_ Address of EF wallet
    * @param feeWallet_ Address of Fee wallet
-   * @param indexPriceServiceWallets_ Addresses of IPS wallets whitelisted to sign index prices
+   * @param indexPriceAdapters_ Addresses of Index Price Adapter contracts whitelisted to validate index price payloads
    * @param insuranceFundWallet_ Address of IF wallet
+   * @param oraclePriceAdapter_ Addresses of Oracle Price Adapter contract used for on-chain exit pricing
    * @param quoteTokenAddress_ Address of quote asset ERC20 contract
    *
    * @dev Sets `owner_` and `admin_` to `msg.sender`
@@ -228,8 +234,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     IExchange balanceMigrationSource,
     address exitFundWallet_,
     address feeWallet_,
-    address[] memory indexPriceServiceWallets_,
+    IIndexPriceAdapter[] memory indexPriceAdapters_,
     address insuranceFundWallet_,
+    IOraclePriceAdapter oraclePriceAdapter_,
     address quoteTokenAddress_
   ) EIP712(Constants.EIP_712_DOMAIN_NAME, Constants.EIP_712_DOMAIN_VERSION) Owned() {
     require(
@@ -248,10 +255,13 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     require(insuranceFundWallet_ != address(0x0), "Invalid IF wallet");
     insuranceFundWallet = insuranceFundWallet_;
 
-    for (uint8 i = 0; i < indexPriceServiceWallets_.length; i++) {
-      require(indexPriceServiceWallets_[i] != address(0x0), "Invalid IPS wallet");
+    for (uint8 i = 0; i < indexPriceAdapters_.length; i++) {
+      require(Address.isContract(address(indexPriceAdapters_[i])), "Invalid Index Price Adapter address");
     }
-    indexPriceServiceWallets = indexPriceServiceWallets_;
+    indexPriceAdapters = indexPriceAdapters_;
+
+    require(Address.isContract(address(oraclePriceAdapter_)), "Invalid Oracle Price Adapter address");
+    oraclePriceAdapter = oraclePriceAdapter_;
 
     // Deposits must be manually enabled via `setDepositIndex`
     depositIndex = Constants.DEPOSIT_INDEX_NOT_SET;
@@ -321,14 +331,14 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
-   * @notice Sets the address of the `Custodian` contract as well as initial cross-chain bridge adapters
+   * @notice Sets the address of the `Custodian` contract as well as initial cross-chain Bridge Adapter contracts
    *
    * @dev The `Custodian` accepts `Exchange` and `Governance` addresses in its constructor, after which they can only be
    * changed by the `Governance` contract itself. Therefore the `Custodian` must be deployed last and its address set
    * here on an existing `Exchange` contract. This value is immutable once set and cannot be changed again
    *
    * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange` contract's address
-   * @param newBridgeAdapters An array of cross-chain bridge adapter contract addresses. They can be passed in here as a
+   * @param newBridgeAdapters An array of cross-chain Bridge Adapter contract addresses. They can be passed in here as a
    * convenience to avoid waiting the full field upgrade governance delay following initial deploy
    */
   function setCustodian(ICustodian newCustodian, IBridgeAdapter[] memory newBridgeAdapters) public onlyAdmin {
@@ -409,21 +419,21 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
-   * @notice Sets bridge adapter contract addresses whitelisted for withdrawals
+   * @notice Sets Bridge Adapter contract addresses whitelisted for withdrawals
    *
-   * @param newBridgeAdapters An array of bridge adapter contract addresses
+   * @param newBridgeAdapters An array of Bridge Adapter contract addresses
    */
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) public onlyGovernance {
     bridgeAdapters = newBridgeAdapters;
   }
 
   /**
-   * @notice Sets IPS wallet addresses whitelisted to sign Index Price payloads
+   * @notice Sets Index Price Adapter contract addresses
    *
-   * @param newIndexPriceServiceWallets An array of IPS wallet addresses
+   * @param newIndexPriceAdapters An array of contract addresses
    */
-  function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) public onlyGovernance {
-    indexPriceServiceWallets = newIndexPriceServiceWallets;
+  function setIndexPriceAdapters(IIndexPriceAdapter[] memory newIndexPriceAdapters) public onlyGovernance {
+    indexPriceAdapters = newIndexPriceAdapters;
   }
 
   /**
@@ -433,6 +443,15 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   function setInsuranceFundWallet(address newInsuranceFundWallet) public onlyGovernance {
     insuranceFundWallet = newInsuranceFundWallet;
+  }
+
+  /**
+   * @notice Sets Oracle Price Adapter contract address used for on-chain exit pricing
+   *
+   * @param newOraclePriceAdapter The new contract addresses
+   */
+  function setOraclePriceAdapter(IOraclePriceAdapter newOraclePriceAdapter) public onlyGovernance {
+    oraclePriceAdapter = newOraclePriceAdapter;
   }
 
   /**
@@ -489,6 +508,27 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   }
 
   /**
+   * @notice Loads the total count of all markets added
+   *
+   * @return The total count of all markets added
+   *
+   */
+  function loadMarketsLength() public view returns (uint256) {
+    return marketBaseAssetSymbols.length;
+  }
+
+  /**
+   * @notice Loads the Market at the given index by addition order
+   *
+   * @param index The index at which to load
+   *
+   * @return The Market at the given index by addition order
+   */
+  function loadMarket(uint8 index) public view returns (Market memory) {
+    return marketsByBaseAssetSymbol[marketBaseAssetSymbols[index]];
+  }
+
+  /**
    * @notice Load the balance of quote asset the wallet can withdraw after exiting, in pips. Note that due to changing
    * prices the value returned is only an estimate and may not exactly match the value actually transferred after exit
    *
@@ -505,6 +545,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     return
       OraclePriceMargin.loadQuoteQuantityAvailableForExitWithdrawalIncludingOutstandingWalletFunding_delegatecall(
         exitFundWallet,
+        oraclePriceAdapter,
         wallet,
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -870,8 +911,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function addMarket(Market memory newMarket) public onlyAdmin {
     MarketAdmin.addMarket_delegatecall(
       newMarket,
+      oraclePriceAdapter,
       fundingMultipliersByBaseAssetSymbol,
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketBaseAssetSymbols,
       marketsByBaseAssetSymbol
     );
   }
@@ -896,13 +939,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @dev Access must be `onlyDispatcher` rather than `onlyDispatcherWhenExitFundHasNoPositions` to facilitate EF
    * closure deleveraging during system recovery
    */
-  function publishIndexPrices(IndexPrice[] memory indexPrices) public onlyDispatcher {
-    MarketAdmin.publishIndexPrices_delegatecall(
-      _domainSeparatorV4(),
-      indexPrices,
-      indexPriceServiceWallets,
-      marketsByBaseAssetSymbol
-    );
+  function publishIndexPrices(IndexPricePayload[] memory encodedIndexPrices) public onlyDispatcher {
+    MarketAdmin.publishIndexPrices_delegatecall(encodedIndexPrices, indexPriceAdapters, marketsByBaseAssetSymbol);
   }
 
   /**
@@ -1037,6 +1075,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function loadTotalAccountValueFromOraclePrices(address wallet) public view returns (int64) {
     return
       OraclePriceMargin.loadTotalAccountValueIncludingOutstandingWalletFunding_delegatecall(
+        oraclePriceAdapter,
         wallet,
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1073,6 +1112,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function loadTotalInitialMarginRequirementFromOraclePrices(address wallet) public view returns (uint64) {
     return
       OraclePriceMargin.loadTotalInitialMarginRequirement_delegatecall(
+        oraclePriceAdapter,
         wallet,
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1108,6 +1148,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   function loadTotalMaintenanceMarginRequirementFromOraclePrices(address wallet) public view returns (uint64) {
     return
       OraclePriceMargin.loadTotalMaintenanceMarginRequirement_delegatecall(
+        oraclePriceAdapter,
         wallet,
         _balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
@@ -1141,7 +1182,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   function withdrawExit(address wallet) public {
     (uint256 exitFundPositionOpenedAtBlockNumber_, uint64 quantity) = Withdrawing.withdrawExit_delegatecall(
-      Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, quoteTokenAddress),
+      Withdrawing.WithdrawExitArguments(wallet, custodian, exitFundWallet, oraclePriceAdapter, quoteTokenAddress),
       exitFundPositionOpenedAtBlockNumber,
       _balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,

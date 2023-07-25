@@ -4,9 +4,9 @@ import { ethers, network } from 'hardhat';
 import { decimalToPips, IndexPrice, indexPriceToArgumentStruct } from '../lib';
 
 import type {
-  ChainlinkAggregatorMock,
   Exchange_v4,
   Governance,
+  IDEXIndexPriceAdapter,
   USDC,
 } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -26,11 +26,11 @@ import {
 
 // TODO Partial deleveraging
 describe('Exchange', function () {
-  let chainlinkAggregator: ChainlinkAggregatorMock;
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
   let indexPrice: IndexPrice;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
@@ -64,10 +64,14 @@ describe('Exchange', function () {
       feeWallet,
       indexPriceServiceWallet,
       insuranceFundWallet,
+      0,
+      true,
+      ethers.constants.AddressZero,
+      ['ETH', 'BTC'],
     );
-    chainlinkAggregator = results.chainlinkAggregator;
     exchange = results.exchange;
     governance = results.governance;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     await results.usdc.faucet(dispatcherWallet.address);
@@ -83,6 +87,7 @@ describe('Exchange', function () {
       exchange,
       dispatcherWallet,
       indexPrice,
+      indexPriceAdapter.address,
       trader1Wallet,
       trader2Wallet,
     );
@@ -94,6 +99,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -125,6 +131,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         trader3Wallet,
         trader4Wallet,
       );
@@ -132,6 +139,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -171,12 +179,7 @@ describe('Exchange', function () {
           insuranceFundWallet.address,
         );
 
-      await addAndActivateMarket(
-        chainlinkAggregator,
-        dispatcherWallet,
-        exchange,
-        'BTC',
-      );
+      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader1Wallet, trader2Wallet],
         exchange,
@@ -193,6 +196,7 @@ describe('Exchange', function () {
           '24000.00000000',
           'BTC',
         ),
+        indexPriceAdapter.address,
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -203,6 +207,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -232,6 +237,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -316,6 +322,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -614,7 +621,6 @@ describe('Exchange', function () {
         exists: true,
         isActive: false,
         baseAssetSymbol: 'BTC',
-        chainlinkPriceFeedAddress: chainlinkAggregator.address,
         indexPriceAtDeactivation: 0,
         lastIndexPrice: 0,
         lastIndexPriceTimestampInMs: 0,
@@ -634,6 +640,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet, 'BTC'),
+        indexPriceAdapter.address,
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -643,6 +650,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -683,6 +691,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -731,7 +740,6 @@ describe('Exchange', function () {
         exists: true,
         isActive: false,
         baseAssetSymbol: 'BTC',
-        chainlinkPriceFeedAddress: chainlinkAggregator.address,
         indexPriceAtDeactivation: 0,
         lastIndexPrice: 0,
         lastIndexPriceTimestampInMs: 0,
@@ -751,6 +759,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet, 'BTC'),
+        indexPriceAdapter.address,
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -760,6 +769,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -822,7 +832,6 @@ describe('Exchange', function () {
         exists: true,
         isActive: false,
         baseAssetSymbol: 'BTC',
-        chainlinkPriceFeedAddress: chainlinkAggregator.address,
         indexPriceAtDeactivation: 0,
         lastIndexPrice: 0,
         lastIndexPriceTimestampInMs: 0,
@@ -842,6 +851,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet, 'BTC'),
+        indexPriceAdapter.address,
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -851,6 +861,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -891,6 +902,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -1089,6 +1101,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -1140,6 +1153,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,

@@ -4,7 +4,7 @@ import {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
   ExecuteTradeArgumentsStruct,
-  IndexPriceStruct,
+  IndexPricePayloadStruct,
   TradeStruct,
   OrderStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
@@ -20,7 +20,7 @@ export {
   AcquisitionDeleverageArgumentsStruct,
   ClosureDeleverageArgumentsStruct,
   ExecuteTradeArgumentsStruct,
-  IndexPriceStruct,
+  IndexPricePayloadStruct,
   TradeStruct,
   OrderStruct,
   PositionBelowMinimumLiquidationArgumentsStruct,
@@ -130,7 +130,7 @@ export interface Withdrawal {
   bridgeAdapterPayload: string;
 }
 
-const hardhatChainId = 31337;
+export const hardhatChainId = 31337;
 
 export const compareMarketSymbols = (a: string, b: string): number =>
   Buffer.compare(
@@ -386,12 +386,19 @@ export const getWithdrawArguments = (
   ];
 };
 
-export const indexPriceToArgumentStruct = (o: IndexPrice) => {
+export const indexPriceToArgumentStruct = (
+  indexPriceAdapter: string,
+  o: IndexPrice,
+) => {
   return {
-    baseAssetSymbol: o.baseAssetSymbol,
-    timestampInMs: o.timestampInMs,
-    price: decimalToPips(o.price),
-    signature: o.signature,
+    indexPriceAdapter,
+    payload: ethers.utils.defaultAbiCoder.encode(
+      ['tuple(string,uint64,uint64)', 'bytes'],
+      [
+        [o.baseAssetSymbol, o.timestampInMs, decimalToPips(o.price)],
+        o.signature,
+      ],
+    ),
   };
 };
 

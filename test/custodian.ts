@@ -104,8 +104,9 @@ describe('Custodian', function () {
         ethers.constants.AddressZero,
         ownerWallet.address,
         ownerWallet.address,
-        [ownerWallet.address],
+        [usdc.address],
         ownerWallet.address,
+        usdc.address,
         usdc.address,
       );
 

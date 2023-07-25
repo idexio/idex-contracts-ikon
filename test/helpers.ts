@@ -24,7 +24,7 @@ import {
   signatureHashVersion,
   Trade,
 } from '../lib';
-import { ChainlinkAggregatorMock, Exchange_v4, USDC } from '../typechain-types';
+import { Exchange_v4, USDC } from '../typechain-types';
 
 export const fieldUpgradeDelayInBlocks = (1 * 24 * 60 * 60) / 3;
 
@@ -35,7 +35,6 @@ export const baseAssetSymbol = 'ETH';
 export const quoteAssetSymbol = 'USD';
 
 export async function addAndActivateMarket(
-  chainlinkAggregator: ChainlinkAggregatorMock,
   dispatcherWallet: SignerWithAddress,
   exchange: Exchange_v4,
   baseAssetSymbol_ = baseAssetSymbol,
@@ -44,7 +43,6 @@ export async function addAndActivateMarket(
     exists: true,
     isActive: false,
     baseAssetSymbol: baseAssetSymbol_,
-    chainlinkPriceFeedAddress: chainlinkAggregator.address,
     indexPriceAtDeactivation: 0,
     lastIndexPrice: 0,
     lastIndexPriceTimestampInMs: 0,
@@ -72,14 +70,15 @@ export async function bootstrapLiquidatedWallet() {
     trader1Wallet,
     trader2Wallet,
   ] = await ethers.getSigners();
-  const { exchange, governance, usdc } = await deployAndAssociateContracts(
-    ownerWallet,
-    dispatcherWallet,
-    exitFundWallet,
-    feeWallet,
-    indexPriceServiceWallet,
-    insuranceFundWallet,
-  );
+  const { exchange, governance, indexPriceAdapter, usdc } =
+    await deployAndAssociateContracts(
+      ownerWallet,
+      dispatcherWallet,
+      exitFundWallet,
+      feeWallet,
+      indexPriceServiceWallet,
+      insuranceFundWallet,
+    );
 
   await usdc.connect(dispatcherWallet).faucet(dispatcherWallet.address);
 
@@ -98,6 +97,7 @@ export async function bootstrapLiquidatedWallet() {
     exchange,
     dispatcherWallet,
     indexPrice,
+    indexPriceAdapter.address,
     trader1Wallet,
     trader2Wallet,
   );
@@ -111,7 +111,12 @@ export async function bootstrapLiquidatedWallet() {
 
   await exchange
     .connect(dispatcherWallet)
-    .publishIndexPrices([indexPriceToArgumentStruct(liquidationIndexPrice)]);
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapter.address,
+        liquidationIndexPrice,
+      ),
+    ]);
 
   await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
     counterpartyWallet: insuranceFundWallet.address,
@@ -157,12 +162,13 @@ export async function buildIndexPriceWithTimestamp(
   indexPriceServiceWallet: SignerWithAddress,
   timestampInMs: number,
   baseAssetSymbol_ = baseAssetSymbol,
+  price = prices[0],
 ): Promise<IndexPrice> {
   const indexPrice = {
     signatureHashVersion,
     baseAssetSymbol: baseAssetSymbol_,
     timestampInMs,
-    price: prices[0],
+    price,
   };
   const signature = await indexPriceServiceWallet._signTypedData(
     ...getIndexPriceSignatureTypedData(
@@ -229,14 +235,19 @@ export async function deployContractsExceptCustodian(
   insuranceFund: SignerWithAddress = owner,
   governanceBlockDelay = 0,
   balanceMigrationSource?: string,
+  baseAssetSymbols: string[] = [baseAssetSymbol],
 ) {
   const [
     ChainlinkAggregatorFactory,
+    ChainlinkOraclePriceAdapterFactory,
+    IDEXIndexPriceAdapterFactory,
     USDCFactory,
     ExchangeFactory,
     GovernanceFactory,
   ] = await Promise.all([
     ethers.getContractFactory('ChainlinkAggregatorMock'),
+    ethers.getContractFactory('ChainlinkOraclePriceAdapter'),
+    ethers.getContractFactory('IDEXIndexPriceAdapter'),
     ethers.getContractFactory('USDC'),
     deployLibraryContracts(),
     ethers.getContractFactory('Governance'),
@@ -250,14 +261,31 @@ export async function deployContractsExceptCustodian(
 
   const usdc = await (await USDCFactory.connect(owner).deploy()).deployed();
 
+  const oraclePriceAdapter = await (
+    await ChainlinkOraclePriceAdapterFactory.connect(owner).deploy(
+      baseAssetSymbols,
+      // TODO Do we need to set on-chain prices separately per market?
+      Array.from(Array(baseAssetSymbols.length).keys()).map(
+        () => chainlinkAggregator.address,
+      ),
+    )
+  ).deployed();
+
+  const indexPriceAdapter = await (
+    await IDEXIndexPriceAdapterFactory.connect(owner).deploy(owner.address, [
+      indexPriceServiceWallet.address,
+    ])
+  ).deployed();
+
   const [exchange, governance] = await Promise.all([
     (
       await ExchangeFactory.connect(owner).deploy(
         balanceMigrationSource || ethers.constants.AddressZero,
         exitFundWallet.address,
         feeWallet.address,
-        [indexPriceServiceWallet.address],
+        [indexPriceAdapter.address],
         insuranceFund.address,
+        oraclePriceAdapter.address,
         usdc.address,
       )
     ).deployed(),
@@ -266,7 +294,17 @@ export async function deployContractsExceptCustodian(
     ).deployed(),
   ]);
 
-  return { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc };
+  await indexPriceAdapter.setActive(exchange.address);
+  await oraclePriceAdapter.setActive(exchange.address);
+
+  return {
+    chainlinkAggregator,
+    exchange,
+    ExchangeFactory,
+    governance,
+    indexPriceAdapter,
+    usdc,
+  };
 }
 
 export async function deployAndAssociateContracts(
@@ -279,17 +317,25 @@ export async function deployAndAssociateContracts(
   governanceBlockDelay = 0,
   addDefaultMarket = true,
   balanceMigrationSource?: string,
+  baseAssetSymbols: string[] = [baseAssetSymbol],
 ) {
-  const { chainlinkAggregator, exchange, ExchangeFactory, governance, usdc } =
-    await deployContractsExceptCustodian(
-      owner,
-      exitFundWallet,
-      feeWallet,
-      indexPriceServiceWallet,
-      insuranceFund,
-      governanceBlockDelay,
-      balanceMigrationSource,
-    );
+  const {
+    chainlinkAggregator,
+    exchange,
+    ExchangeFactory,
+    indexPriceAdapter,
+    governance,
+    usdc,
+  } = await deployContractsExceptCustodian(
+    owner,
+    exitFundWallet,
+    feeWallet,
+    indexPriceServiceWallet,
+    insuranceFund,
+    governanceBlockDelay,
+    balanceMigrationSource,
+    baseAssetSymbols,
+  );
 
   const Custodian = await ethers.getContractFactory('Custodian');
   const custodian = await (
@@ -304,7 +350,7 @@ export async function deployAndAssociateContracts(
   ]);
 
   if (addDefaultMarket) {
-    await addAndActivateMarket(chainlinkAggregator, dispatcher, exchange);
+    await addAndActivateMarket(dispatcher, exchange);
   }
 
   return {
@@ -313,6 +359,7 @@ export async function deployAndAssociateContracts(
     exchange,
     ExchangeFactory,
     governance,
+    indexPriceAdapter,
     usdc,
   };
 }
@@ -419,6 +466,7 @@ export async function executeTrade(
   exchange: Exchange_v4,
   dispatcherWallet: SignerWithAddress,
   indexPrice: IndexPrice | null,
+  indexPriceAdapterAddress: string,
   trader1: SignerWithAddress,
   trader2: SignerWithAddress,
   baseAssetSymbol_ = baseAssetSymbol,
@@ -428,7 +476,9 @@ export async function executeTrade(
   if (indexPrice) {
     await exchange
       .connect(dispatcherWallet)
-      .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+      .publishIndexPrices([
+        indexPriceToArgumentStruct(indexPriceAdapterAddress, indexPrice),
+      ]);
   }
 
   const sellOrder: Order = {

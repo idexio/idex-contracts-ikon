@@ -17,6 +17,7 @@ import {
 import type {
   Exchange_v4,
   FundingMultiplierMock,
+  IDEXIndexPriceAdapter,
   USDC,
 } from '../typechain-types';
 import {
@@ -35,6 +36,7 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
   let indexPrice: IndexPrice;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let usdc: USDC;
 
@@ -58,14 +60,11 @@ describe('Exchange', function () {
       false,
     );
     exchange = results.exchange;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     await increaseTo(await getMidnightTomorrowInSecondsUTC());
-    await addAndActivateMarket(
-      results.chainlinkAggregator,
-      dispatcherWallet,
-      exchange,
-    );
+    await addAndActivateMarket(dispatcherWallet, exchange);
     await increase(fundingPeriodLengthInMs / 1000);
 
     indexPrice = await buildIndexPrice(
@@ -78,7 +77,9 @@ describe('Exchange', function () {
     it('should work for funding periods after initial backfill when there are no gaps', async function () {
       await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
 
       await exchange
         .connect(dispatcherWallet)
@@ -93,6 +94,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
@@ -128,7 +130,9 @@ describe('Exchange', function () {
     it('should work with missing periods between multipliers', async function () {
       await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
 
       await exchange
         .connect(dispatcherWallet)
@@ -143,6 +147,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
@@ -190,7 +195,9 @@ describe('Exchange', function () {
 
       await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
 
       exchange
         .connect(dispatcherWallet)
@@ -203,6 +210,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
@@ -243,7 +251,9 @@ describe('Exchange', function () {
     it('should work for wallet with outstanding funding payments', async function () {
       await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(indexPrice)]);
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+        ]);
 
       await exchange
         .connect(dispatcherWallet)
@@ -260,6 +270,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         trader1Wallet,
         trader2Wallet,
       );
@@ -289,6 +300,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithTimestamp(
               exchange.address,
               indexPriceServiceWallet,

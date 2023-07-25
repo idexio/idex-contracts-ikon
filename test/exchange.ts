@@ -35,8 +35,9 @@ describe('Exchange', function () {
         ethers.constants.AddressZero,
         ownerWallet.address,
         ownerWallet.address,
-        [ownerWallet.address],
+        [usdc.address],
         ownerWallet.address,
+        usdc.address,
         usdc.address,
       );
     });
@@ -51,8 +52,9 @@ describe('Exchange', function () {
         balanceMigrationSourceMock.address,
         ownerWallet.address,
         ownerWallet.address,
-        [ownerWallet.address],
+        [usdc.address],
         ownerWallet.address,
+        usdc.address,
         usdc.address,
       );
     });
@@ -65,8 +67,9 @@ describe('Exchange', function () {
           ownerWallet.address,
           ownerWallet.address,
           ownerWallet.address,
-          [ownerWallet.address],
+          [usdc.address],
           ownerWallet.address,
+          usdc.address,
           usdc.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid migration source/i);
@@ -83,14 +86,15 @@ describe('Exchange', function () {
           balanceMigrationSourceMock.address,
           ownerWallet.address,
           ownerWallet.address,
-          [ownerWallet.address],
+          [usdc.address],
           ownerWallet.address,
+          usdc.address,
           ownerWallet.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
     });
 
-    it('should revert for zero IPS wallet', async () => {
+    it('should revert for zero index price adapter address', async () => {
       const [ownerWallet] = await ethers.getSigners();
 
       const balanceMigrationSourceMock =
@@ -104,8 +108,9 @@ describe('Exchange', function () {
           [ethers.constants.AddressZero],
           ownerWallet.address,
           usdc.address,
+          usdc.address,
         ),
-      ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
+      ).to.eventually.be.rejectedWith(/invalid index price adapter address/i);
     });
 
     it('should revert for zero IF wallet', async () => {
@@ -116,11 +121,31 @@ describe('Exchange', function () {
           ethers.constants.AddressZero,
           ownerWallet.address,
           ownerWallet.address,
-          [ownerWallet.address],
+          [usdc.address],
           ethers.constants.AddressZero,
+          usdc.address,
           usdc.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid IF wallet/i);
+    });
+
+    it('should revert for zero oracle price adapter address', async () => {
+      const [ownerWallet] = await ethers.getSigners();
+
+      const balanceMigrationSourceMock =
+        await BalanceMigrationSourceMockFactory.deploy(0);
+
+      await expect(
+        ExchangeFactory.deploy(
+          balanceMigrationSourceMock.address,
+          ownerWallet.address,
+          ownerWallet.address,
+          [usdc.address],
+          ownerWallet.address,
+          ethers.constants.AddressZero,
+          usdc.address,
+        ),
+      ).to.eventually.be.rejectedWith(/invalid oracle price adapter address/i);
     });
   });
 
@@ -144,7 +169,7 @@ describe('Exchange', function () {
     describe('setIndexPriceServiceWallets', async function () {
       it('should revert when not called by Governance', async () => {
         await expect(
-          exchange.setIndexPriceServiceWallets([]),
+          exchange.setIndexPriceAdapters([]),
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
     });
@@ -153,6 +178,14 @@ describe('Exchange', function () {
       it('should revert when not called by Governance', async () => {
         await expect(
           exchange.setInsuranceFundWallet(ethers.constants.AddressZero),
+        ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
+      });
+    });
+
+    describe('setOraclePriceAdapter', async function () {
+      it('should revert when not called by Governance', async () => {
+        await expect(
+          exchange.setOraclePriceAdapter(ethers.constants.AddressZero),
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
     });
@@ -202,6 +235,7 @@ describe('Exchange', function () {
         [usdc.address],
         ownerWallet.address,
         usdc.address,
+        usdc.address,
       );
 
       const CustodianFactory = await ethers.getContractFactory('Custodian');
@@ -221,6 +255,7 @@ describe('Exchange', function () {
         ownerWallet.address,
         [usdc.address],
         ownerWallet.address,
+        usdc.address,
         usdc.address,
       );
 
@@ -243,8 +278,9 @@ describe('Exchange', function () {
         ethers.constants.AddressZero,
         ownerWallet.address,
         ownerWallet.address,
-        [ownerWallet.address],
+        [usdc.address],
         ownerWallet.address,
+        usdc.address,
         usdc.address,
       );
 
@@ -259,8 +295,9 @@ describe('Exchange', function () {
         ethers.constants.AddressZero,
         ownerWallet.address,
         ownerWallet.address,
-        [ownerWallet.address],
+        [usdc.address],
         ownerWallet.address,
+        usdc.address,
         usdc.address,
       );
 
@@ -289,8 +326,9 @@ describe('Exchange', function () {
         ethers.constants.AddressZero,
         ownerWallet.address,
         ownerWallet.address,
-        [ownerWallet.address],
+        [usdc.address],
         ownerWallet.address,
+        usdc.address,
         usdc.address,
       );
 

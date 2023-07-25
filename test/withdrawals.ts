@@ -10,7 +10,7 @@ import {
   indexPriceToArgumentStruct,
   Withdrawal,
 } from '../lib';
-import { Exchange_v4, USDC } from '../typechain-types';
+import { Exchange_v4, IDEXIndexPriceAdapter, USDC } from '../typechain-types';
 import {
   baseAssetSymbol,
   buildIndexPrice,
@@ -27,6 +27,7 @@ describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let feeWallet: SignerWithAddress;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let signature: string;
   let traderWallet: SignerWithAddress;
@@ -53,6 +54,7 @@ describe('Exchange', function () {
       wallets[6],
     );
     exchange = results.exchange;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     const depositQuantity = ethers.utils.parseUnits('5.0', quoteAssetDecimals);
@@ -142,6 +144,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         traderWallet,
         trader2Wallet,
       );
@@ -153,6 +156,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -200,6 +204,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         traderWallet,
         trader2Wallet,
       );
@@ -243,6 +248,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         traderWallet,
         trader2Wallet,
       );
@@ -254,6 +260,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,

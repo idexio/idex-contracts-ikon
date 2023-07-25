@@ -28,7 +28,12 @@ import {
   Trade,
   uuidToHexString,
 } from '../lib';
-import type { Exchange_v4, Governance, USDC } from '../typechain-types';
+import type {
+  Exchange_v4,
+  Governance,
+  IDEXIndexPriceAdapter,
+  USDC,
+} from '../typechain-types';
 
 describe('Exchange', function () {
   let buyOrder: Order;
@@ -37,6 +42,7 @@ describe('Exchange', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
@@ -75,6 +81,7 @@ describe('Exchange', function () {
     );
     exchange = results.exchange;
     governance = results.governance;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     await usdc.faucet(dispatcherWallet.address);
@@ -85,6 +92,7 @@ describe('Exchange', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
+          indexPriceAdapter.address,
           await buildIndexPrice(exchange.address, indexPriceServiceWallet),
         ),
       ]);
@@ -178,6 +186,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         trader1Wallet,
         trader2Wallet,
       );
@@ -220,6 +229,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         trader2Wallet,
         trader1Wallet,
         baseAssetSymbol,
@@ -265,6 +275,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         trader2Wallet,
         trader1Wallet,
         baseAssetSymbol,
@@ -343,6 +354,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -436,6 +448,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -1182,6 +1195,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+        indexPriceAdapter.address,
         trader1Wallet,
         trader2Wallet,
       );

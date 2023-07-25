@@ -13,11 +13,12 @@ library Constants {
 
   string public constant EIP_712_DOMAIN_VERSION = "105";
 
+  // https://eips.ethereum.org/EIPS/eip-712#definition-of-domainseparator
+  bytes32 public constant EIP_712_TYPE_HASH_DOMAIN =
+    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
   bytes32 public constant EIP_712_TYPE_HASH_DELEGATED_KEY_AUTHORIZATION =
     keccak256("DelegatedKeyAuthorization(uint128 nonce,address delegatedPublicKey,string message)");
-
-  bytes32 public constant EIP_712_TYPE_HASH_INDEX_PRICE =
-    keccak256("IndexPrice(string baseAssetSymbol,string quoteAssetSymbol,uint64 timestampInMs,string price)");
 
   bytes32 public constant EIP_712_TYPE_HASH_ORDER =
     keccak256(
@@ -36,9 +37,7 @@ library Constants {
 
   bytes32 public constant DELEGATED_KEY_AUTHORIZATION_MESSAGE_HASH =
     keccak256(
-      bytes(
-        "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees."
-      )
+      "Hello from the IDEX team! Sign this message to prove you have control of this wallet. This won't cost you any gas fees."
     );
 
   // 1 week at 3s/block

@@ -6,6 +6,7 @@ import { ethers, network } from 'hardhat';
 import type {
   Exchange_v4,
   Governance,
+  IDEXIndexPriceAdapter,
   LiquidationValidationsMock,
   USDC,
 } from '../typechain-types';
@@ -25,6 +26,7 @@ describe('Exchange', function () {
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
   let indexPrice: IndexPrice;
+  let indexPriceAdapter: IDEXIndexPriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let ownerWallet: SignerWithAddress;
@@ -61,6 +63,7 @@ describe('Exchange', function () {
     );
     exchange = results.exchange;
     governance = results.governance;
+    indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     await results.usdc.faucet(dispatcherWallet.address);
@@ -76,6 +79,7 @@ describe('Exchange', function () {
       exchange,
       dispatcherWallet,
       indexPrice,
+      indexPriceAdapter.address,
       trader1Wallet,
       trader2Wallet,
     );
@@ -171,6 +175,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -193,6 +198,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -261,6 +267,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -448,6 +455,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -471,6 +479,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -514,6 +523,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -547,6 +557,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
@@ -583,7 +594,9 @@ describe('Exchange', function () {
 
       await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices([indexPriceToArgumentStruct(newIndexPrice)]);
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(indexPriceAdapter.address, newIndexPrice),
+        ]);
 
       await exchange.connect(trader2Wallet).exitWallet();
     });
@@ -680,6 +693,7 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,

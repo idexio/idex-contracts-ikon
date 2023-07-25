@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.18;
 
-import { Balance, OverridableMarketFields } from "./Structs.sol";
+import { Balance, IndexPrice, Market, OverridableMarketFields } from "./Structs.sol";
 
 interface IBridgeAdapter {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) external;
@@ -92,6 +92,23 @@ interface IExchange {
   function loadBaseAssetSymbolsWithOpenPositionsByWallet(address wallet) external view returns (string[] memory);
 
   /**
+   * @notice Loads the total count of all markets added
+   *
+   * @return The total count of all markets added
+   *
+   */
+  function loadMarketsLength() external view returns (uint256);
+
+  /**
+   * @notice Loads the Market at the given index by addition order
+   *
+   * @param index The index at which to load
+   *
+   * @return The Market at the given index by addition order
+   */
+  function loadMarket(uint8 index) external view returns (Market memory);
+
+  /**
    * @notice Load the address of the Custodian contract
    *
    * @return The address of the Custodian contract
@@ -136,11 +153,11 @@ interface IExchange {
   function setBridgeAdapters(IBridgeAdapter[] memory newBridgeAdapters) external;
 
   /**
-   * @notice Sets IPS wallet addresses whitelisted to sign Index Price payloads
+   * @notice Sets Index Price Adapter contract addresses
    *
-   * @param newIndexPriceServiceWallets An array of IPS wallet addresses
+   * @param newIndexPriceAdapters An array of contract addresses
    */
-  function setIndexPriceServiceWallets(address[] memory newIndexPriceServiceWallets) external;
+  function setIndexPriceAdapters(IIndexPriceAdapter[] memory newIndexPriceAdapters) external;
 
   /**
    * @notice Sets IF wallet address
@@ -161,4 +178,36 @@ interface IExchange {
     OverridableMarketFields memory overridableFields,
     address wallet
   ) external;
+
+  /**
+   * @notice Sets Oracle Price Adapter contract address
+   *
+   * @param newOraclePriceAdapter The new contract addresses
+   */
+  function setOraclePriceAdapter(IOraclePriceAdapter newOraclePriceAdapter) external;
+}
+
+/**
+ * @notice Interface to Oracle Price Adapter
+ */
+interface IOraclePriceAdapter {
+  /**
+   * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
+   */
+  function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) external view returns (uint64 price);
+
+  /**
+   * @notice Sets adapter as active, indicating that it is now whitelisted by the Exchange
+   */
+  function setActive(IExchange exchange) external;
+}
+
+/**
+ * @notice Interface to Index Price Adapter
+ */
+interface IIndexPriceAdapter is IOraclePriceAdapter {
+  /**
+   * @notice Validate encoded payload and return decoded `IndexPrice` struct
+   */
+  function validateIndexPricePayload(bytes calldata payload) external returns (IndexPrice memory);
 }

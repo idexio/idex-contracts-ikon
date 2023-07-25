@@ -169,7 +169,7 @@ async function bootstrapExitedWallet() {
     trader1Wallet,
     trader2Wallet,
   ] = await ethers.getSigners();
-  const { chainlinkAggregator, exchange, usdc } =
+  const { chainlinkAggregator, exchange, indexPriceAdapter, usdc } =
     await deployAndAssociateContracts(
       ownerWallet,
       dispatcherWallet,
@@ -196,6 +196,7 @@ async function bootstrapExitedWallet() {
     exchange,
     dispatcherWallet,
     indexPrice,
+    indexPriceAdapter.address,
     trader1Wallet,
     trader2Wallet,
   );
