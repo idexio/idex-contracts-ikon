@@ -146,4 +146,64 @@ describe('Math', function () {
       ).to.eventually.be.rejectedWith(/pip quantity underflows int64/i);
     });
   });
+
+  describe('toInt64FromInt256', async function () {
+    it('should work for valid arguments', async () => {
+      expect((await mathMock.toInt64FromInt256(-1)).toString()).equal('-1');
+      expect((await mathMock.toInt64FromInt256(-10000)).toString()).equal(
+        '-10000',
+      );
+      expect((await mathMock.toInt64FromInt256(1)).toString()).equal('1');
+      expect(
+        (
+          await mathMock.toInt64FromInt256(new BigNumber(2).pow(62).toString())
+        ).toString(),
+      ).equal(new BigNumber(2).pow(62).toString());
+      expect(
+        (
+          await mathMock.toInt64FromInt256(
+            new BigNumber(2).pow(63).minus(1).toString(),
+          )
+        ).toString(),
+      ).equal(new BigNumber(2).pow(63).minus(1).toString());
+    });
+
+    it('should revert on overflow', async () => {
+      await expect(
+        mathMock.toInt64FromInt256(new BigNumber(2).pow(63).toString()),
+      ).to.eventually.be.rejectedWith(/pip quantity overflows int64/i);
+    });
+
+    it('should revert on underflow', async () => {
+      await expect(
+        mathMock.toInt64FromInt256(
+          new BigNumber(2).pow(64).negated().toString(),
+        ),
+      ).to.eventually.be.rejectedWith(/pip quantity underflows int64/i);
+    });
+  });
+
+  describe('toInt64FromUint64', async function () {
+    it('should work for valid arguments', async () => {
+      expect((await mathMock.toInt64FromUint64(1)).toString()).equal('1');
+      expect(
+        (
+          await mathMock.toInt64FromUint64(new BigNumber(2).pow(62).toString())
+        ).toString(),
+      ).equal(new BigNumber(2).pow(62).toString());
+      expect(
+        (
+          await mathMock.toInt64FromUint64(
+            new BigNumber(2).pow(63).minus(1).toString(),
+          )
+        ).toString(),
+      ).equal(new BigNumber(2).pow(63).minus(1).toString());
+    });
+
+    it('should revert on overflow', async () => {
+      await expect(
+        mathMock.toInt64FromUint64(new BigNumber(2).pow(63).toString()),
+      ).to.eventually.be.rejectedWith(/pip quantity overflows int64/i);
+    });
+  });
 });

@@ -35,21 +35,19 @@ library LiquidationValidations {
       return 0;
     }
 
-    int256 quoteQuantityInDoublePips = int256(positionSize) * int64(indexPrice);
+    int256 quoteQuantityInDoublePips = int256(positionSize) * Math.toInt64(indexPrice);
 
     int256 quotePenaltyInDoublePips = ((positionSize < 0 ? int256(1) : int256(-1)) *
       quoteQuantityInDoublePips *
-      int64(maintenanceMarginFraction) *
+      Math.toInt64(maintenanceMarginFraction) *
       totalAccountValue) /
-      int64(totalMaintenanceMarginRequirement) /
-      int64(Constants.PIP_PRICE_MULTIPLIER);
+      Math.toInt64(totalMaintenanceMarginRequirement) /
+      Math.toInt64(Constants.PIP_PRICE_MULTIPLIER);
 
     int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
-      (int64(Constants.PIP_PRICE_MULTIPLIER));
-    require(quoteQuantity <= type(int64).max, "Pip quantity overflows int64");
-    require(quoteQuantity >= type(int64).min, "Pip quantity underflows int64");
+      (Math.toInt64(Constants.PIP_PRICE_MULTIPLIER));
 
-    return Math.abs(int64(quoteQuantity));
+    return Math.abs(Math.toInt64(quoteQuantity));
   }
 
   function validateDeactivatedMarketLiquidationQuoteQuantity(

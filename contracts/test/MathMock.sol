@@ -40,4 +40,12 @@ contract MathMock {
   ) public pure returns (int64) {
     return Math.multiplyPipsByFraction(multiplicand, fractionDividend, fractionDivisor);
   }
+
+  function toInt64FromInt256(int256 value) public pure returns (int64) {
+    return Math.toInt64(value);
+  }
+
+  function toInt64FromUint64(uint64 value) public pure returns (int64) {
+    return Math.toInt64(value);
+  }
 }

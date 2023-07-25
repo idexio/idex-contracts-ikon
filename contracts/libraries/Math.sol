@@ -63,4 +63,15 @@ library Math {
 
     return int64(result);
   }
+
+  function toInt64(int256 value) internal pure returns (int64) {
+    require(value <= type(int64).max, "Pip quantity overflows int64");
+    require(value >= type(int64).min, "Pip quantity underflows int64");
+    return int64(value);
+  }
+
+  function toInt64(uint64 value) internal pure returns (int64) {
+    require(value <= uint64(type(int64).max), "Pip quantity overflows int64");
+    return int64(value);
+  }
 }

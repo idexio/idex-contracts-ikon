@@ -36,7 +36,7 @@ library BalanceTracking {
 
   function updateForDeposit(Storage storage self, address wallet, uint64 quantity) internal returns (int64 newBalance) {
     Balance storage balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, wallet, Constants.QUOTE_ASSET_SYMBOL);
-    balanceStruct.balance += int64(quantity);
+    balanceStruct.balance += Math.toInt64(quantity);
 
     return balanceStruct.balance;
   }
@@ -123,15 +123,15 @@ library BalanceTracking {
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
     if (isLiquidatingWalletPositionShort) {
       // Wallet gives quote including fee if short
-      balanceStruct.balance -= int64(quoteQuantity + feeQuantity);
+      balanceStruct.balance -= Math.toInt64(quoteQuantity + feeQuantity);
     } else {
       // Wallet receives quote minus fee if long
-      balanceStruct.balance += int64(quoteQuantity - feeQuantity);
+      balanceStruct.balance += Math.toInt64(quoteQuantity - feeQuantity);
     }
 
     // Fee wallet receives fee
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
-    balanceStruct.balance += int64(feeQuantity);
+    balanceStruct.balance += Math.toInt64(feeQuantity);
   }
 
   function updateRemainingQuoteBalanceAfterWalletLiquidation(
@@ -247,7 +247,7 @@ library BalanceTracking {
 
     // Return the change to the EF's quote balance needed to acquire the position. For short positions, the EF
     // receives quote so returns a positive value. For long positions, the EF gives quote and returns a negative value
-    return positionSize < 0 ? int64(quoteQuantity) : -1 * int64(quoteQuantity);
+    return positionSize < 0 ? Math.toInt64(quoteQuantity) : -1 * Math.toInt64(quoteQuantity);
 
     // The Exit Fund quote balance is not updated here, but instead is updated a single time in the calling function
     // after summing the quote quantities needed to close each wallet position
@@ -271,15 +271,15 @@ library BalanceTracking {
     Balance storage balanceStruct;
 
     (int64 buyFee, int64 sellFee) = arguments.trade.makerSide == OrderSide.Buy
-      ? (arguments.trade.makerFeeQuantity, int64(arguments.trade.takerFeeQuantity))
-      : (int64(arguments.trade.takerFeeQuantity), arguments.trade.makerFeeQuantity);
+      ? (arguments.trade.makerFeeQuantity, Math.toInt64(arguments.trade.takerFeeQuantity))
+      : (Math.toInt64(arguments.trade.takerFeeQuantity), arguments.trade.makerFeeQuantity);
 
     // Seller gives base asset
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.sell.wallet, arguments.trade.baseAssetSymbol);
     if (arguments.sell.isReduceOnly) {
       _validatePositionUpdatedTowardsZero(
         balanceStruct.balance,
-        balanceStruct.balance - int64(arguments.trade.baseQuantity)
+        balanceStruct.balance - Math.toInt64(arguments.trade.baseQuantity)
       );
     }
     _subtractFromPosition(
@@ -305,7 +305,7 @@ library BalanceTracking {
     if (arguments.buy.isReduceOnly) {
       _validatePositionUpdatedTowardsZero(
         balanceStruct.balance,
-        balanceStruct.balance + int64(arguments.trade.baseQuantity)
+        balanceStruct.balance + Math.toInt64(arguments.trade.baseQuantity)
       );
     }
     _addToPosition(
@@ -328,11 +328,11 @@ library BalanceTracking {
 
     // Buyer gives quote asset including fees
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.buy.wallet, Constants.QUOTE_ASSET_SYMBOL);
-    balanceStruct.balance -= int64(arguments.trade.quoteQuantity) + buyFee;
+    balanceStruct.balance -= Math.toInt64(arguments.trade.quoteQuantity) + buyFee;
 
     // Seller receives quote asset minus fees
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, arguments.sell.wallet, Constants.QUOTE_ASSET_SYMBOL);
-    balanceStruct.balance += int64(arguments.trade.quoteQuantity) - sellFee;
+    balanceStruct.balance += Math.toInt64(arguments.trade.quoteQuantity) - sellFee;
 
     // Fee wallet receives maker and taker fees
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
@@ -351,17 +351,17 @@ library BalanceTracking {
     // Remove quote amount from source wallet balance
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, transfer.sourceWallet, Constants.QUOTE_ASSET_SYMBOL);
     // The calling function will subsequently validate this balance change by checking initial margin requirement
-    balanceStruct.balance -= int64(transfer.grossQuantity);
+    balanceStruct.balance -= Math.toInt64(transfer.grossQuantity);
     newSourceWalletExchangeBalance = balanceStruct.balance;
 
     // Send quote amount minus gas fee (if any) to destination wallet balance
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, transfer.destinationWallet, Constants.QUOTE_ASSET_SYMBOL);
-    balanceStruct.balance += int64(transfer.grossQuantity - transfer.gasFee);
+    balanceStruct.balance += Math.toInt64(transfer.grossQuantity - transfer.gasFee);
 
     if (transfer.gasFee > 0) {
       balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
 
-      balanceStruct.balance += int64(transfer.gasFee);
+      balanceStruct.balance += Math.toInt64(transfer.gasFee);
     }
   }
 
@@ -376,13 +376,13 @@ library BalanceTracking {
 
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, withdrawal.wallet, Constants.QUOTE_ASSET_SYMBOL);
     // The calling function will subsequently validate this balance change by checking initial margin requirement
-    balanceStruct.balance -= int64(withdrawal.grossQuantity);
+    balanceStruct.balance -= Math.toInt64(withdrawal.grossQuantity);
     newExchangeBalance = balanceStruct.balance;
 
     if (withdrawal.gasFee > 0) {
       balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, feeWallet, Constants.QUOTE_ASSET_SYMBOL);
 
-      balanceStruct.balance += int64(withdrawal.gasFee);
+      balanceStruct.balance += Math.toInt64(withdrawal.gasFee);
     }
   }
 
@@ -450,7 +450,7 @@ library BalanceTracking {
     Balance storage balanceStruct,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) private {
-    int64 newBalance = balanceStruct.balance + int64(baseQuantity);
+    int64 newBalance = balanceStruct.balance + Math.toInt64(baseQuantity);
 
     // Position closed
     if (newBalance == 0) {
@@ -469,16 +469,20 @@ library BalanceTracking {
 
     if (balanceStruct.balance >= 0) {
       // Increase position
-      balanceStruct.costBasis += int64(quoteQuantity);
+      balanceStruct.costBasis += Math.toInt64(quoteQuantity);
     } else if (newBalance > 0) {
       // Going from negative to positive. Only the portion of the quote qty that contributed to the new, positive
       // balance is its cost. Base quantity validated non-zero by calling function
-      balanceStruct.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
+      balanceStruct.costBasis = Math.multiplyPipsByFraction(
+        Math.toInt64(quoteQuantity),
+        newBalance,
+        Math.toInt64(baseQuantity)
+      );
     } else {
       // Reduce cost basis proportional to reduction of position
       balanceStruct.costBasis += Math.multiplyPipsByFraction(
         balanceStruct.costBasis,
-        int64(baseQuantity),
+        Math.toInt64(baseQuantity),
         balanceStruct.balance
       );
     }
@@ -494,7 +498,7 @@ library BalanceTracking {
     Balance storage balanceStruct,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
   ) private {
-    int64 newBalance = balanceStruct.balance - int64(baseQuantity);
+    int64 newBalance = balanceStruct.balance - Math.toInt64(baseQuantity);
 
     // Position closed
     if (newBalance == 0) {
@@ -513,16 +517,20 @@ library BalanceTracking {
 
     if (balanceStruct.balance <= 0) {
       // Increase position
-      balanceStruct.costBasis -= int64(quoteQuantity);
+      balanceStruct.costBasis -= Math.toInt64(quoteQuantity);
     } else if (newBalance < 0) {
       // Going from positive to negative. Only the portion of the quote qty that contributed to the new, positive balance
       // is its cost. Base quantity validated non-zero by calling function
-      balanceStruct.costBasis = Math.multiplyPipsByFraction(int64(quoteQuantity), newBalance, int64(baseQuantity));
+      balanceStruct.costBasis = Math.multiplyPipsByFraction(
+        Math.toInt64(quoteQuantity),
+        newBalance,
+        Math.toInt64(baseQuantity)
+      );
     } else {
       // Reduce cost basis proportional to reduction of position
       balanceStruct.costBasis -= Math.multiplyPipsByFraction(
         balanceStruct.costBasis,
-        int64(baseQuantity),
+        Math.toInt64(baseQuantity),
         balanceStruct.balance
       );
     }
@@ -568,7 +576,7 @@ library BalanceTracking {
     if (isLiquidatingWalletPositionShort) {
       if (isDeleverage) {
         // Counterparty position must decrease during deleveraging
-        _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - int64(baseQuantity));
+        _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - Math.toInt64(baseQuantity));
       }
 
       // Take on short position by subtracting base quantity
@@ -583,7 +591,7 @@ library BalanceTracking {
     } else {
       if (isDeleverage) {
         // Counterparty position must decrease during deleveraging
-        _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + int64(baseQuantity));
+        _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + Math.toInt64(baseQuantity));
       }
 
       // Take on long position by adding base quantity
@@ -609,10 +617,10 @@ library BalanceTracking {
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, counterpartyWallet, Constants.QUOTE_ASSET_SYMBOL);
     if (isLiquidatingWalletPositionShort) {
       // Counterparty receives quote when taking on short position
-      balanceStruct.balance += int64(quoteQuantity);
+      balanceStruct.balance += Math.toInt64(quoteQuantity);
     } else {
       // Counterparty gives quote when taking on long position
-      balanceStruct.balance -= int64(quoteQuantity);
+      balanceStruct.balance -= Math.toInt64(quoteQuantity);
     }
   }
 
@@ -644,7 +652,7 @@ library BalanceTracking {
 
     if (isLiquidatingWalletPositionShort) {
       // Decrease negative short position by adding base quantity to it
-      _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + int64(baseQuantity));
+      _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + Math.toInt64(baseQuantity));
 
       // Decrease short position by adding base quantity
       _addToPosition(
@@ -657,7 +665,7 @@ library BalanceTracking {
       );
     } else {
       // Decrease positive long position by subtracting base quantity from it
-      _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - int64(baseQuantity));
+      _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - Math.toInt64(baseQuantity));
 
       // Decrease long position by subtracting base quantity
       _subtractFromPosition(
@@ -682,10 +690,10 @@ library BalanceTracking {
     balanceStruct = loadBalanceStructAndMigrateIfNeeded(self, liquidatingWallet, Constants.QUOTE_ASSET_SYMBOL);
     if (isLiquidatingWalletPositionShort) {
       // Liquidating wallet gives quote if short
-      balanceStruct.balance -= int64(quoteQuantity);
+      balanceStruct.balance -= Math.toInt64(quoteQuantity);
     } else {
       // Liquidating wallet receives quote if long
-      balanceStruct.balance += int64(quoteQuantity);
+      balanceStruct.balance += Math.toInt64(quoteQuantity);
     }
   }
 

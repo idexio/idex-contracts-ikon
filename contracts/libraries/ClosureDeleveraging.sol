@@ -141,7 +141,9 @@ library ClosureDeleveraging {
     LiquidationValidations.validateExitFundClosureQuoteQuantity(
       market.lastIndexPrice,
       Math.abs(positionSize) < market.overridableFields.minimumPositionSize,
-      positionSize < 0 ? (-1 * int64(arguments.liquidationBaseQuantity)) : int64(arguments.liquidationBaseQuantity),
+      positionSize < 0
+        ? (-1 * Math.toInt64(arguments.liquidationBaseQuantity))
+        : Math.toInt64(arguments.liquidationBaseQuantity),
       arguments.liquidationQuoteQuantity,
       // Use market default values instead of wallet-specific overrides for the EF, since its margin fraction is zero
       market.overridableFields.maintenanceMarginFraction,

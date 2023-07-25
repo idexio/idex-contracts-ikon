@@ -93,28 +93,28 @@ library FundingMultiplierQuartetHelper {
       aggregatePayment += Math.multiplyPipsByFraction(
         positionSize,
         fundingMultipliers.fundingMultiplier0,
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
     if (startOffset <= 1 && endOffset >= 1) {
       aggregatePayment += Math.multiplyPipsByFraction(
         positionSize,
         fundingMultipliers.fundingMultiplier1,
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
     if (startOffset <= 2 && endOffset >= 2) {
       aggregatePayment += Math.multiplyPipsByFraction(
         positionSize,
         fundingMultipliers.fundingMultiplier2,
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
     if (startOffset <= 3 && endOffset == 3) {
       aggregatePayment += Math.multiplyPipsByFraction(
         positionSize,
         fundingMultipliers.fundingMultiplier3,
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
   }

@@ -105,12 +105,12 @@ library Funding {
     }
 
     int64 newFundingMultiplier = Math.multiplyPipsByFraction(
-      int64(market.lastIndexPrice),
+      Math.toInt64(market.lastIndexPrice),
       // The funding rate is positive when longs pay shorts, and negative when shorts pay longs. Flipping the sign
       // on the stored multiplier allows it to be directly multiplied by a wallet's position size to determine its
       // funding credit or debit
       -1 * fundingRate,
-      int64(Constants.PIP_PRICE_MULTIPLIER)
+      Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
     );
 
     fundingMultipliersByBaseAssetSymbol[baseAssetSymbol].publishFundingMultiplier(newFundingMultiplier);

@@ -232,8 +232,8 @@ library OraclePriceMargin {
 
       totalAccountValue += Math.multiplyPipsByFraction(
         balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-        int64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol)),
-        int64(Constants.PIP_PRICE_MULTIPLIER)
+        Math.toInt64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol)),
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
       );
     }
   }
@@ -318,10 +318,10 @@ library OraclePriceMargin {
 
       if (balanceStruct.balance < 0) {
         // Short positions have negative value
-        exitAccountValue -= int64(quoteQuantityForPosition);
+        exitAccountValue -= Math.toInt64(quoteQuantityForPosition);
       } else {
         // Long positions have positive value
-        exitAccountValue += int64(quoteQuantityForPosition);
+        exitAccountValue += Math.toInt64(quoteQuantityForPosition);
       }
     }
   }
@@ -338,11 +338,11 @@ library OraclePriceMargin {
         Math.multiplyPipsByFraction(
           Math.multiplyPipsByFraction(
             balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol),
-            int64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol)),
-            int64(Constants.PIP_PRICE_MULTIPLIER)
+            Math.toInt64(oraclePriceAdapter.loadPriceForBaseAssetSymbol(market.baseAssetSymbol)),
+            Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
           ),
-          int64(marginFraction),
-          int64(Constants.PIP_PRICE_MULTIPLIER)
+          Math.toInt64(marginFraction),
+          Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
         )
       );
   }
@@ -380,9 +380,9 @@ library OraclePriceMargin {
     // For short positions, the wallet gives quote to close the position so subtract. For long positions, the wallet
     // receives quote to close so add
     if (balanceStruct.balance < 0) {
-      return -1 * int64(quoteQuantityForPosition);
+      return -1 * Math.toInt64(quoteQuantityForPosition);
     }
 
-    return int64(quoteQuantityForPosition);
+    return Math.toInt64(quoteQuantityForPosition);
   }
 }
