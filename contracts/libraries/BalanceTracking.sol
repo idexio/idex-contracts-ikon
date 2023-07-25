@@ -466,7 +466,7 @@ library BalanceTracking {
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
-    require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
+    _validatePositionBelowMaximumOrDecreased(balanceStruct.balance, newBalance, maximumPositionSize);
 
     if (balanceStruct.balance >= 0) {
       // Increase position
@@ -514,7 +514,7 @@ library BalanceTracking {
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
-    require(Math.abs(newBalance) <= maximumPositionSize, "Max position size exceeded");
+    _validatePositionBelowMaximumOrDecreased(balanceStruct.balance, newBalance, maximumPositionSize);
 
     if (balanceStruct.balance <= 0) {
       // Increase position
@@ -746,6 +746,18 @@ library BalanceTracking {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet
     );
+  }
+
+  function _validatePositionBelowMaximumOrDecreased(
+    int64 originalPositionSize,
+    int64 newPositionSize,
+    uint64 maximumPositionSize
+  ) private pure {
+    uint64 newPositionSizeUnsigned = Math.abs(newPositionSize);
+
+    if (newPositionSizeUnsigned > maximumPositionSize) {
+      require(newPositionSizeUnsigned < Math.abs(originalPositionSize), "Max position size exceeded");
+    }
   }
 
   function _validatePositionUpdatedTowardsZero(int64 originalPositionSize, int64 newPositionSize) private pure {

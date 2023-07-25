@@ -166,8 +166,8 @@ library TradeValidations {
     Order memory sell,
     Trade memory trade
   ) private pure returns (bytes32, bytes32) {
-    bytes32 buyOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, buy);
-    bytes32 sellOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, sell);
+    bytes32 buyOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, buy, true);
+    bytes32 sellOrderHash = _validateSignatureForOrder(trade.baseAssetSymbol, domainSeparator, sell, false);
 
     return (buyOrderHash, sellOrderHash);
   }
@@ -175,8 +175,11 @@ library TradeValidations {
   function _validateSignatureForOrder(
     string memory baseAssetSymbol,
     bytes32 domainSeparator,
-    Order memory order
+    Order memory order,
+    bool isBuy
   ) private pure returns (bytes32) {
+    require(order.side == (isBuy ? OrderSide.Buy : OrderSide.Sell), "Order arguments do not match sides");
+
     bytes32 orderHash = Hashing.getOrderHash(order, baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL);
 
     bool isSignatureValid = order.isSignedByDelegatedKey
