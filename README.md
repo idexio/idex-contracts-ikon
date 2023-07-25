@@ -195,14 +195,18 @@ Ikon uses index prices rather than order book prices for all [margin calculation
 
 Index prices are frequently updated in Ikon’s off-chain infrastructure and lazily published on chain via Exchange’s `publishIndexPrices` by the dispatcher wallet. Specifically, on-chain index prices are only updated immediately prior to another dependent operation. For example, if the BTC-USD on-chain index price is out of date, Ikon’s off-chain infrastructure first publishes the latest index price for BTC before submitting a new trade for settlement. Lazy on-chain price updates minimize transaction volume and gas costs.
 
-- Index prices are collected by secure off-chain systems from a range of price sources. They are signed at the point of collection with signatures that are verified on chain. Updates to the set of valid signing wallets are subject to a governance delay for safety. See [controls and governance](#controls-and-governance) for details.
+
+- Ikon implements a modular index price validation system supporting an extensible range of pricing data sources. At launch, Ikon supports [Pyth Network](https://pyth.network/), [Stork](https://www.stork.network/), and an IDEX-operated first party index price data service.
+- Modular index price adapter contracts may be added, upgraded, or removed independently of [Exchange upgrades](#upgradability), subject to a governance delay for safety. See [controls and governance](#controls-and-governance) for details.
+- First party index prices are collected by secure off-chain systems from a range of price sources. They are signed at the point of collection with signatures that are verified on chain.
 - In addition to verifying signatures, contract logic also verifies that index price timestamps are greater than the last committed index price, and also that timestamps are not more than one day in the future.
 - Due to lazy index price updates, on-chain accessors that rely on index pricing, such as `loadTotalAccountValueFromIndexPrices` and other `*FromIndexPrices` functions, may return out-of-date values. 
 
 ## Oracle Pricing
 
-Some operations, such as [exited wallet](#wallet-exits) withdrawals, require up-to-date asset prices without access to Ikon’s real time [index prices](#index-pricing). For these use cases, Ikon contracts also include seamless access to [ChainLink](https://chain.link/) oracle pricing. The Ikon contract codebase refers to pricing sourced from on-chain from ChainLink as oracle pricing.
+Some operations, such as [exited wallet](#wallet-exits) withdrawals, require up-to-date asset prices without access to Ikon’s real time [index prices](#index-pricing). For these use cases, Ikon implements a modular oracle price system similar to its modular [index price](#index-pricing) system.
 
+- The active oracle price adapter may be updated independently of [Exchange upgrades](#upgradability), subject to a governance delay for safety. See [controls and governance](#controls-and-governance) for details.
 - Exchange includes on-chain accessors that use oracle pricing instead of index pricing, such as `loadTotalAccountValueFromOraclePrices` and other `*FromOraclePrices` functions, for convenient on-chain analysis. **Due to the difference in methodology between oracle price collection and index price collection, these functions may return different values than the index-price equivalents, even when index prices are up to date.**
 
 
