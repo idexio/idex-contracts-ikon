@@ -33,7 +33,7 @@ import {
 import type {
   Exchange_v4,
   Governance,
-  IDEXIndexPriceAdapter,
+  IDEXIndexAndOraclePriceAdapter,
   USDC,
 } from '../typechain-types';
 import { MarketStruct } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
@@ -45,7 +45,7 @@ describe.skip('Gas measurement', function () {
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
   let governance: Governance;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
   let marketStruct: MarketStruct;
@@ -1621,7 +1621,7 @@ describe.skip('Gas measurement', function () {
 async function publishFundingRates(
   exchange: Exchange_v4,
   dispatcherWallet: SignerWithAddress,
-  indexPriceAdapter: IDEXIndexPriceAdapter,
+  indexPriceAdapter: IDEXIndexAndOraclePriceAdapter,
   indexPriceServiceWallet: SignerWithAddress,
   count: number,
 ) {

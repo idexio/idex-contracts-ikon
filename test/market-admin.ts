@@ -3,7 +3,10 @@ import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
-import type { Exchange_v4, IDEXIndexPriceAdapter } from '../typechain-types';
+import type {
+  Exchange_v4,
+  IDEXIndexAndOraclePriceAdapter,
+} from '../typechain-types';
 import type { MarketStruct } from '../typechain-types/contracts/Exchange.sol/Exchange_v4';
 import {
   baseAssetSymbol,
@@ -17,7 +20,7 @@ import { indexPriceToArgumentStruct } from '../lib';
 
 describe('Exchange', function () {
   let exchange: Exchange_v4;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let marketStruct: MarketStruct;
   let ownerWallet: SignerWithAddress;

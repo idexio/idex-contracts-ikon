@@ -17,7 +17,7 @@ import {
 import type {
   Exchange_v4,
   FundingMultiplierMock,
-  IDEXIndexPriceAdapter,
+  IDEXIndexAndOraclePriceAdapter,
   USDC,
 } from '../typechain-types';
 import {
@@ -38,7 +38,7 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
   let indexPrice: IndexPrice;
-  let indexPriceAdapter: IDEXIndexPriceAdapter;
+  let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let usdc: USDC;
 
