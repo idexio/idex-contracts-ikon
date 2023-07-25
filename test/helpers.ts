@@ -236,6 +236,7 @@ export async function deployContractsExceptCustodian(
   governanceBlockDelay = 0,
   balanceMigrationSource?: string,
   baseAssetSymbols: string[] = [baseAssetSymbol],
+  useMockOraclePriceAdapter = false,
 ) {
   const [
     ChainlinkAggregatorFactory,
@@ -244,6 +245,7 @@ export async function deployContractsExceptCustodian(
     USDCFactory,
     ExchangeFactory,
     GovernanceFactory,
+    OraclePriceAdapterMockFactory,
   ] = await Promise.all([
     ethers.getContractFactory('ChainlinkAggregatorMock'),
     ethers.getContractFactory('ChainlinkOraclePriceAdapter'),
@@ -251,6 +253,7 @@ export async function deployContractsExceptCustodian(
     ethers.getContractFactory('USDC'),
     deployLibraryContracts(),
     ethers.getContractFactory('Governance'),
+    ethers.getContractFactory('OraclePriceAdapterMock'),
   ]);
 
   const chainlinkAggregator = await (
@@ -261,14 +264,15 @@ export async function deployContractsExceptCustodian(
 
   const usdc = await (await USDCFactory.connect(owner).deploy()).deployed();
 
-  const oraclePriceAdapter = await (
-    await ChainlinkOraclePriceAdapterFactory.connect(owner).deploy(
-      baseAssetSymbols,
-      // TODO Do we need to set on-chain prices separately per market?
-      Array.from(Array(baseAssetSymbols.length).keys()).map(
-        () => chainlinkAggregator.address,
-      ),
-    )
+  const oraclePriceAdapter = await (useMockOraclePriceAdapter
+    ? await OraclePriceAdapterMockFactory.connect(owner).deploy()
+    : await ChainlinkOraclePriceAdapterFactory.connect(owner).deploy(
+        baseAssetSymbols,
+        // TODO Do we need to set on-chain prices separately per market?
+        Array.from(Array(baseAssetSymbols.length).keys()).map(
+          () => chainlinkAggregator.address,
+        ),
+      )
   ).deployed();
 
   const indexPriceAdapter = await (
@@ -318,6 +322,7 @@ export async function deployAndAssociateContracts(
   addDefaultMarket = true,
   balanceMigrationSource?: string,
   baseAssetSymbols: string[] = [baseAssetSymbol],
+  useMockOraclePriceAdapter = false,
 ) {
   const {
     chainlinkAggregator,
@@ -335,6 +340,7 @@ export async function deployAndAssociateContracts(
     governanceBlockDelay,
     balanceMigrationSource,
     baseAssetSymbols,
+    useMockOraclePriceAdapter,
   );
 
   const Custodian = await ethers.getContractFactory('Custodian');

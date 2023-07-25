@@ -11,6 +11,7 @@ import {
   deployAndAssociateContracts,
   fundWallets,
   getLatestBlockTimestampInSeconds,
+  quoteAssetDecimals,
 } from './helpers';
 import {
   decimalToPips,
@@ -27,6 +28,7 @@ import {
   OrderType,
   signatureHashVersion,
   Trade,
+  IndexPricePayloadStruct,
 } from '../lib';
 import type {
   Exchange_v4,
@@ -80,6 +82,11 @@ describe.skip('Gas measurement', function () {
       feeWallet,
       indexPriceServiceWallet,
       insuranceFundWallet,
+      0,
+      true,
+      ethers.constants.AddressZero,
+      [baseAssetSymbol],
+      true,
     );
     exchange = results.exchange;
     governance = results.governance;
@@ -181,7 +188,87 @@ describe.skip('Gas measurement', function () {
     );
   });
 
-  describe('deleverage in maintenance', function () {
+  describe('deposit', function () {
+    it('for default destination wallet', async function () {
+      await usdc.transfer(
+        trader1Wallet.address,
+        ethers.utils.parseUnits('100.0', quoteAssetDecimals),
+      );
+
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      await usdc
+        .connect(trader1Wallet)
+        .approve(exchange.address, depositQuantity);
+      await exchange
+        .connect(trader1Wallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+
+      await usdc
+        .connect(trader1Wallet)
+        .approve(exchange.address, depositQuantity);
+      const result = await exchange
+        .connect(trader1Wallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData('deposit', [
+            depositQuantity,
+            ethers.constants.AddressZero,
+          ]).length -
+            2) /
+          2
+        }`,
+      );
+    });
+
+    it('for explicit destination wallet', async function () {
+      await usdc.transfer(
+        trader1Wallet.address,
+        ethers.utils.parseUnits('100.0', quoteAssetDecimals),
+      );
+
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      await usdc
+        .connect(trader1Wallet)
+        .approve(exchange.address, depositQuantity);
+      await exchange
+        .connect(trader1Wallet)
+        .deposit(depositQuantity, trader1Wallet.address);
+
+      await usdc
+        .connect(trader1Wallet)
+        .approve(exchange.address, depositQuantity);
+      const result = await exchange
+        .connect(trader1Wallet)
+        .deposit(depositQuantity, trader1Wallet.address);
+
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData('deposit', [
+            depositQuantity,
+            ethers.constants.AddressZero,
+          ]).length -
+            2) /
+          2
+        }`,
+      );
+    });
+  });
+
+  describe('deleverageInMaintenanceAcquisition', function () {
     it('for a single market', async function () {
       await exchange
         .connect(dispatcherWallet)
@@ -209,7 +296,30 @@ describe.skip('Gas measurement', function () {
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('22980.00000000'),
         });
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'deleverageInMaintenanceAcquisition',
+            [
+              {
+                baseAssetSymbol,
+                counterpartyWallet: trader2Wallet.address,
+                liquidatingWallet: trader1Wallet.address,
+                validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+                  '22980.00000000',
+                ].map(decimalToPips),
+                liquidationBaseQuantity: decimalToPips('10.00000000'),
+                liquidationQuoteQuantity: decimalToPips('22980.00000000'),
+              },
+            ],
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('for 5 markets', async function () {
@@ -287,7 +397,34 @@ describe.skip('Gas measurement', function () {
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         });
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'deleverageInMaintenanceAcquisition',
+            [
+              {
+                baseAssetSymbol,
+                counterpartyWallet: trader2Wallet.address,
+                liquidatingWallet: trader1Wallet.address,
+                validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
+                  '21980.00000000',
+                  '21980.00000000',
+                  '21980.00000000',
+                  '21980.00000000',
+                  '21980.00000000',
+                ].map(decimalToPips),
+                liquidationBaseQuantity: decimalToPips('10.00000000'),
+                liquidationQuoteQuantity: decimalToPips('21980.00000000'),
+              },
+            ],
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
   });
 
@@ -335,11 +472,29 @@ describe.skip('Gas measurement', function () {
           liquidatingWallet: trader2Wallet.address,
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         });
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'liquidatePositionBelowMinimum',
+            [
+              {
+                baseAssetSymbol,
+                liquidatingWallet: trader2Wallet.address,
+                liquidationQuoteQuantity: decimalToPips('20000.00000000'),
+              },
+            ],
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
   });
 
-  describe('Liquidate in maintenance', function () {
+  describe('liquidateWalletInMaintenance', function () {
     it('for a single market', async function () {
       await exchange
         .connect(dispatcherWallet)
@@ -349,21 +504,44 @@ describe.skip('Gas measurement', function () {
             await buildIndexPriceWithValue(
               exchange.address,
               indexPriceServiceWallet,
-              '2150.00000000',
+              '2400.00000000',
               baseAssetSymbol,
             ),
           ),
         ]);
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
 
       const result = await exchange
         .connect(dispatcherWallet)
         .liquidateWalletInMaintenance({
           counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
-          liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
+          liquidationQuoteQuantities: ['22980.00000000'].map(decimalToPips),
         });
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'liquidatePositionBelowMinimum',
+            [
+              {
+                baseAssetSymbol,
+                liquidatingWallet: trader1Wallet.address,
+                liquidationQuoteQuantity: decimalToPips('22980.00000000'),
+              },
+            ],
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('for 5 markets', async () => {
@@ -371,7 +549,7 @@ describe.skip('Gas measurement', function () {
         [trader1Wallet, trader2Wallet],
         exchange,
         usdc,
-        '8500.00000000',
+        '7800.00000000',
       );
 
       await fundWallets(
@@ -438,19 +616,43 @@ describe.skip('Gas measurement', function () {
           counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
           liquidationQuoteQuantities: [
-            '22080.00000000',
-            '22080.00000000',
-            '22080.00000000',
-            '22080.00000000',
-            '22080.00000000',
+            '22140.00000000',
+            '22140.00000000',
+            '22140.00000000',
+            '22140.00000000',
+            '22140.00000000',
           ].map(decimalToPips),
         });
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'liquidateWalletInMaintenance',
+            [
+              {
+                counterpartyWallet: insuranceFundWallet.address,
+                liquidatingWallet: trader1Wallet.address,
+                liquidationQuoteQuantities: [
+                  '22140.00000000',
+                  '22140.00000000',
+                  '22140.00000000',
+                  '22140.00000000',
+                  '22140.00000000',
+                ].map(decimalToPips),
+              },
+            ],
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
   });
 
-  describe('Withdraw', function () {
-    it('investigation 2', async function () {
+  describe('withdraw', function () {
+    it.skip('investigation 2', async function () {
       const baseAssetSymbols: string[] = ['XYZ1', 'XYZ2'];
       await Promise.all(
         baseAssetSymbols.map((symbol) =>
@@ -511,7 +713,7 @@ describe.skip('Gas measurement', function () {
       console.log((await result.wait()).gasUsed.toString());
     });
 
-    it('investigation 1', async function () {
+    it.skip('investigation 1', async function () {
       const baseAssetSymbols: string[] = ['XYZ1'];
       await Promise.all(
         baseAssetSymbols.map((symbol) =>
@@ -573,6 +775,39 @@ describe.skip('Gas measurement', function () {
     });
 
     it('with no outstanding funding payments', async function () {
+      const baseAssetSymbols: string[] = ['XYZ1'];
+      await Promise.all(
+        baseAssetSymbols.map((symbol) =>
+          addMarket(symbol, dispatcherWallet, exchange, marketStruct),
+        ),
+      );
+
+      for (const symbol of baseAssetSymbols) {
+        buyOrder.nonce = uuidv1();
+        buyOrder.market = `${symbol}-USD`;
+        buyOrderSignature = await trader2Wallet._signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        );
+
+        sellOrder.nonce = uuidv1();
+        sellOrder.market = `${symbol}-USD`;
+        sellOrderSignature = await trader1Wallet._signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        );
+
+        await exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          );
+      }
+
       const withdrawal = {
         signatureHashVersion,
         nonce: uuidv1(),
@@ -597,11 +832,23 @@ describe.skip('Gas measurement', function () {
       const result = await exchange
         .connect(dispatcherWallet)
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'withdraw',
+            getWithdrawArguments(withdrawal, '0.00000000', signature),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
   });
 
-  describe('Transfer', function () {
+  describe('transfer', function () {
     it('with no outstanding funding payments', async function () {
       const transfer = {
         signatureHashVersion,
@@ -625,7 +872,19 @@ describe.skip('Gas measurement', function () {
       const result = await exchange
         .connect(dispatcherWallet)
         .transfer(...getTransferArguments(transfer, '0.00000000', signature));
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'transfer',
+            getTransferArguments(transfer, '0.00000000', signature),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
   });
 
@@ -648,7 +907,26 @@ describe.skip('Gas measurement', function () {
             await buildIndexPrice(exchange.address, indexPriceServiceWallet),
           ),
         ]);
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData('publishIndexPrices', [
+            [
+              indexPriceToArgumentStruct(
+                indexPriceAdapter.address,
+                await buildIndexPrice(
+                  exchange.address,
+                  indexPriceServiceWallet,
+                ),
+              ),
+            ],
+          ]).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('for 5 markets', async () => {
@@ -659,40 +937,51 @@ describe.skip('Gas measurement', function () {
         ),
       );
 
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices(
-          await Promise.all(
-            baseAssetSymbols.map(async (symbol) =>
-              indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
-                await buildIndexPrice(
-                  exchange.address,
-                  indexPriceServiceWallet,
-                  symbol,
-                ),
-              ),
+      let indexPricePayloads: IndexPricePayloadStruct[] = await Promise.all(
+        baseAssetSymbols.map(async (symbol) =>
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPrice(
+              exchange.address,
+              indexPriceServiceWallet,
+              symbol,
             ),
           ),
-        );
+        ),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices(indexPricePayloads);
+
+      indexPricePayloads = await Promise.all(
+        baseAssetSymbols.map(async (symbol) =>
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPrice(
+              exchange.address,
+              indexPriceServiceWallet,
+              symbol,
+            ),
+          ),
+        ),
+      );
 
       const result = await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices(
-          await Promise.all(
-            baseAssetSymbols.map(async (symbol) =>
-              indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
-                await buildIndexPrice(
-                  exchange.address,
-                  indexPriceServiceWallet,
-                  symbol,
-                ),
-              ),
-            ),
-          ),
-        );
-      console.log((await result.wait()).gasUsed.toString());
+        .publishIndexPrices(indexPricePayloads);
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData('publishIndexPrices', [
+            indexPricePayloads,
+          ]).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('for 10 markets', async () => {
@@ -714,40 +1003,51 @@ describe.skip('Gas measurement', function () {
         ),
       );
 
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices(
-          await Promise.all(
-            baseAssetSymbols.map(async (symbol) =>
-              indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
-                await buildIndexPrice(
-                  exchange.address,
-                  indexPriceServiceWallet,
-                  symbol,
-                ),
-              ),
+      let indexPricePayloads: IndexPricePayloadStruct[] = await Promise.all(
+        baseAssetSymbols.map(async (symbol) =>
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPrice(
+              exchange.address,
+              indexPriceServiceWallet,
+              symbol,
             ),
           ),
-        );
+        ),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices(await Promise.all(indexPricePayloads));
+
+      indexPricePayloads = await Promise.all(
+        baseAssetSymbols.map(async (symbol) =>
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPrice(
+              exchange.address,
+              indexPriceServiceWallet,
+              symbol,
+            ),
+          ),
+        ),
+      );
 
       const result = await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices(
-          await Promise.all(
-            baseAssetSymbols.map(async (symbol) =>
-              indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
-                await buildIndexPrice(
-                  exchange.address,
-                  indexPriceServiceWallet,
-                  symbol,
-                ),
-              ),
-            ),
-          ),
-        );
-      console.log((await result.wait()).gasUsed.toString());
+        .publishIndexPrices(indexPricePayloads);
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData('publishIndexPrices', [
+            indexPricePayloads,
+          ]).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('for 20 markets', async () => {
@@ -779,45 +1079,56 @@ describe.skip('Gas measurement', function () {
         ),
       );
 
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices(
-          await Promise.all(
-            baseAssetSymbols.map(async (symbol) =>
-              indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
-                await buildIndexPrice(
-                  exchange.address,
-                  indexPriceServiceWallet,
-                  symbol,
-                ),
-              ),
+      let indexPricePayloads: IndexPricePayloadStruct[] = await Promise.all(
+        baseAssetSymbols.map(async (symbol) =>
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPrice(
+              exchange.address,
+              indexPriceServiceWallet,
+              symbol,
             ),
           ),
-        );
+        ),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices(indexPricePayloads);
+
+      indexPricePayloads = await Promise.all(
+        baseAssetSymbols.map(async (symbol) =>
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPrice(
+              exchange.address,
+              indexPriceServiceWallet,
+              symbol,
+            ),
+          ),
+        ),
+      );
 
       const result = await exchange
         .connect(dispatcherWallet)
-        .publishIndexPrices(
-          await Promise.all(
-            baseAssetSymbols.map(async (symbol) =>
-              indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
-                await buildIndexPrice(
-                  exchange.address,
-                  indexPriceServiceWallet,
-                  symbol,
-                ),
-              ),
-            ),
-          ),
-        );
-      console.log((await result.wait()).gasUsed.toString());
+        .publishIndexPrices(indexPricePayloads);
+      console.log(
+        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData('publishIndexPrices', [
+            indexPricePayloads,
+          ]).length -
+            2) /
+          2
+        }`,
+      );
     });
   });
 
   describe('Trade', async function () {
-    it('investigation', async () => {
+    it.skip('investigation', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
         exchange,
@@ -893,7 +1204,25 @@ describe.skip('Gas measurement', function () {
           ),
         );
 
-      console.log((await result!.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('with no outstanding funding payments and 5 open positions (limit-limit)', async () => {
@@ -911,7 +1240,7 @@ describe.skip('Gas measurement', function () {
         '10000.00000000',
       );
 
-      const baseAssetSymbols = ['XYZ1', 'XYZ2', 'XYZ3', 'XYZ4'];
+      const baseAssetSymbols = ['XYZ1', 'XYZ2', 'XYZ3', 'XYZ3'];
       await Promise.all(
         baseAssetSymbols.map((symbol) =>
           addMarket(symbol, dispatcherWallet, exchange, marketStruct),
@@ -968,7 +1297,25 @@ describe.skip('Gas measurement', function () {
           ),
         );
 
-      console.log((await result!.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('with no outstanding funding payments (limit-market)', async () => {
@@ -989,7 +1336,25 @@ describe.skip('Gas measurement', function () {
             trade,
           ),
         );
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('with no outstanding funding payments (limit-limit)', async () => {
@@ -1004,7 +1369,25 @@ describe.skip('Gas measurement', function () {
             trade,
           ),
         );
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('with 1 outstanding funding payments', async () => {
@@ -1027,7 +1410,25 @@ describe.skip('Gas measurement', function () {
             trade,
           ),
         );
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('with 10 outstanding funding payments', async () => {
@@ -1050,7 +1451,25 @@ describe.skip('Gas measurement', function () {
             trade,
           ),
         );
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('with 100 outstanding funding payments', async () => {
@@ -1080,7 +1499,25 @@ describe.skip('Gas measurement', function () {
             trade,
           ),
         );
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
     it('with 1000 outstanding funding payments', async () => {
@@ -1110,10 +1547,28 @@ describe.skip('Gas measurement', function () {
             trade,
           ),
         );
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
 
-    it('with 6000 outstanding funding payments', async () => {
+    it('with 5000 outstanding funding payments', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
         exchange,
@@ -1126,7 +1581,7 @@ describe.skip('Gas measurement', function () {
         dispatcherWallet,
         indexPriceAdapter,
         indexPriceServiceWallet,
-        6000,
+        5000,
       );
 
       const result = await exchange
@@ -1140,7 +1595,25 @@ describe.skip('Gas measurement', function () {
             trade,
           ),
         );
-      console.log((await result.wait()).gasUsed.toString());
+      console.log(
+        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+      );
+      console.log(
+        `Calldata bytes: ${
+          (exchange.interface.encodeFunctionData(
+            'executeTrade',
+            getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ).length -
+            2) /
+          2
+        }`,
+      );
     });
   });
 });
