@@ -162,7 +162,27 @@ library Trading {
       partiallyFilledOrderQuantities
     );
 
-    balanceTracking.updateForTrade(
+    _updateBalancesAndValidateMarginRequirements(
+      arguments,
+      market,
+      balanceTracking,
+      baseAssetSymbolsWithOpenPositionsByWallet,
+      lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+      marketOverridesByBaseAssetSymbolAndWallet,
+      marketsByBaseAssetSymbol
+    );
+  }
+
+  function _updateBalancesAndValidateMarginRequirements(
+    Arguments memory arguments,
+    Market memory market,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) private {
+    (bool isBuyPositionDecreased, bool isSellPositionDecreased) = balanceTracking.updateForTrade(
       arguments.externalArguments,
       arguments.feeWallet,
       market,
@@ -171,8 +191,10 @@ library Trading {
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    _validateInitialMarginRequirements(
+    _validateMarginRequirements(
       arguments,
+      isBuyPositionDecreased,
+      isSellPositionDecreased,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -234,27 +256,50 @@ library Trading {
     }
   }
 
-  function _validateInitialMarginRequirements(
+  function _validateMarginRequirements(
     Arguments memory arguments,
+    bool isBuyPositionDecreased,
+    bool isSellPositionDecreased,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view {
-    IndexPriceMargin.validateInitialMarginRequirement(
-      arguments.externalArguments.buy.wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-    IndexPriceMargin.validateInitialMarginRequirement(
-      arguments.externalArguments.sell.wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
+    if (isBuyPositionDecreased) {
+      IndexPriceMargin.validateMaintenanceMarginRequirement(
+        arguments.externalArguments.buy.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+    } else {
+      IndexPriceMargin.validateInitialMarginRequirement(
+        arguments.externalArguments.buy.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+    }
+
+    if (isSellPositionDecreased) {
+      IndexPriceMargin.validateMaintenanceMarginRequirement(
+        arguments.externalArguments.sell.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+    } else {
+      IndexPriceMargin.validateInitialMarginRequirement(
+        arguments.externalArguments.sell.wallet,
+        balanceTracking,
+        baseAssetSymbolsWithOpenPositionsByWallet,
+        marketOverridesByBaseAssetSymbolAndWallet,
+        marketsByBaseAssetSymbol
+      );
+    }
   }
 
   function _validateTradeAndUpdateOrderBalancesAndFilledQuantities(

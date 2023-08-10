@@ -11,6 +11,8 @@ import { SortedStringSet } from "./SortedStringSet.sol";
 import { IExchange, IOraclePriceAdapter } from "./Interfaces.sol";
 import { Balance, ExecuteTradeArguments, Market, MarketOverrides, Transfer, Withdrawal } from "./Structs.sol";
 
+import "hardhat/console.sol";
+
 library BalanceTracking {
   using MarketHelper for Market;
   using SortedStringSet for string[];
@@ -267,7 +269,7 @@ library BalanceTracking {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
-  ) internal {
+  ) internal returns (bool isBuyPositionDecreased, bool isSellPositionDecreased) {
     Balance storage balanceStruct;
 
     (int64 buyFee, int64 sellFee) = arguments.trade.makerSide == OrderSide.Buy
@@ -282,7 +284,7 @@ library BalanceTracking {
         balanceStruct.balance - Math.toInt64(arguments.trade.baseQuantity)
       );
     }
-    _subtractFromPosition(
+    isSellPositionDecreased = _subtractFromPosition(
       market.baseAssetSymbol,
       arguments.trade.baseQuantity,
       arguments.trade.quoteQuantity,
@@ -308,7 +310,7 @@ library BalanceTracking {
         balanceStruct.balance + Math.toInt64(arguments.trade.baseQuantity)
       );
     }
-    _addToPosition(
+    isBuyPositionDecreased = _addToPosition(
       market.baseAssetSymbol,
       arguments.trade.baseQuantity,
       arguments.trade.quoteQuantity,
@@ -450,13 +452,14 @@ library BalanceTracking {
     uint64 maximumPositionSize,
     Balance storage balanceStruct,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) private {
+  ) private returns (bool isPositionDecreased) {
     int64 newBalance = balanceStruct.balance + Math.toInt64(baseQuantity);
 
     // Position closed
     if (newBalance == 0) {
+      isPositionDecreased = balanceStruct.balance != 0;
       _resetPositionToZero(balanceStruct);
-      return;
+      return isPositionDecreased;
     }
 
     // Position opened (newBalance is non-zero per preceding guard)
@@ -466,7 +469,11 @@ library BalanceTracking {
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
-    _validatePositionBelowMaximumOrDecreased(balanceStruct.balance, newBalance, maximumPositionSize);
+    isPositionDecreased = _validatePositionBelowMaximumOrDecreased(
+      balanceStruct.balance,
+      newBalance,
+      maximumPositionSize
+    );
 
     if (balanceStruct.balance >= 0) {
       // Increase position
@@ -498,13 +505,14 @@ library BalanceTracking {
     uint64 maximumPositionSize,
     Balance storage balanceStruct,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) private {
+  ) private returns (bool isPositionDecreased) {
     int64 newBalance = balanceStruct.balance - Math.toInt64(baseQuantity);
 
     // Position closed
     if (newBalance == 0) {
+      isPositionDecreased = balanceStruct.balance != 0;
       _resetPositionToZero(balanceStruct);
-      return;
+      return isPositionDecreased;
     }
 
     // Position opened (newBalance is non-zero per preceding guard)
@@ -514,7 +522,11 @@ library BalanceTracking {
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
-    _validatePositionBelowMaximumOrDecreased(balanceStruct.balance, newBalance, maximumPositionSize);
+    isPositionDecreased = _validatePositionBelowMaximumOrDecreased(
+      balanceStruct.balance,
+      newBalance,
+      maximumPositionSize
+    );
 
     if (balanceStruct.balance <= 0) {
       // Increase position
@@ -752,11 +764,12 @@ library BalanceTracking {
     int64 originalPositionSize,
     int64 newPositionSize,
     uint64 maximumPositionSize
-  ) private pure {
+  ) private pure returns (bool isPositionDecreased) {
     uint64 newPositionSizeUnsigned = Math.abs(newPositionSize);
+    isPositionDecreased = newPositionSizeUnsigned < Math.abs(originalPositionSize);
 
     if (newPositionSizeUnsigned > maximumPositionSize) {
-      require(newPositionSizeUnsigned < Math.abs(originalPositionSize), "Max position size exceeded");
+      require(isPositionDecreased, "Max position size exceeded");
     }
   }
 

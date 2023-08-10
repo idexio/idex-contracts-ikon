@@ -86,20 +86,33 @@ const config: HardhatUserConfig = {
     },
     private: {
       chainId: 1001,
-      url: 'https://geth-test-private-eth.idex.market:8545',
+      url: 'https://rpc-dev-geth.idex-dev.com:8545',
+    },
+    zkevm: {
+      chainId: 2122,
+      url: 'https://rpc.internal.zklidium-test.net',
     },
   },
   etherscan: {
     apiKey: {
       private: 'abc',
+      zkevm: 'abc',
     },
     customChains: [
       {
         network: 'private',
         chainId: 1001,
         urls: {
-          apiURL: 'https://geth-test-private-eth.idex.market/api',
-          browserURL: 'https://geth-test-private-eth.idex.market/',
+          apiURL: 'https://explorer-dev-geth.idex-dev.com/api',
+          browserURL: 'https://explorer-dev-geth.idex-dev.com/',
+        },
+      },
+      {
+        network: 'zkevm',
+        chainId: 2122,
+        urls: {
+          apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api',
+          browserURL: 'https://explorer-staging-zkevm.idex-dev.com/',
         },
       },
     ],
