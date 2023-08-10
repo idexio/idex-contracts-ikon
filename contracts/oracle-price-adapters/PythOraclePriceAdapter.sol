@@ -65,7 +65,7 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
     bytes32 priceId = priceIdsByBaseAssetSymbol[baseAssetSymbol];
     require(priceId != bytes32(0x0), "Invalid base asset symbol");
 
-    PythStructs.Price memory pythPrice = pyth.getPrice(priceId);
+    PythStructs.Price memory pythPrice = pyth.getPriceUnsafe(priceId);
 
     uint64 priceInPips = _priceToPips(pythPrice.price, pythPrice.expo);
     require(priceInPips > 0, "Unexpected non-positive price");
