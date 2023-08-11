@@ -11,8 +11,6 @@ import { SortedStringSet } from "./SortedStringSet.sol";
 import { IExchange, IOraclePriceAdapter } from "./Interfaces.sol";
 import { Balance, ExecuteTradeArguments, Market, MarketOverrides, Transfer, Withdrawal } from "./Structs.sol";
 
-import "hardhat/console.sol";
-
 library BalanceTracking {
   using MarketHelper for Market;
   using SortedStringSet for string[];
