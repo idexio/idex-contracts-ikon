@@ -267,7 +267,7 @@ library BalanceTracking {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet
-  ) internal returns (bool isBuyPositionDecreased, bool isSellPositionDecreased) {
+  ) internal returns (bool wasBuyPositionReduced, bool wasSellPositionReduced) {
     Balance storage balanceStruct;
 
     (int64 buyFee, int64 sellFee) = arguments.trade.makerSide == OrderSide.Buy
@@ -282,7 +282,7 @@ library BalanceTracking {
         balanceStruct.balance - Math.toInt64(arguments.trade.baseQuantity)
       );
     }
-    isSellPositionDecreased = _subtractFromPosition(
+    wasSellPositionReduced = _subtractFromPosition(
       market.baseAssetSymbol,
       arguments.trade.baseQuantity,
       arguments.trade.quoteQuantity,
@@ -308,7 +308,7 @@ library BalanceTracking {
         balanceStruct.balance + Math.toInt64(arguments.trade.baseQuantity)
       );
     }
-    isBuyPositionDecreased = _addToPosition(
+    wasBuyPositionReduced = _addToPosition(
       market.baseAssetSymbol,
       arguments.trade.baseQuantity,
       arguments.trade.quoteQuantity,
@@ -450,14 +450,14 @@ library BalanceTracking {
     uint64 maximumPositionSize,
     Balance storage balanceStruct,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) private returns (bool isPositionDecreased) {
+  ) private returns (bool wasPositionReduced) {
     int64 newBalance = balanceStruct.balance + Math.toInt64(baseQuantity);
 
     // Position closed
     if (newBalance == 0) {
-      isPositionDecreased = balanceStruct.balance != 0;
+      wasPositionReduced = balanceStruct.balance != 0;
       _resetPositionToZero(balanceStruct);
-      return isPositionDecreased;
+      return wasPositionReduced;
     }
 
     // Position opened (newBalance is non-zero per preceding guard)
@@ -467,11 +467,7 @@ library BalanceTracking {
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
-    isPositionDecreased = _validatePositionBelowMaximumOrDecreased(
-      balanceStruct.balance,
-      newBalance,
-      maximumPositionSize
-    );
+    wasPositionReduced = _validatePositionBelowMaximumOrReduced(balanceStruct.balance, newBalance, maximumPositionSize);
 
     if (balanceStruct.balance >= 0) {
       // Increase position
@@ -503,14 +499,14 @@ library BalanceTracking {
     uint64 maximumPositionSize,
     Balance storage balanceStruct,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol
-  ) private returns (bool isPositionDecreased) {
+  ) private returns (bool wasPositionReduced) {
     int64 newBalance = balanceStruct.balance - Math.toInt64(baseQuantity);
 
     // Position closed
     if (newBalance == 0) {
-      isPositionDecreased = balanceStruct.balance != 0;
+      wasPositionReduced = balanceStruct.balance != 0;
       _resetPositionToZero(balanceStruct);
-      return isPositionDecreased;
+      return wasPositionReduced;
     }
 
     // Position opened (newBalance is non-zero per preceding guard)
@@ -520,11 +516,7 @@ library BalanceTracking {
       balanceStruct.lastUpdateTimestampInMs = lastFundingRatePublishTimestampInMsByBaseAssetSymbol[baseAssetSymbol];
     }
 
-    isPositionDecreased = _validatePositionBelowMaximumOrDecreased(
-      balanceStruct.balance,
-      newBalance,
-      maximumPositionSize
-    );
+    wasPositionReduced = _validatePositionBelowMaximumOrReduced(balanceStruct.balance, newBalance, maximumPositionSize);
 
     if (balanceStruct.balance <= 0) {
       // Increase position
@@ -662,10 +654,10 @@ library BalanceTracking {
         .maximumPositionSize;
 
     if (isLiquidatingWalletPositionShort) {
-      // Decrease negative short position by adding base quantity to it
+      // Reduce negative short position by adding base quantity to it
       _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance + Math.toInt64(baseQuantity));
 
-      // Decrease short position by adding base quantity
+      // Reduce short position by adding base quantity
       _addToPosition(
         market.baseAssetSymbol,
         baseQuantity,
@@ -675,10 +667,10 @@ library BalanceTracking {
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol
       );
     } else {
-      // Decrease positive long position by subtracting base quantity from it
+      // Reduce positive long position by subtracting base quantity from it
       _validatePositionUpdatedTowardsZero(balanceStruct.balance, balanceStruct.balance - Math.toInt64(baseQuantity));
 
-      // Decrease long position by subtracting base quantity
+      // Reduce long position by subtracting base quantity
       _subtractFromPosition(
         market.baseAssetSymbol,
         baseQuantity,
@@ -758,16 +750,16 @@ library BalanceTracking {
     );
   }
 
-  function _validatePositionBelowMaximumOrDecreased(
+  function _validatePositionBelowMaximumOrReduced(
     int64 originalPositionSize,
     int64 newPositionSize,
     uint64 maximumPositionSize
-  ) private pure returns (bool isPositionDecreased) {
+  ) private pure returns (bool wasPositionReduced) {
     uint64 newPositionSizeUnsigned = Math.abs(newPositionSize);
-    isPositionDecreased = newPositionSizeUnsigned < Math.abs(originalPositionSize);
+    wasPositionReduced = newPositionSizeUnsigned < Math.abs(originalPositionSize);
 
     if (newPositionSizeUnsigned > maximumPositionSize) {
-      require(isPositionDecreased, "Max position size exceeded");
+      require(wasPositionReduced, "Max position size exceeded");
     }
   }
 

@@ -182,7 +182,7 @@ library Trading {
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private {
-    (bool isBuyPositionDecreased, bool isSellPositionDecreased) = balanceTracking.updateForTrade(
+    (bool wasBuyPositionReduced, bool wasSellPositionReduced) = balanceTracking.updateForTrade(
       arguments.externalArguments,
       arguments.feeWallet,
       market,
@@ -193,8 +193,8 @@ library Trading {
 
     _validateMarginRequirements(
       arguments,
-      isBuyPositionDecreased,
-      isSellPositionDecreased,
+      wasBuyPositionReduced,
+      wasSellPositionReduced,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
       marketOverridesByBaseAssetSymbolAndWallet,
@@ -258,14 +258,14 @@ library Trading {
 
   function _validateMarginRequirements(
     Arguments memory arguments,
-    bool isBuyPositionDecreased,
-    bool isSellPositionDecreased,
+    bool wasBuyPositionReduced,
+    bool wasSellPositionReduced,
     BalanceTracking.Storage storage balanceTracking,
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol
   ) private view {
-    if (isBuyPositionDecreased) {
+    if (wasBuyPositionReduced) {
       IndexPriceMargin.validateMaintenanceMarginRequirement(
         arguments.externalArguments.buy.wallet,
         balanceTracking,
@@ -283,7 +283,7 @@ library Trading {
       );
     }
 
-    if (isSellPositionDecreased) {
+    if (wasSellPositionReduced) {
       IndexPriceMargin.validateMaintenanceMarginRequirement(
         arguments.externalArguments.sell.wallet,
         balanceTracking,
