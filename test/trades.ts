@@ -985,6 +985,299 @@ describe('Exchange', function () {
         );
     });
 
+    it('should work when both sides reduce positions and are above maintenance margin but below initial margin requirement', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      const overrides = {
+        initialMarginFraction: '50000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+
+      buyOrder.quantity = '1.00000000';
+      buyOrder.wallet = trader1Wallet.address;
+      buyOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      sellOrder.quantity = '1.00000000';
+      sellOrder.wallet = trader2Wallet.address;
+      sellOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+
+      trade.baseQuantity = '1.00000000';
+      trade.quoteQuantity = '2000.00000000';
+
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+    });
+
+    it('should revert when buy side is below initial requirement', async function () {
+      const overrides = {
+        initialMarginFraction: '500000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/initial margin requirement not met/i);
+    });
+
+    it('should revert when sell side is below initial requirement', async function () {
+      const overrides = {
+        initialMarginFraction: '500000000',
+        maintenanceMarginFraction: '3000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(/initial margin requirement not met/i);
+    });
+
+    it('should revert when buy side reduces position but is below maintenance requirement', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      const overrides = {
+        initialMarginFraction: '50000000',
+        maintenanceMarginFraction: '30000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
+
+      buyOrder.quantity = '1.00000000';
+      buyOrder.wallet = trader1Wallet.address;
+      buyOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      sellOrder.quantity = '1.00000000';
+      sellOrder.wallet = trader2Wallet.address;
+      sellOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+
+      trade.baseQuantity = '1.00000000';
+      trade.quoteQuantity = '2000.00000000';
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /maintenance margin requirement not met/i,
+      );
+    });
+
+    it('should revert when sell side reduces position but is below maintenance requirement', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .executeTrade(
+          ...getExecuteTradeArguments(
+            buyOrder,
+            buyOrderSignature,
+            sellOrder,
+            sellOrderSignature,
+            trade,
+          ),
+        );
+
+      const overrides = {
+        initialMarginFraction: '50000000',
+        maintenanceMarginFraction: '30000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+
+      buyOrder.quantity = '1.00000000';
+      buyOrder.wallet = trader1Wallet.address;
+      buyOrderSignature = await trader1Wallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+
+      sellOrder.quantity = '1.00000000';
+      sellOrder.wallet = trader2Wallet.address;
+      sellOrderSignature = await trader2Wallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+
+      trade.baseQuantity = '1.00000000';
+      trade.quoteQuantity = '2000.00000000';
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /maintenance margin requirement not met/i,
+      );
+    });
+
     it('should revert when order buy argument is not buy side', async function () {
       buyOrder.side = OrderSide.Sell;
       buyOrder.quantity = '10.00000000';

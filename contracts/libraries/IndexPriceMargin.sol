@@ -238,6 +238,47 @@ library IndexPriceMargin {
     require(totalAccountValue >= Math.toInt64(totalInitialMarginRequirement), "Initial margin requirement not met");
   }
 
+  function validateMaintenanceMarginRequirement(
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
+    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
+    mapping(string => Market) storage marketsByBaseAssetSymbol
+  ) internal view {
+    int64 totalAccountValue = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(
+      wallet,
+      Constants.QUOTE_ASSET_SYMBOL
+    );
+    uint64 totalMaintenanceMarginRequirement;
+
+    Market memory market;
+    int64 positionSize;
+    string[] memory baseAssetSymbols = baseAssetSymbolsWithOpenPositionsByWallet[wallet];
+    for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
+      market = marketsByBaseAssetSymbol[baseAssetSymbols[i]];
+      positionSize = balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, market.baseAssetSymbol);
+
+      totalAccountValue += Math.multiplyPipsByFraction(
+        positionSize,
+        Math.toInt64(market.lastIndexPrice),
+        Math.toInt64(Constants.PIP_PRICE_MULTIPLIER)
+      );
+      totalMaintenanceMarginRequirement += _loadMarginRequirement(
+        market
+          .loadMarketWithOverridesForWallet(wallet, marketOverridesByBaseAssetSymbolAndWallet)
+          .overridableFields
+          .maintenanceMarginFraction,
+        market.lastIndexPrice,
+        positionSize
+      );
+    }
+
+    require(
+      totalAccountValue >= Math.toInt64(totalMaintenanceMarginRequirement),
+      "Maintenance margin requirement not met"
+    );
+  }
+
   /**
    * @param arguments Already validated by calling function
    */
