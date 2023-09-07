@@ -61,19 +61,6 @@ library PositionBelowMinimumLiquidation {
       marketsByBaseAssetSymbol
     );
 
-    (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) = IndexPriceMargin
-      .loadTotalAccountValueAndMaintenanceMarginRequirement(
-        arguments.liquidatingWallet,
-        balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        marketOverridesByBaseAssetSymbolAndWallet,
-        marketsByBaseAssetSymbol
-      );
-    require(
-      totalAccountValue >= Math.toInt64(totalMaintenanceMarginRequirement),
-      "Maintenance margin requirement not met"
-    );
-
     uint64 liquidationBaseQuantity = _validateAndLiquidatePositionBelowMinimum(
       arguments,
       exitFundWallet,

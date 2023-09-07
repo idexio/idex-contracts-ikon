@@ -86,28 +86,6 @@ library IndexPriceMargin {
       );
   }
 
-  function loadTotalAccountValueAndMaintenanceMarginRequirement(
-    address wallet,
-    BalanceTracking.Storage storage balanceTracking,
-    mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
-    mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
-  ) internal view returns (int64 totalAccountValue, uint64 totalMaintenanceMarginRequirement) {
-    totalAccountValue = _loadTotalAccountValue(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketsByBaseAssetSymbol
-    );
-    totalMaintenanceMarginRequirement = _loadTotalMaintenanceMarginRequirement(
-      wallet,
-      balanceTracking,
-      baseAssetSymbolsWithOpenPositionsByWallet,
-      marketOverridesByBaseAssetSymbolAndWallet,
-      marketsByBaseAssetSymbol
-    );
-  }
-
   function loadTotalAccountValueInDoublePipsAndMaintenanceMarginRequirementInTriplePips(
     address wallet,
     BalanceTracking.Storage storage balanceTracking,
