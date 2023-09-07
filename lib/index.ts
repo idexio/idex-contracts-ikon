@@ -146,6 +146,7 @@ export interface Withdrawal {
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
+  maximumGasFee: string; // Decimal string
   bridgeAdapter: string;
   bridgeAdapterPayload: string;
 }
@@ -326,6 +327,7 @@ export const getWithdrawalSignatureTypedData = (
         { name: 'nonce', type: 'uint128' },
         { name: 'wallet', type: 'address' },
         { name: 'quantity', type: 'string' },
+        { name: 'maximumGasFee', type: 'string' },
         { name: 'bridgeAdapter', type: 'address' },
         { name: 'bridgeAdapterPayload', type: 'bytes' },
       ],
@@ -334,6 +336,7 @@ export const getWithdrawalSignatureTypedData = (
       nonce: uuidToUint8Array(withdrawal.nonce),
       wallet: withdrawal.wallet,
       quantity: withdrawal.quantity,
+      maximumGasFee: withdrawal.maximumGasFee,
       bridgeAdapter: withdrawal.bridgeAdapter,
       bridgeAdapterPayload: withdrawal.bridgeAdapterPayload,
     },
@@ -400,6 +403,7 @@ export const getWithdrawArguments = (
       nonce: uuidToHexString(withdrawal.nonce),
       wallet: withdrawal.wallet,
       grossQuantity: decimalToPips(withdrawal.quantity),
+      maximumGasFee: decimalToPips(withdrawal.maximumGasFee),
       bridgeAdapter: withdrawal.bridgeAdapter,
       bridgeAdapterPayload: withdrawal.bridgeAdapterPayload,
       gasFee: decimalToPips(gasFee),
