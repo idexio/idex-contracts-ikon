@@ -342,7 +342,7 @@ describe('Exchange', function () {
         exchange
           .connect(dispatcherWallet)
           .withdraw(
-            ...getWithdrawArguments(withdrawal, '1.00000000', signature),
+            ...getWithdrawArguments(withdrawal, '0.10000000', signature),
           ),
       ).to.eventually.be.rejectedWith(/excessive withdrawal fee/i);
     });

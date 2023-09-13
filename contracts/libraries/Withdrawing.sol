@@ -112,7 +112,7 @@ library Withdrawing {
     }
     require(
       arguments.withdrawal.gasFee <= arguments.withdrawal.maximumGasFee &&
-        arguments.withdrawal.gasFee <= arguments.withdrawal.grossQuantity,
+        arguments.withdrawal.maximumGasFee <= arguments.withdrawal.grossQuantity,
       "Excessive withdrawal fee"
     );
     bytes32 withdrawalHash = _validateWithdrawalSignature(arguments);
