@@ -1781,6 +1781,93 @@ describe('Exchange', function () {
       );
     });
 
+    it('should revert for invalid buy wallet signature with DK', async function () {
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const buyDelegatedKeyAuthorizationFields = {
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const buyDelegatedKeyAuthorization = {
+        ...buyDelegatedKeyAuthorizationFields,
+        signature: await trader2Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
+            buyDelegatedKeyAuthorizationFields,
+            exchange.address,
+          ),
+        ),
+      };
+
+      buyOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
+      buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      buyOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      );
+      buyOrder.quantity = '10.00000001';
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              buyDelegatedKeyAuthorization,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /invalid wallet signature for buy order/i,
+      );
+    });
+
+    it('should revert for invalid sell wallet signature with DK', async function () {
+      await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
+
+      const delegatedKeyWallet = (await ethers.getSigners())[10];
+      const sellDelegatedKeyAuthorizationFields = {
+        nonce: uuidv1(),
+        delegatedPublicKey: delegatedKeyWallet.address,
+      };
+      const sellDelegatedKeyAuthorization = {
+        ...sellDelegatedKeyAuthorizationFields,
+        signature: await trader1Wallet._signTypedData(
+          ...getDelegatedKeyAuthorizationSignatureTypedData(
+            sellDelegatedKeyAuthorizationFields,
+            exchange.address,
+          ),
+        ),
+      };
+
+      sellOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
+      sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
+      sellOrderSignature = await delegatedKeyWallet._signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      );
+      sellOrder.quantity = '10.00000001';
+
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .executeTrade(
+            ...getExecuteTradeArguments(
+              buyOrder,
+              buyOrderSignature,
+              sellOrder,
+              sellOrderSignature,
+              trade,
+              undefined,
+              sellDelegatedKeyAuthorization,
+            ),
+          ),
+      ).to.eventually.be.rejectedWith(
+        /invalid wallet signature for sell order/i,
+      );
+    });
+
     it('should revert for invalid buy wallet DK authorization', async function () {
       await exchange.setDelegateKeyExpirationPeriod(1 * 60 * 60 * 1000);
 
@@ -1798,7 +1885,9 @@ describe('Exchange', function () {
           ),
         ),
       };
-      buyDelegatedKeyAuthorization.nonce = uuidv1();
+      buyDelegatedKeyAuthorization.nonce = uuidv1({
+        msecs: new Date().getTime() - 10000,
+      });
 
       buyOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
@@ -1834,14 +1923,16 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader1Wallet._signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
             exchange.address,
           ),
         ),
       };
-      sellDelegatedKeyAuthorizationFields.nonce = uuidv1();
+      sellDelegatedKeyAuthorization.nonce = uuidv1({
+        msecs: new Date().getTime() - 10000,
+      });
 
       sellOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
