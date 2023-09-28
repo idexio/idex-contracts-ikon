@@ -78,7 +78,12 @@ describe('Exchange', function () {
 
     await results.usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      usdc,
+    );
 
     indexPrice = await buildIndexPrice(
       exchange.address,
@@ -162,7 +167,12 @@ describe('Exchange', function () {
     });
 
     it('should work for valid wallet', async function () {
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
         baseAssetSymbol,
@@ -185,7 +195,12 @@ describe('Exchange', function () {
     });
 
     it('should work for valid wallet with quote below validation threshold', async function () {
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
@@ -208,7 +223,12 @@ describe('Exchange', function () {
     });
 
     it('should work when wallet is in maintenance', async function () {
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await exchange
         .connect(dispatcherWallet)
@@ -232,7 +252,12 @@ describe('Exchange', function () {
     });
 
     it('should revert when expected quote quantity is below validation threshold but provided quote quantity is not', async function () {
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
@@ -504,7 +529,12 @@ describe('Exchange', function () {
           ),
         ]);
 
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
@@ -534,7 +564,12 @@ describe('Exchange', function () {
           ),
         ]);
 
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
@@ -721,7 +756,12 @@ describe('Exchange', function () {
 
   describe('liquidateWalletExit', async function () {
     it('should work for valid wallet', async function () {
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await exchange.connect(trader1Wallet).exitWallet();
 
@@ -741,6 +781,7 @@ describe('Exchange', function () {
     it('should work for valid wallet with negative EAV', async function () {
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',

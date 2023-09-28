@@ -82,6 +82,7 @@ export async function bootstrapLiquidatedWallet() {
 
   await fundWallets(
     [trader1Wallet, trader2Wallet, insuranceFundWallet],
+    dispatcherWallet,
     exchange,
     usdc,
   );
@@ -547,6 +548,7 @@ export async function executeTrade(
 
 export async function fundWallets(
   wallets: SignerWithAddress[],
+  dispatcherWallet: SignerWithAddress,
   exchange: Exchange_v4,
   usdc: USDC,
   quantity = '2000.00000000',
@@ -583,6 +585,19 @@ export async function fundWallets(
           .deposit(
             decimalToAssetUnits(quantity, quoteAssetDecimals),
             ethers.constants.AddressZero,
+          )
+      ).wait(),
+    ),
+  );
+
+  await Promise.all(
+    wallets.map(async (wallet) =>
+      (
+        await exchange
+          .connect(dispatcherWallet)
+          .applyPendingDepositsForWallet(
+            decimalToPips(quantity),
+            wallet.address,
           )
       ).wait(),
     ),

@@ -29,18 +29,17 @@ library Depositing {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(
-    uint64 index,
-    address sourceWallet,
-    address destinationWallet,
-    uint64 quantity,
-    int64 newExchangeBalance
-  );
+  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity);
+
+  /**
+   * @notice Emitted when pending deposit quantity is applied via `applyPendingDepositsForWallet`
+   */
+  event PendingDepositApplied(address wallet, uint64 quantity, int64 newExchangeBalance);
 
   // solhint-disable-next-line func-name-mixedcase
   function deposit_delegatecall(
     DepositArguments memory arguments,
-    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => uint64) storage pendingDepositQuantityByWallet,
     mapping(address => WalletExit) storage walletExits
   ) public {
     // Deposits are disabled until `setDepositIndex` is called successfully
@@ -89,16 +88,33 @@ library Depositing {
       Constants.QUOTE_TOKEN_DECIMALS
     );
 
-    // Update balance with actual transferred quantity
-    int64 newExchangeBalance = balanceTracking.updateForDeposit(arguments.destinationWallet, quantityTransferred);
+    // Increment pending deposit quantity by actual transferred quantity
+    pendingDepositQuantityByWallet[arguments.destinationWallet] += quantityTransferred;
 
     emit Deposited(
       // The Exchange will update the stored deposit index after this function returns
       arguments.depositIndex + 1,
       arguments.sourceWallet,
       arguments.destinationWallet,
-      quantityTransferred,
-      newExchangeBalance
+      quantityTransferred
     );
+  }
+
+  // solhint-disable-next-line func-name-mixedcase
+  function applyPendingDepositsForWallet_delegatecall(
+    uint64 quantity,
+    address wallet,
+    BalanceTracking.Storage storage balanceTracking,
+    mapping(address => uint64) storage pendingDepositQuantityByWallet
+  ) public {
+    uint64 pendingDepositQuantity = pendingDepositQuantityByWallet[wallet];
+    require(quantity <= pendingDepositQuantity, "Quantity to apply exceeds pending");
+
+    pendingDepositQuantityByWallet[wallet] = pendingDepositQuantity - quantity;
+
+    // Update balance with argument quantity
+    int64 newExchangeBalance = balanceTracking.updateForDeposit(wallet, quantity);
+
+    emit PendingDepositApplied(wallet, quantity, newExchangeBalance);
   }
 }

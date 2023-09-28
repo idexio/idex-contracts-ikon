@@ -85,7 +85,7 @@ describe('Exchange', function () {
 
     it('should revert when new EF has an open position', async () => {
       const [, traderWallet] = await ethers.getSigners();
-      await fundWallets([traderWallet], exchange, usdc);
+      await fundWallets([traderWallet], ownerWallet, exchange, usdc);
 
       await expect(
         exchange.setExitFundWallet(traderWallet.address),
@@ -190,6 +190,7 @@ async function bootstrapExitedWallet() {
 
   await fundWallets(
     [trader1Wallet, trader2Wallet, insuranceFundWallet],
+    dispatcherWallet,
     exchange,
     usdc,
   );

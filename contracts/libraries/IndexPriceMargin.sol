@@ -29,7 +29,8 @@ library IndexPriceMargin {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => uint64) storage pendingDepositQuantityByWallet
   ) public view returns (int64) {
     int64 totalAccountValue = _loadTotalAccountValue(
       wallet,
@@ -47,7 +48,8 @@ library IndexPriceMargin {
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketsByBaseAssetSymbol
-      );
+      ) +
+      Math.toInt64(pendingDepositQuantityByWallet[wallet]);
   }
 
   // solhint-disable-next-line func-name-mixedcase

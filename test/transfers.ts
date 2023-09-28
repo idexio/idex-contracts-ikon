@@ -64,11 +64,15 @@ describe('Exchange', function () {
     await usdc
       .connect(trader1Wallet)
       .approve(exchange.address, depositQuantity);
-    await (
-      await exchange
-        .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero)
-    ).wait();
+    await exchange
+      .connect(trader1Wallet)
+      .deposit(depositQuantity, ethers.constants.AddressZero);
+    await exchange
+      .connect(dispatcherWallet)
+      .applyPendingDepositsForWallet(
+        decimalToPips('5.00000000'),
+        trader1Wallet.address,
+      );
 
     transfer = {
       nonce: uuidv1(),
