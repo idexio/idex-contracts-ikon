@@ -72,6 +72,12 @@ describe('Exchange', function () {
         .connect(traderWallet)
         .deposit(depositQuantity, ethers.constants.AddressZero)
     ).wait();
+    await exchange
+      .connect(dispatcherWallet)
+      .applyPendingDepositsForWallet(
+        decimalToPips('5.00000000'),
+        traderWallet.address,
+      );
 
     withdrawal = {
       nonce: uuidv1(),
@@ -144,7 +150,12 @@ describe('Exchange', function () {
 
     it('should work for EF after block delay', async function () {
       const trader2Wallet = (await ethers.getSigners())[10];
-      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [traderWallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
@@ -216,7 +227,12 @@ describe('Exchange', function () {
 
     it('should revert if EF balance would be negative', async function () {
       const trader2Wallet = (await ethers.getSigners())[10];
-      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [traderWallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
@@ -260,7 +276,12 @@ describe('Exchange', function () {
 
     it('should revert for EF before block delay', async function () {
       const trader2Wallet = (await ethers.getSigners())[10];
-      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [traderWallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,

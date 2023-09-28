@@ -284,7 +284,12 @@ describe('Exchange', function () {
 
       const trader1Wallet = (await ethers.getSigners())[6];
       const trader2Wallet = (await ethers.getSigners())[7];
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       const trade = await executeTrade(
         exchange,
@@ -448,7 +453,12 @@ describe('Exchange', function () {
     it('should correctly round individual funding payments', async function () {
       const trader1Wallet = (await ethers.getSigners())[6];
       const trader2Wallet = (await ethers.getSigners())[7];
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       indexPrice = await buildIndexPriceWithValue(
         exchange.address,

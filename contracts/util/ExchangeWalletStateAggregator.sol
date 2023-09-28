@@ -15,11 +15,14 @@ interface IExchangeExtended is IExchange {
 
   function loadOutstandingWalletFunding(address wallet) external view returns (int64);
 
+  function pendingDepositQuantityByWallet(address wallet) external view returns (uint64);
+
   function walletExits(address wallet) external view returns (WalletExit memory walletExit);
 }
 
 struct WalletState {
   Balance[] balances;
+  uint64 pendingDepositQuantity;
   WalletExit walletExit;
   NonceInvalidation nonceInvalidation;
 }
@@ -44,6 +47,7 @@ contract ExchangeWalletStateAggregator {
     }
 
     for (uint256 i = 0; i < wallets.length; ++i) {
+      walletStates[i].pendingDepositQuantity = exchange.pendingDepositQuantityByWallet(wallets[i]);
       walletStates[i].nonceInvalidation = exchange.loadLastNonceInvalidationForWallet(wallets[i]);
       walletStates[i].walletExit = exchange.walletExits(wallets[i]);
 

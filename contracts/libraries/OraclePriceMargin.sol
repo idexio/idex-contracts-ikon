@@ -34,7 +34,8 @@ library OraclePriceMargin {
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => uint64) storage pendingDepositQuantityByWallet
   ) public view returns (int64) {
     int64 outstandingWalletFunding = Funding.loadOutstandingWalletFunding(
       wallet,
@@ -44,6 +45,7 @@ library OraclePriceMargin {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketsByBaseAssetSymbol
     );
+
     return
       _loadQuoteQuantityAvailableForExitWithdrawal(
         exitFundWallet,
@@ -54,7 +56,7 @@ library OraclePriceMargin {
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketOverridesByBaseAssetSymbolAndWallet,
         marketsByBaseAssetSymbol
-      );
+      ) + Math.toInt64(pendingDepositQuantityByWallet[wallet]);
   }
 
   // solhint-disable-next-line func-name-mixedcase
@@ -65,7 +67,8 @@ library OraclePriceMargin {
     mapping(address => string[]) storage baseAssetSymbolsWithOpenPositionsByWallet,
     mapping(string => FundingMultiplierQuartet[]) storage fundingMultipliersByBaseAssetSymbol,
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-    mapping(string => Market) storage marketsByBaseAssetSymbol
+    mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => uint64) storage pendingDepositQuantityByWallet
   ) public view returns (int64) {
     int64 outstandingWalletFunding = Funding.loadOutstandingWalletFunding(
       wallet,
@@ -84,7 +87,7 @@ library OraclePriceMargin {
         balanceTracking,
         baseAssetSymbolsWithOpenPositionsByWallet,
         marketsByBaseAssetSymbol
-      );
+      ) + Math.toInt64(pendingDepositQuantityByWallet[wallet]);
   }
 
   // solhint-disable-next-line func-name-mixedcase

@@ -6,31 +6,22 @@ import { ethers, network } from 'hardhat';
 import {
   baseAssetSymbol,
   buildIndexPrice,
-  buildIndexPriceWithValue,
   deployAndAssociateContracts,
-  executeTrade,
   expect,
   fundWallets,
-  quoteAssetDecimals,
   quoteAssetSymbol,
 } from './helpers';
 import {
-  decimalToPips,
-  getDelegatedKeyAuthorizationSignatureTypedData,
   getExecuteTradeArguments,
   getOrderSignatureTypedData,
   indexPriceToArgumentStruct,
   Order,
   OrderSide,
-  OrderTimeInForce,
-  OrderTriggerType,
   OrderType,
   Trade,
-  uuidToHexString,
 } from '../lib';
 import type {
   Exchange_v4,
-  Governance,
   IDEXIndexAndOraclePriceAdapter,
   USDC,
 } from '../typechain-types';
@@ -41,7 +32,6 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
-  let governance: Governance;
   let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
@@ -80,13 +70,17 @@ describe('Exchange', function () {
       insuranceFundWallet,
     );
     exchange = results.exchange;
-    governance = results.governance;
     indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     await usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      results.usdc,
+    );
 
     await exchange
       .connect(dispatcherWallet)

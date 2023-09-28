@@ -87,7 +87,12 @@ describe('Exchange', function () {
 
     await usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      results.usdc,
+    );
 
     await exchange
       .connect(dispatcherWallet)
@@ -196,7 +201,12 @@ describe('Exchange', function () {
           ),
         );
 
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
@@ -239,7 +249,12 @@ describe('Exchange', function () {
           ),
         );
 
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
@@ -285,7 +300,12 @@ describe('Exchange', function () {
           ),
         );
 
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
@@ -379,7 +399,12 @@ describe('Exchange', function () {
             ),
           ),
         ]);
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader1Wallet.address,
@@ -473,7 +498,12 @@ describe('Exchange', function () {
             ),
           ),
         ]);
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader1Wallet.address,
@@ -587,7 +617,12 @@ describe('Exchange', function () {
           ),
         ]);
 
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader2Wallet.address,
@@ -683,7 +718,12 @@ describe('Exchange', function () {
           ),
         ]);
 
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader2Wallet.address,

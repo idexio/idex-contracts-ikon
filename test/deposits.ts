@@ -80,15 +80,25 @@ describe('Exchange', function () {
       expect(depositedEvents[0].args?.quantity).to.equal(
         decimalToPips('5.00000000'),
       );
-      expect(depositedEvents[0].args?.newExchangeBalance).to.equal(
-        decimalToPips('5.00000000'),
-      );
       expect(
         (
           await exchange.loadBalanceBySymbol(
             traderWallet.address,
             quoteAssetSymbol,
           )
+        ).toString(),
+      ).to.equal(decimalToPips('5.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceStructBySymbol(
+            traderWallet.address,
+            quoteAssetSymbol,
+          )
+        ).balance.toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.pendingDepositQuantityByWallet(traderWallet.address)
         ).toString(),
       ).to.equal(decimalToPips('5.00000000'));
     });
@@ -120,15 +130,25 @@ describe('Exchange', function () {
       expect(depositedEvents[0].args?.quantity).to.equal(
         decimalToPips('4.50000000'),
       );
-      expect(depositedEvents[0].args?.newExchangeBalance).to.equal(
-        decimalToPips('4.50000000'),
-      );
       expect(
         (
           await exchange.loadBalanceBySymbol(
             traderWallet.address,
             quoteAssetSymbol,
           )
+        ).toString(),
+      ).to.equal(decimalToPips('4.50000000'));
+      expect(
+        (
+          await exchange.loadBalanceStructBySymbol(
+            traderWallet.address,
+            quoteAssetSymbol,
+          )
+        ).balance.toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.pendingDepositQuantityByWallet(traderWallet.address)
         ).toString(),
       ).to.equal(decimalToPips('4.50000000'));
     });
@@ -242,6 +262,132 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(traderWallet).deposit('10000000', ownerWallet.address),
       ).to.eventually.be.rejectedWith(/deposits disabled/i);
+    });
+  });
+
+  describe('applyPendingDepositsForWallet', function () {
+    it('should work for a single deposit', async function () {
+      await expect(usdc.decimals()).to.eventually.equal(quoteAssetDecimals);
+
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      await usdc.transfer(traderWallet.address, depositQuantity);
+      await usdc
+        .connect(traderWallet)
+        .approve(exchange.address, depositQuantity);
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+      await exchange
+        .connect(ownerWallet)
+        .applyPendingDepositsForWallet(
+          decimalToPips('5.00000000'),
+          traderWallet.address,
+        );
+
+      const pendingDepositAppliedEvents = await exchange.queryFilter(
+        exchange.filters.PendingDepositApplied(),
+      );
+      expect(pendingDepositAppliedEvents).to.be.an('array').with.lengthOf(1);
+      expect(pendingDepositAppliedEvents[0].args?.wallet).to.equal(
+        traderWallet.address,
+      );
+      expect(pendingDepositAppliedEvents[0].args?.quantity.toString()).to.equal(
+        decimalToPips('5.00000000'),
+      );
+      expect(
+        (
+          await exchange.loadBalanceStructBySymbol(
+            traderWallet.address,
+            quoteAssetSymbol,
+          )
+        ).balance.toString(),
+      ).to.equal(decimalToPips('5.00000000'));
+    });
+
+    it('should work for multiple deposits and partial application', async function () {
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      await usdc.transfer(traderWallet.address, depositQuantity.mul(2));
+      await usdc
+        .connect(traderWallet)
+        .approve(exchange.address, depositQuantity.mul(2));
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+      await exchange
+        .connect(ownerWallet)
+        .applyPendingDepositsForWallet(
+          decimalToPips('7.00000000'),
+          traderWallet.address,
+        );
+
+      const pendingDepositAppliedEvents = await exchange.queryFilter(
+        exchange.filters.PendingDepositApplied(),
+      );
+      expect(pendingDepositAppliedEvents).to.be.an('array').with.lengthOf(1);
+      expect(pendingDepositAppliedEvents[0].args?.wallet).to.equal(
+        traderWallet.address,
+      );
+      expect(pendingDepositAppliedEvents[0].args?.quantity.toString()).to.equal(
+        decimalToPips('7.00000000'),
+      );
+      expect(
+        (
+          await exchange.loadBalanceStructBySymbol(
+            traderWallet.address,
+            quoteAssetSymbol,
+          )
+        ).balance.toString(),
+      ).to.equal(decimalToPips('7.00000000'));
+      expect(
+        (
+          await exchange.pendingDepositQuantityByWallet(traderWallet.address)
+        ).toString(),
+      ).to.equal(decimalToPips('3.00000000'));
+    });
+
+    it('should revert for amount exceeding pending deposits', async function () {
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      await usdc.transfer(traderWallet.address, depositQuantity);
+      await usdc
+        .connect(traderWallet)
+        .approve(exchange.address, depositQuantity);
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+
+      await expect(
+        exchange
+          .connect(ownerWallet)
+          .applyPendingDepositsForWallet(
+            decimalToPips('7.00000000'),
+            traderWallet.address,
+          ),
+      ).to.eventually.be.rejectedWith(/quantity to apply exceeds pending/i);
+    });
+
+    it('should revert when not sent by admin or dispatch', async function () {
+      await expect(
+        exchange
+          .connect(traderWallet)
+          .applyPendingDepositsForWallet(
+            decimalToPips('7.00000000'),
+            traderWallet.address,
+          ),
+      ).to.eventually.be.rejectedWith(
+        /caller must be Admin or Dispatcher wallet/i,
+      );
     });
   });
 

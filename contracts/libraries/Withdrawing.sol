@@ -162,6 +162,7 @@ library Withdrawing {
     mapping(string => uint64) storage lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
     mapping(string => mapping(address => MarketOverrides)) storage marketOverridesByBaseAssetSymbolAndWallet,
     mapping(string => Market) storage marketsByBaseAssetSymbol,
+    mapping(address => uint64) storage pendingDepositQuantityByWallet,
     mapping(address => WalletExit) storage walletExits
   ) public returns (uint256 exitFundPositionOpenedAtBlockTimestamp_) {
     Funding.applyOutstandingWalletFunding(
@@ -194,6 +195,10 @@ library Withdrawing {
         marketsByBaseAssetSymbol
       );
     }
+
+    // Apply all pending deposits
+    walletQuoteQuantityToWithdraw += Math.toInt64(pendingDepositQuantityByWallet[arguments.wallet]);
+    pendingDepositQuantityByWallet[arguments.wallet] = 0;
 
     walletQuoteQuantityToWithdraw = validateExitQuoteQuantityAndCoerceIfNeeded(
       isExitFundWallet,

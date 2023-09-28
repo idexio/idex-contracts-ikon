@@ -116,6 +116,7 @@ describe.skip('Gas measurement', function () {
 
     await fundWallets(
       [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
       exchange,
       results.usdc,
       '3000.00000000',
@@ -326,6 +327,7 @@ describe.skip('Gas measurement', function () {
     it('for 5 markets', async function () {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '7000.00000000',
@@ -458,7 +460,12 @@ describe.skip('Gas measurement', function () {
     });
 
     it('for a single market', async function () {
-      await fundWallets([insuranceFundWallet], exchange, usdc);
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
         baseAssetSymbol,
@@ -512,6 +519,7 @@ describe.skip('Gas measurement', function () {
         ]);
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -548,6 +556,7 @@ describe.skip('Gas measurement', function () {
     it('for 5 markets', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '7800.00000000',
@@ -555,6 +564,7 @@ describe.skip('Gas measurement', function () {
 
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -1135,6 +1145,7 @@ describe.skip('Gas measurement', function () {
     it.skip('investigation', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '8500.00000000',
@@ -1142,6 +1153,7 @@ describe.skip('Gas measurement', function () {
 
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -1181,7 +1193,7 @@ describe.skip('Gas measurement', function () {
       }
 
       const trader3Wallet = (await ethers.getSigners())[10];
-      await fundWallets([trader3Wallet], exchange, usdc);
+      await fundWallets([trader3Wallet], dispatcherWallet, exchange, usdc);
 
       buyOrder.nonce = uuidv1();
       buyOrder.market = `${baseAssetSymbol}-USD`;
@@ -1232,6 +1244,7 @@ describe.skip('Gas measurement', function () {
     it('with no outstanding funding payments and 5 open positions (limit-limit)', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '8500.00000000',
@@ -1239,6 +1252,7 @@ describe.skip('Gas measurement', function () {
 
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -1479,6 +1493,7 @@ describe.skip('Gas measurement', function () {
     it('with 100 outstanding funding payments', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '100000.00000000',
@@ -1527,6 +1542,7 @@ describe.skip('Gas measurement', function () {
     it('with 1000 outstanding funding payments', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '100000.00000000',
@@ -1575,6 +1591,7 @@ describe.skip('Gas measurement', function () {
     it('with 5000 outstanding funding payments', async () => {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '100000.00000000',
