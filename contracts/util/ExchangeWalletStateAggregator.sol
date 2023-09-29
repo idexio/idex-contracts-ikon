@@ -53,8 +53,9 @@ contract ExchangeWalletStateAggregator {
 
       // The first element in the balances array is reserved for the quote asset
       walletStates[i].balances = new Balance[](marketsLength + 1);
-      walletStates[i].balances[0] = exchange.loadBalanceStructBySymbol(wallets[i], Constants.QUOTE_ASSET_SYMBOL);
-      walletStates[i].balances[0].balance += exchange.loadOutstandingWalletFunding(wallets[i]);
+      walletStates[i].balances[0].balance = exchange.loadBalanceBySymbol(wallets[i], Constants.QUOTE_ASSET_SYMBOL);
+      // Other struct fields are not relevant to quote asset
+
       for (uint8 j = 0; j < marketsLength; ++j) {
         walletStates[i].balances[j + 1] = exchange.loadBalanceStructBySymbol(wallets[i], baseAssetSymbols[j]);
       }
