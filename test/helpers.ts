@@ -482,6 +482,8 @@ export async function executeTrade(
   baseAssetSymbol_ = baseAssetSymbol,
   price = '2000.00000000',
   quantity = '10.00000000',
+  makerFeeQuantity = '20.00000000',
+  takerFeeQuantity = '40.00000000',
 ): Promise<Trade> {
   if (indexPrice) {
     await exchange
@@ -523,8 +525,8 @@ export async function executeTrade(
     quoteQuantity: new BigNumber(quantity)
       .times(new BigNumber(price))
       .toFixed(8, BigNumber.ROUND_DOWN),
-    makerFeeQuantity: '20.00000000',
-    takerFeeQuantity: '40.00000000',
+    makerFeeQuantity,
+    takerFeeQuantity,
     price,
     makerSide: OrderSide.Sell,
   };

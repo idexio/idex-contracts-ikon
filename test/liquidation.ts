@@ -24,6 +24,7 @@ import {
   executeTrade,
   expect,
   fundWallets,
+  quoteAssetSymbol,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -70,6 +71,10 @@ describe('Exchange', function () {
       feeWallet,
       indexPriceServiceWallet,
       insuranceFundWallet,
+      0,
+      true,
+      ethers.constants.AddressZero,
+      ['ETH', 'BTC'],
     );
     exchange = results.exchange;
     governance = results.governance;
@@ -578,6 +583,169 @@ describe('Exchange', function () {
       });
     });
 
+    it('should work for valid wallet with a short position requiring positive quote to close', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+
+      const overrides = {
+        initialMarginFraction: '10000000',
+        maintenanceMarginFraction: '5000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '100.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.addMarket({
+        exists: true,
+        isActive: false,
+        baseAssetSymbol: 'BTC',
+        indexPriceAtDeactivation: 0,
+        lastIndexPrice: 0,
+        lastIndexPriceTimestampInMs: 0,
+        overridableFields: {
+          initialMarginFraction: '2000000',
+          maintenanceMarginFraction: '1000000',
+          incrementalInitialMarginFraction: '1000000',
+          baselinePositionSize: '14000000000',
+          incrementalPositionSize: '2800000000',
+          maximumPositionSize: '282000000000',
+          minimumPositionSize: '10000000',
+        },
+      });
+      await exchange.connect(dispatcherWallet).activateMarket('BTC');
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '1000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        null,
+        indexPriceAdapter.address,
+        trader3Wallet,
+        trader4Wallet,
+        baseAssetSymbol,
+        '100.00000000',
+        '10.00000000',
+        '0.00000000',
+        '0.00000000',
+      );
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        null,
+        indexPriceAdapter.address,
+        trader4Wallet,
+        trader3Wallet,
+        'BTC',
+        '1.00000000',
+        '100.00000000',
+        '0.00000000',
+        '0.00000000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '100.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader4Wallet.address,
+        liquidationQuoteQuantities: ['3966.66666667', '4066.66666667'].map(
+          decimalToPips,
+        ),
+      });
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(trader4Wallet.address, 'BTC')
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+    });
+
     it('should revert when wallet is not in maintenance', async function () {
       await expect(
         exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
@@ -699,6 +867,173 @@ describe('Exchange', function () {
       expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
     });
 
+    it('should work for valid wallet with a short position requiring positive quote to close', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+
+      const overrides = {
+        initialMarginFraction: '10000000',
+        maintenanceMarginFraction: '5000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '100.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.addMarket({
+        exists: true,
+        isActive: false,
+        baseAssetSymbol: 'BTC',
+        indexPriceAtDeactivation: 0,
+        lastIndexPrice: 0,
+        lastIndexPriceTimestampInMs: 0,
+        overridableFields: {
+          initialMarginFraction: '2000000',
+          maintenanceMarginFraction: '1000000',
+          incrementalInitialMarginFraction: '1000000',
+          baselinePositionSize: '14000000000',
+          incrementalPositionSize: '2800000000',
+          maximumPositionSize: '282000000000',
+          minimumPositionSize: '10000000',
+        },
+      });
+      await exchange.connect(dispatcherWallet).activateMarket('BTC');
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '1000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        null,
+        indexPriceAdapter.address,
+        trader3Wallet,
+        trader4Wallet,
+        baseAssetSymbol,
+        '100.00000000',
+        '10.00000000',
+        '0.00000000',
+        '0.00000000',
+      );
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        null,
+        indexPriceAdapter.address,
+        trader4Wallet,
+        trader3Wallet,
+        'BTC',
+        '1.00000000',
+        '100.00000000',
+        '0.00000000',
+        '0.00000000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '100.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .liquidateWalletInMaintenanceDuringSystemRecovery({
+          counterpartyWallet: exitFundWallet.address,
+          liquidatingWallet: trader4Wallet.address,
+          liquidationQuoteQuantities: ['3966.66666667', '4066.66666667'].map(
+            decimalToPips,
+          ),
+        });
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(trader4Wallet.address, 'BTC')
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+    });
+
     it('should revert when EF has no open balances', async function () {
       await expect(
         exchange
@@ -808,6 +1143,171 @@ describe('Exchange', function () {
         liquidatingWallet: trader1Wallet.address,
         liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
       });
+    });
+
+    it('should work for valid wallet with negative EAV and a short position requiring positive quote to close', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+
+      const overrides = {
+        initialMarginFraction: '10000000',
+        maintenanceMarginFraction: '5000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          ethers.constants.AddressZero,
+        );
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '100.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.addMarket({
+        exists: true,
+        isActive: false,
+        baseAssetSymbol: 'BTC',
+        indexPriceAtDeactivation: 0,
+        lastIndexPrice: 0,
+        lastIndexPriceTimestampInMs: 0,
+        overridableFields: {
+          initialMarginFraction: '2000000',
+          maintenanceMarginFraction: '1000000',
+          incrementalInitialMarginFraction: '1000000',
+          baselinePositionSize: '14000000000',
+          incrementalPositionSize: '2800000000',
+          maximumPositionSize: '282000000000',
+          minimumPositionSize: '10000000',
+        },
+      });
+      await exchange.connect(dispatcherWallet).activateMarket('BTC');
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '1.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '1000.00000000',
+      );
+
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        null,
+        indexPriceAdapter.address,
+        trader3Wallet,
+        trader4Wallet,
+        baseAssetSymbol,
+        '100.00000000',
+        '10.00000000',
+        '0.00000000',
+        '0.00000000',
+      );
+      await executeTrade(
+        exchange,
+        dispatcherWallet,
+        null,
+        indexPriceAdapter.address,
+        trader4Wallet,
+        trader3Wallet,
+        'BTC',
+        '1.00000000',
+        '100.00000000',
+        '0.00000000',
+        '0.00000000',
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '100.00000000',
+              'BTC',
+            ),
+          ),
+        ]);
+
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+
+      await exchange.connect(trader4Wallet).exitWallet();
+
+      await exchange.connect(dispatcherWallet).liquidateWalletExit({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader4Wallet.address,
+        liquidationQuoteQuantities: ['3966.66666667', '4066.66666667'].map(
+          decimalToPips,
+        ),
+      });
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(trader4Wallet.address, 'BTC')
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
     });
 
     it('should revert when not sent by dispatcher', async function () {
