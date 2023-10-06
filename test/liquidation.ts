@@ -1019,7 +1019,7 @@ describe('Exchange', function () {
       await exchange.connect(dispatcherWallet).liquidateWalletExit({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader4Wallet.address,
-        liquidationQuoteQuantities: ['26.66666667', '36.66666667'].map(
+        liquidationQuoteQuantities: ['0.00000000', '36.66666667'].map(
           decimalToPips,
         ),
       });

@@ -130,9 +130,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         });
@@ -264,10 +261,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '18767.45542949',
-            '294192.54457050',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('18767.45542949'),
         });
@@ -321,9 +314,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         });
@@ -408,10 +398,6 @@ describe('Exchange', function () {
           baseAssetSymbol: 'BTC',
           counterpartyWallet: trader4Wallet.address,
           liquidatingWallet: trader3Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '0.00000000',
-            '292980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('292980.00000000'),
         });
@@ -440,10 +426,6 @@ describe('Exchange', function () {
           baseAssetSymbol: baseAssetSymbol,
           counterpartyWallet: trader3Wallet.address,
           liquidatingWallet: trader4Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '0.00000000',
-            '36.66666667',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('100.00000000'),
           liquidationQuoteQuantity: decimalToPips('0.00000000'),
         });
@@ -476,9 +458,6 @@ describe('Exchange', function () {
           baseAssetSymbol: 'BTC',
           counterpartyWallet: trader3Wallet.address,
           liquidatingWallet: trader4Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '10.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('100.00000000'),
           liquidationQuoteQuantity: decimalToPips('10.00000000'),
         });
@@ -506,248 +485,12 @@ describe('Exchange', function () {
       ).to.equal(decimalToPips('0.00000000'));
     });
 
-    it('should revert when IF simulation quote quantity is non-zero for position not held by liquidating wallet', async function () {
-      const indexPrice = await buildIndexPriceWithValue(
-        exchange.address,
-        indexPriceServiceWallet,
-        '1850.00000000',
-      );
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
-        ]);
-      await fundWallets(
-        [insuranceFundWallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '10000.00000000',
-      );
-      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-        counterpartyWallet: insuranceFundWallet.address,
-        liquidatingWallet: trader2Wallet.address,
-        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
-      });
-
-      const wallets = await ethers.getSigners();
-      const trader3Wallet = wallets[10];
-      const trader4Wallet = wallets[11];
-      await fundWallets(
-        [trader3Wallet, trader4Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-      );
-
-      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
-      await fundWallets(
-        [trader3Wallet, trader4Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '51000.00000000',
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        await buildIndexPriceWithValue(
-          exchange.address,
-          indexPriceServiceWallet,
-          '24000.00000000',
-          'BTC',
-        ),
-        indexPriceAdapter.address,
-        trader3Wallet,
-        trader4Wallet,
-        'BTC',
-        '24000.00000000',
-      );
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPriceWithValue(
-              exchange.address,
-              indexPriceServiceWallet,
-              '30000.00000000',
-              'BTC',
-            ),
-          ),
-        ]);
-
-      await expect(
-        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
-          baseAssetSymbol: 'BTC',
-          counterpartyWallet: trader4Wallet.address,
-          liquidatingWallet: trader3Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '18040.00000000',
-            '292980.00000000',
-          ].map(decimalToPips),
-          liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('292980.00000000'),
-        }),
-      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
-    });
-
-    it('should revert when IF can acquire after funding payments', async function () {
-      const wallets = await ethers.getSigners();
-      const trader3Wallet = wallets[10];
-      const trader4Wallet = wallets[11];
-      await fundWallets(
-        [trader3Wallet, trader4Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-      );
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
-        trader3Wallet,
-        trader4Wallet,
-      );
-      const indexPrice = await buildIndexPriceWithValue(
-        exchange.address,
-        indexPriceServiceWallet,
-        '1850.00000000',
-      );
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
-        ]);
-      await fundWallets(
-        [insuranceFundWallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '902.00000000',
-      );
-      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-        counterpartyWallet: insuranceFundWallet.address,
-        liquidatingWallet: trader4Wallet.address,
-        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
-      });
-
-      const overrides = {
-        initialMarginFraction: '100000000',
-        maintenanceMarginFraction: '3000000',
-        incrementalInitialMarginFraction: '1000000',
-        baselinePositionSize: '14000000000',
-        incrementalPositionSize: '2800000000',
-        maximumPositionSize: '282000000000',
-        minimumPositionSize: '10000000',
-      };
-      await governance
-        .connect(ownerWallet)
-        .initiateMarketOverridesUpgrade(
-          baseAssetSymbol,
-          overrides,
-          insuranceFundWallet.address,
-        );
-      await time.increase(fieldUpgradeDelayInS);
-      await governance
-        .connect(dispatcherWallet)
-        .finalizeMarketOverridesUpgrade(
-          baseAssetSymbol,
-          overrides,
-          insuranceFundWallet.address,
-        );
-
-      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
-      await fundWallets(
-        [trader1Wallet, trader2Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '51000.00000000',
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        await buildIndexPriceWithValue(
-          exchange.address,
-          indexPriceServiceWallet,
-          '24000.00000000',
-          'BTC',
-        ),
-        indexPriceAdapter.address,
-        trader1Wallet,
-        trader2Wallet,
-        'BTC',
-        '24000.00000000',
-      );
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPriceWithValue(
-              exchange.address,
-              indexPriceServiceWallet,
-              '29000.00000000',
-              'BTC',
-            ),
-          ),
-        ]);
-
-      await fundWallets(
-        [insuranceFundWallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '9000.00000000',
-      );
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPriceWithTimestamp(
-              exchange.address,
-              indexPriceServiceWallet,
-              indexPrice.timestampInMs + fundingPeriodLengthInMs,
-            ),
-          ),
-        ]);
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('-0.02'));
-
-      await expect(
-        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
-          baseAssetSymbol,
-          counterpartyWallet: trader2Wallet.address,
-          liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20165.16129032',
-            '292394.83870967',
-          ].map(decimalToPips),
-          liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('20165.16129032'),
-        }),
-      ).to.eventually.be.rejectedWith(/insurance fund can acquire/i);
-    });
-
     it('should revert when not sent by dispatcher', async function () {
       await expect(
         exchange.deleverageInMaintenanceAcquisition({
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -760,49 +503,10 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
-    });
-
-    it('should revert when IF can acquire', async function () {
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPriceWithValue(
-              exchange.address,
-              indexPriceServiceWallet,
-              '2150.00000000',
-            ),
-          ),
-        ]);
-
-      await fundWallets(
-        [insuranceFundWallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '22000.00000000',
-      );
-
-      await expect(
-        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
-          baseAssetSymbol,
-          counterpartyWallet: trader2Wallet.address,
-          liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
-          liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('21980.00000000'),
-        }),
-      ).to.eventually.be.rejectedWith(/insurance fund can acquire/i);
     });
 
     it('should revert when wallet has no open position', async function () {
@@ -811,9 +515,6 @@ describe('Exchange', function () {
           baseAssetSymbol: 'XYZ',
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -826,9 +527,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: exitFundWallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -841,9 +539,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: insuranceFundWallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -856,9 +551,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -873,9 +565,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: exitFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -888,9 +577,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         }),
@@ -1057,9 +743,6 @@ describe('Exchange', function () {
         baseAssetSymbol,
         counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '20000.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
       });
@@ -1088,9 +771,6 @@ describe('Exchange', function () {
         baseAssetSymbol,
         counterpartyWallet: trader2Wallet.address,
         liquidatingWallet: trader1Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '20000.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
       });
@@ -1161,10 +841,6 @@ describe('Exchange', function () {
         baseAssetSymbol: 'BTC',
         counterpartyWallet: trader4Wallet.address,
         liquidatingWallet: trader3Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '0.00000000',
-          '240000.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('240000.00000000'),
       });
@@ -1234,10 +910,6 @@ describe('Exchange', function () {
         baseAssetSymbol,
         counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '20000.00000000',
-          '20000.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
       });
@@ -1271,9 +943,6 @@ describe('Exchange', function () {
         baseAssetSymbol: 'BTC',
         counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '18500.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('18500.00000000'),
       });
@@ -1347,10 +1016,6 @@ describe('Exchange', function () {
         baseAssetSymbol,
         counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '12360.00000000',
-          '24720.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('12360.00000000'),
       });
@@ -1359,9 +1024,6 @@ describe('Exchange', function () {
         baseAssetSymbol: 'BTC',
         counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '24720.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('24720.00000000'),
       });
@@ -1447,10 +1109,6 @@ describe('Exchange', function () {
         baseAssetSymbol,
         counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '20000.00000000',
-          '20000.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: decimalToPips('20000.00000000'),
       });
@@ -1484,9 +1142,6 @@ describe('Exchange', function () {
         baseAssetSymbol: 'BTC',
         counterpartyWallet: trader1Wallet.address,
         liquidatingWallet: trader2Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          (BigInt(remainingQuoteBalance) * BigInt(-1)).toString(),
-        ],
         liquidationBaseQuantity: decimalToPips('10.00000000'),
         liquidationQuoteQuantity: (
           BigInt(remainingQuoteBalance) * BigInt(-1)
@@ -1533,10 +1188,6 @@ describe('Exchange', function () {
         baseAssetSymbol: baseAssetSymbol,
         counterpartyWallet: trader3Wallet.address,
         liquidatingWallet: trader4Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '0.00000000',
-          '36.66666667',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('100.00000000'),
         liquidationQuoteQuantity: decimalToPips('0.00000000'),
       });
@@ -1567,9 +1218,6 @@ describe('Exchange', function () {
         baseAssetSymbol: 'BTC',
         counterpartyWallet: trader3Wallet.address,
         liquidatingWallet: trader4Wallet.address,
-        validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-          '10.00000000',
-        ].map(decimalToPips),
         liquidationBaseQuantity: decimalToPips('100.00000000'),
         liquidationQuoteQuantity: decimalToPips('10.00000000'),
       });
@@ -1597,229 +1245,6 @@ describe('Exchange', function () {
       ).to.equal(decimalToPips('0.00000000'));
     });
 
-    it('should revert when IF simulation quote quantity is non-zero for position not held by liquidating wallet', async function () {
-      const indexPrice = await buildIndexPriceWithValue(
-        exchange.address,
-        indexPriceServiceWallet,
-        '1850.00000000',
-      );
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
-        ]);
-      await fundWallets(
-        [insuranceFundWallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '10000.00000000',
-      );
-      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-        counterpartyWallet: insuranceFundWallet.address,
-        liquidatingWallet: trader2Wallet.address,
-        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
-      });
-
-      const wallets = await ethers.getSigners();
-      const trader3Wallet = wallets[10];
-      const trader4Wallet = wallets[11];
-      await fundWallets(
-        [trader3Wallet, trader4Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-      );
-
-      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
-      await fundWallets(
-        [trader3Wallet, trader4Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '51000.00000000',
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        await buildIndexPriceWithValue(
-          exchange.address,
-          indexPriceServiceWallet,
-          '24000.00000000',
-          'BTC',
-        ),
-        indexPriceAdapter.address,
-        trader3Wallet,
-        trader4Wallet,
-        'BTC',
-        '24000.00000000',
-      );
-
-      await exchange.connect(trader3Wallet).exitWallet();
-
-      await expect(
-        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
-          baseAssetSymbol: 'BTC',
-          counterpartyWallet: trader4Wallet.address,
-          liquidatingWallet: trader3Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '18500.00000000',
-            '240000.00000000',
-          ].map(decimalToPips),
-          liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('240000.00000000'),
-        }),
-      ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
-    });
-
-    it('should revert when IF can acquire after funding payments', async function () {
-      const wallets = await ethers.getSigners();
-      const trader3Wallet = wallets[10];
-      const trader4Wallet = wallets[11];
-      await fundWallets(
-        [trader3Wallet, trader4Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-      );
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
-        trader3Wallet,
-        trader4Wallet,
-      );
-      const indexPrice = await buildIndexPriceWithValue(
-        exchange.address,
-        indexPriceServiceWallet,
-        '1850.00000000',
-      );
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
-        ]);
-      await fundWallets(
-        [insuranceFundWallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '902.00000000',
-      );
-      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
-        counterpartyWallet: insuranceFundWallet.address,
-        liquidatingWallet: trader4Wallet.address,
-        liquidationQuoteQuantities: ['18040.00000000'].map(decimalToPips),
-      });
-
-      const overrides = {
-        initialMarginFraction: '100000000',
-        maintenanceMarginFraction: '3000000',
-        incrementalInitialMarginFraction: '1000000',
-        baselinePositionSize: '14000000000',
-        incrementalPositionSize: '2800000000',
-        maximumPositionSize: '282000000000',
-        minimumPositionSize: '10000000',
-      };
-      await governance
-        .connect(ownerWallet)
-        .initiateMarketOverridesUpgrade(
-          baseAssetSymbol,
-          overrides,
-          insuranceFundWallet.address,
-        );
-      await time.increase(fieldUpgradeDelayInS);
-      await governance
-        .connect(dispatcherWallet)
-        .finalizeMarketOverridesUpgrade(
-          baseAssetSymbol,
-          overrides,
-          insuranceFundWallet.address,
-        );
-
-      await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
-      await fundWallets(
-        [trader1Wallet, trader2Wallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '51000.00000000',
-      );
-
-      await executeTrade(
-        exchange,
-        dispatcherWallet,
-        await buildIndexPriceWithValue(
-          exchange.address,
-          indexPriceServiceWallet,
-          '24000.00000000',
-          'BTC',
-        ),
-        indexPriceAdapter.address,
-        trader1Wallet,
-        trader2Wallet,
-        'BTC',
-        '24000.00000000',
-      );
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPriceWithValue(
-              exchange.address,
-              indexPriceServiceWallet,
-              '29000.00000000',
-              'BTC',
-            ),
-          ),
-        ]);
-
-      await fundWallets(
-        [insuranceFundWallet],
-        dispatcherWallet,
-        exchange,
-        usdc,
-        '11600.00000000',
-      );
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPriceWithTimestamp(
-              exchange.address,
-              indexPriceServiceWallet,
-              indexPrice.timestampInMs + fundingPeriodLengthInMs,
-            ),
-          ),
-        ]);
-
-      await exchange
-        .connect(dispatcherWallet)
-        .publishFundingMultiplier(baseAssetSymbol, decimalToPips('-0.02'));
-
-      await exchange.connect(trader1Wallet).exitWallet();
-
-      await expect(
-        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
-          baseAssetSymbol,
-          counterpartyWallet: trader2Wallet.address,
-          liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-            '290000.00000000',
-          ].map(decimalToPips),
-          liquidationBaseQuantity: decimalToPips('10.00000000'),
-          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-        }),
-      ).to.eventually.be.rejectedWith(/insurance fund can acquire/i);
-    });
-
     it('should revert when not sent by dispatcher', async function () {
       await exchange.connect(trader2Wallet).exitWallet();
 
@@ -1828,9 +1253,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
@@ -1843,9 +1265,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
@@ -1860,9 +1279,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('19000.00000000'),
         }),
@@ -1877,9 +1293,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
@@ -1896,9 +1309,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: exitFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
@@ -1913,9 +1323,6 @@ describe('Exchange', function () {
           baseAssetSymbol,
           counterpartyWallet: insuranceFundWallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
@@ -1930,9 +1337,6 @@ describe('Exchange', function () {
           baseAssetSymbol: 'XYZ',
           counterpartyWallet: trader1Wallet.address,
           liquidatingWallet: trader2Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '20000.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
