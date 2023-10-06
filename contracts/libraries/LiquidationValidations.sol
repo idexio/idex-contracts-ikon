@@ -53,6 +53,13 @@ library LiquidationValidations {
     int256 quoteQuantity = (quoteQuantityInDoublePips + quotePenaltyInDoublePips) /
       (Math.toInt64(Constants.PIP_PRICE_MULTIPLIER));
 
+    // Under certain extreme pricing scenarios, liquidating a short position requires sending the liquidating wallet
+    // quote as well as base. While this is correct per the above calculation it would necessitate signed handling
+    // elsewhere and be counterintuitive to deleveraged positions, so instead coerce to zero
+    if (positionSize < 0 && quoteQuantity > 0) {
+      return 0;
+    }
+
     return Math.abs(Math.toInt64(quoteQuantity));
   }
 
@@ -114,7 +121,7 @@ library LiquidationValidations {
 
     // Allow additional pip buffers for integer rounding
     require(
-      expectedLiquidationQuoteQuantity - 1 <= liquidationQuoteQuantity &&
+      expectedLiquidationQuoteQuantity - (expectedLiquidationQuoteQuantity == 0 ? 0 : 1) <= liquidationQuoteQuantity &&
         expectedLiquidationQuoteQuantity + 1 >= liquidationQuoteQuantity,
       "Invalid quote quantity"
     );
