@@ -120,6 +120,28 @@ describe('Exchange', function () {
       ).to.eventually.equal('0');
     });
 
+    it('should return 0 when quote quantity sign is same as position sign', async function () {
+      await expect(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
+          '10000000000',
+          '5000000',
+          '-1000000000',
+          '-98900000000',
+          '5000000000',
+        ),
+      ).to.eventually.equal('0');
+
+      await expect(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
+          '10000000000',
+          '5000000',
+          '1000000000',
+          '101100000000',
+          '5000000000',
+        ),
+      ).to.eventually.equal('0');
+    });
+
     it('should revert if result overflows int64', async function () {
       await expect(
         liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(

@@ -55,8 +55,11 @@ library LiquidationValidations {
 
     // Under certain extreme pricing scenarios, liquidating a short position requires sending the liquidating wallet
     // quote as well as base. While this is correct per the above calculation it would necessitate signed handling
-    // elsewhere and be counterintuitive to deleveraged positions, so instead coerce to zero
-    if (positionSize < 0 && quoteQuantity > 0) {
+    // elsewhere and be counterintuitive to deleveraged positions, so instead coerce to zero. A similar result can
+    // occur for long positions requiring taking both base and quote from the liquidating wallet, though in practice
+    // such a wallet would meet the margin requirement and therefor not need liquidation; we include the latter check
+    // here anyway for completeness
+    if ((positionSize < 0 && quoteQuantity > 0) || (positionSize > 0 && quoteQuantity < 0)) {
       return 0;
     }
 
