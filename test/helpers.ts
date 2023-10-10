@@ -3,6 +3,7 @@ import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { v1 as uuidv1 } from 'uuid';
 import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 
@@ -12,6 +13,7 @@ export const { expect } = chai;
 import {
   decimalToAssetUnits,
   decimalToPips,
+  fieldUpgradeDelayInS,
   getExecuteTradeArguments,
   getIndexPriceSignatureTypedData,
   getOrderSignatureTypedData,
@@ -24,7 +26,7 @@ import {
   signatureHashVersion,
   Trade,
 } from '../lib';
-import { Exchange_v4, USDC } from '../typechain-types';
+import { Exchange_v4, Governance, USDC } from '../typechain-types';
 
 export const quoteAssetDecimals = 6;
 
@@ -482,6 +484,8 @@ export async function executeTrade(
   baseAssetSymbol_ = baseAssetSymbol,
   price = '2000.00000000',
   quantity = '10.00000000',
+  makerFeeQuantity = '20.00000000',
+  takerFeeQuantity = '40.00000000',
 ): Promise<Trade> {
   if (indexPrice) {
     await exchange
@@ -523,8 +527,8 @@ export async function executeTrade(
     quoteQuantity: new BigNumber(quantity)
       .times(new BigNumber(price))
       .toFixed(8, BigNumber.ROUND_DOWN),
-    makerFeeQuantity: '20.00000000',
-    takerFeeQuantity: '40.00000000',
+    makerFeeQuantity,
+    takerFeeQuantity,
     price,
     makerSide: OrderSide.Sell,
   };
@@ -700,3 +704,147 @@ export const pipToDecimal = function pipToDecimal(
   const bn = new BigNumber(pips.toString());
   return bn.shiftedBy(pipsDecimals * -1).toFixed(pipsDecimals);
 };
+
+export async function setupSingleShortPositionRequiringPositiveQuoteToClose(
+  exchange: Exchange_v4,
+  governance: Governance,
+  indexPriceAdapterAddress: string,
+  usdc: USDC,
+  dispatcherWallet: SignerWithAddress,
+  indexPriceServiceWallet: SignerWithAddress,
+  ownerWallet: SignerWithAddress,
+  trader1Wallet: SignerWithAddress,
+  trader2Wallet: SignerWithAddress,
+) {
+  const overrides = {
+    initialMarginFraction: '10000000',
+    maintenanceMarginFraction: '1000000',
+    incrementalInitialMarginFraction: '1000000',
+    baselinePositionSize: '14000000000',
+    incrementalPositionSize: '2800000000',
+    maximumPositionSize: '282000000000',
+    minimumPositionSize: '10000000000',
+  };
+  await governance
+    .connect(ownerWallet)
+    .initiateMarketOverridesUpgrade(
+      baseAssetSymbol,
+      overrides,
+      ethers.constants.AddressZero,
+    );
+  await time.increase(fieldUpgradeDelayInS);
+  await governance
+    .connect(dispatcherWallet)
+    .finalizeMarketOverridesUpgrade(
+      baseAssetSymbol,
+      overrides,
+      ethers.constants.AddressZero,
+    );
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '0.01000000',
+          baseAssetSymbol,
+        ),
+      ),
+    ]);
+
+  await exchange.addMarket({
+    exists: true,
+    isActive: false,
+    baseAssetSymbol: 'BTC',
+    indexPriceAtDeactivation: 0,
+    lastIndexPrice: 0,
+    lastIndexPriceTimestampInMs: 0,
+    overridableFields: {
+      initialMarginFraction: '2000000',
+      maintenanceMarginFraction: '500000',
+      incrementalInitialMarginFraction: '1000000',
+      baselinePositionSize: '14000000000',
+      incrementalPositionSize: '2800000000',
+      maximumPositionSize: '282000000000',
+      minimumPositionSize: '10000000',
+    },
+  });
+  await exchange.connect(dispatcherWallet).activateMarket('BTC');
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '0.01000000',
+          'BTC',
+        ),
+      ),
+    ]);
+
+  await fundWallets(
+    [trader1Wallet, trader2Wallet],
+    dispatcherWallet,
+    exchange,
+    usdc,
+    '8.00000000',
+  );
+
+  await executeTrade(
+    exchange,
+    dispatcherWallet,
+    null,
+    indexPriceAdapterAddress,
+    trader2Wallet,
+    trader1Wallet,
+    baseAssetSymbol,
+    '0.01000000',
+    '100.00000000',
+    '0.00000000',
+    '0.00000000',
+  );
+  await executeTrade(
+    exchange,
+    dispatcherWallet,
+    null,
+    indexPriceAdapterAddress,
+    trader2Wallet,
+    trader1Wallet,
+    'BTC',
+    '0.01000000',
+    '100.00000000',
+    '0.00000000',
+    '0.00000000',
+  );
+
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '1.00000000',
+          baseAssetSymbol,
+        ),
+      ),
+    ]);
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          exchange.address,
+          indexPriceServiceWallet,
+          '1.00000000',
+          'BTC',
+        ),
+      ),
+    ]);
+}
