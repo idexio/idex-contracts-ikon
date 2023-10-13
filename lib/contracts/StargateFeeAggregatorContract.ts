@@ -4,14 +4,14 @@ import * as utils from './utils';
 import BaseContract from './BaseContract';
 
 import {
-  StargateGasFeeAggregator,
-  StargateGasFeeAggregator__factory,
+  StargateFeeAggregator,
+  StargateFeeAggregator__factory,
 } from '../../typechain-types';
 
-export default class StargateGasFeeAggregatorContract extends BaseContract<StargateGasFeeAggregator> {
+export default class StargateFeeAggregatorContract extends BaseContract<StargateFeeAggregator> {
   public constructor(address: string, signerWalletPrivateKey?: string) {
     super(
-      StargateGasFeeAggregator__factory.connect(
+      StargateFeeAggregator__factory.connect(
         address,
         signerWalletPrivateKey
           ? new ethers.Wallet(signerWalletPrivateKey, utils.loadProvider())
@@ -21,15 +21,15 @@ export default class StargateGasFeeAggregatorContract extends BaseContract<Starg
   }
 
   public static async deploy(
-    args: Parameters<StargateGasFeeAggregator__factory['deploy']>,
+    args: Parameters<StargateFeeAggregator__factory['deploy']>,
     ownerWalletPrivateKey: string,
-  ): Promise<StargateGasFeeAggregatorContract> {
+  ): Promise<StargateFeeAggregatorContract> {
     const owner = new ethers.Wallet(
       ownerWalletPrivateKey,
       utils.loadProvider(),
     );
 
-    const contract = await new StargateGasFeeAggregator__factory(owner).deploy(
+    const contract = await new StargateFeeAggregator__factory(owner).deploy(
       ...args,
     );
     await contract.deployTransaction.wait();
@@ -37,7 +37,7 @@ export default class StargateGasFeeAggregatorContract extends BaseContract<Starg
     return new this(contract.address);
   }
 
-  public getEthersContract(): StargateGasFeeAggregator {
+  public getEthersContract(): StargateFeeAggregator {
     return this.contract;
   }
 }
