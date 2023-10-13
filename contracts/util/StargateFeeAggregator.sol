@@ -47,17 +47,13 @@ interface IStargateRouterExtended is IStargateRouter {
 }
 
 contract StargateFeeAggregator {
-  uint256 public immutable poolId;
-
   // Address of Stargate router contract
   IStargateRouterExtended public immutable router;
 
   /**
    * @notice Instantiate a new `StargateFeeAggregator` contract
    */
-  constructor(uint256 poolId_, address router_) {
-    poolId = poolId_;
-
+  constructor(address router_) {
     require(Address.isContract(router_), "Invalid Stargate Router address");
     router = IStargateRouterExtended(router_);
   }
@@ -93,7 +89,7 @@ contract StargateFeeAggregator {
     address sourceWallet,
     uint64 quantity
   ) public view returns (uint256 poolFee) {
-    IPool pool = router.factory().getPool(poolId);
+    IPool pool = router.factory().getPool(sourcePoolId);
     uint8 poolDecimals = SafeCast.toUint8(pool.sharedDecimals());
 
     uint256 quantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(quantity, poolDecimals);
