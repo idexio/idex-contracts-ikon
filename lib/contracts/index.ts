@@ -11,7 +11,7 @@ import ExchangeStargateAdapterContract from './ExchangeStargateAdapterContract';
 import ExchangeWalletStateAggregatorContract from './ExchangeWalletStateAggregatorContract';
 import GovernanceContract from './GovernanceContract';
 import IDEXIndexAndOraclePriceAdapterContract from './IDEXIndexAndOraclePriceAdapterContract';
-import StargateGasFeeAggregatorContract from './StargateGasFeeAggregatorContract';
+import StargateFeeAggregatorContract from './StargateFeeAggregatorContract';
 import StorkIndexAndOraclePriceAdapterContract from './StorkIndexAndOraclePriceAdapterContract';
 import USDCContract from './USDCContract';
 
@@ -25,7 +25,7 @@ export {
   ExchangeWalletStateAggregatorContract,
   GovernanceContract,
   IDEXIndexAndOraclePriceAdapterContract,
-  StargateGasFeeAggregatorContract,
+  StargateFeeAggregatorContract,
   StorkIndexAndOraclePriceAdapterContract,
   USDCContract,
 };
