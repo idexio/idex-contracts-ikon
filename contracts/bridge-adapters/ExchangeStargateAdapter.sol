@@ -267,13 +267,21 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   }
 
   /**
-   * @notice Load net pool fee in pips for specific swap parameters
+   * @notice Estimate actual quantity of quote tokens that will be delivered on target chain after pool fees
    */
-  function canSatisfyMinimumWithdrawQuantity(
+  function estimateWithdrawQuantityInAssetUnitsAfterPoolFees(
     address wallet,
     uint64 quantity,
     bytes calldata payload
-  ) public view returns (bool) {
+  )
+    public
+    view
+    returns (
+      uint256 estimatedWithdrawQuantityInAssetUnits,
+      uint256 minimumWithdrawQuantityInAssetUnits,
+      uint8 poolDecimals
+    )
+  {
     (uint16 targetChainId, uint256 sourcePoolId, uint256 targetPoolId) = abi.decode(
       payload,
       (uint16, uint256, uint256)
@@ -283,7 +291,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     if (address(pool) == address(0x0) || pool.token() != address(quoteAsset)) {
       revert InvalidSourcePoolId(sourcePoolId);
     }
-    uint8 poolDecimals = SafeCast.toUint8(pool.sharedDecimals());
+    poolDecimals = SafeCast.toUint8(pool.sharedDecimals());
 
     uint256 quantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(quantity, poolDecimals);
     IPool.SwapObj memory s = pool.feeLibrary().getFees(
@@ -295,10 +303,10 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     );
     uint256 netPoolFeesInAssetUnits = s.protocolFee + s.lpFee + s.eqFee - s.eqReward;
 
-    uint256 minimumWithdrawQuantityInAssetUnits = (quantityInAssetUnits * minimumWithdrawQuantityMultiplier) /
+    estimatedWithdrawQuantityInAssetUnits = quantityInAssetUnits - netPoolFeesInAssetUnits;
+    minimumWithdrawQuantityInAssetUnits =
+      (quantityInAssetUnits * minimumWithdrawQuantityMultiplier) /
       Constants.PIP_PRICE_MULTIPLIER;
-
-    return quantityInAssetUnits - netPoolFeesInAssetUnits >= minimumWithdrawQuantityInAssetUnits;
   }
 
   /**

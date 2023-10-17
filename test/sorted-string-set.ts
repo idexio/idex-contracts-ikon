@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
 import { ethers, network } from 'hardhat';
 
-import { compareMarketSymbols } from '../lib';
+import { compareBaseAssetSymbols } from '../lib';
 import { expect } from './helpers';
 import type { SortedStringSetMock } from '../typechain-types';
 
@@ -19,7 +19,7 @@ describe('SortedStringSet', function () {
 
   describe('indexOf', async function () {
     it('should work for valid arguments', async () => {
-      const array = ['a', 'b', 'c', 'd'].sort(compareMarketSymbols);
+      const array = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
       expect(await sortedStringSetMock.indexOf(array, 'c')).to.equal(
         array.indexOf('c'),
       );
@@ -31,8 +31,8 @@ describe('SortedStringSet', function () {
 
   describe('insertSorted', async function () {
     it('should work for valid arguments', async () => {
-      let beforeInsert = ['a', 'b', 'c', 'd'].sort(compareMarketSymbols);
-      let afterInsert = ['a', 'b', 'c', 'd', 'e'].sort(compareMarketSymbols);
+      let beforeInsert = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
+      let afterInsert = ['a', 'b', 'c', 'd', 'e'].sort(compareBaseAssetSymbols);
       await expect(
         sortedStringSetMock.insertSorted(beforeInsert, 'e'),
       ).to.eventually.deep.equal(afterInsert);
@@ -45,9 +45,9 @@ describe('SortedStringSet', function () {
 
   describe('merge', async function () {
     it('should work for valid arguments', async () => {
-      let before1 = ['a', 'b'].sort(compareMarketSymbols);
-      let before2 = ['b', 'c', 'd'].sort(compareMarketSymbols);
-      let afterMerge = ['a', 'b', 'c', 'd'].sort(compareMarketSymbols);
+      let before1 = ['a', 'b'].sort(compareBaseAssetSymbols);
+      let before2 = ['b', 'c', 'd'].sort(compareBaseAssetSymbols);
+      let afterMerge = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
       await expect(
         sortedStringSetMock.merge(before1, before2),
       ).to.eventually.deep.equal(afterMerge);
@@ -56,20 +56,24 @@ describe('SortedStringSet', function () {
 
   describe('remove', async function () {
     it('should work for valid arguments', async () => {
-      let beforeRemove = ['a', 'b', 'c', 'd', 'e'].sort(compareMarketSymbols);
-      let afterRemove = ['a', 'b', 'c', 'd'].sort(compareMarketSymbols);
+      let beforeRemove = ['a', 'b', 'c', 'd', 'e'].sort(
+        compareBaseAssetSymbols,
+      );
+      let afterRemove = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
       await expect(
         sortedStringSetMock.remove(beforeRemove, 'e'),
       ).to.eventually.deep.equal(afterRemove);
 
-      beforeRemove = ['a'].sort(compareMarketSymbols);
+      beforeRemove = ['a'].sort(compareBaseAssetSymbols);
       await expect(
         sortedStringSetMock.remove(beforeRemove, 'a'),
       ).to.eventually.deep.equal([]);
     });
 
     it('should revert for invalid argument', async () => {
-      let beforeRemove = ['a', 'b', 'c', 'd', 'e'].sort(compareMarketSymbols);
+      let beforeRemove = ['a', 'b', 'c', 'd', 'e'].sort(
+        compareBaseAssetSymbols,
+      );
       await expect(
         sortedStringSetMock.remove(beforeRemove, 'f'),
       ).to.eventually.be.rejectedWith(/element to remove not found/i);
