@@ -153,7 +153,7 @@ export interface Withdrawal {
 
 export const hardhatChainId = 31337;
 
-export const compareMarketSymbols = (a: string, b: string): number =>
+export const compareBaseAssetSymbols = (a: string, b: string): number =>
   Buffer.compare(
     ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [a])),
     ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [b])),
