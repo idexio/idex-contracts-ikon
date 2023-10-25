@@ -1,5 +1,5 @@
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import {
@@ -73,7 +73,7 @@ describe('Exchange', function () {
     );
 
     indexPrice = await buildIndexPrice(
-      exchange.address,
+      await exchange.getAddress(),
       indexPriceServiceWallet,
     );
 
@@ -81,7 +81,7 @@ describe('Exchange', function () {
       exchange,
       dispatcherWallet,
       indexPrice,
-      indexPriceAdapter.address,
+      await indexPriceAdapter.getAddress(),
       trader1Wallet,
       trader2Wallet,
     );

@@ -1,4 +1,4 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import {
@@ -60,21 +60,27 @@ describe('Custodian', function () {
     });
 
     it('should work', async () => {
-      await CustodianFactory.deploy(exchange.address, governance.address);
+      await CustodianFactory.deploy(
+        await exchange.getAddress(),
+        await governance.getAddress(),
+      );
     });
 
     it('should revert for invalid exchange address', async () => {
       await expect(
         CustodianFactory.deploy(
-          ethers.constants.AddressZero,
-          governance.address,
+          ethers.ZeroAddress,
+          await governance.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
 
-    it('should revert for invalid governance address', async () => {
+    it('should revert for invalid await governance.getAddress()', async () => {
       await expect(
-        CustodianFactory.deploy(exchange.address, ethers.constants.AddressZero),
+        CustodianFactory.deploy(
+          await exchange.getAddress(),
+          ethers.ZeroAddress,
+        ),
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
   });
@@ -93,24 +99,24 @@ describe('Custodian', function () {
       usdc = results.usdc;
       governanceMock = await GovernanceMockFactory.deploy();
       custodian = await CustodianFactory.deploy(
-        results.exchange.address,
-        governanceMock.address,
+        await results.exchange.getAddress(),
+        await governanceMock.getAddress(),
       );
-      governanceMock.setCustodian(custodian.address);
+      governanceMock.setCustodian(await custodian.getAddress());
     });
 
-    it('should work when sent from governance address', async () => {
+    it('should work when sent from await governance.getAddress()', async () => {
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governanceMock.setExchange(newExchange.address);
+      await governanceMock.setExchange(await newExchange.getAddress());
 
       expect(custodian.queryFilter(custodian.filters.ExchangeChanged()))
         .to.eventually.be.an('array')
@@ -119,7 +125,7 @@ describe('Custodian', function () {
 
     it('should revert for invalid address', async () => {
       await expect(
-        governanceMock.setExchange(ethers.constants.AddressZero),
+        governanceMock.setExchange(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid contract address/i);
     });
 
@@ -129,11 +135,11 @@ describe('Custodian', function () {
       ).to.eventually.be.rejectedWith(/invalid contract address/i);
     });
 
-    it('should revert when not sent from governance address', async () => {
+    it('should revert when not sent from await governance.getAddress()', async () => {
       await expect(
         custodian
           .connect((await ethers.getSigners())[1])
-          .setExchange(ethers.constants.AddressZero),
+          .setExchange(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/caller must be governance/i);
     });
   });
@@ -148,16 +154,16 @@ describe('Custodian', function () {
       const results = await deployContractsExceptCustodian(ownerWallet);
       governanceMock = await GovernanceMockFactory.deploy();
       custodian = await CustodianFactory.deploy(
-        results.exchange.address,
-        governanceMock.address,
+        await results.exchange.getAddress(),
+        await governanceMock.getAddress(),
       );
-      governanceMock.setCustodian(custodian.address);
+      governanceMock.setCustodian(await custodian.getAddress());
     });
 
-    it('should work when sent from governance address', async () => {
+    it('should work when sent from await governance address', async () => {
       const newGovernance = await GovernanceFactory.deploy(0);
 
-      await governanceMock.setGovernance(newGovernance.address);
+      await governanceMock.setGovernance(await newGovernance.getAddress());
 
       expect(custodian.queryFilter(custodian.filters.GovernanceChanged()))
         .to.eventually.be.an('array')
@@ -166,7 +172,7 @@ describe('Custodian', function () {
 
     it('should revert for invalid address', async () => {
       await expect(
-        governanceMock.setGovernance(ethers.constants.AddressZero),
+        governanceMock.setGovernance(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid contract address/i);
     });
 
@@ -176,11 +182,11 @@ describe('Custodian', function () {
       ).to.eventually.be.rejectedWith(/invalid contract address/i);
     });
 
-    it('should revert when not sent from governance address', async () => {
+    it('should revert when not sent from await governance address', async () => {
       await expect(
         custodian
           .connect((await ethers.getSigners())[1])
-          .setGovernance(ethers.constants.AddressZero),
+          .setGovernance(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/caller must be governance/i);
     });
   });
@@ -195,42 +201,36 @@ describe('Custodian', function () {
       exchangeWithdrawMock = await ExchangeWithdrawMockFactory.deploy();
       governance = await GovernanceFactory.deploy(0);
       custodian = await CustodianFactory.deploy(
-        exchangeWithdrawMock.address,
-        governance.address,
+        await exchangeWithdrawMock.getAddress(),
+        await governance.getAddress(),
       );
-      await exchangeWithdrawMock.setCustodian(custodian.address);
-      usdc = await (await USDCFactory.deploy()).deployed();
+      await exchangeWithdrawMock.setCustodian(await custodian.getAddress());
+      usdc = await (await USDCFactory.deploy()).waitForDeployment();
     });
 
     it('should work when sent from exchange', async () => {
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       const destinationWallet = (await ethers.getSigners())[1];
 
-      await usdc.transfer(custodian.address, depositQuantity);
+      await usdc.transfer(await custodian.getAddress(), depositQuantity);
       await exchangeWithdrawMock.withdraw(
         destinationWallet.address,
-        usdc.address,
+        await usdc.getAddress(),
         depositQuantity,
       );
     });
 
     it('should revert when quote asset transfer fails', async () => {
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       const destinationWallet = (await ethers.getSigners())[1];
 
-      await usdc.transfer(custodian.address, depositQuantity);
+      await usdc.transfer(await custodian.getAddress(), depositQuantity);
       await usdc.setIsTransferDisabled(true);
 
       await expect(
         exchangeWithdrawMock.withdraw(
           destinationWallet.address,
-          usdc.address,
+          await usdc.getAddress(),
           depositQuantity,
         ),
       ).to.eventually.be.rejectedWith(/quote asset transfer failed/i);
@@ -242,7 +242,7 @@ describe('Custodian', function () {
           (
             await ethers.getSigners()
           )[1].address,
-          usdc.address,
+          await usdc.getAddress(),
           '100000000',
         ),
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);

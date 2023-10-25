@@ -16,7 +16,7 @@ import type {
   IDEXIndexAndOraclePriceAdapter,
   USDC,
 } from '../typechain-types';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import {
   addAndActivateMarket,
   baseAssetSymbol,
@@ -76,7 +76,7 @@ describe('Exchange', function () {
       insuranceFundWallet,
       0,
       true,
-      ethers.constants.AddressZero,
+      ethers.ZeroAddress,
       ['ETH', 'BTC'],
     );
     chainlinkAggregator = results.chainlinkAggregator;
@@ -95,7 +95,7 @@ describe('Exchange', function () {
     );
 
     indexPrice = await buildIndexPrice(
-      exchange.address,
+      await exchange.getAddress(),
       indexPriceServiceWallet,
     );
 
@@ -103,7 +103,7 @@ describe('Exchange', function () {
       exchange,
       dispatcherWallet,
       indexPrice,
-      indexPriceAdapter.address,
+      await indexPriceAdapter.getAddress(),
       trader1Wallet,
       trader2Wallet,
     );
@@ -115,9 +115,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2150.00000000',
             ),
@@ -161,8 +161,11 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         trader3Wallet,
         trader4Wallet,
       );
@@ -170,9 +173,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1850.00000000',
             ),
@@ -229,12 +232,12 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPriceWithValue(
-          exchange.address,
+          await exchange.getAddress(),
           indexPriceServiceWallet,
           '24000.00000000',
           'BTC',
         ),
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -245,9 +248,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '29000.00000000',
               'BTC',
@@ -271,9 +274,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2150.00000000',
             ),
@@ -321,14 +324,17 @@ describe('Exchange', function () {
 
     it('should work when IF has open position that liquidating wallet does not', async function () {
       const indexPrice = await buildIndexPriceWithValue(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
         '1850.00000000',
       );
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]);
       await fundWallets(
         [insuranceFundWallet],
@@ -366,12 +372,12 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPriceWithValue(
-          exchange.address,
+          await exchange.getAddress(),
           indexPriceServiceWallet,
           '24000.00000000',
           'BTC',
         ),
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         trader3Wallet,
         trader4Wallet,
         'BTC',
@@ -382,9 +388,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '30000.00000000',
               'BTC',
@@ -411,7 +417,7 @@ describe('Exchange', function () {
       await setupSingleShortPositionRequiringPositiveQuoteToClose(
         exchange,
         governance,
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         usdc,
         dispatcherWallet,
         indexPriceServiceWallet,
@@ -778,14 +784,17 @@ describe('Exchange', function () {
 
     it('should work when IF has an open position that exited wallet does not', async function () {
       const indexPrice = await buildIndexPriceWithValue(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
         '1850.00000000',
       );
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]);
       await fundWallets(
         [insuranceFundWallet],
@@ -823,12 +832,12 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         await buildIndexPriceWithValue(
-          exchange.address,
+          await exchange.getAddress(),
           indexPriceServiceWallet,
           '24000.00000000',
           'BTC',
         ),
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         trader3Wallet,
         trader4Wallet,
         'BTC',
@@ -877,8 +886,12 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet, 'BTC'),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+          'BTC',
+        ),
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -888,9 +901,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2150.00000000',
             ),
@@ -925,9 +938,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1850.00000000',
               'BTC',
@@ -990,8 +1003,12 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet, 'BTC'),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+          'BTC',
+        ),
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -1001,9 +1018,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1000.00000000',
             ),
@@ -1076,8 +1093,12 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet, 'BTC'),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+          'BTC',
+        ),
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
         'BTC',
@@ -1087,9 +1108,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2150.00000000',
             ),
@@ -1124,9 +1145,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1000.00000000',
               'BTC',
@@ -1173,7 +1194,7 @@ describe('Exchange', function () {
       await setupSingleShortPositionRequiringPositiveQuoteToClose(
         exchange,
         governance,
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         usdc,
         dispatcherWallet,
         indexPriceServiceWallet,
@@ -1395,9 +1416,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1850.00000000',
               baseAssetSymbol,
@@ -1447,9 +1468,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -1495,7 +1516,7 @@ describe('Exchange', function () {
       await setupSingleShortPositionRequiringPositiveQuoteToClose(
         exchange,
         governance,
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         usdc,
         dispatcherWallet,
         indexPriceServiceWallet,

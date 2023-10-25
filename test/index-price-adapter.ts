@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { ethers, network } from 'hardhat';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 import {
   baseAssetSymbol,
@@ -61,10 +61,9 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
 
     it('should revert for invalid activator', async () => {
       await expect(
-        IDEXIndexAndOraclePriceAdapterFactory.deploy(
-          ethers.constants.AddressZero,
-          [indexPriceServiceWallet.address],
-        ),
+        IDEXIndexAndOraclePriceAdapterFactory.deploy(ethers.ZeroAddress, [
+          indexPriceServiceWallet.address,
+        ]),
       ).to.eventually.be.rejectedWith(/invalid activator/i);
     });
 
@@ -77,7 +76,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
     it('should revert for invalid IPS wallet', async () => {
       await expect(
         IDEXIndexAndOraclePriceAdapterFactory.deploy(owner.address, [
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         ]),
       ).to.eventually.be.rejectedWith(/invalid IPS wallet/i);
     });
@@ -100,13 +99,13 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
     });
 
     it('should work for valid contract address', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       await expect(
         indexPriceAdapter.exchangeDomainSeparator(),
       ).to.eventually.equal(
-        ethers.utils._TypedDataEncoder.hashDomain(
-          getDomainSeparator(exchange.address, hardhatChainId),
+        ethers.TypedDataEncoder.hashDomain(
+          getDomainSeparator(await exchange.getAddress(), hardhatChainId),
         ),
       );
     });
@@ -135,9 +134,9 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
         .connect(owner)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            oldIndexPriceAdapter.address,
+            await oldIndexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               owner,
               '1900.00000000',
             ),
@@ -148,7 +147,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
         indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
       ).to.eventually.be.rejectedWith(/missing price/i);
 
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       expect(
         (
@@ -157,24 +156,24 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
       ).to.equal(decimalToPips('1900.00000000'));
     });
 
-    it('should revert for invalid exchange address', async () => {
+    it('should revert for invalid await exchange.getAddress()', async () => {
       await expect(
-        indexPriceAdapter.setActive(ethers.constants.AddressZero),
+        indexPriceAdapter.setActive(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
 
     it('should work when called twice', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
+      await indexPriceAdapter.setActive(await exchange.getAddress());
     });
 
     it('should revert when called not called by activator', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       await expect(
         indexPriceAdapter
           .connect((await ethers.getSigners())[1])
-          .setActive(exchange.address),
+          .setActive(await exchange.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be activator/i);
     });
   });
@@ -189,20 +188,22 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
         [indexPriceServiceWallet.address],
       );
       exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
     });
 
     it('should work when price is in storage', async () => {
       const indexPrice = await buildIndexPrice(
-        exchangeMock.address,
+        await exchangeMock.getAddress(),
         indexPriceServiceWallet,
       );
 
       await exchangeMock.validateIndexPricePayload(
-        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice)
-          .payload,
+        indexPriceToArgumentStruct(
+          await indexPriceAdapter.getAddress(),
+          indexPrice,
+        ).payload,
       );
 
       const price = (
@@ -213,25 +214,29 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
 
     it('should not store outdated price', async () => {
       const indexPrice = await buildIndexPrice(
-        exchangeMock.address,
+        await exchangeMock.getAddress(),
         indexPriceServiceWallet,
       );
 
       await exchangeMock.validateIndexPricePayload(
-        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice)
-          .payload,
+        indexPriceToArgumentStruct(
+          await indexPriceAdapter.getAddress(),
+          indexPrice,
+        ).payload,
       );
 
       const indexPrice2 = await buildIndexPriceWithTimestamp(
-        exchangeMock.address,
+        await exchangeMock.getAddress(),
         indexPriceServiceWallet,
         (await getLatestBlockTimestampInSeconds()) * 1000 - 10000,
         baseAssetSymbol,
         '1234.67890000',
       );
       await exchangeMock.validateIndexPricePayload(
-        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice2)
-          .payload,
+        indexPriceToArgumentStruct(
+          await indexPriceAdapter.getAddress(),
+          indexPrice2,
+        ).payload,
       );
 
       const price = (
@@ -263,7 +268,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
       ).to.eventually.be.rejectedWith(/exchange not set/i);
 
       const exchange = (await deployContractsExceptCustodian(owner)).exchange;
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
       await expect(
         indexPriceAdapter.validateIndexPricePayload('0x00'),
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);
@@ -271,16 +276,16 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
 
     it('should revert when price is zero', async () => {
       const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
 
       await expect(
         exchangeMock.validateIndexPricePayload(
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithTimestamp(
-              exchangeMock.address,
+              await exchangeMock.getAddress(),
               indexPriceServiceWallet,
               (await getLatestBlockTimestampInSeconds()) * 1000 - 10000,
               baseAssetSymbol,
@@ -312,7 +317,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
     });
 
     it('should work when no price yet exists', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       await expect(
         indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
@@ -320,9 +325,9 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
 
       await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
         indexPriceToArgumentStruct(
-          indexPriceAdapter.address,
+          await indexPriceAdapter.getAddress(),
           await buildIndexPriceWithValue(
-            exchange.address,
+            await exchange.getAddress(),
             indexPriceServiceWallet,
             '1900.00000000',
           ),
@@ -338,16 +343,16 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
 
     it('should revert when price is zero', async () => {
       const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
 
       await expect(
         indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithTimestamp(
-              exchangeMock.address,
+              await exchangeMock.getAddress(),
               indexPriceServiceWallet,
               (await getLatestBlockTimestampInSeconds()) * 1000 - 10000,
               baseAssetSymbol,
@@ -364,9 +369,9 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
           .connect((await ethers.getSigners())[8])
           .validateInitialIndexPricePayloadAdmin(
             indexPriceToArgumentStruct(
-              indexPriceAdapter.address,
+              await indexPriceAdapter.getAddress(),
               await buildIndexPriceWithValue(
-                exchange.address,
+                await exchange.getAddress(),
                 indexPriceServiceWallet,
                 '1900.00000000',
               ),
@@ -379,9 +384,9 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
       await expect(
         indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1900.00000000',
             ),
@@ -391,13 +396,13 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
     });
 
     it('should revert when price already exists', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
         indexPriceToArgumentStruct(
-          indexPriceAdapter.address,
+          await indexPriceAdapter.getAddress(),
           await buildIndexPriceWithValue(
-            exchange.address,
+            await exchange.getAddress(),
             indexPriceServiceWallet,
             '1900.00000000',
           ),
@@ -407,9 +412,9 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
       await expect(
         indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1900.00000000',
             ),
@@ -447,18 +452,18 @@ describe('PythIndexPriceAdapter', function () {
       await PythIndexPriceAdapterFactory.deploy(
         ownerWallet.address,
         [baseAssetSymbol],
-        [ethers.utils.randomBytes(32)],
-        pyth.address,
+        [ethers.randomBytes(32)],
+        await pyth.getAddress(),
       );
     });
 
     it('should revert for invalid activator', async () => {
       await expect(
         PythIndexPriceAdapterFactory.deploy(
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
           [baseAssetSymbol],
-          [ethers.utils.randomBytes(32)],
-          pyth.address,
+          [ethers.randomBytes(32)],
+          await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid activator/i);
     });
@@ -468,8 +473,8 @@ describe('PythIndexPriceAdapter', function () {
         PythIndexPriceAdapterFactory.deploy(
           ownerWallet.address,
           [baseAssetSymbol],
-          [ethers.utils.randomBytes(32)],
-          ethers.constants.AddressZero,
+          [ethers.randomBytes(32)],
+          ethers.ZeroAddress,
         ),
       ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
     });
@@ -479,8 +484,8 @@ describe('PythIndexPriceAdapter', function () {
         PythIndexPriceAdapterFactory.deploy(
           ownerWallet.address,
           [baseAssetSymbol, baseAssetSymbol],
-          [ethers.utils.randomBytes(32)],
-          pyth.address,
+          [ethers.randomBytes(32)],
+          await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
 
@@ -488,8 +493,8 @@ describe('PythIndexPriceAdapter', function () {
         PythIndexPriceAdapterFactory.deploy(
           ownerWallet.address,
           [baseAssetSymbol],
-          [ethers.utils.randomBytes(32), ethers.utils.randomBytes(32)],
-          pyth.address,
+          [ethers.randomBytes(32), ethers.randomBytes(32)],
+          await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
     });
@@ -499,8 +504,8 @@ describe('PythIndexPriceAdapter', function () {
         PythIndexPriceAdapterFactory.deploy(
           ownerWallet.address,
           [''],
-          [ethers.utils.randomBytes(32)],
-          pyth.address,
+          [ethers.randomBytes(32)],
+          await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
     });
@@ -513,7 +518,7 @@ describe('PythIndexPriceAdapter', function () {
           [
             '0x0000000000000000000000000000000000000000000000000000000000000000',
           ],
-          pyth.address,
+          await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid price id/i);
     });
@@ -521,35 +526,32 @@ describe('PythIndexPriceAdapter', function () {
 
   describe('addBaseAssetSymbolAndPriceId', async function () {
     let adapter: PythIndexPriceAdapter;
-    const priceId = ethers.utils.randomBytes(32);
+    const priceId = ethers.randomBytes(32);
 
     beforeEach(async () => {
       adapter = await PythIndexPriceAdapterFactory.deploy(
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        pyth.address,
+        await pyth.getAddress(),
       );
     });
 
     it('should work for valid base asset symbol and price ID', async () => {
-      await adapter.addBaseAssetSymbolAndPriceId(
-        'XYZ',
-        ethers.utils.randomBytes(32),
-      );
+      await adapter.addBaseAssetSymbolAndPriceId('XYZ', ethers.randomBytes(32));
     });
 
     it('should revert when not sent by admin', async () => {
       await expect(
         adapter
           .connect((await ethers.getSigners())[5])
-          .addBaseAssetSymbolAndPriceId('XYZ', ethers.utils.randomBytes(32)),
+          .addBaseAssetSymbolAndPriceId('XYZ', ethers.randomBytes(32)),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
 
     it('should revert for invalid base asset symbol', async () => {
       await expect(
-        adapter.addBaseAssetSymbolAndPriceId('', ethers.utils.randomBytes(32)),
+        adapter.addBaseAssetSymbolAndPriceId('', ethers.randomBytes(32)),
       ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
     });
 
@@ -566,7 +568,7 @@ describe('PythIndexPriceAdapter', function () {
       await expect(
         adapter.addBaseAssetSymbolAndPriceId(
           baseAssetSymbol,
-          ethers.utils.randomBytes(32),
+          ethers.randomBytes(32),
         ),
       ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
     });
@@ -581,14 +583,14 @@ describe('PythIndexPriceAdapter', function () {
   describe('setActive', async function () {
     let adapter: PythIndexPriceAdapter;
     let exchange: Exchange_v4;
-    const priceId = ethers.utils.randomBytes(32);
+    const priceId = ethers.randomBytes(32);
 
     beforeEach(async () => {
       adapter = await PythIndexPriceAdapterFactory.deploy(
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        pyth.address,
+        await pyth.getAddress(),
       );
       const results = await deployContractsExceptCustodian(
         (
@@ -599,30 +601,32 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should work', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
-      await expect(adapter.exchange()).to.eventually.equal(exchange.address);
+      await expect(adapter.exchange()).to.eventually.equal(
+        await exchange.getAddress(),
+      );
     });
 
     it('should revert when not called by activator', async () => {
       await expect(
         adapter
           .connect((await ethers.getSigners())[10])
-          .setActive(ethers.constants.AddressZero),
+          .setActive(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/caller must be activator/i);
     });
 
     it('should revert for non-contract address', async () => {
       await expect(
-        adapter.setActive(ethers.constants.AddressZero),
+        adapter.setActive(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
 
     it('should revert if called twice', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await expect(
-        adapter.setActive(exchange.address),
+        adapter.setActive(await exchange.getAddress()),
       ).to.eventually.be.rejectedWith(/adapter already active/i);
     });
   });
@@ -631,7 +635,7 @@ describe('PythIndexPriceAdapter', function () {
     let adapter: PythIndexPriceAdapter;
     let exchange: ExchangeIndexPriceAdapterMock;
     let ExchangeIndexPriceAdapterMockFactory: ExchangeIndexPriceAdapterMock__factory;
-    const priceId = ethers.utils.randomBytes(32);
+    const priceId = ethers.randomBytes(32);
 
     before(async () => {
       ExchangeIndexPriceAdapterMockFactory = await ethers.getContractFactory(
@@ -644,19 +648,19 @@ describe('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        pyth.address,
+        await pyth.getAddress(),
       );
       exchange = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        adapter.address,
+        await adapter.getAddress(),
       );
     });
 
     it('should work for valid payload with funding with 8 decimals', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
 
       await exchange.validateIndexPricePayload(
@@ -673,11 +677,11 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should work for valid payload with funding with 6 decimals', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
 
       await exchange.validateIndexPricePayload(
@@ -694,11 +698,11 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should work for valid payload with funding with 10 decimals', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
 
       await exchange.validateIndexPricePayload(
@@ -719,17 +723,17 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should revert for invalid price ID', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
 
       await expect(
         exchange.validateIndexPricePayload(
           await buildPythPricePayload(
-            ethers.utils.randomBytes(32),
+            ethers.randomBytes(32),
             decimalToPips('2000.00000000'),
           ),
         ),
@@ -737,11 +741,11 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should revert for zero price', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
 
       await expect(
@@ -752,11 +756,11 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should revert for zero price after pip conversion', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
 
       await expect(
@@ -767,11 +771,11 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should revert for negative price', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
 
       await expect(
@@ -782,7 +786,7 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should revert when balance is insufficient for fee', async () => {
-      await adapter.setActive(exchange.address);
+      await adapter.setActive(await exchange.getAddress());
 
       await expect(
         exchange.validateIndexPricePayload(
@@ -800,7 +804,7 @@ describe('PythIndexPriceAdapter', function () {
     });
 
     it('should revert when caller is not Exchange', async () => {
-      await adapter.setActive(adapter.address);
+      await adapter.setActive(await adapter.getAddress());
 
       await expect(
         adapter.validateIndexPricePayload(
@@ -813,27 +817,27 @@ describe('PythIndexPriceAdapter', function () {
   describe('withdrawNativeAsset', async function () {
     let adapter: PythIndexPriceAdapter;
     let destinationWallet: SignerWithAddress;
-    const priceId = ethers.utils.randomBytes(32);
+    const priceId = ethers.randomBytes(32);
 
     beforeEach(async () => {
       adapter = await PythIndexPriceAdapterFactory.deploy(
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        pyth.address,
+        await pyth.getAddress(),
       );
       destinationWallet = (await ethers.getSigners())[1];
 
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
     });
 
     it('should work when caller is admin', async () => {
       await adapter.withdrawNativeAsset(
         destinationWallet.address,
-        ethers.utils.parseEther('1.0'),
+        ethers.parseEther('1.0'),
       );
     });
 
@@ -843,7 +847,7 @@ describe('PythIndexPriceAdapter', function () {
           .connect((await ethers.getSigners())[10])
           .withdrawNativeAsset(
             destinationWallet.address,
-            ethers.utils.parseEther('1.0'),
+            ethers.parseEther('1.0'),
           ),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
@@ -882,16 +886,16 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       await StorkIndexAndOraclePriceAdapterFactory.deploy(
         ownerWallet.address,
         [publisherWallet.address],
-        storkVerifier.address,
+        await storkVerifier.getAddress(),
       );
     });
 
     it('should revert for invalid activator', async () => {
       await expect(
         StorkIndexAndOraclePriceAdapterFactory.deploy(
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
           [publisherWallet.address],
-          storkVerifier.address,
+          await storkVerifier.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid activator/i);
     });
@@ -901,7 +905,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         StorkIndexAndOraclePriceAdapterFactory.deploy(
           ownerWallet.address,
           [],
-          storkVerifier.address,
+          await storkVerifier.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/missing publisher wallets/i);
     });
@@ -910,8 +914,8 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       await expect(
         StorkIndexAndOraclePriceAdapterFactory.deploy(
           ownerWallet.address,
-          [ethers.constants.AddressZero],
-          storkVerifier.address,
+          [ethers.ZeroAddress],
+          await storkVerifier.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid publisher wallet/i);
     });
@@ -921,7 +925,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         StorkIndexAndOraclePriceAdapterFactory.deploy(
           ownerWallet.address,
           [publisherWallet.address],
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         ),
       ).to.eventually.be.rejectedWith(/invalid verifier address/i);
     });
@@ -935,12 +939,12 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
         ownerWallet.address,
         [publisherWallet.address],
-        storkVerifier.address,
+        await storkVerifier.getAddress(),
       );
       exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
     });
 
     it('should work when price is in storage', async () => {
@@ -1005,15 +1009,15 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
         ownerWallet.address,
         [publisherWallet.address],
-        storkVerifier.address,
+        await storkVerifier.getAddress(),
       );
     });
 
     it('should work for valid contract address', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       await expect(indexPriceAdapter.exchange()).to.eventually.equal(
-        exchange.address,
+        await exchange.getAddress(),
       );
     });
 
@@ -1041,9 +1045,9 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         .connect(ownerWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            oldIndexPriceAdapter.address,
+            await oldIndexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               ownerWallet,
               '1900.00000000',
             ),
@@ -1054,7 +1058,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         indexPriceAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
       ).to.eventually.be.rejectedWith(/missing price/i);
 
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       expect(
         (
@@ -1063,24 +1067,24 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       ).to.equal(decimalToPips('1900.00000000'));
     });
 
-    it('should revert for invalid exchange address', async () => {
+    it('should revert for invalid await exchange.getAddress()', async () => {
       await expect(
-        indexPriceAdapter.setActive(ethers.constants.AddressZero),
+        indexPriceAdapter.setActive(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
 
     it('should work when called twice', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
+      await indexPriceAdapter.setActive(await exchange.getAddress());
     });
 
     it('should revert when called not called by activator', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       await expect(
         indexPriceAdapter
           .connect((await ethers.getSigners())[1])
-          .setActive(exchange.address),
+          .setActive(await exchange.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be activator/i);
     });
   });
@@ -1092,7 +1096,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
         ownerWallet.address,
         [publisherWallet.address],
-        storkVerifier.address,
+        await storkVerifier.getAddress(),
       );
     });
 
@@ -1103,7 +1107,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
 
       const exchange = (await deployContractsExceptCustodian(ownerWallet))
         .exchange;
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
       await expect(
         indexPriceAdapter.validateIndexPricePayload('0x00'),
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);
@@ -1111,9 +1115,9 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
 
     it('should revert when price is zero', async () => {
       const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
 
       await expect(
         exchangeMock.validateIndexPricePayload(
@@ -1137,26 +1141,26 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       storkAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
         ownerWallet.address,
         [publisherWallet.address],
-        storkVerifier.address,
+        await storkVerifier.getAddress(),
       );
       indexPriceAdapter = await StorkIndexAndOraclePriceAdapterFactory.deploy(
         ownerWallet.address,
         [publisherWallet.address],
-        storkVerifier.address,
+        await storkVerifier.getAddress(),
       );
     });
 
     it('should work when no price yet exists', async () => {
       const priceInDecimal = '1900.00000000';
 
-      await storkAdapter.setActive(exchange.address);
+      await storkAdapter.setActive(await exchange.getAddress());
 
       await expect(
         storkAdapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
       ).to.eventually.be.rejectedWith(/missing price/i);
 
       await storkAdapter.validateInitialIndexPricePayloadAdmin(
-        buildStorkPricePayload(
+        await buildStorkPricePayload(
           baseAssetSymbol,
           publisherWallet,
           priceInDecimal,
@@ -1172,9 +1176,9 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
 
     it('should revert when price is zero', async () => {
       const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
 
       await expect(
         indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
@@ -1215,7 +1219,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
     });
 
     it('should revert when price already exists', async () => {
-      await indexPriceAdapter.setActive(exchange.address);
+      await indexPriceAdapter.setActive(await exchange.getAddress());
 
       await indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
         await buildStorkPricePayload(
@@ -1238,9 +1242,9 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
 
     it('should revert for invalid signer', async () => {
       const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
 
       await expect(
         indexPriceAdapter.validateInitialIndexPricePayloadAdmin(
@@ -1256,9 +1260,9 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
 
     it('should revert for invalid signature', async () => {
       const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
 
       const storkPrice = new BigNumber('1900.00000000')
         .shiftedBy(18)
@@ -1266,7 +1270,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         .toFixed(0);
       const timestamp = await getLatestBlockTimestampInSeconds();
 
-      const hash = ethers.utils.solidityKeccak256(
+      const hash = ethers.solidityPackedKeccak256(
         ['address', 'string', 'uint256', 'uint256'],
         [
           publisherWallet.address,
@@ -1276,14 +1280,12 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         ],
       );
 
-      const signature = await ownerWallet.signMessage(
-        ethers.utils.arrayify(hash),
-      );
+      const signature = await ownerWallet.signMessage(ethers.getBytes(hash));
       const r = signature.slice(0, 66);
       const s = '0x' + signature.slice(66, 130);
       const v = '0x' + signature.slice(130, 132);
 
-      const payload = ethers.utils.defaultAbiCoder.encode(
+      const payload = ethers.AbiCoder.defaultAbiCoder().encode(
         [
           'address',
           'string',
@@ -1311,9 +1313,9 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
 
     it('should revert for non-positive price after pip conversion', async () => {
       const exchangeMock = await ExchangeIndexPriceAdapterMockFactory.deploy(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
       );
-      await indexPriceAdapter.setActive(exchangeMock.address);
+      await indexPriceAdapter.setActive(await exchangeMock.getAddress());
 
       const storkPrice = new BigNumber('0.000000001')
         .shiftedBy(18)
@@ -1321,7 +1323,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         .toFixed(0);
       const timestamp = await getLatestBlockTimestampInSeconds();
 
-      const hash = ethers.utils.solidityKeccak256(
+      const hash = ethers.solidityPackedKeccak256(
         ['address', 'string', 'uint256', 'uint256'],
         [
           publisherWallet.address,
@@ -1332,13 +1334,13 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
       );
 
       const signature = await publisherWallet.signMessage(
-        ethers.utils.arrayify(hash),
+        ethers.getBytes(hash),
       );
       const r = signature.slice(0, 66);
       const s = '0x' + signature.slice(66, 130);
       const v = '0x' + signature.slice(130, 132);
 
-      const payload = ethers.utils.defaultAbiCoder.encode(
+      const payload = ethers.AbiCoder.defaultAbiCoder().encode(
         [
           'address',
           'string',
@@ -1373,7 +1375,7 @@ async function buildPythPricePayload(
 ) {
   const timestamp = await getLatestBlockTimestampInSeconds();
 
-  const pythPrice = ethers.utils.defaultAbiCoder.encode(
+  const pythPrice = ethers.AbiCoder.defaultAbiCoder().encode(
     [
       'tuple(bytes32,tuple(int64,uint64,int32,uint256),tuple(int64,uint64,int32,uint256))',
     ],
@@ -1386,7 +1388,7 @@ async function buildPythPricePayload(
     ],
   );
 
-  return ethers.utils.defaultAbiCoder.encode(
+  return ethers.AbiCoder.defaultAbiCoder().encode(
     ['bytes32', 'bytes'],
     [priceId, pythPrice],
   );
@@ -1405,7 +1407,7 @@ async function buildStorkPricePayload(
   const timestamp =
     timestampOverride ?? (await getLatestBlockTimestampInSeconds());
 
-  const hash = ethers.utils.solidityKeccak256(
+  const hash = ethers.solidityPackedKeccak256(
     ['address', 'string', 'uint256', 'uint256'],
     [
       publisherWallet.address,
@@ -1415,14 +1417,12 @@ async function buildStorkPricePayload(
     ],
   );
 
-  const signature = await publisherWallet.signMessage(
-    ethers.utils.arrayify(hash),
-  );
+  const signature = await publisherWallet.signMessage(ethers.getBytes(hash));
   const r = signature.slice(0, 66);
   const s = '0x' + signature.slice(66, 130);
   const v = '0x' + signature.slice(130, 132);
 
-  return ethers.utils.defaultAbiCoder.encode(
+  return ethers.AbiCoder.defaultAbiCoder().encode(
     ['address', 'string', 'uint256', 'uint256', 'bytes32', 'bytes32', 'uint8'],
     [publisherWallet.address, baseAssetSymbol, timestamp, storkPrice, r, s, v],
   );

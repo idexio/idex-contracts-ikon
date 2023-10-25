@@ -83,9 +83,8 @@ export default class ExchangeContract extends BaseContract<Exchange_v4> {
       linkLibraryAddresses,
       owner,
     ).deploy(...args);
-    await contract.deployTransaction.wait();
 
-    return new this(contract.address);
+    return new this(await (await contract.waitForDeployment()).getAddress());
   }
 
   public getEthersContract(): Exchange_v4 {
