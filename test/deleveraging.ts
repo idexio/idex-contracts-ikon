@@ -4,7 +4,6 @@ import { ethers, network } from 'hardhat';
 import {
   decimalToPips,
   fieldUpgradeDelayInS,
-  fundingPeriodLengthInMs,
   IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
@@ -22,13 +21,11 @@ import {
   baseAssetSymbol,
   bootstrapLiquidatedWallet,
   buildIndexPrice,
-  buildIndexPriceWithTimestamp,
   buildIndexPriceWithValue,
   deployAndAssociateContracts,
   executeTrade,
   expect,
   fundWallets,
-  logWalletBalances,
   quoteAssetSymbol,
   setupSingleShortPositionRequiringPositiveQuoteToClose,
 } from './helpers';
@@ -1524,8 +1521,6 @@ describe('Exchange', function () {
         trader3Wallet,
         trader4Wallet,
       );
-
-      await logWalletBalances(trader4Wallet.address, exchange, ['ETH', 'BTC']);
 
       // Un-crash prices in oracle to allow trader to dump positions on EF
       (await chainlinkAggregator.setPrice(decimalToPips('0.01000000'))).wait();

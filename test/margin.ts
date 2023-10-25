@@ -156,7 +156,7 @@ describe('Exchange', function () {
     describe('ChainlinkAggregatorMock', () => {
       it('should implement AggregatorV3Interface', async () => {
         await expect(chainlinkAggregator.decimals()).to.eventually.be.a(
-          'number',
+          'BigInt',
         );
         await expect(chainlinkAggregator.description()).to.eventually.be.a(
           'string',
@@ -164,8 +164,8 @@ describe('Exchange', function () {
         await expect(chainlinkAggregator.getRoundData(0)).to.eventually.be.an(
           'array',
         );
-        await expect(chainlinkAggregator.version()).to.eventually.be.an(
-          'Object',
+        await expect(chainlinkAggregator.version()).to.eventually.be.a(
+          'BigInt',
         );
       });
     });

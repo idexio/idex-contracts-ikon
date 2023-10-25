@@ -103,7 +103,7 @@ describe('ExchangeStargateAdapter', function () {
           ethers.ZeroAddress,
           await usdc.getAddress(),
         ),
-      ).to.eventually.be.rejectedWith(/invalid custodian address/i);
+      ).to.eventually.be.rejectedWith(/invalid router address/i);
     });
 
     it('should revert for invalid quote asset address', async () => {

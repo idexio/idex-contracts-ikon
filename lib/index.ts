@@ -204,7 +204,7 @@ export const getDelegatedKeyAuthorizationSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(delegatedKeyAuthorization.nonce),
+      nonce: uuidToUint128(delegatedKeyAuthorization.nonce),
       delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
       message: delegatedKeyAuthorizationMessage,
     },
@@ -267,7 +267,7 @@ export const getOrderSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(order.nonce),
+      nonce: uuidToUint128(order.nonce),
       wallet: order.wallet,
       marketSymbol: order.market,
       orderType: order.type,
@@ -278,7 +278,7 @@ export const getOrderSignatureTypedData = (
       triggerType: order.triggerType || 0,
       callbackRate: order.callbackRate || emptyPipString,
       conditionalOrderId: order.conditionalOrderId
-        ? uuidToUint8Array(order.conditionalOrderId)
+        ? uuidToUint128(order.conditionalOrderId)
         : '0',
       isReduceOnly: !!order.isReduceOnly,
       timeInForce: order.timeInForce || 0,
@@ -306,7 +306,7 @@ export const getTransferSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(transfer.nonce),
+      nonce: uuidToUint128(transfer.nonce),
       sourceWallet: transfer.sourceWallet,
       destinationWallet: transfer.destinationWallet,
       quantity: transfer.quantity,
@@ -332,7 +332,7 @@ export const getWithdrawalSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(withdrawal.nonce),
+      nonce: uuidToUint128(withdrawal.nonce),
       wallet: withdrawal.wallet,
       quantity: withdrawal.quantity,
       maximumGasFee: withdrawal.maximumGasFee,
@@ -491,5 +491,5 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
   };
 };
 
-const uuidToUint8Array = (uuid: string): Uint8Array =>
-  ethers.getBytes(uuidToHexString(uuid));
+const uuidToUint128 = (uuid: string): BigInt =>
+  BigInt.asUintN(128, BigInt(uuidToHexString(uuid)));

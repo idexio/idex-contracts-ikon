@@ -75,13 +75,13 @@ describe('Custodian', function () {
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
     });
 
-    it('should revert for invalid await governance.getAddress()', async () => {
+    it('should revert for invalid governance address', async () => {
       await expect(
         CustodianFactory.deploy(
           await exchange.getAddress(),
           ethers.ZeroAddress,
         ),
-      ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);
+      ).to.eventually.be.rejectedWith(/invalid governance contract address/i);
     });
   });
 

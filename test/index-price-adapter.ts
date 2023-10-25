@@ -156,7 +156,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
       ).to.equal(decimalToPips('1900.00000000'));
     });
 
-    it('should revert for invalid await exchange.getAddress()', async () => {
+    it('should revert for invalid await exchange address', async () => {
       await expect(
         indexPriceAdapter.setActive(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid exchange contract address/i);

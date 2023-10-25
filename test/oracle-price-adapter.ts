@@ -55,7 +55,7 @@ describe('oracle price adapters', function () {
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
       });
 
-      it('should revert for invalid await aggregator.getAddress()', async () => {
+      it('should revert for invalid aggregator address', async () => {
         await expect(
           ChainlinkOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol, baseAssetSymbol],
@@ -65,7 +65,7 @@ describe('oracle price adapters', function () {
             ],
           ),
         ).to.eventually.be.rejectedWith(
-          /invalid chainlink await aggregator.getAddress()/i,
+          /invalid chainlink aggregator address/i,
         );
       });
     });
