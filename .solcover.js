@@ -4,17 +4,22 @@ module.exports = {
   mocha: {
     enableTimeouts: false,
   },
-  matrixOutputPath: "./coverage/testMatrix.json",
-  mochaJsonOutputPath: "./coverage/mochaOutput.json",
-  skipFiles: ['test/OraclePriceAdapterMock.sol', 'util/ExchangeWalletStateAggregator.sol'],
+  matrixOutputPath: './coverage/testMatrix.json',
+  mochaJsonOutputPath: './coverage/mochaOutput.json',
+  skipFiles: [
+    'bridge-adapters/ExchangeStargateAdapter.sol',
+    'test/OraclePriceAdapterMock.sol',
+    'test/StargateRouterMock.sol',
+    'util/ExchangeWalletStateAggregator.sol',
+  ],
   solcOptimizerDetails: {
     peephole: false,
     inliner: false,
     jumpdestRemover: false,
-    orderLiterals: true,  // <-- TRUE! Stack too deep when false
+    orderLiterals: true, // <-- TRUE! Stack too deep when false
     deduplicate: false,
     cse: false,
     constantOptimizer: false,
-    yul: false
-  }
-}
+    yul: false,
+  },
+};

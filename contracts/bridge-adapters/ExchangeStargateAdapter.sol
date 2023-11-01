@@ -270,9 +270,9 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
    * @notice Estimate actual quantity of quote tokens that will be delivered on target chain after pool fees
    */
   function estimateWithdrawQuantityInAssetUnitsAfterPoolFees(
-    address wallet,
+    bytes calldata payload,
     uint64 quantity,
-    bytes calldata payload
+    address wallet
   )
     public
     view
@@ -282,26 +282,16 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
       uint8 poolDecimals
     )
   {
-    (uint16 targetChainId, uint256 sourcePoolId, uint256 targetPoolId) = abi.decode(
-      payload,
-      (uint16, uint256, uint256)
-    );
-
+    (, uint256 sourcePoolId, ) = abi.decode(payload, (uint16, uint256, uint256));
     IPool pool = router.factory().getPool(sourcePoolId);
     if (address(pool) == address(0x0) || pool.token() != address(quoteAsset)) {
       revert InvalidSourcePoolId(sourcePoolId);
     }
+
     poolDecimals = SafeCast.toUint8(pool.sharedDecimals());
 
     uint256 quantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(quantity, poolDecimals);
-    IPool.SwapObj memory s = pool.feeLibrary().getFees(
-      sourcePoolId,
-      targetPoolId,
-      targetChainId,
-      wallet,
-      quantityInAssetUnits
-    );
-    uint256 netPoolFeesInAssetUnits = s.protocolFee + s.lpFee + s.eqFee - s.eqReward;
+    uint256 netPoolFeesInAssetUnits = _loadNetPoolFeesInAssetUnits(payload, pool, quantityInAssetUnits, wallet);
 
     estimatedWithdrawQuantityInAssetUnits = quantityInAssetUnits - netPoolFeesInAssetUnits;
     minimumWithdrawQuantityInAssetUnits =
@@ -328,5 +318,29 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
         IStargateRouter.lzTxObj(0, 0, "0x")
       );
     }
+  }
+
+  function _loadNetPoolFeesInAssetUnits(
+    bytes calldata payload,
+    IPool pool,
+    uint256 quantityInAssetUnits,
+    address wallet
+  ) private view returns (uint256) {
+    // De-coded redundantly here to avoid stack limitations. Gas usage is not a concern since this is a read-only
+    // function
+    (uint16 targetChainId, uint256 sourcePoolId, uint256 targetPoolId) = abi.decode(
+      payload,
+      (uint16, uint256, uint256)
+    );
+
+    IPool.SwapObj memory s = pool.feeLibrary().getFees(
+      sourcePoolId,
+      targetPoolId,
+      targetChainId,
+      wallet,
+      quantityInAssetUnits
+    );
+
+    return s.protocolFee + s.lpFee + s.eqFee - s.eqReward;
   }
 }

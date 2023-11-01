@@ -103,7 +103,7 @@ const config: HardhatUserConfig = {
         network: 'private',
         chainId: 1001,
         urls: {
-          apiURL: 'https://explorer-dev-geth.idex-dev.com/api',
+          apiURL: 'https://explorer-dev-geth.idex-dev.com/api/v1',
           browserURL: 'https://explorer-dev-geth.idex-dev.com/',
         },
       },
@@ -111,7 +111,7 @@ const config: HardhatUserConfig = {
         network: 'zkevm',
         chainId: 23432,
         urls: {
-          apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api',
+          apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api/v1',
           browserURL: 'https://explorer-staging-zkevm.idex-dev.com/',
         },
       },
