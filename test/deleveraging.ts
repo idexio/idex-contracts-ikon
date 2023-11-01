@@ -4,7 +4,6 @@ import { ethers, network } from 'hardhat';
 import {
   decimalToPips,
   fieldUpgradeDelayInS,
-  fundingPeriodLengthInMs,
   IndexPrice,
   indexPriceToArgumentStruct,
 } from '../lib';
@@ -22,13 +21,11 @@ import {
   baseAssetSymbol,
   bootstrapLiquidatedWallet,
   buildIndexPrice,
-  buildIndexPriceWithTimestamp,
   buildIndexPriceWithValue,
   deployAndAssociateContracts,
   executeTrade,
   expect,
   fundWallets,
-  logWalletBalances,
   quoteAssetSymbol,
   setupSingleShortPositionRequiringPositiveQuoteToClose,
 } from './helpers';
@@ -509,6 +506,58 @@ describe('Exchange', function () {
       ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
     });
 
+    it('should revert when counterparty would drop below maintenance', async function () {
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '2150.00000000',
+            ),
+          ),
+        ]);
+
+      const overrides = {
+        initialMarginFraction: '3000000',
+        maintenanceMarginFraction: '100000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: trader1Wallet.address,
+          liquidationBaseQuantity: decimalToPips('1.00000000'),
+          liquidationQuoteQuantity: decimalToPips('2198.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(
+        /maintenance margin requirement not met/i,
+      );
+    });
+
     it('should revert when wallet has no open position', async function () {
       await expect(
         exchange.connect(dispatcherWallet).deleverageInMaintenanceAcquisition({
@@ -591,8 +640,11 @@ describe('Exchange', function () {
     beforeEach(async () => {
       const results = await bootstrapLiquidatedWallet();
       counterpartyWallet = results.counterpartyWallet;
+      dispatcherWallet = results.dispatcherWallet;
       exchange = results.exchange;
+      governance = results.governance;
       insuranceFundWallet = results.insuranceFundWallet;
+      ownerWallet = results.ownerWallet;
     });
 
     it('should work for valid wallet', async function () {
@@ -732,6 +784,45 @@ describe('Exchange', function () {
           liquidationQuoteQuantity: decimalToPips('20080.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/invalid quote quantity/i);
+    });
+
+    it('should revert when counterparty would drop below maintenance', async function () {
+      const overrides = {
+        initialMarginFraction: '3000000',
+        maintenanceMarginFraction: '100000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          counterpartyWallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          counterpartyWallet.address,
+        );
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageInsuranceFundClosure({
+          baseAssetSymbol,
+          counterpartyWallet: counterpartyWallet.address,
+          liquidatingWallet: insuranceFundWallet.address,
+          liquidationBaseQuantity: decimalToPips('1.00000000'),
+          liquidationQuoteQuantity: decimalToPips('2198.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(
+        /maintenance margin requirement not met/i,
+      );
     });
   });
 
@@ -1342,6 +1433,47 @@ describe('Exchange', function () {
         }),
       ).to.eventually.be.rejectedWith(/no open position in market/i);
     });
+
+    it('should revert when counterparty would drop below maintenance', async function () {
+      await exchange.connect(trader2Wallet).exitWallet();
+
+      const overrides = {
+        initialMarginFraction: '3000000',
+        maintenanceMarginFraction: '100000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader1Wallet.address,
+        );
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitAcquisition({
+          baseAssetSymbol,
+          counterpartyWallet: trader1Wallet.address,
+          liquidatingWallet: trader2Wallet.address,
+          liquidationBaseQuantity: decimalToPips('1.00000000'),
+          liquidationQuoteQuantity: decimalToPips('2000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(
+        /maintenance margin requirement not met/i,
+      );
+    });
   });
 
   describe('deleverageExitFundClosure', async function () {
@@ -1504,8 +1636,6 @@ describe('Exchange', function () {
         trader4Wallet,
       );
 
-      await logWalletBalances(trader4Wallet.address, exchange, ['ETH', 'BTC']);
-
       // Un-crash prices in oracle to allow trader to dump positions on EF
       (await chainlinkAggregator.setPrice(decimalToPips('0.01000000'))).wait();
 
@@ -1636,6 +1766,48 @@ describe('Exchange', function () {
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/liquidating wallet must be EF/i);
+    });
+
+    it('should revert when counterparty would drop below maintenance', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
+      const overrides = {
+        initialMarginFraction: '3000000',
+        maintenanceMarginFraction: '100000000',
+        incrementalInitialMarginFraction: '1000000',
+        baselinePositionSize: '14000000000',
+        incrementalPositionSize: '2800000000',
+        maximumPositionSize: '282000000000',
+        minimumPositionSize: '10000000',
+      };
+      await governance
+        .connect(ownerWallet)
+        .initiateMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+      await time.increase(fieldUpgradeDelayInS);
+      await governance
+        .connect(dispatcherWallet)
+        .finalizeMarketOverridesUpgrade(
+          baseAssetSymbol,
+          overrides,
+          trader2Wallet.address,
+        );
+
+      await expect(
+        exchange.connect(dispatcherWallet).deleverageExitFundClosure({
+          baseAssetSymbol,
+          counterpartyWallet: trader2Wallet.address,
+          liquidatingWallet: exitFundWallet.address,
+          liquidationBaseQuantity: decimalToPips('1.00000000'),
+          liquidationQuoteQuantity: decimalToPips('2000.00000000'),
+        }),
+      ).to.eventually.be.rejectedWith(
+        /maintenance margin requirement not met/i,
+      );
     });
   });
 });

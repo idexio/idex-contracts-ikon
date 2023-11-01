@@ -147,8 +147,8 @@ library WalletExitAcquisitionDeleveraging {
       marketOverridesByBaseAssetSymbolAndWallet
     );
 
-    // Validate that the counterparty wallet still meets its initial margin requirements
-    IndexPriceMargin.validateInitialMarginRequirement(
+    // Validate that the counterparty wallet still meets its maintenance margin requirements
+    IndexPriceMargin.validateMaintenanceMarginRequirement(
       arguments.counterpartyWallet,
       balanceTracking,
       baseAssetSymbolsWithOpenPositionsByWallet,
