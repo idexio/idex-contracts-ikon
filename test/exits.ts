@@ -372,6 +372,8 @@ describe('Exchange', function () {
   describe('clearWalletExit', function () {
     it('should work for exited wallet', async function () {
       await exchange.connect(trader1Wallet).exitWallet();
+      await exchange.withdrawExit(trader1Wallet.address);
+
       await exchange.connect(trader1Wallet).clearWalletExit();
 
       const exitEvents = await exchange.queryFilter(
@@ -385,6 +387,14 @@ describe('Exchange', function () {
       await expect(
         exchange.connect(trader1Wallet).clearWalletExit(),
       ).to.eventually.be.rejectedWith(/wallet exit not finalized/i);
+    });
+
+    it('should revert for wallet exited but not withdrawn', async function () {
+      await exchange.connect(trader1Wallet).exitWallet();
+
+      await expect(
+        exchange.connect(trader1Wallet).clearWalletExit(),
+      ).to.eventually.be.rejectedWith(/must withdraw exit before clearing/i);
     });
   });
 });
