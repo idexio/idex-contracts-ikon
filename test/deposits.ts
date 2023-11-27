@@ -69,7 +69,7 @@ describe('Exchange', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
 
       const depositedEvents = await exchange.queryFilter(
         exchange.filters.Deposited(),
@@ -119,7 +119,7 @@ describe('Exchange', function () {
       await usdc.setFee(feeQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
 
       const depositedEvents = await exchange.queryFilter(
         exchange.filters.Deposited(),
@@ -168,6 +168,7 @@ describe('Exchange', function () {
       await exchange.deposit(
         pipsToAssetUnits(migratedBalanceQuantity, quoteAssetDecimals),
         traderWallet.address,
+        '0x',
       );
 
       const depositedEvents = await exchange.queryFilter(
@@ -194,11 +195,31 @@ describe('Exchange', function () {
       ).to.equal(expectedQuantity);
     });
 
+    it('should pass data through in event', async function () {
+      const data = '0x238275ef88a1856c32bd';
+      const depositQuantity = ethers.utils.parseUnits(
+        '5.0',
+        quoteAssetDecimals,
+      );
+      await usdc.transfer(traderWallet.address, depositQuantity);
+      await usdc
+        .connect(traderWallet)
+        .approve(exchange.address, depositQuantity);
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero, data);
+
+      const depositedEvents = await exchange.queryFilter(
+        exchange.filters.Deposited(),
+      );
+      expect(depositedEvents[0].args?.data.toString()).to.equal(data);
+    });
+
     it('should revert depositing to EF', async function () {
       await expect(
         exchange
           .connect(traderWallet)
-          .deposit('1000000', exitFundWallet.address),
+          .deposit('1000000', exitFundWallet.address, '0x'),
       ).to.eventually.be.rejectedWith(/cannot deposit to EF/i);
     });
 
@@ -206,7 +227,7 @@ describe('Exchange', function () {
       await expect(
         exchange
           .connect(traderWallet)
-          .deposit('0', ethers.constants.AddressZero),
+          .deposit('0', ethers.constants.AddressZero, '0x'),
       ).to.eventually.be.rejectedWith(/quantity is too low/i);
     });
 
@@ -217,6 +238,7 @@ describe('Exchange', function () {
           .deposit(
             new BigNumber(2).pow(63 - quoteAssetDecimals).toString(),
             ethers.constants.AddressZero,
+            '0x',
           ),
       ).to.eventually.be.rejectedWith(/quantity is too large/i);
     });
@@ -226,14 +248,16 @@ describe('Exchange', function () {
       await expect(
         exchange
           .connect(traderWallet)
-          .deposit('10000000', ethers.constants.AddressZero),
+          .deposit('10000000', ethers.constants.AddressZero, '0x'),
       ).to.eventually.be.rejectedWith(/source wallet exited/i);
     });
 
     it('should revert for exited destination wallet', async function () {
       await exchange.connect(ownerWallet).exitWallet();
       await expect(
-        exchange.connect(traderWallet).deposit('10000000', ownerWallet.address),
+        exchange
+          .connect(traderWallet)
+          .deposit('10000000', ownerWallet.address, '0x'),
       ).to.eventually.be.rejectedWith(/destination wallet exited/i);
     });
 
@@ -252,7 +276,7 @@ describe('Exchange', function () {
       await expect(
         newExchange
           .connect(traderWallet)
-          .deposit('10000000', ownerWallet.address),
+          .deposit('10000000', ownerWallet.address, '0x'),
       ).to.eventually.be.rejectedWith(/deposits disabled/i);
     });
 
@@ -260,7 +284,9 @@ describe('Exchange', function () {
       await exchange.setDepositEnabled(false);
 
       await expect(
-        exchange.connect(traderWallet).deposit('10000000', ownerWallet.address),
+        exchange
+          .connect(traderWallet)
+          .deposit('10000000', ownerWallet.address, '0x'),
       ).to.eventually.be.rejectedWith(/deposits disabled/i);
     });
   });
@@ -279,7 +305,7 @@ describe('Exchange', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
       await exchange
         .connect(ownerWallet)
         .applyPendingDepositsForWallet(
@@ -318,10 +344,10 @@ describe('Exchange', function () {
         .approve(exchange.address, depositQuantity.mul(2));
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
       await exchange
         .connect(ownerWallet)
         .applyPendingDepositsForWallet(
@@ -365,7 +391,7 @@ describe('Exchange', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
 
       await expect(
         exchange

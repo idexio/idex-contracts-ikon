@@ -18,6 +18,7 @@ library Depositing {
     address destinationWallet;
     address sourceWallet;
     uint256 quantityInAssetUnits;
+    bytes data;
     // Exchange state
     ICustodian custodian;
     uint64 depositIndex;
@@ -29,7 +30,7 @@ library Depositing {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity);
+  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity, bytes data);
 
   /**
    * @notice Emitted when pending deposit quantity is applied via `applyPendingDepositsForWallet`
@@ -96,7 +97,8 @@ library Depositing {
       arguments.depositIndex + 1,
       arguments.sourceWallet,
       arguments.destinationWallet,
-      quantityTransferred
+      quantityTransferred,
+      arguments.data
     );
   }
 

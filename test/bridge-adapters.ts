@@ -24,7 +24,6 @@ import {
   deployAndAssociateContracts,
   expect,
   quoteAssetDecimals,
-  quoteAssetSymbol,
 } from './helpers';
 
 describe('ExchangeStargateAdapter', function () {
@@ -258,7 +257,7 @@ describe('ExchangeStargateAdapter', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
       await exchange
         .connect(dispatcherWallet)
         .applyPendingDepositsForWallet(

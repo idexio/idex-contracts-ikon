@@ -113,6 +113,8 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     bytes _payload;
   }
 
+  uint16 public constant DEPOSIT_DATA_PREFIX = 1;
+
   // Address of Custodian contract
   ICustodian public immutable custodian;
   // Must be true or `sgReceive` will revert
@@ -163,13 +165,15 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   receive() external payable {}
 
   /**
+   * @param chainId The remote chainId sending the tokens
+   * @param srcAddress The address of the wallet that initiated the swap on the remote chain
    *  @param token The token contract on the local chain
    *  @param amountLD The qty of local token contract tokens
    *  @param payload The bytes containing the destinationWallet
    */
   function sgReceive(
-    uint16 /* chainId */,
-    bytes calldata /* srcAddress */,
+    uint16 chainId,
+    bytes calldata srcAddress,
     uint256 /* nonce */,
     address token,
     uint256 amountLD,
@@ -182,7 +186,11 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     address destinationWallet = abi.decode(payload, (address));
     require(destinationWallet != address(0x0), "Invalid destination wallet");
 
-    IExchange(custodian.exchange()).deposit(amountLD, destinationWallet);
+    IExchange(custodian.exchange()).deposit(
+      amountLD,
+      destinationWallet,
+      abi.encode(DEPOSIT_DATA_PREFIX, chainId, srcAddress)
+    );
   }
 
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
@@ -230,7 +238,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
       )
     {} catch (bytes memory errorData) {
       // If the swap fails, redeposit funds into Exchange so wallet can retry
-      IExchange(custodian.exchange()).deposit(quantity, destinationWallet);
+      IExchange(custodian.exchange()).deposit(quantity, destinationWallet, bytes(""));
       emit WithdrawQuoteAssetFailed(destinationWallet, quantity, payload, errorData);
     }
   }

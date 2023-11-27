@@ -159,7 +159,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity);
+  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity, bytes data);
   /**
    * @notice Emitted when an admin disables deposits with `setDepositEnabled`
    */
@@ -754,8 +754,9 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity
    * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
+   * @param data Additional data specific to bridge adapter deposits
    */
-  function deposit(uint256 quantityInAssetUnits, address destinationWallet) public {
+  function deposit(uint256 quantityInAssetUnits, address destinationWallet, bytes memory data) public {
     address destinationWallet_ = destinationWallet == address(0x0) ? msg.sender : destinationWallet;
 
     Depositing.deposit_delegatecall(
@@ -763,6 +764,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         destinationWallet_,
         msg.sender,
         quantityInAssetUnits,
+        data,
         custodian,
         depositIndex,
         exitFundWallet,

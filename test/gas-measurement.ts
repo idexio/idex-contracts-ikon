@@ -206,14 +206,14 @@ describe.skip('Gas measurement', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
 
       await usdc
         .connect(trader1Wallet)
         .approve(exchange.address, depositQuantity);
       const result = await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
 
       console.log(
         `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
@@ -223,6 +223,7 @@ describe.skip('Gas measurement', function () {
           (exchange.interface.encodeFunctionData('deposit', [
             depositQuantity,
             ethers.constants.AddressZero,
+            '0x',
           ]).length -
             2) /
           2
@@ -245,14 +246,14 @@ describe.skip('Gas measurement', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, trader1Wallet.address);
+        .deposit(depositQuantity, trader1Wallet.address, '0x');
 
       await usdc
         .connect(trader1Wallet)
         .approve(exchange.address, depositQuantity);
       const result = await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, trader1Wallet.address);
+        .deposit(depositQuantity, trader1Wallet.address, '0x');
 
       console.log(
         `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
@@ -262,6 +263,7 @@ describe.skip('Gas measurement', function () {
           (exchange.interface.encodeFunctionData('deposit', [
             depositQuantity,
             ethers.constants.AddressZero,
+            '0x',
           ]).length -
             2) /
           2

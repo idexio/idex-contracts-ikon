@@ -122,7 +122,7 @@ interface IExchange {
    * the token contract for at least this quantity
    * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
    */
-  function deposit(uint256 quantityInAssetUnits, address destinationWallet) external;
+  function deposit(uint256 quantityInAssetUnits, address destinationWallet, bytes memory data) external;
 
   /**
    * @notice Load the number of deposits made to the contract, for use when upgrading to a new Exchange via Governance
