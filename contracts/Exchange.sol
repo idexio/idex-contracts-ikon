@@ -159,7 +159,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity, bytes data);
+  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity, bytes32 data);
   /**
    * @notice Emitted when an admin disables deposits with `setDepositEnabled`
    */
@@ -756,7 +756,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param destinationWallet The wallet which will be credited for the new balance. Defaults to sending wallet if zero
    * @param data Additional data specific to bridge adapter deposits
    */
-  function deposit(uint256 quantityInAssetUnits, address destinationWallet, bytes memory data) public {
+  function deposit(uint256 quantityInAssetUnits, address destinationWallet, bytes32 data) public {
     address destinationWallet_ = destinationWallet == address(0x0) ? msg.sender : destinationWallet;
 
     Depositing.deposit_delegatecall(

@@ -206,14 +206,22 @@ describe.skip('Gas measurement', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
+        .deposit(
+          depositQuantity,
+          ethers.constants.AddressZero,
+          ethers.constants.HashZero,
+        );
 
       await usdc
         .connect(trader1Wallet)
         .approve(exchange.address, depositQuantity);
       const result = await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
+        .deposit(
+          depositQuantity,
+          ethers.constants.AddressZero,
+          ethers.constants.HashZero,
+        );
 
       console.log(
         `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
@@ -223,7 +231,7 @@ describe.skip('Gas measurement', function () {
           (exchange.interface.encodeFunctionData('deposit', [
             depositQuantity,
             ethers.constants.AddressZero,
-            '0x',
+            ethers.constants.HashZero,
           ]).length -
             2) /
           2
@@ -246,14 +254,22 @@ describe.skip('Gas measurement', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, trader1Wallet.address, '0x');
+        .deposit(
+          depositQuantity,
+          trader1Wallet.address,
+          ethers.constants.HashZero,
+        );
 
       await usdc
         .connect(trader1Wallet)
         .approve(exchange.address, depositQuantity);
       const result = await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, trader1Wallet.address, '0x');
+        .deposit(
+          depositQuantity,
+          trader1Wallet.address,
+          ethers.constants.HashZero,
+        );
 
       console.log(
         `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
@@ -263,7 +279,7 @@ describe.skip('Gas measurement', function () {
           (exchange.interface.encodeFunctionData('deposit', [
             depositQuantity,
             ethers.constants.AddressZero,
-            '0x',
+            ethers.constants.HashZero,
           ]).length -
             2) /
           2

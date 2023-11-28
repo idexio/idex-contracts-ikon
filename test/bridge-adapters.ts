@@ -141,7 +141,7 @@ describe('ExchangeStargateAdapter', function () {
       await stargateRouterMock.sgReceive(
         adapter.address,
         1,
-        '0x',
+        ethers.constants.HashZero,
         0,
         usdc.address,
         depositQuantityInAssetUnits,
@@ -160,7 +160,7 @@ describe('ExchangeStargateAdapter', function () {
       await expect(
         adapter.sgReceive(
           1,
-          '0x',
+          ethers.constants.HashZero,
           0,
           usdc.address,
           depositQuantityInAssetUnits,
@@ -177,7 +177,7 @@ describe('ExchangeStargateAdapter', function () {
         stargateRouterMock.sgReceive(
           adapter.address,
           1,
-          '0x',
+          ethers.constants.HashZero,
           0,
           usdc.address,
           10000000000,
@@ -196,7 +196,7 @@ describe('ExchangeStargateAdapter', function () {
         stargateRouterMock.sgReceive(
           adapter.address,
           1,
-          '0x',
+          ethers.constants.HashZero,
           0,
           ethers.constants.AddressZero,
           10000000000,
@@ -215,7 +215,7 @@ describe('ExchangeStargateAdapter', function () {
         stargateRouterMock.sgReceive(
           adapter.address,
           1,
-          '0x',
+          ethers.constants.HashZero,
           0,
           usdc.address,
           10000000000,
@@ -257,7 +257,11 @@ describe('ExchangeStargateAdapter', function () {
         .approve(exchange.address, depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
+        .deposit(
+          depositQuantity,
+          ethers.constants.AddressZero,
+          ethers.constants.HashZero,
+        );
       await exchange
         .connect(dispatcherWallet)
         .applyPendingDepositsForWallet(
@@ -328,7 +332,11 @@ describe('ExchangeStargateAdapter', function () {
 
     it('should revert if not called by Exchange', async () => {
       await expect(
-        adapter.withdrawQuoteAsset(ownerWallet.address, 1000, '0x'),
+        adapter.withdrawQuoteAsset(
+          ownerWallet.address,
+          1000,
+          ethers.constants.HashZero,
+        ),
       ).to.eventually.be.rejectedWith(/caller must be exchange/i);
     });
 

@@ -66,7 +66,11 @@ describe('Exchange', function () {
       .approve(exchange.address, depositQuantity);
     await exchange
       .connect(trader1Wallet)
-      .deposit(depositQuantity, ethers.constants.AddressZero, '0x');
+      .deposit(
+        depositQuantity,
+        ethers.constants.AddressZero,
+        ethers.constants.HashZero,
+      );
     await exchange
       .connect(dispatcherWallet)
       .applyPendingDepositsForWallet(

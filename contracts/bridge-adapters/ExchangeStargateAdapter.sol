@@ -113,7 +113,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     bytes _payload;
   }
 
-  uint16 public constant DEPOSIT_DATA_PREFIX = 1;
+  uint8 public constant DEPOSIT_DATA_PREFIX = 1;
 
   // Address of Custodian contract
   ICustodian public immutable custodian;
@@ -189,7 +189,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
     IExchange(custodian.exchange()).deposit(
       amountLD,
       destinationWallet,
-      abi.encode(DEPOSIT_DATA_PREFIX, chainId, srcAddress)
+      bytes32(abi.encodePacked(DEPOSIT_DATA_PREFIX, chainId, srcAddress))
     );
   }
 
@@ -238,7 +238,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
       )
     {} catch (bytes memory errorData) {
       // If the swap fails, redeposit funds into Exchange so wallet can retry
-      IExchange(custodian.exchange()).deposit(quantity, destinationWallet, bytes(""));
+      IExchange(custodian.exchange()).deposit(quantity, destinationWallet, bytes32(0x0));
       emit WithdrawQuoteAssetFailed(destinationWallet, quantity, payload, errorData);
     }
   }

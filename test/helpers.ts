@@ -590,7 +590,7 @@ export async function fundWallets(
           .deposit(
             decimalToAssetUnits(quantity, quoteAssetDecimals),
             ethers.constants.AddressZero,
-            '0x',
+            ethers.constants.HashZero,
           )
       ).wait(),
     ),

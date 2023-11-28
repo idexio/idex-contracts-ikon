@@ -1760,7 +1760,11 @@ describe('Exchange', function () {
       await (
         await exchange
           .connect(ownerWallet)
-          .deposit(depositQuantity, ethers.constants.AddressZero, '0x')
+          .deposit(
+            depositQuantity,
+            ethers.constants.AddressZero,
+            ethers.constants.HashZero,
+          )
       ).wait();
 
       await exchange.connect(trader1Wallet).exitWallet();
