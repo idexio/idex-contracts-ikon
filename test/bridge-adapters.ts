@@ -147,6 +147,17 @@ describe('ExchangeStargateAdapter', function () {
         depositQuantityInAssetUnits,
         ethers.utils.defaultAbiCoder.encode(['address'], [ownerWallet.address]),
       );
+
+      await usdc.transfer(adapter.address, depositQuantityInAssetUnits);
+      await stargateRouterMock.sgReceive(
+        adapter.address,
+        1,
+        '0x256b913553c388a3fb684b577d82bbd75aee9f317a2bc3d6a63eb6ad915ab600256b913553c388a3fb684b577d82bbd75aee9f317a2bc3d6a63eb6ad915ab600', // Larger than bytes32
+        0,
+        usdc.address,
+        depositQuantityInAssetUnits,
+        ethers.utils.defaultAbiCoder.encode(['address'], [ownerWallet.address]),
+      );
     });
 
     it('should revert when not sent by Router', async () => {
