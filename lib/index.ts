@@ -414,18 +414,26 @@ export const getWithdrawArguments = (
 
 export const indexPriceToArgumentStruct = (
   indexPriceAdapter: string,
-  o: IndexPrice,
+  indexPrice: IndexPrice,
 ): IndexPricePayloadStruct => {
   return {
     indexPriceAdapter,
-    payload: ethers.utils.defaultAbiCoder.encode(
-      ['tuple(string,uint64,uint64)', 'bytes'],
-      [
-        [o.baseAssetSymbol, o.timestampInMs, decimalToPips(o.price)],
-        o.signature,
-      ],
-    ),
+    payload: indexPriceToArgumentPayload(indexPrice),
   };
+};
+
+export const indexPriceToArgumentPayload = (indexPrice: IndexPrice): string => {
+  return ethers.utils.defaultAbiCoder.encode(
+    ['tuple(string,uint64,uint64)', 'bytes'],
+    [
+      [
+        indexPrice.baseAssetSymbol,
+        indexPrice.timestampInMs,
+        decimalToPips(indexPrice.price),
+      ],
+      indexPrice.signature,
+    ],
+  );
 };
 
 /**
