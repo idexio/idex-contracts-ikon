@@ -1389,6 +1389,11 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   function clearWalletExit() public {
     require(WalletExits.isWalletExitFinalized(msg.sender, walletExits), "Wallet exit not finalized");
+    require(
+      baseAssetSymbolsWithOpenPositionsByWallet[msg.sender].length == 0 &&
+        _balanceTracking.loadBalanceFromMigrationSourceIfNeeded(msg.sender, Constants.QUOTE_ASSET_SYMBOL) == 0,
+      "Must withdraw exit before clearing"
+    );
 
     delete walletExits[msg.sender];
 
