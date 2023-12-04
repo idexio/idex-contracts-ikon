@@ -134,6 +134,7 @@ export async function bootstrapLiquidatedWallet() {
     liquidationIndexPrice,
     liquidatedWallet: trader1Wallet,
     counterpartyWallet: trader2Wallet,
+    ownerWallet,
   };
 }
 
