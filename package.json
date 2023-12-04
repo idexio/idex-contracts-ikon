@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.9.0-sandbox-P9-4596-clear-exit-requires-withdrawal.1",
+  "version": "0.9.0-sandbox-upgrade-to-ethers-v6-sandbox.2",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
