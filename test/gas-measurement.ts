@@ -1,7 +1,7 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
-import { time } from '@nomicfoundation/hardhat-network-helpers';
 
 import {
   baseAssetSymbol,
@@ -85,7 +85,7 @@ describe.skip('Gas measurement', function () {
       insuranceFundWallet,
       0,
       true,
-      ethers.constants.AddressZero,
+      ethers.ZeroAddress,
       [baseAssetSymbol],
       true,
     );
@@ -126,8 +126,11 @@ describe.skip('Gas measurement', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          indexPriceAdapter.address,
-          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+          await indexPriceAdapter.getAddress(),
+          await buildIndexPrice(
+            await exchange.getAddress(),
+            indexPriceServiceWallet,
+          ),
         ),
       ]);
 
@@ -140,8 +143,8 @@ describe.skip('Gas measurement', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    buyOrderSignature = await trader2Wallet._signTypedData(
-      ...getOrderSignatureTypedData(buyOrder, exchange.address),
+    buyOrderSignature = await trader2Wallet.signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
     );
 
     sellOrder = {
@@ -153,8 +156,8 @@ describe.skip('Gas measurement', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    sellOrderSignature = await trader1Wallet._signTypedData(
-      ...getOrderSignatureTypedData(sellOrder, exchange.address),
+    sellOrderSignature = await trader1Wallet.signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
     );
 
     trade = {
@@ -180,13 +183,13 @@ describe.skip('Gas measurement', function () {
       );
 
     buyOrder.nonce = uuidv1();
-    buyOrderSignature = await trader2Wallet._signTypedData(
-      ...getOrderSignatureTypedData(buyOrder, exchange.address),
+    buyOrderSignature = await trader2Wallet.signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
     );
 
     sellOrder.nonce = uuidv1();
-    sellOrderSignature = await trader1Wallet._signTypedData(
-      ...getOrderSignatureTypedData(sellOrder, exchange.address),
+    sellOrderSignature = await trader1Wallet.signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
     );
   });
 
@@ -194,35 +197,32 @@ describe.skip('Gas measurement', function () {
     it('for default destination wallet', async function () {
       await usdc.transfer(
         trader1Wallet.address,
-        ethers.utils.parseUnits('100.0', quoteAssetDecimals),
+        ethers.parseUnits('100.0', quoteAssetDecimals),
       );
 
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       await usdc
         .connect(trader1Wallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
 
       await usdc
         .connect(trader1Wallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       const result = await exchange
         .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
 
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
           (exchange.interface.encodeFunctionData('deposit', [
             depositQuantity,
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
           ]).length -
             2) /
           2
@@ -233,35 +233,32 @@ describe.skip('Gas measurement', function () {
     it('for explicit destination wallet', async function () {
       await usdc.transfer(
         trader1Wallet.address,
-        ethers.utils.parseUnits('100.0', quoteAssetDecimals),
+        ethers.parseUnits('100.0', quoteAssetDecimals),
       );
 
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       await usdc
         .connect(trader1Wallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       await exchange
         .connect(trader1Wallet)
         .deposit(depositQuantity, trader1Wallet.address);
 
       await usdc
         .connect(trader1Wallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       const result = await exchange
         .connect(trader1Wallet)
         .deposit(depositQuantity, trader1Wallet.address);
 
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
           (exchange.interface.encodeFunctionData('deposit', [
             depositQuantity,
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
           ]).length -
             2) /
           2
@@ -276,9 +273,9 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2250.00000000',
               baseAssetSymbol,
@@ -296,7 +293,7 @@ describe.skip('Gas measurement', function () {
           liquidationQuoteQuantity: decimalToPips('22980.00000000'),
         });
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -337,14 +334,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet._signTypedData(
-          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        buyOrderSignature = await trader2Wallet.signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet._signTypedData(
-          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        sellOrderSignature = await trader1Wallet.signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
         );
 
         await exchange
@@ -366,9 +363,9 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
+                await indexPriceAdapter.getAddress(),
                 await buildIndexPriceWithValue(
-                  exchange.address,
+                  await exchange.getAddress(),
                   indexPriceServiceWallet,
                   '2150.00000000',
                   symbol,
@@ -388,7 +385,7 @@ describe.skip('Gas measurement', function () {
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         });
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -427,7 +424,7 @@ describe.skip('Gas measurement', function () {
         .initiateMarketOverridesUpgrade(
           baseAssetSymbol,
           overrides,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         );
       await time.increase(fieldUpgradeDelayInS);
       await governance
@@ -435,7 +432,7 @@ describe.skip('Gas measurement', function () {
         .finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
           overrides,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         );
     });
 
@@ -461,7 +458,7 @@ describe.skip('Gas measurement', function () {
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         });
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -488,9 +485,9 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2400.00000000',
               baseAssetSymbol,
@@ -513,7 +510,7 @@ describe.skip('Gas measurement', function () {
           liquidationQuoteQuantities: ['22980.00000000'].map(decimalToPips),
         });
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -560,14 +557,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet._signTypedData(
-          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        buyOrderSignature = await trader2Wallet.signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet._signTypedData(
-          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        sellOrderSignature = await trader1Wallet.signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
         );
 
         await exchange
@@ -589,9 +586,9 @@ describe.skip('Gas measurement', function () {
           await Promise.all(
             [...baseAssetSymbols, baseAssetSymbol].map(async (symbol) =>
               indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
+                await indexPriceAdapter.getAddress(),
                 await buildIndexPriceWithValue(
-                  exchange.address,
+                  await exchange.getAddress(),
                   indexPriceServiceWallet,
                   '2150.00000000',
                   symbol,
@@ -615,7 +612,7 @@ describe.skip('Gas measurement', function () {
           ].map(decimalToPips),
         });
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -654,14 +651,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet._signTypedData(
-          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        buyOrderSignature = await trader2Wallet.signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet._signTypedData(
-          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        sellOrderSignature = await trader1Wallet.signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
         );
 
         await exchange
@@ -683,11 +680,14 @@ describe.skip('Gas measurement', function () {
         wallet: trader1Wallet.address,
         quantity: '1.00000000',
         maximumGasFee: '0.10000000',
-        bridgeAdapter: ethers.constants.AddressZero,
+        bridgeAdapter: ethers.ZeroAddress,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      let signature = await trader1Wallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await exchange
@@ -695,14 +695,17 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await trader1Wallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       const result = await exchange
         .connect(dispatcherWallet)
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
-      console.log((await result.wait()).gasUsed.toString());
+      console.log((await result.wait())?.gasUsed.toString());
     });
 
     it.skip('investigation 1', async function () {
@@ -716,14 +719,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet._signTypedData(
-          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        buyOrderSignature = await trader2Wallet.signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet._signTypedData(
-          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        sellOrderSignature = await trader1Wallet.signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
         );
 
         await exchange
@@ -745,11 +748,14 @@ describe.skip('Gas measurement', function () {
         wallet: trader1Wallet.address,
         quantity: '1.00000000',
         maximumGasFee: '0.10000000',
-        bridgeAdapter: ethers.constants.AddressZero,
+        bridgeAdapter: ethers.ZeroAddress,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      let signature = await trader1Wallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await exchange
@@ -757,14 +763,17 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await trader1Wallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       const result = await exchange
         .connect(dispatcherWallet)
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
-      console.log((await result.wait()).gasUsed.toString());
+      console.log((await result.wait())?.gasUsed.toString());
     });
 
     it('with no outstanding funding payments', async function () {
@@ -778,14 +787,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet._signTypedData(
-          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        buyOrderSignature = await trader2Wallet.signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet._signTypedData(
-          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        sellOrderSignature = await trader1Wallet.signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
         );
 
         await exchange
@@ -807,11 +816,14 @@ describe.skip('Gas measurement', function () {
         wallet: trader1Wallet.address,
         quantity: '1.00000000',
         maximumGasFee: '0.10000000',
-        bridgeAdapter: ethers.constants.AddressZero,
+        bridgeAdapter: ethers.ZeroAddress,
         bridgeAdapterPayload: '0x',
       };
-      let signature = await trader1Wallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      let signature = await trader1Wallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await exchange
@@ -819,15 +831,18 @@ describe.skip('Gas measurement', function () {
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
 
       withdrawal.nonce = uuidv1();
-      signature = await trader1Wallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await trader1Wallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       const result = await exchange
         .connect(dispatcherWallet)
         .withdraw(...getWithdrawArguments(withdrawal, '0.00000000', signature));
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -851,8 +866,8 @@ describe.skip('Gas measurement', function () {
         destinationWallet: trader2Wallet.address,
         quantity: '1.00000000',
       };
-      let signature = await trader1Wallet._signTypedData(
-        ...getTransferSignatureTypedData(transfer, exchange.address),
+      let signature = await trader1Wallet.signTypedData(
+        ...getTransferSignatureTypedData(transfer, await exchange.getAddress()),
       );
 
       await exchange
@@ -860,14 +875,14 @@ describe.skip('Gas measurement', function () {
         .transfer(...getTransferArguments(transfer, '0.00000000', signature));
 
       transfer.nonce = uuidv1();
-      signature = await trader1Wallet._signTypedData(
-        ...getTransferSignatureTypedData(transfer, exchange.address),
+      signature = await trader1Wallet.signTypedData(
+        ...getTransferSignatureTypedData(transfer, await exchange.getAddress()),
       );
       const result = await exchange
         .connect(dispatcherWallet)
         .transfer(...getTransferArguments(transfer, '0.00000000', signature));
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -888,8 +903,11 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+            await indexPriceAdapter.getAddress(),
+            await buildIndexPrice(
+              await exchange.getAddress(),
+              indexPriceServiceWallet,
+            ),
           ),
         ]);
 
@@ -897,21 +915,24 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+            await indexPriceAdapter.getAddress(),
+            await buildIndexPrice(
+              await exchange.getAddress(),
+              indexPriceServiceWallet,
+            ),
           ),
         ]);
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
           (exchange.interface.encodeFunctionData('publishIndexPrices', [
             [
               indexPriceToArgumentStruct(
-                indexPriceAdapter.address,
+                await indexPriceAdapter.getAddress(),
                 await buildIndexPrice(
-                  exchange.address,
+                  await exchange.getAddress(),
                   indexPriceServiceWallet,
                 ),
               ),
@@ -934,9 +955,9 @@ describe.skip('Gas measurement', function () {
       let indexPricePayloads: IndexPricePayloadStruct[] = await Promise.all(
         baseAssetSymbols.map(async (symbol) =>
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPrice(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               symbol,
             ),
@@ -951,9 +972,9 @@ describe.skip('Gas measurement', function () {
       indexPricePayloads = await Promise.all(
         baseAssetSymbols.map(async (symbol) =>
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPrice(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               symbol,
             ),
@@ -965,7 +986,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices(indexPricePayloads);
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1000,9 +1021,9 @@ describe.skip('Gas measurement', function () {
       let indexPricePayloads: IndexPricePayloadStruct[] = await Promise.all(
         baseAssetSymbols.map(async (symbol) =>
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPrice(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               symbol,
             ),
@@ -1017,9 +1038,9 @@ describe.skip('Gas measurement', function () {
       indexPricePayloads = await Promise.all(
         baseAssetSymbols.map(async (symbol) =>
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPrice(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               symbol,
             ),
@@ -1031,7 +1052,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices(indexPricePayloads);
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1076,9 +1097,9 @@ describe.skip('Gas measurement', function () {
       let indexPricePayloads: IndexPricePayloadStruct[] = await Promise.all(
         baseAssetSymbols.map(async (symbol) =>
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPrice(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               symbol,
             ),
@@ -1093,9 +1114,9 @@ describe.skip('Gas measurement', function () {
       indexPricePayloads = await Promise.all(
         baseAssetSymbols.map(async (symbol) =>
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPrice(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               symbol,
             ),
@@ -1107,7 +1128,7 @@ describe.skip('Gas measurement', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices(indexPricePayloads);
       console.log(
-        `Gas used:       ${(await result.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1149,14 +1170,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet._signTypedData(
-          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        buyOrderSignature = await trader2Wallet.signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet._signTypedData(
-          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        sellOrderSignature = await trader1Wallet.signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
         );
 
         await exchange
@@ -1178,14 +1199,14 @@ describe.skip('Gas measurement', function () {
       buyOrder.nonce = uuidv1();
       buyOrder.market = `${baseAssetSymbol}-USD`;
       buyOrder.wallet = trader3Wallet.address;
-      buyOrderSignature = await trader3Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader3Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.nonce = uuidv1();
       sellOrder.market = `${baseAssetSymbol}-USD`;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       const result = await exchange
@@ -1201,7 +1222,7 @@ describe.skip('Gas measurement', function () {
         );
 
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1248,14 +1269,14 @@ describe.skip('Gas measurement', function () {
       for (const symbol of baseAssetSymbols) {
         buyOrder.nonce = uuidv1();
         buyOrder.market = `${symbol}-USD`;
-        buyOrderSignature = await trader2Wallet._signTypedData(
-          ...getOrderSignatureTypedData(buyOrder, exchange.address),
+        buyOrderSignature = await trader2Wallet.signTypedData(
+          ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
         );
 
         sellOrder.nonce = uuidv1();
         sellOrder.market = `${symbol}-USD`;
-        sellOrderSignature = await trader1Wallet._signTypedData(
-          ...getOrderSignatureTypedData(sellOrder, exchange.address),
+        sellOrderSignature = await trader1Wallet.signTypedData(
+          ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
         );
 
         await exchange
@@ -1273,14 +1294,14 @@ describe.skip('Gas measurement', function () {
 
       buyOrder.nonce = uuidv1();
       buyOrder.market = `${baseAssetSymbol}-USD`;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.nonce = uuidv1();
       sellOrder.market = `${baseAssetSymbol}-USD`;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       const result = await exchange
@@ -1296,7 +1317,7 @@ describe.skip('Gas measurement', function () {
         );
 
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1319,8 +1340,8 @@ describe.skip('Gas measurement', function () {
     it('with no outstanding funding payments (limit-market)', async () => {
       buyOrder.type = OrderType.Market;
       buyOrder.price = '0.00000000';
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       const result = await exchange
@@ -1335,7 +1356,7 @@ describe.skip('Gas measurement', function () {
           ),
         );
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1368,7 +1389,7 @@ describe.skip('Gas measurement', function () {
           ),
         );
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1409,7 +1430,7 @@ describe.skip('Gas measurement', function () {
           ),
         );
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1450,7 +1471,7 @@ describe.skip('Gas measurement', function () {
           ),
         );
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1499,7 +1520,7 @@ describe.skip('Gas measurement', function () {
           ),
         );
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1548,7 +1569,7 @@ describe.skip('Gas measurement', function () {
           ),
         );
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1597,7 +1618,7 @@ describe.skip('Gas measurement', function () {
           ),
         );
       console.log(
-        `Gas used:       ${(await result!.wait()).gasUsed.toString()}`,
+        `Gas used:       ${(await result!.wait())?.gasUsed.toString()}`,
       );
       console.log(
         `Calldata bytes: ${
@@ -1638,9 +1659,9 @@ async function publishFundingRates(
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          indexPriceAdapter.address,
+          await indexPriceAdapter.getAddress(),
           await buildIndexPriceWithTimestamp(
-            exchange.address,
+            await exchange.getAddress(),
             indexPriceServiceWallet,
             nextFundingTimestampInMs,
           ),

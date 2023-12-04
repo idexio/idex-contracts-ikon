@@ -1,13 +1,15 @@
 import { ethers } from 'ethers';
 
-export default abstract class BaseContract<Contract extends ethers.Contract> {
+export default abstract class BaseContract<
+  Contract extends ethers.BaseContract,
+> {
   protected readonly contract: Contract;
 
   protected constructor(contract: Contract) {
     this.contract = contract;
   }
 
-  public getAddress(): string {
-    return this.contract.address;
+  public async getAddress(): Promise<string> {
+    return this.contract.getAddress();
   }
 }

@@ -32,9 +32,8 @@ export default class StorkIndexAndOraclePriceAdapterContract extends BaseContrac
     const contract = await new StorkIndexAndOraclePriceAdapter__factory(
       owner,
     ).deploy(...args);
-    await contract.deployTransaction.wait();
 
-    return new this(contract.address);
+    return new this(await (await contract.waitForDeployment()).getAddress());
   }
 
   public getEthersContract(): StorkIndexAndOraclePriceAdapter {

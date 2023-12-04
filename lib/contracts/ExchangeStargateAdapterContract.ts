@@ -32,9 +32,8 @@ export default class ExchangeStargateAdapterContract extends BaseContract<Exchan
     const contract = await new ExchangeStargateAdapter__factory(owner).deploy(
       ...args,
     );
-    await contract.deployTransaction.wait();
 
-    return new this(contract.address);
+    return new this(await (await contract.waitForDeployment()).getAddress());
   }
 
   public getEthersContract(): ExchangeStargateAdapter {

@@ -57,9 +57,8 @@ export async function deployLibrary(
     bytecode,
     owner,
   ).deploy();
-  await library.deployTransaction.wait();
 
-  return library.address;
+  return (await library.waitForDeployment()).getAddress();
 }
 
 const libraryNameToBytecodeMap = new Map<LibraryName, string>();

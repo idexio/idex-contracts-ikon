@@ -32,9 +32,8 @@ export default class ChainlinkAggregatorMockContract extends BaseContract<Chainl
     const contract = await new ChainlinkAggregatorMock__factory(owner).deploy(
       ...args,
     );
-    await contract.deployTransaction.wait();
 
-    return new this(contract.address);
+    return new this(await (await contract.waitForDeployment()).getAddress());
   }
 
   public getEthersContract(): ChainlinkAggregatorMock {

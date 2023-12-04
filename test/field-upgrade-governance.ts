@@ -1,6 +1,6 @@
 import { expect } from 'chai';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import { Exchange_v4__factory } from '../typechain-types';
@@ -76,16 +76,18 @@ describe('Governance', function () {
       );
 
       bridgeAdapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         99900000,
-        exchange.address,
-        usdc.address,
+        await exchange.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
     describe('initiateBridgeAdaptersUpgrade', () => {
       it('should work for valid contract address', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
         expect(
           governance.queryFilter(
             governance.filters.BridgeAdaptersUpgradeInitiated(),
@@ -104,10 +106,14 @@ describe('Governance', function () {
       });
 
       it('should revert when already in progress', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await expect(
-          governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]),
+          governance.initiateBridgeAdaptersUpgrade([
+            await bridgeAdapter.getAddress(),
+          ]),
         ).to.eventually.be.rejectedWith(/already in progress/i);
       });
 
@@ -115,14 +121,16 @@ describe('Governance', function () {
         await expect(
           governance
             .connect((await ethers.getSigners())[5])
-            .initiateBridgeAdaptersUpgrade([bridgeAdapter.address]),
+            .initiateBridgeAdaptersUpgrade([await bridgeAdapter.getAddress()]),
         ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
       });
     });
 
     describe('cancelBridgeAdaptersUpgrade', () => {
       it('should work when in progress', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
         await governance.cancelBridgeAdaptersUpgrade();
         expect(
           governance.queryFilter(
@@ -150,11 +158,15 @@ describe('Governance', function () {
 
     describe('finalizeBridgeAdaptersUpgrade', async () => {
       it('should work after block delay when upgrade was initiated', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await time.increase(fieldUpgradeDelayInS);
 
-        await governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.finalizeBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
         expect(
           governance.queryFilter(
             governance.filters.BridgeAdaptersUpgradeFinalized(),
@@ -166,61 +178,79 @@ describe('Governance', function () {
 
       it('should be applied to current Exchange contract following an upgrade', async () => {
         const newExchange = await ExchangeFactory.deploy(
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
           ownerWallet.address,
           ownerWallet.address,
-          [usdc.address],
+          [await usdc.getAddress()],
           ownerWallet.address,
-          usdc.address,
-          usdc.address,
+          await usdc.getAddress(),
+          await usdc.getAddress(),
         );
-        await newExchange.setCustodian(custodian.address, []);
+        await newExchange.setCustodian(await custodian.getAddress(), []);
 
-        await governance.initiateExchangeUpgrade(newExchange.address);
-        await governance.finalizeExchangeUpgrade(newExchange.address);
+        await governance.initiateExchangeUpgrade(
+          await newExchange.getAddress(),
+        );
+        await governance.finalizeExchangeUpgrade(
+          await newExchange.getAddress(),
+        );
 
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await time.increase(fieldUpgradeDelayInS);
 
-        await governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.finalizeBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await expect(newExchange.bridgeAdapters(0)).to.eventually.equal(
-          bridgeAdapter.address,
+          await bridgeAdapter.getAddress(),
         );
       });
 
       it('should revert when not in progress', async () => {
         await expect(
-          governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]),
+          governance.finalizeBridgeAdaptersUpgrade([
+            await bridgeAdapter.getAddress(),
+          ]),
         ).to.eventually.be.rejectedWith(/no adapter upgrade in progress/i);
       });
 
       it('should revert before block delay', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await expect(
-          governance.finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]),
+          governance.finalizeBridgeAdaptersUpgrade([
+            await bridgeAdapter.getAddress(),
+          ]),
         ).to.eventually.be.rejectedWith(
           /block timestamp threshold not yet reached/i,
         );
       });
 
       it('should revert on address length mismatch', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await time.increase(fieldUpgradeDelayInS);
 
         await expect(
           governance.finalizeBridgeAdaptersUpgrade([
-            bridgeAdapter.address,
+            await bridgeAdapter.getAddress(),
             ownerWallet.address,
           ]),
         ).to.eventually.be.rejectedWith(/address mismatch/i);
       });
 
       it('should revert on address  mismatch', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await time.increase(fieldUpgradeDelayInS);
 
@@ -230,12 +260,14 @@ describe('Governance', function () {
       });
 
       it('should revert when not called by admin or dispatcher', async () => {
-        await governance.initiateBridgeAdaptersUpgrade([bridgeAdapter.address]);
+        await governance.initiateBridgeAdaptersUpgrade([
+          await bridgeAdapter.getAddress(),
+        ]);
 
         await expect(
           governance
             .connect((await ethers.getSigners())[10])
-            .finalizeBridgeAdaptersUpgrade([bridgeAdapter.address]),
+            .finalizeBridgeAdaptersUpgrade([await bridgeAdapter.getAddress()]),
         ).to.eventually.be.rejectedWith(
           /caller must be admin or dispatcher wallet/i,
         );
@@ -249,14 +281,16 @@ describe('Governance', function () {
         newIndexPriceAdapter = await (
           await (
             await ethers.getContractFactory('IDEXIndexAndOraclePriceAdapter')
-          ).deploy(governance.address, [indexPriceServiceWallet.address])
-        ).deployed();
+          ).deploy(await governance.getAddress(), [
+            indexPriceServiceWallet.address,
+          ])
+        ).waitForDeployment();
       });
 
       describe('initiateIndexPriceAdaptersUpgrade', () => {
         it('should work for valid wallet address', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
           expect(
             governance.queryFilter(
@@ -269,9 +303,7 @@ describe('Governance', function () {
 
         it('should revert for invalid address', async () => {
           await expect(
-            governance.initiateIndexPriceAdaptersUpgrade([
-              ethers.constants.AddressZero,
-            ]),
+            governance.initiateIndexPriceAdaptersUpgrade([ethers.ZeroAddress]),
           ).to.eventually.be.rejectedWith(
             /invalid index price adapter address/i,
           );
@@ -279,12 +311,12 @@ describe('Governance', function () {
 
         it('should revert when already in progress', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
 
           await expect(
             governance.initiateIndexPriceAdaptersUpgrade([
-              newIndexPriceAdapter.address,
+              await newIndexPriceAdapter.getAddress(),
             ]),
           ).to.eventually.be.rejectedWith(/already in progress/i);
         });
@@ -294,7 +326,7 @@ describe('Governance', function () {
             governance
               .connect((await ethers.getSigners())[5])
               .initiateIndexPriceAdaptersUpgrade([
-                newIndexPriceAdapter.address,
+                await newIndexPriceAdapter.getAddress(),
               ]),
           ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
         });
@@ -303,7 +335,7 @@ describe('Governance', function () {
       describe('cancelIndexPriceAdaptersUpgrade', () => {
         it('should work when in progress', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
           await governance.cancelIndexPriceAdaptersUpgrade();
           expect(
@@ -335,13 +367,13 @@ describe('Governance', function () {
       describe('finalizeIndexPriceAdaptersUpgrade', async () => {
         it('should work when in progress', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
 
           await time.increase(fieldUpgradeDelayInS);
 
           await governance.finalizeIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
           expect(
             governance.queryFilter(
@@ -355,7 +387,7 @@ describe('Governance', function () {
         it('should revert when not in progress', async () => {
           await expect(
             governance.finalizeIndexPriceAdaptersUpgrade([
-              newIndexPriceAdapter.address,
+              await newIndexPriceAdapter.getAddress(),
             ]),
           ).to.eventually.be.rejectedWith(
             /no index price adapter upgrade in progress/i,
@@ -364,12 +396,12 @@ describe('Governance', function () {
 
         it('should revert before block delay', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
 
           await expect(
             governance.finalizeIndexPriceAdaptersUpgrade([
-              newIndexPriceAdapter.address,
+              await newIndexPriceAdapter.getAddress(),
             ]),
           ).to.eventually.be.rejectedWith(
             /block timestamp threshold not yet reached/i,
@@ -378,22 +410,22 @@ describe('Governance', function () {
 
         it('should revert on address length mismatch', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
 
           await time.increase(fieldUpgradeDelayInS);
 
           await expect(
             governance.finalizeIndexPriceAdaptersUpgrade([
-              newIndexPriceAdapter.address,
-              newIndexPriceAdapter.address,
+              await newIndexPriceAdapter.getAddress(),
+              await newIndexPriceAdapter.getAddress(),
             ]),
           ).to.eventually.be.rejectedWith(/address mismatch/i);
         });
 
         it('should revert on address mismatch', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
 
           await time.increase(fieldUpgradeDelayInS);
@@ -405,14 +437,14 @@ describe('Governance', function () {
 
         it('should revert when not called by admin or dispatcher', async () => {
           await governance.initiateIndexPriceAdaptersUpgrade([
-            newIndexPriceAdapter.address,
+            await newIndexPriceAdapter.getAddress(),
           ]);
 
           await expect(
             governance
               .connect((await ethers.getSigners())[10])
               .finalizeIndexPriceAdaptersUpgrade([
-                newIndexPriceAdapter.address,
+                await newIndexPriceAdapter.getAddress(),
               ]),
           ).to.eventually.be.rejectedWith(
             /caller must be admin or dispatcher wallet/i,
@@ -434,20 +466,20 @@ describe('Governance', function () {
 
       const chainlinkAggregator = await (
         await ChainlinkAggregatorFactory.deploy()
-      ).deployed();
+      ).waitForDeployment();
 
       newOraclePriceAdapter = await (
         await ChainlinkOraclePriceAdapter.deploy(
           [baseAssetSymbol],
-          [chainlinkAggregator.address],
+          [await chainlinkAggregator.getAddress()],
         )
-      ).deployed();
+      ).waitForDeployment();
     });
 
     describe('initiateOraclePriceAdapterUpgrade', () => {
       it('should work for valid wallet address', async () => {
         await governance.initiateOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
         expect(
           governance.queryFilter(
@@ -460,9 +492,7 @@ describe('Governance', function () {
 
       it('should revert for invalid address', async () => {
         await expect(
-          governance.initiateOraclePriceAdapterUpgrade(
-            ethers.constants.AddressZero,
-          ),
+          governance.initiateOraclePriceAdapterUpgrade(ethers.ZeroAddress),
         ).to.eventually.be.rejectedWith(
           /invalid oracle price adapter address/i,
         );
@@ -470,12 +500,12 @@ describe('Governance', function () {
 
       it('should revert when already in progress', async () => {
         await governance.initiateOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
 
         await expect(
           governance.initiateOraclePriceAdapterUpgrade(
-            newOraclePriceAdapter.address,
+            await newOraclePriceAdapter.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/already in progress/i);
       });
@@ -484,7 +514,9 @@ describe('Governance', function () {
         await expect(
           governance
             .connect((await ethers.getSigners())[5])
-            .initiateOraclePriceAdapterUpgrade(newOraclePriceAdapter.address),
+            .initiateOraclePriceAdapterUpgrade(
+              await newOraclePriceAdapter.getAddress(),
+            ),
         ).to.eventually.be.rejectedWith(/caller must be admin wallet/i);
       });
     });
@@ -492,7 +524,7 @@ describe('Governance', function () {
     describe('cancelOraclePriceAdapterUpgrade', () => {
       it('should work when in progress', async () => {
         await governance.initiateOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
         await governance.cancelOraclePriceAdapterUpgrade();
         expect(
@@ -524,13 +556,13 @@ describe('Governance', function () {
     describe('finalizeOraclePriceAdapterUpgrade', async () => {
       it('should work when in progress', async () => {
         await governance.initiateOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
 
         await time.increase(fieldUpgradeDelayInS);
 
         await governance.finalizeOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
         expect(
           governance.queryFilter(
@@ -544,7 +576,7 @@ describe('Governance', function () {
       it('should revert when not in progress', async () => {
         await expect(
           governance.finalizeOraclePriceAdapterUpgrade(
-            newOraclePriceAdapter.address,
+            await newOraclePriceAdapter.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(
           /no oracle price adapter upgrade in progress/i,
@@ -553,12 +585,12 @@ describe('Governance', function () {
 
       it('should revert before block delay', async () => {
         await governance.initiateOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
 
         await expect(
           governance.finalizeOraclePriceAdapterUpgrade(
-            newOraclePriceAdapter.address,
+            await newOraclePriceAdapter.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(
           /block timestamp threshold not yet reached/i,
@@ -567,7 +599,7 @@ describe('Governance', function () {
 
       it('should revert on address mismatch', async () => {
         await governance.initiateOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
 
         await time.increase(fieldUpgradeDelayInS);
@@ -579,7 +611,7 @@ describe('Governance', function () {
 
       it('should revert when not called by admin or dispatcher', async () => {
         await governance.initiateOraclePriceAdapterUpgrade(
-          newOraclePriceAdapter.address,
+          await newOraclePriceAdapter.getAddress(),
         );
 
         await time.increase(fieldUpgradeDelayInS);
@@ -619,9 +651,7 @@ describe('Governance', function () {
 
       it('should revert for zero address', async () => {
         await expect(
-          governance.initiateInsuranceFundWalletUpgrade(
-            ethers.constants.AddressZero,
-          ),
+          governance.initiateInsuranceFundWalletUpgrade(ethers.ZeroAddress),
         ).to.eventually.be.rejectedWith(/invalid IF wallet address/i);
       });
 
@@ -783,8 +813,11 @@ describe('Governance', function () {
         await executeTrade(
           exchange,
           dispatcherWallet,
-          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-          indexPriceAdapter.address,
+          await buildIndexPrice(
+            await exchange.getAddress(),
+            indexPriceServiceWallet,
+          ),
+          await indexPriceAdapter.getAddress(),
           trader1Wallet,
           trader2Wallet,
         );
@@ -959,7 +992,7 @@ describe('Governance', function () {
         await governance.initiateMarketOverridesUpgrade(
           baseAssetSymbol,
           marketOverrides,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         );
 
         await time.increase(fieldUpgradeDelayInS);
@@ -967,7 +1000,7 @@ describe('Governance', function () {
         await governance.finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
           marketOverrides,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         );
 
         expect(
@@ -983,7 +1016,7 @@ describe('Governance', function () {
         await governance.initiateMarketOverridesUpgrade(
           'XYZ',
           marketOverrides,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         );
 
         await time.increase(fieldUpgradeDelayInS);
@@ -992,7 +1025,7 @@ describe('Governance', function () {
           governance.finalizeMarketOverridesUpgrade(
             'XYZ',
             marketOverrides,
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
           ),
         ).to.eventually.be.rejectedWith(/invalid market/i);
       });
@@ -1126,7 +1159,7 @@ describe('Governance', function () {
         await expect(
           exchange.unsetMarketOverridesForWallet(
             baseAssetSymbol,
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
           ),
         ).to.eventually.be.rejectedWith(/invalid wallet/i);
       });

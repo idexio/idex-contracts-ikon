@@ -1,4 +1,4 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { ethers } from 'hardhat';
 
 import {
@@ -33,13 +33,13 @@ describe('Exchange', function () {
       const [ownerWallet] = await ethers.getSigners();
 
       await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
@@ -50,13 +50,13 @@ describe('Exchange', function () {
         await BalanceMigrationSourceMockFactory.deploy(0);
 
       await ExchangeFactory.deploy(
-        balanceMigrationSourceMock.address,
+        await balanceMigrationSourceMock.getAddress(),
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
@@ -68,10 +68,10 @@ describe('Exchange', function () {
           ownerWallet.address,
           ownerWallet.address,
           ownerWallet.address,
-          [usdc.address],
+          [await usdc.getAddress()],
           ownerWallet.address,
-          usdc.address,
-          usdc.address,
+          await usdc.getAddress(),
+          await usdc.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid migration source/i);
     });
@@ -84,12 +84,12 @@ describe('Exchange', function () {
 
       await expect(
         ExchangeFactory.deploy(
-          balanceMigrationSourceMock.address,
+          await balanceMigrationSourceMock.getAddress(),
           ownerWallet.address,
           ownerWallet.address,
-          [usdc.address],
+          [await usdc.getAddress()],
           ownerWallet.address,
-          usdc.address,
+          await usdc.getAddress(),
           ownerWallet.address,
         ),
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
@@ -103,13 +103,13 @@ describe('Exchange', function () {
 
       await expect(
         ExchangeFactory.deploy(
-          balanceMigrationSourceMock.address,
+          await balanceMigrationSourceMock.getAddress(),
           ownerWallet.address,
           ownerWallet.address,
-          [ethers.constants.AddressZero],
+          [ethers.ZeroAddress],
           ownerWallet.address,
-          usdc.address,
-          usdc.address,
+          await usdc.getAddress(),
+          await usdc.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid index price adapter address/i);
     });
@@ -119,13 +119,13 @@ describe('Exchange', function () {
 
       await expect(
         ExchangeFactory.deploy(
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
           ownerWallet.address,
           ownerWallet.address,
-          [usdc.address],
-          ethers.constants.AddressZero,
-          usdc.address,
-          usdc.address,
+          [await usdc.getAddress()],
+          ethers.ZeroAddress,
+          await usdc.getAddress(),
+          await usdc.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid IF wallet/i);
     });
@@ -138,13 +138,13 @@ describe('Exchange', function () {
 
       await expect(
         ExchangeFactory.deploy(
-          balanceMigrationSourceMock.address,
+          await balanceMigrationSourceMock.getAddress(),
           ownerWallet.address,
           ownerWallet.address,
-          [usdc.address],
+          [await usdc.getAddress()],
           ownerWallet.address,
-          ethers.constants.AddressZero,
-          usdc.address,
+          ethers.ZeroAddress,
+          await usdc.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid oracle price adapter address/i);
     });
@@ -178,7 +178,7 @@ describe('Exchange', function () {
     describe('setInsuranceFundWallet', async function () {
       it('should revert when not called by Governance', async () => {
         await expect(
-          exchange.setInsuranceFundWallet(ethers.constants.AddressZero),
+          exchange.setInsuranceFundWallet(ethers.ZeroAddress),
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
     });
@@ -186,7 +186,7 @@ describe('Exchange', function () {
     describe('setOraclePriceAdapter', async function () {
       it('should revert when not called by Governance', async () => {
         await expect(
-          exchange.setOraclePriceAdapter(ethers.constants.AddressZero),
+          exchange.setOraclePriceAdapter(ethers.ZeroAddress),
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
     });
@@ -205,7 +205,7 @@ describe('Exchange', function () {
               maximumPositionSize: '1000000000000',
               minimumPositionSize: '10000000',
             },
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
           ),
         ).to.eventually.be.rejectedWith(/caller must be governance contract/i);
       });
@@ -230,45 +230,47 @@ describe('Exchange', function () {
     it('should work for valid Custodian and bridge adapters', async () => {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
       const CustodianFactory = await ethers.getContractFactory('Custodian');
       const custodian = await CustodianFactory.deploy(
-        newExchange.address,
-        newExchange.address,
+        await newExchange.getAddress(),
+        await newExchange.getAddress(),
       );
 
-      await newExchange.setCustodian(custodian.address, [usdc.address]);
+      await newExchange.setCustodian(await custodian.getAddress(), [
+        await usdc.getAddress(),
+      ]);
     });
 
     it('should revert for invalid bridge adapter', async () => {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
       const CustodianFactory = await ethers.getContractFactory('Custodian');
       const custodian = await CustodianFactory.deploy(
-        newExchange.address,
-        newExchange.address,
+        await newExchange.getAddress(),
+        await newExchange.getAddress(),
       );
 
       await expect(
-        newExchange.setCustodian(custodian.address, [
-          ethers.constants.AddressZero,
+        newExchange.setCustodian(await custodian.getAddress(), [
+          ethers.ZeroAddress,
         ]),
       ).to.eventually.be.rejectedWith(/invalid adapter address/i);
     });
@@ -276,30 +278,30 @@ describe('Exchange', function () {
     it('should revert for zero address', async () => {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
       await expect(
-        newExchange.setCustodian(ethers.constants.AddressZero, []),
+        newExchange.setCustodian(ethers.ZeroAddress, []),
       ).to.eventually.be.rejectedWith(/invalid address/i);
     });
 
     it('should revert for non-contract address', async () => {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
       await expect(
@@ -309,7 +311,7 @@ describe('Exchange', function () {
 
     it('should revert when already set', async () => {
       await expect(
-        exchange.setCustodian(ethers.constants.AddressZero, []),
+        exchange.setCustodian(ethers.ZeroAddress, []),
       ).to.eventually.be.rejectedWith(/custodian can only be set once/i);
     });
 
@@ -317,31 +319,31 @@ describe('Exchange', function () {
       await expect(
         exchange
           .connect((await ethers.getSigners())[1])
-          .setCustodian(governance.address, []),
+          .setCustodian(await governance.getAddress(), []),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
 
     it('should revert for non-contract adapter address', async () => {
       const [ownerWallet] = await ethers.getSigners();
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
       const CustodianFactory = await ethers.getContractFactory('Custodian');
       const custodian = await CustodianFactory.deploy(
-        newExchange.address,
-        newExchange.address,
+        await newExchange.getAddress(),
+        await newExchange.getAddress(),
       );
 
       await expect(
-        newExchange.setCustodian(custodian.address, [
-          ethers.constants.AddressZero,
+        newExchange.setCustodian(await custodian.getAddress(), [
+          ethers.ZeroAddress,
         ]),
       ).to.eventually.be.rejectedWith(/invalid adapter address/i);
     });
@@ -360,7 +362,7 @@ describe('Exchange', function () {
     it('should work', async () => {
       await exchange.removeDispatcher();
       await expect(exchange.dispatcherWallet()).to.eventually.equal(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
       );
 
       const events = await exchange.queryFilter(
@@ -368,7 +370,7 @@ describe('Exchange', function () {
       );
       expect(events).to.have.lengthOf(2);
       expect(events[1].args?.previousValue).to.equal(ownerWallet.address);
-      expect(events[1].args?.newValue).to.equal(ethers.constants.AddressZero);
+      expect(events[1].args?.newValue).to.equal(ethers.ZeroAddress);
     });
 
     it('should revert when not called by admin', async () => {

@@ -1,5 +1,5 @@
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
 
@@ -98,8 +98,11 @@ describe('Exchange', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          indexPriceAdapter.address,
-          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+          await indexPriceAdapter.getAddress(),
+          await buildIndexPrice(
+            await exchange.getAddress(),
+            indexPriceServiceWallet,
+          ),
         ),
       ]);
 
@@ -112,8 +115,8 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    buyOrderSignature = await trader2Wallet._signTypedData(
-      ...getOrderSignatureTypedData(buyOrder, exchange.address),
+    buyOrderSignature = await trader2Wallet.signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
     );
 
     sellOrder = {
@@ -125,8 +128,8 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    sellOrderSignature = await trader1Wallet._signTypedData(
-      ...getOrderSignatureTypedData(sellOrder, exchange.address),
+    sellOrderSignature = await trader1Wallet.signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
     );
 
     trade = {
@@ -211,8 +214,11 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
       );
@@ -259,8 +265,11 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         trader2Wallet,
         trader1Wallet,
         baseAssetSymbol,
@@ -310,8 +319,11 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         trader2Wallet,
         trader1Wallet,
         baseAssetSymbol,
@@ -390,9 +402,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -419,10 +431,10 @@ describe('Exchange', function () {
       };
       const insuranceFundDelegatedKeyAuthorization = {
         ...insuranceFundDelegatedKeyAuthorizationFields,
-        signature: await insuranceFundWallet._signTypedData(
+        signature: await insuranceFundWallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             insuranceFundDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -438,10 +450,10 @@ describe('Exchange', function () {
       };
       insuranceFundBuyOrder.delegatedPublicKey = delegatedKeyWallet.address;
       const insuranceFundOrderSignature =
-        await delegatedKeyWallet._signTypedData(
+        await delegatedKeyWallet.signTypedData(
           ...getOrderSignatureTypedData(
             insuranceFundBuyOrder,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         );
 
@@ -454,8 +466,8 @@ describe('Exchange', function () {
         quantity: '10.00000000',
         price: '2000.00000000',
       };
-      sellOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -489,9 +501,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '2150.00000000',
               baseAssetSymbol,
@@ -518,10 +530,10 @@ describe('Exchange', function () {
       };
       const insuranceFundDelegatedKeyAuthorization = {
         ...insuranceFundDelegatedKeyAuthorizationFields,
-        signature: await insuranceFundWallet._signTypedData(
+        signature: await insuranceFundWallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             insuranceFundDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -538,10 +550,10 @@ describe('Exchange', function () {
       };
       insuranceFundBuyOrder.delegatedPublicKey = delegatedKeyWallet.address;
       const insuranceFundOrderSignature =
-        await delegatedKeyWallet._signTypedData(
+        await delegatedKeyWallet.signTypedData(
           ...getOrderSignatureTypedData(
             insuranceFundBuyOrder,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         );
 
@@ -555,8 +567,8 @@ describe('Exchange', function () {
         price: '2000.00000000',
         isLiquidationAcquisitionOnly: true,
       };
-      sellOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -607,9 +619,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1850.00000000',
               baseAssetSymbol,
@@ -637,10 +649,10 @@ describe('Exchange', function () {
       };
       const insuranceFundDelegatedKeyAuthorization = {
         ...insuranceFundDelegatedKeyAuthorizationFields,
-        signature: await insuranceFundWallet._signTypedData(
+        signature: await insuranceFundWallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             insuranceFundDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -656,10 +668,10 @@ describe('Exchange', function () {
       };
       insuranceFundSellOrder.delegatedPublicKey = delegatedKeyWallet.address;
       const insuranceFundSellOrderSignature =
-        await delegatedKeyWallet._signTypedData(
+        await delegatedKeyWallet.signTypedData(
           ...getOrderSignatureTypedData(
             insuranceFundSellOrder,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         );
 
@@ -672,8 +684,8 @@ describe('Exchange', function () {
         quantity: '10.00000000',
         price: '2000.00000000',
       };
-      buyOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -708,9 +720,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1850.00000000',
               baseAssetSymbol,
@@ -738,10 +750,10 @@ describe('Exchange', function () {
       };
       const insuranceFundDelegatedKeyAuthorization = {
         ...insuranceFundDelegatedKeyAuthorizationFields,
-        signature: await insuranceFundWallet._signTypedData(
+        signature: await insuranceFundWallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             insuranceFundDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -758,10 +770,10 @@ describe('Exchange', function () {
       };
       insuranceFundSellOrder.delegatedPublicKey = delegatedKeyWallet.address;
       const insuranceFundSellOrderSignature =
-        await delegatedKeyWallet._signTypedData(
+        await delegatedKeyWallet.signTypedData(
           ...getOrderSignatureTypedData(
             insuranceFundSellOrder,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         );
 
@@ -775,8 +787,8 @@ describe('Exchange', function () {
         price: '2000.00000000',
         isLiquidationAcquisitionOnly: true,
       };
-      buyOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -820,18 +832,18 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
 
       buyOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -883,8 +895,8 @@ describe('Exchange', function () {
 
     it('should work for limit maker buy gtx order ', async function () {
       buyOrder.timeInForce = OrderTimeInForce.GTX;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
       trade.makerSide = OrderSide.Buy;
 
@@ -903,8 +915,8 @@ describe('Exchange', function () {
 
     it('should work for limit maker sell gtx order ', async function () {
       sellOrder.timeInForce = OrderTimeInForce.GTX;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -922,8 +934,8 @@ describe('Exchange', function () {
 
     it('should work for limit taker ioc order ', async function () {
       buyOrder.timeInForce = OrderTimeInForce.IOC;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -941,8 +953,8 @@ describe('Exchange', function () {
 
     it('should work for limit taker fok order ', async function () {
       buyOrder.timeInForce = OrderTimeInForce.FOK;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -999,14 +1011,14 @@ describe('Exchange', function () {
 
       buyOrder.quantity = '1.00000000';
       buyOrder.wallet = trader1Wallet.address;
-      buyOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.quantity = '1.00000000';
       sellOrder.wallet = trader2Wallet.address;
-      sellOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       trade.baseQuantity = '1.00000000';
@@ -1052,7 +1064,7 @@ describe('Exchange', function () {
         .initiateMarketOverridesUpgrade(
           baseAssetSymbol,
           overrides,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         );
       await time.increase(fieldUpgradeDelayInS);
 
@@ -1061,19 +1073,19 @@ describe('Exchange', function () {
         .finalizeMarketOverridesUpgrade(
           baseAssetSymbol,
           overrides,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
         );
 
       buyOrder.quantity = '1.00000000';
       buyOrder.wallet = trader1Wallet.address;
-      buyOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.quantity = '1.00000000';
       sellOrder.wallet = trader2Wallet.address;
-      sellOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       trade.baseQuantity = '1.00000000';
@@ -1217,14 +1229,14 @@ describe('Exchange', function () {
 
       buyOrder.quantity = '1.00000000';
       buyOrder.wallet = trader1Wallet.address;
-      buyOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.quantity = '1.00000000';
       sellOrder.wallet = trader2Wallet.address;
-      sellOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       trade.baseQuantity = '1.00000000';
@@ -1288,14 +1300,14 @@ describe('Exchange', function () {
 
       buyOrder.quantity = '1.00000000';
       buyOrder.wallet = trader1Wallet.address;
-      buyOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.quantity = '1.00000000';
       sellOrder.wallet = trader2Wallet.address;
-      sellOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       trade.baseQuantity = '1.00000000';
@@ -1321,8 +1333,8 @@ describe('Exchange', function () {
     it('should revert when order buy argument is not buy side', async function () {
       buyOrder.side = OrderSide.Sell;
       buyOrder.quantity = '10.00000000';
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1343,8 +1355,8 @@ describe('Exchange', function () {
     it('should revert when order sell argument is not sell side', async function () {
       sellOrder.side = OrderSide.Buy;
       sellOrder.quantity = '10.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1364,13 +1376,13 @@ describe('Exchange', function () {
 
     it('should revert when buy side exceeds max position size', async function () {
       buyOrder.quantity = '20.00000000';
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.quantity = '20.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -1428,13 +1440,13 @@ describe('Exchange', function () {
 
     it('should revert when sell side exceeds max position size', async function () {
       buyOrder.quantity = '20.00000000';
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.quantity = '20.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await exchange
@@ -1500,10 +1512,10 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -1515,8 +1527,8 @@ describe('Exchange', function () {
 
       buyOrder.nonce = uuidv1();
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1544,10 +1556,10 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -1559,8 +1571,8 @@ describe('Exchange', function () {
 
       sellOrder.nonce = uuidv1();
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1589,18 +1601,18 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
 
       buyOrder.nonce = uuidv1();
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1628,18 +1640,18 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader1Wallet._signTypedData(
+        signature: await trader1Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
 
       sellOrder.nonce = uuidv1();
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1668,17 +1680,17 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
 
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1706,17 +1718,17 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
 
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1750,17 +1762,14 @@ describe('Exchange', function () {
         );
 
       // Deposit additional quote to allow for EF exit withdrawal
-      const depositQuantity = ethers.utils.parseUnits(
-        '100000.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('100000.0', quoteAssetDecimals);
       await usdc
         .connect(ownerWallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       await (
         await exchange
           .connect(ownerWallet)
-          .deposit(depositQuantity, ethers.constants.AddressZero)
+          .deposit(depositQuantity, ethers.ZeroAddress)
       ).wait();
 
       await exchange.connect(trader1Wallet).exitWallet();
@@ -1831,18 +1840,18 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
 
       buyOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
       buyOrder.quantity = '10.00000001';
 
@@ -1874,18 +1883,18 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader1Wallet._signTypedData(
+        signature: await trader1Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
 
       sellOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
       sellOrder.quantity = '10.00000001';
 
@@ -1918,10 +1927,10 @@ describe('Exchange', function () {
       };
       const buyDelegatedKeyAuthorization = {
         ...buyDelegatedKeyAuthorizationFields,
-        signature: await trader2Wallet._signTypedData(
+        signature: await trader2Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             buyDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -1931,8 +1940,8 @@ describe('Exchange', function () {
 
       buyOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       buyOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      buyOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -1963,10 +1972,10 @@ describe('Exchange', function () {
       };
       const sellDelegatedKeyAuthorization = {
         ...sellDelegatedKeyAuthorizationFields,
-        signature: await trader1Wallet._signTypedData(
+        signature: await trader1Wallet.signTypedData(
           ...getDelegatedKeyAuthorizationSignatureTypedData(
             sellDelegatedKeyAuthorizationFields,
-            exchange.address,
+            await exchange.getAddress(),
           ),
         ),
       };
@@ -1976,8 +1985,8 @@ describe('Exchange', function () {
 
       sellOrder.nonce = uuidv1({ msecs: new Date().getTime() + 1000 });
       sellOrder.delegatedPublicKey = delegatedKeyWallet.address;
-      sellOrderSignature = await delegatedKeyWallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await delegatedKeyWallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2001,8 +2010,8 @@ describe('Exchange', function () {
 
     it('should revert for self-trade', async function () {
       buyOrder.wallet = trader1Wallet.address;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2040,8 +2049,8 @@ describe('Exchange', function () {
 
     it('should revert for reduce-only sell that open position', async function () {
       buyOrder.isReduceOnly = true;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2063,15 +2072,18 @@ describe('Exchange', function () {
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
       );
 
       buyOrder.isReduceOnly = true;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2092,8 +2104,8 @@ describe('Exchange', function () {
     it('should revert for same assets', async function () {
       trade.baseAssetSymbol = quoteAssetSymbol;
       buyOrder.market = 'USD-USD';
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2113,8 +2125,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid market', async function () {
       buyOrder.market = 'XYZ-USD';
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2174,8 +2186,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid quote quantity', async function () {
       buyOrder.wallet = exitFundWallet.address;
-      buyOrderSignature = await exitFundWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await exitFundWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2195,8 +2207,8 @@ describe('Exchange', function () {
 
     it('should revert for limit order with missing price', async function () {
       buyOrder.price = '0';
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2216,8 +2228,8 @@ describe('Exchange', function () {
 
     it('should revert for market order with price', async function () {
       buyOrder.type = OrderType.Market;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2239,8 +2251,8 @@ describe('Exchange', function () {
       buyOrder.type = OrderType.Market;
       buyOrder.price = '0.00000000';
       buyOrder.timeInForce = OrderTimeInForce.GTX;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2315,8 +2327,8 @@ describe('Exchange', function () {
 
     it('should revert for IF order not signed by DK', async function () {
       buyOrder.wallet = insuranceFundWallet.address;
-      buyOrderSignature = await insuranceFundWallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await insuranceFundWallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2338,8 +2350,8 @@ describe('Exchange', function () {
 
     it('should revert for liquidation acquisition buy order not against liquidation acquisition sell order', async function () {
       buyOrder.isLiquidationAcquisitionOnly = true;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2361,8 +2373,8 @@ describe('Exchange', function () {
 
     it('should revert for liquidation acquisition sell order not against liquidation acquisition buy order', async function () {
       sellOrder.isLiquidationAcquisitionOnly = true;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2384,13 +2396,13 @@ describe('Exchange', function () {
 
     it('should revert for liquidation acquisition orders not involving IF', async function () {
       buyOrder.isLiquidationAcquisitionOnly = true;
-      buyOrderSignature = await trader2Wallet._signTypedData(
-        ...getOrderSignatureTypedData(buyOrder, exchange.address),
+      buyOrderSignature = await trader2Wallet.signTypedData(
+        ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
       );
 
       sellOrder.isLiquidationAcquisitionOnly = true;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2575,8 +2587,8 @@ describe('Exchange', function () {
 
     it('should revert for non-taker ioc order', async function () {
       sellOrder.timeInForce = OrderTimeInForce.IOC;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2596,8 +2608,8 @@ describe('Exchange', function () {
 
     it('should revert for non-taker fok order', async function () {
       sellOrder.timeInForce = OrderTimeInForce.FOK;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2617,8 +2629,8 @@ describe('Exchange', function () {
 
     it('should revert for missing trigger price for stop loss limit sell', async function () {
       sellOrder.type = OrderType.StopLossLimit;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2639,8 +2651,8 @@ describe('Exchange', function () {
     it('should revert for missing trigger price for stop loss market sell', async function () {
       sellOrder.type = OrderType.StopLossMarket;
       sellOrder.price = '0.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2660,8 +2672,8 @@ describe('Exchange', function () {
 
     it('should revert for missing trigger price for take profit limit sell', async function () {
       sellOrder.type = OrderType.TakeProfitLimit;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2682,8 +2694,8 @@ describe('Exchange', function () {
     it('should revert for missing trigger price for take profit market sell', async function () {
       sellOrder.type = OrderType.TakeProfitMarket;
       sellOrder.price = '0.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2703,8 +2715,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid trigger price', async function () {
       sellOrder.triggerPrice = '2100.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2725,8 +2737,8 @@ describe('Exchange', function () {
     it('should revert for missing callback rate', async function () {
       sellOrder.type = OrderType.TrailingStop;
       sellOrder.price = '0.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2746,8 +2758,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid callback rate', async function () {
       sellOrder.callbackRate = '0.50000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2768,8 +2780,8 @@ describe('Exchange', function () {
     it('should revert for invalid trigger type', async function () {
       sellOrder.type = OrderType.StopLossLimit;
       sellOrder.triggerPrice = '2100.00000000';
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(
@@ -2789,8 +2801,8 @@ describe('Exchange', function () {
 
     it('should revert for invalid trigger type', async function () {
       sellOrder.triggerType = OrderTriggerType.Index;
-      sellOrderSignature = await trader1Wallet._signTypedData(
-        ...getOrderSignatureTypedData(sellOrder, exchange.address),
+      sellOrderSignature = await trader1Wallet.signTypedData(
+        ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
       );
 
       await expect(

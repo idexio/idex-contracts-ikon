@@ -10,8 +10,7 @@
     "target": "es2019",
     "sourceMap": true,
     "strict": true,
-    "typeRoots": ["./types", "./node_modules/@types"],
-    "types": ["node", "mocha", "typechain"]
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "build"]

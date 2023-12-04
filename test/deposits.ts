@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'hardhat';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 import { decimalToAssetUnits, decimalToPips, pipsToAssetUnits } from '../lib';
 import type {
@@ -44,7 +44,7 @@ describe('Exchange', function () {
       wallets[5],
       0,
       false,
-      balanceMigrationSource.address,
+      await balanceMigrationSource.getAddress(),
     );
     exchange = results.exchange;
     usdc = results.usdc;
@@ -59,17 +59,14 @@ describe('Exchange', function () {
     it('should work', async function () {
       await expect(usdc.decimals()).to.eventually.equal(quoteAssetDecimals);
 
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       await usdc.transfer(traderWallet.address, depositQuantity);
       await usdc
         .connect(traderWallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
 
       const depositedEvents = await exchange.queryFilter(
         exchange.filters.Deposited(),
@@ -106,20 +103,17 @@ describe('Exchange', function () {
     it('should work with fee', async function () {
       await expect(usdc.decimals()).to.eventually.equal(quoteAssetDecimals);
 
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
-      const feeQuantity = ethers.utils.parseUnits('0.5', quoteAssetDecimals);
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
+      const feeQuantity = ethers.parseUnits('0.5', quoteAssetDecimals);
 
       await usdc.transfer(traderWallet.address, depositQuantity);
       await usdc
         .connect(traderWallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       await usdc.setFee(feeQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
 
       const depositedEvents = await exchange.queryFilter(
         exchange.filters.Deposited(),
@@ -162,7 +156,7 @@ describe('Exchange', function () {
       );
 
       await usdc.approve(
-        exchange.address,
+        await exchange.getAddress(),
         pipsToAssetUnits(migratedBalanceQuantity, quoteAssetDecimals),
       );
       await exchange.deposit(
@@ -204,9 +198,7 @@ describe('Exchange', function () {
 
     it('should revert for zero quantity', async function () {
       await expect(
-        exchange
-          .connect(traderWallet)
-          .deposit('0', ethers.constants.AddressZero),
+        exchange.connect(traderWallet).deposit('0', ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/quantity is too low/i);
     });
 
@@ -216,7 +208,7 @@ describe('Exchange', function () {
           .connect(traderWallet)
           .deposit(
             new BigNumber(2).pow(63 - quoteAssetDecimals).toString(),
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
           ),
       ).to.eventually.be.rejectedWith(/quantity is too large/i);
     });
@@ -224,9 +216,7 @@ describe('Exchange', function () {
     it('should revert for exited source wallet', async function () {
       await exchange.connect(traderWallet).exitWallet();
       await expect(
-        exchange
-          .connect(traderWallet)
-          .deposit('10000000', ethers.constants.AddressZero),
+        exchange.connect(traderWallet).deposit('10000000', ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/source wallet exited/i);
     });
 
@@ -240,13 +230,13 @@ describe('Exchange', function () {
     it('should revert when deposit index is unset', async function () {
       const ExchangeFactory = await deployLibraryContracts();
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
       await expect(
@@ -269,17 +259,14 @@ describe('Exchange', function () {
     it('should work for a single deposit', async function () {
       await expect(usdc.decimals()).to.eventually.equal(quoteAssetDecimals);
 
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       await usdc.transfer(traderWallet.address, depositQuantity);
       await usdc
         .connect(traderWallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
       await exchange
         .connect(ownerWallet)
         .applyPendingDepositsForWallet(
@@ -308,20 +295,17 @@ describe('Exchange', function () {
     });
 
     it('should work for multiple deposits and partial application', async function () {
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
-      await usdc.transfer(traderWallet.address, depositQuantity.mul(2));
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
+      await usdc.transfer(traderWallet.address, depositQuantity * BigInt(2));
       await usdc
         .connect(traderWallet)
-        .approve(exchange.address, depositQuantity.mul(2));
+        .approve(await exchange.getAddress(), depositQuantity * BigInt(2));
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
       await exchange
         .connect(ownerWallet)
         .applyPendingDepositsForWallet(
@@ -355,17 +339,14 @@ describe('Exchange', function () {
     });
 
     it('should revert for amount exceeding pending deposits', async function () {
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       await usdc.transfer(traderWallet.address, depositQuantity);
       await usdc
         .connect(traderWallet)
-        .approve(exchange.address, depositQuantity);
+        .approve(await exchange.getAddress(), depositQuantity);
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero);
+        .deposit(depositQuantity, ethers.ZeroAddress);
 
       await expect(
         exchange

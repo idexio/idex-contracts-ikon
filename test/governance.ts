@@ -9,7 +9,7 @@ import {
   Governance__factory,
   USDC,
 } from '../typechain-types';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 describe('Governance', function () {
   before(async () => {
@@ -41,7 +41,7 @@ describe('Governance', function () {
 
     it('should revert for zero address', async () => {
       await expect(
-        governance.setAdmin(ethers.constants.AddressZero),
+        governance.setAdmin(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid wallet address/i);
     });
 
@@ -76,7 +76,7 @@ describe('Governance', function () {
 
     it('should revert for zero address', async () => {
       await expect(
-        governance.setOwner(ethers.constants.AddressZero),
+        governance.setOwner(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid wallet address/i);
     });
 
@@ -133,7 +133,7 @@ describe('Governance', function () {
 
     it('should revert for zero address', async () => {
       await expect(
-        governance.setCustodian(ethers.constants.AddressZero),
+        governance.setCustodian(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid address/i);
     });
 
@@ -144,7 +144,7 @@ describe('Governance', function () {
       );
 
       await expect(
-        governance.setCustodian(custodian.address),
+        governance.setCustodian(await custodian.getAddress()),
       ).to.eventually.be.rejectedWith(/custodian can only be set once/i);
     });
 
@@ -152,7 +152,7 @@ describe('Governance', function () {
       await expect(
         governance
           .connect((await ethers.getSigners())[1])
-          .setCustodian(governance.address),
+          .setCustodian(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
@@ -175,27 +175,27 @@ describe('Governance', function () {
 
     it('should work for valid contract address', async () => {
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governance.initiateExchangeUpgrade(newExchange.address);
+      await governance.initiateExchangeUpgrade(await newExchange.getAddress());
     });
 
     it('should revert for zero contract address', async () => {
       await expect(
-        governance.initiateExchangeUpgrade(ethers.constants.AddressZero),
+        governance.initiateExchangeUpgrade(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid address/i);
     });
 
     it('should revert for same Exchange address', async () => {
       await expect(
-        governance.initiateExchangeUpgrade(exchange.address),
+        governance.initiateExchangeUpgrade(await exchange.getAddress()),
       ).to.eventually.be.rejectedWith(
         /must be different from current exchange/i,
       );
@@ -203,18 +203,18 @@ describe('Governance', function () {
 
     it('should revert when upgrade already in progress', async () => {
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governance.initiateExchangeUpgrade(newExchange.address);
+      await governance.initiateExchangeUpgrade(await newExchange.getAddress());
       await expect(
-        governance.initiateExchangeUpgrade(newExchange.address),
+        governance.initiateExchangeUpgrade(await newExchange.getAddress()),
       ).to.eventually.be.rejectedWith(/exchange upgrade already in progress/i);
     });
 
@@ -222,7 +222,7 @@ describe('Governance', function () {
       await expect(
         governance
           .connect((await ethers.getSigners())[1])
-          .initiateExchangeUpgrade(governance.address),
+          .initiateExchangeUpgrade(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
@@ -242,16 +242,16 @@ describe('Governance', function () {
     it('should work when upgrade was initiated', async () => {
       const usdc = await (await ethers.getContractFactory('USDC')).deploy();
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governance.initiateExchangeUpgrade(newExchange.address);
+      await governance.initiateExchangeUpgrade(await newExchange.getAddress());
       await governance.cancelExchangeUpgrade();
     });
 
@@ -288,43 +288,43 @@ describe('Governance', function () {
 
     it('should work when upgrade was initiated and addresses match', async () => {
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governance.initiateExchangeUpgrade(newExchange.address);
-      await governance.finalizeExchangeUpgrade(newExchange.address);
+      await governance.initiateExchangeUpgrade(await newExchange.getAddress());
+      await governance.finalizeExchangeUpgrade(await newExchange.getAddress());
 
       await expect(custodian.exchange()).to.eventually.equal(
-        newExchange.address,
+        await newExchange.getAddress(),
       );
     });
 
     it('should revert when no upgrade was initiated', async () => {
       await expect(
-        governance.finalizeExchangeUpgrade(ethers.constants.AddressZero),
+        governance.finalizeExchangeUpgrade(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/no exchange upgrade in progress/i);
     });
 
     it('should revert when upgrade was initiated and addresses mismatch', async () => {
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governance.initiateExchangeUpgrade(newExchange.address);
+      await governance.initiateExchangeUpgrade(await newExchange.getAddress());
       await expect(
-        governance.finalizeExchangeUpgrade(governance.address),
+        governance.finalizeExchangeUpgrade(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(/address mismatch/i);
     });
 
@@ -340,18 +340,18 @@ describe('Governance', function () {
       );
       governance = results.governance;
       const newExchange = await ExchangeFactory.deploy(
-        ethers.constants.AddressZero,
+        ethers.ZeroAddress,
         ownerWallet.address,
         ownerWallet.address,
-        [usdc.address],
+        [await usdc.getAddress()],
         ownerWallet.address,
-        usdc.address,
-        usdc.address,
+        await usdc.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governance.initiateExchangeUpgrade(newExchange.address);
+      await governance.initiateExchangeUpgrade(await newExchange.getAddress());
       await expect(
-        governance.finalizeExchangeUpgrade(newExchange.address),
+        governance.finalizeExchangeUpgrade(await newExchange.getAddress()),
       ).to.eventually.be.rejectedWith(/block threshold not yet reached/i);
     });
 
@@ -359,7 +359,7 @@ describe('Governance', function () {
       await expect(
         governance
           .connect((await ethers.getSigners())[1])
-          .finalizeExchangeUpgrade(governance.address),
+          .finalizeExchangeUpgrade(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
@@ -377,12 +377,14 @@ describe('Governance', function () {
     });
 
     it('should work for valid contract address', async () => {
-      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await governance.initiateGovernanceUpgrade(
+        await newGovernance.getAddress(),
+      );
     });
 
     it('should revert for zero address', async () => {
       await expect(
-        governance.initiateGovernanceUpgrade(ethers.constants.AddressZero),
+        governance.initiateGovernanceUpgrade(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid address/i);
     });
 
@@ -394,17 +396,19 @@ describe('Governance', function () {
 
     it('should revert for same address as current', async () => {
       await expect(
-        governance.initiateGovernanceUpgrade(governance.address),
+        governance.initiateGovernanceUpgrade(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(
         /must be different from current governance/i,
       );
     });
 
     it('should revert when upgrade is in progress', async () => {
-      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await governance.initiateGovernanceUpgrade(
+        await newGovernance.getAddress(),
+      );
 
       await expect(
-        governance.initiateGovernanceUpgrade(newGovernance.address),
+        governance.initiateGovernanceUpgrade(await newGovernance.getAddress()),
       ).to.eventually.be.rejectedWith(
         /governance upgrade already in progress/i,
       );
@@ -414,7 +418,7 @@ describe('Governance', function () {
       await expect(
         governance
           .connect((await ethers.getSigners())[1])
-          .initiateGovernanceUpgrade(newGovernance.address),
+          .initiateGovernanceUpgrade(await newGovernance.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
@@ -432,7 +436,9 @@ describe('Governance', function () {
     });
 
     it('should work when upgrade was initiated', async () => {
-      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await governance.initiateGovernanceUpgrade(
+        await newGovernance.getAddress(),
+      );
       await governance.cancelGovernanceUpgrade();
     });
 
@@ -464,20 +470,26 @@ describe('Governance', function () {
     });
 
     it('should work when upgrade was initiated and addresses match', async () => {
-      await governance.initiateGovernanceUpgrade(newGovernance.address);
-      await governance.finalizeGovernanceUpgrade(newGovernance.address);
+      await governance.initiateGovernanceUpgrade(
+        await newGovernance.getAddress(),
+      );
+      await governance.finalizeGovernanceUpgrade(
+        await newGovernance.getAddress(),
+      );
     });
 
     it('should revert when no upgrade was initiated', async () => {
       await expect(
-        governance.finalizeGovernanceUpgrade(ethers.constants.AddressZero),
+        governance.finalizeGovernanceUpgrade(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/no governance upgrade in progress/i);
     });
 
     it('should revert when upgrade was initiated and addresses mismatch', async () => {
-      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await governance.initiateGovernanceUpgrade(
+        await newGovernance.getAddress(),
+      );
       await expect(
-        governance.finalizeGovernanceUpgrade(governance.address),
+        governance.finalizeGovernanceUpgrade(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(/address mismatch/i);
     });
 
@@ -493,9 +505,11 @@ describe('Governance', function () {
       );
       governance = results.governance;
 
-      await governance.initiateGovernanceUpgrade(newGovernance.address);
+      await governance.initiateGovernanceUpgrade(
+        await newGovernance.getAddress(),
+      );
       await expect(
-        governance.finalizeGovernanceUpgrade(newGovernance.address),
+        governance.finalizeGovernanceUpgrade(await newGovernance.getAddress()),
       ).to.eventually.be.rejectedWith(/block threshold not yet reached/i);
     });
 
@@ -503,7 +517,7 @@ describe('Governance', function () {
       await expect(
         governance
           .connect((await ethers.getSigners())[1])
-          .finalizeGovernanceUpgrade(governance.address),
+          .finalizeGovernanceUpgrade(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });
