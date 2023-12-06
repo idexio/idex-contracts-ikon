@@ -1,8 +1,8 @@
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 import { Exchange_v4, USDC } from '../typechain-types';
-import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import {
   decimalToPips,
   getTransferArguments,

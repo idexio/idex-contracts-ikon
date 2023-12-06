@@ -5,7 +5,6 @@ import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { v1 as uuidv1 } from 'uuid';
-import type { Contract } from 'ethers';
 
 chai.use(chaiAsPromised);
 export const { expect } = chai;
