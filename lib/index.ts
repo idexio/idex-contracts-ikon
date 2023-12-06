@@ -1,6 +1,7 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 
+import { AssetDistributionStruct } from '../typechain-types/contracts/EarningsEscrow';
 import {
   AcquisitionDeleverageArgumentsStruct,
   BalanceStruct,
@@ -27,6 +28,7 @@ import * as contracts from './contracts';
 
 export {
   AcquisitionDeleverageArgumentsStruct,
+  AssetDistributionStruct,
   BalanceStruct,
   ClosureDeleverageArgumentsStruct,
   ExecuteTradeArgumentsStruct,
@@ -92,11 +94,22 @@ export enum OrderTriggerType {
   Index,
 }
 
-export interface IndexPrice {
-  baseAssetSymbol: string;
-  timestampInMs: number;
-  price: string; // Decimal string
+export interface AssetDistribution {
+  nonce: string;
+  parentNonce: string;
+  walletAddress: string;
+  assetAddress: string;
+  quantity: bigint;
+}
+
+export interface DelegatedKeyAuthorization {
+  nonce: string;
+  delegatedPublicKey: string;
   signature: string;
+}
+
+export interface SignedAssetDistribution extends AssetDistribution {
+  exchangeSignature: string;
 }
 
 export interface Order {
@@ -119,9 +132,10 @@ export interface Order {
   clientOrderId?: string;
 }
 
-export interface DelegatedKeyAuthorization {
-  nonce: string;
-  delegatedPublicKey: string;
+export interface IndexPrice {
+  baseAssetSymbol: string;
+  timestampInMs: number;
+  price: string; // Decimal string
   signature: string;
 }
 
@@ -290,6 +304,20 @@ export const getOrderSignatureTypedData = (
   ];
 };
 
+export const getStakingDistributionHash = (
+  escrowAddress: string,
+  distribution: AssetDistribution,
+): string => {
+  return solidityHashOfParams([
+    ['address', escrowAddress],
+    ['uint128', uuidToUint128(distribution.nonce)],
+    ['uint128', uuidToUint128(distribution.parentNonce)],
+    ['address', distribution.walletAddress],
+    ['address', distribution.assetAddress],
+    ['uint256', distribution.quantity],
+  ]);
+};
+
 export const getTransferSignatureTypedData = (
   transfer: Transfer,
   contractAddress: string,
@@ -371,6 +399,21 @@ export const getExecuteTradeArguments = (
         sellDelegatedKeyAuthorization,
       ),
       trade: tradeToArgumentStruct(trade, buyOrder),
+    },
+  ];
+};
+
+export const getStakingEscrowDistributeArguments = (
+  distribution: SignedAssetDistribution,
+): [AssetDistributionStruct] => {
+  return [
+    {
+      nonce: uuidToHexString(distribution.nonce),
+      parentNonce: uuidToHexString(distribution.parentNonce),
+      walletAddress: distribution.walletAddress,
+      assetAddress: distribution.assetAddress,
+      quantity: distribution.quantity,
+      exchangeSignature: distribution.exchangeSignature,
     },
   ];
 };
@@ -484,6 +527,18 @@ const orderToArgumentStruct = (
           signature: '0x',
         },
   };
+};
+
+type TypeValuePair =
+  | ['string' | 'address', string]
+  | ['uint256' | 'uint128', BigInt]
+  | ['uint8' | 'uint64', number]
+  | ['bool', boolean];
+
+const solidityHashOfParams = (params: TypeValuePair[]): string => {
+  const fields = params.map((param) => param[0]);
+  const values = params.map((param) => param[1]);
+  return ethers.solidityPackedKeccak256(fields, values);
 };
 
 const tradeToArgumentStruct = (t: Trade, order: Order) => {

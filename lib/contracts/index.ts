@@ -6,6 +6,7 @@ import { initRpcApi, loadProvider } from './utils';
 
 import ChainlinkAggregator from './ChainlinkAggregator';
 import CustodianContract from './CustodianContract';
+import EarningsEscrowContract from './EarningsEscrow';
 import ExchangeContract from './ExchangeContract';
 import ExchangeStargateAdapterContract from './ExchangeStargateAdapterContract';
 import ExchangeWalletStateAggregatorContract from './ExchangeWalletStateAggregatorContract';
@@ -19,6 +20,7 @@ export {
   loadProvider,
   ChainlinkAggregator,
   CustodianContract,
+  EarningsEscrowContract,
   ExchangeContract,
   ExchangeStargateAdapterContract,
   ExchangeWalletStateAggregatorContract,
