@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.9.0-sandbox-upgrade-to-ethers-v6-sandbox.3",
+  "version": "0.9.0-sandbox-upgrade-to-ethers-v6-sandbox.4",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
@@ -41,7 +41,7 @@
     "test": "COVERAGE=1 hardhat test"
   },
   "dependencies": {
-    "ethers": "6.8.0",
+    "ethers": "6.9.0",
     "uuid": "8.3.2"
   },
   "devDependencies": {
