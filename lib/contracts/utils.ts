@@ -8,7 +8,7 @@ export async function initRpcApi(
 ): Promise<void> {
   const tempProvider = new ethers.JsonRpcProvider(apiUrl, chainId);
   const network = await tempProvider._detectNetwork();
-  if (network.chainId !== network.chainId) {
+  if (BigInt(chainId) !== network.chainId) {
     throw new Error(
       `Chain ID ${chainId.toString()} provided, but the configured API URL ${apiUrl} is for chain ID ${network.chainId.toString()} (${
         network.name
