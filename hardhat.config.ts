@@ -105,6 +105,8 @@ const config: HardhatUserConfig = {
     apiKey: {
       private: 'abc',
       zkevm: 'abc',
+      polygonMumbai: 'K7QYKN8XKGTR5J3W6D8A7625N7CH5RWITF',
+      polygonMainnet: 'K7QYKN8XKGTR5J3W6D8A7625N7CH5RWITF',
     },
     customChains: [
       {
@@ -121,6 +123,22 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api/v1',
           browserURL: 'https://explorer-staging-zkevm.idex-dev.com/',
+        },
+      },
+      {
+        network: 'polygonMumbai',
+        chainId: 80001,
+        urls: {
+          apiURL: 'https://api-testnet.polygonscan.com/api',
+          browserURL: 'https://mumbai.polygonscan.com/',
+        },
+      },
+      {
+        network: 'polygonMainnet',
+        chainId: 137,
+        urls: {
+          apiURL: 'https://api.polygonscan.com/api',
+          browserURL: 'https://polygonscan.com/',
         },
       },
     ],
