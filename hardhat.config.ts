@@ -92,6 +92,14 @@ const config: HardhatUserConfig = {
       chainId: 23432,
       url: 'https://rpc-devnet-idex.hardfork.dev',
     },
+    polygonMumbai: {
+      chainId: 80001,
+      url: 'https://polygon-mumbai.infura.io/v3/f893932c1fc54aa592bbe1b7419c8761',
+    },
+    polygonMainnet: {
+      chainId: 137,
+      url: 'https://polygon-mainnet.infura.io/v3/8a369d58e1a54e22a71b559a2aa92001',
+    },
   },
   etherscan: {
     apiKey: {
