@@ -282,7 +282,7 @@ describe('EarningsEscrow', function () {
               ),
             ),
           ),
-      ).to.eventually.be.rejectedWith(/ETH transfer failed/i);
+      ).to.eventually.be.rejectedWith(/native asset transfer failed/i);
     });
 
     it('should work for token', async () => {

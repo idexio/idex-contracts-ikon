@@ -262,8 +262,9 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   /**
    * @notice Allow Admin wallet to withdraw gas fee funding
    */
-  function withdrawNativeAsset(address payable destinationWallet, uint256 quantity) public onlyAdmin {
-    destinationWallet.transfer(quantity);
+  function withdrawNativeAsset(address payable destinationContractOrWallet, uint256 quantity) public onlyAdmin {
+    (bool success, ) = destinationContractOrWallet.call{ value: quantity }("");
+    require(success, "Native asset transfer failed");
   }
 
   /**
