@@ -87,7 +87,8 @@ The Exchange contract implements the majority of exchange functionality, includi
   - Off-chain, on detecting the `OrderNonceInvalidated` event:
     - All orders opened prior to the target nonce for the wallet are canceled.
     - All delegated keys authorized prior to the target nonce are revoked.
-- Fee maximums are enforced by Exchange and specified by the Maximum Fee Rate, which cannot be changed. The Maximum Fee Rate applies to both maker and taker trade fees, position in deactivated market liquidation, withdrawals and transfers.
+- Fee maximums are enforced by Exchange and specified by the Maximum Fee Rate, which cannot be changed. The Maximum Fee Rate applies to both maker and taker trade fees, position in deactivated market liquidation, and transfers.
+  - Maximum fees for withdrawals are not subject to the Maximum Fee Rate. They are included as a parameter signed by the withdrawing wallet at request time and cannot exceed the withdrawal quantity.
 
 ### Fixed Parameter Settings
 
