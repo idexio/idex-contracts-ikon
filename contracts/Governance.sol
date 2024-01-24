@@ -62,6 +62,10 @@ contract Governance is Owned {
   }
 
   /**
+   * @notice Emitted when admin clears the currently whitelisted Asset Migrator with `clearAssetMigrator`
+   */
+  event AssetMigratorCleared(address oldAssetMigrator, address newAssetMigrator);
+  /**
    * @notice Emitted when admin initiates Asset Migrator upgrade with
    * `initiateAssetMigratorUpgrade`
    */
@@ -225,7 +229,7 @@ contract Governance is Owned {
    * @param newAssetMigrator The address of the new Asset Migrator contract
    */
   function initiateAssetMigratorUpgrade(address newAssetMigrator) public onlyAdmin {
-    require(newAssetMigrator == address(0x0) || Address.isContract(address(newAssetMigrator)), "Invalid address");
+    require(Address.isContract(address(newAssetMigrator)), "Invalid address");
     require(newAssetMigrator != address(_loadAssetMigrator()), "Must be different from current Asset Migrator");
     require(!currentAssetMigratorUpgrade.exists, "Asset migrator upgrade already in progress");
 
@@ -268,6 +272,18 @@ contract Governance is Owned {
     delete currentAssetMigratorUpgrade;
 
     emit AssetMigratorUpgradeFinalized(oldAssetMigrator, newAssetMigrator);
+  }
+
+  /**
+   * @notice Clears any currently set Asset Migrator without delay by setting the address whitelisted on the Custodian to zero
+   */
+  function clearAssetMigrator() public onlyAdmin {
+    address oldAssetMigrator = custodian.assetMigrator();
+    require(oldAssetMigrator != address(0x0), "Asset Migrator not set");
+
+    custodian.setAssetMigrator(address(0x0));
+
+    emit AssetMigratorCleared(oldAssetMigrator, address(0x0));
   }
 
   // Exchange upgrade //

@@ -263,6 +263,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   event PendingDepositApplied(address wallet, uint64 quantity, int64 newExchangeBalance);
   /**
+   * @notice Emitted when an admin changes the quote token address with `setQuoteTokenAddress`
+   */
+  event QuoteTokenAddressChanged(address previousValue, address newValue);
+  /**
    * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
    * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
    */
@@ -603,9 +607,13 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    *
    * @param newQuoteTokenAddress The address of the new ERC20 contract used as collateral and quote for all markets
    */
-  function setQuoteTokenAddress(address newQuoteTokenAddress) public onlyGovernance {
+  function setQuoteTokenAddress(address newQuoteTokenAddress) public onlyAdmin {
+    address oldQuoteTokenAddress = quoteTokenAddress;
+
     custodian.migrateAsset(quoteTokenAddress, newQuoteTokenAddress);
     quoteTokenAddress = newQuoteTokenAddress;
+
+    emit QuoteTokenAddressChanged(oldQuoteTokenAddress, newQuoteTokenAddress);
   }
 
   /**
