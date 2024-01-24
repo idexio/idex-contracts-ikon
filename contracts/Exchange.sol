@@ -604,7 +604,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @param newQuoteTokenAddress The address of the new ERC20 contract used as collateral and quote for all markets
    */
   function setQuoteTokenAddress(address newQuoteTokenAddress) public onlyGovernance {
-    custodian.migrateAsset(newQuoteTokenAddress, quoteTokenAddress);
+    custodian.migrateAsset(quoteTokenAddress, newQuoteTokenAddress);
     quoteTokenAddress = newQuoteTokenAddress;
   }
 

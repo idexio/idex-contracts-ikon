@@ -62,7 +62,7 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Emitted when admin initiates asset migrator upgrade with
+   * @notice Emitted when admin initiates Asset Migrator upgrade with
    * `initiateAssetMigratorUpgrade`
    */
   event AssetMigratorUpgradeInitiated(
@@ -71,11 +71,11 @@ contract Governance is Owned {
     uint256 blockTimestampThreshold
   );
   /**
-   * @notice Emitted when admin cancels previously started asset migrator upgrade with `cancelAssetMigratorUpgrade`
+   * @notice Emitted when admin cancels previously started Asset Migrator upgrade with `cancelAssetMigratorUpgrade`
    */
   event AssetMigratorUpgradeCanceled(address oldAssetMigrator, address newAssetMigrator);
   /**
-   * @notice Emitted when admin finalizes asset migrator upgrade via `finalizeAssetMigratorUpgrade`
+   * @notice Emitted when admin finalizes Asset Migrator upgrade via `finalizeAssetMigratorUpgrade`
    */
   event AssetMigratorUpgradeFinalized(address oldAssetMigrator, address newAssetMigrator);
   /**
@@ -219,14 +219,14 @@ contract Governance is Owned {
   // Asset migrator upgrade //
 
   /**
-   * @notice Initiates asset migrator contract upgrade process on `Custodian`. Once `blockTimestampDelay` has passed
+   * @notice Initiates Asset Migrator contract upgrade process on `Custodian`. Once `blockTimestampDelay` has passed
    * the process can be finalized with `finalizeAssetMigratorUpgrade`
    *
-   * @param newAssetMigrator The address of the new asset migrator contract
+   * @param newAssetMigrator The address of the new Asset Migrator contract
    */
   function initiateAssetMigratorUpgrade(address newAssetMigrator) public onlyAdmin {
     require(newAssetMigrator == address(0x0) || Address.isContract(address(newAssetMigrator)), "Invalid address");
-    require(newAssetMigrator != address(_loadAssetMigrator()), "Must be different from current asset migrator");
+    require(newAssetMigrator != address(_loadAssetMigrator()), "Must be different from current Asset Migrator");
     require(!currentAssetMigratorUpgrade.exists, "Asset migrator upgrade already in progress");
 
     currentAssetMigratorUpgrade = ContractUpgrade(true, newAssetMigrator, block.timestamp + blockTimestampDelay);
@@ -239,10 +239,10 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Cancels an in-flight asset migrator contract upgrade that has not yet been finalized
+   * @notice Cancels an in-flight Asset Migrator contract upgrade that has not yet been finalized
    */
   function cancelAssetMigratorUpgrade() public onlyAdmin {
-    require(currentAssetMigratorUpgrade.exists, "No asset migrator upgrade in progress");
+    require(currentAssetMigratorUpgrade.exists, "No Asset Migrator upgrade in progress");
 
     address newAssetMigrator = currentAssetMigratorUpgrade.newContract;
     delete currentAssetMigratorUpgrade;
@@ -251,15 +251,15 @@ contract Governance is Owned {
   }
 
   /**
-   * @notice Finalizes the asset migrator contract upgrade by changing the contract address on the `Custodian`
+   * @notice Finalizes the Asset Migrator contract upgrade by changing the contract address on the `Custodian`
    * contract with `setAssetMigrator`. The number of seconds specified by `blockTimestampDelay` must have passed since
    * calling `initiateAssetMigratorUpgrade`
    *
-   * @param newAssetMigrator The address of the new asset migrator contract. Must equal the address provided to
+   * @param newAssetMigrator The address of the new Asset Migrator contract. Must equal the address provided to
    * `initiateAssetMigratorUpgrade`
    */
   function finalizeAssetMigratorUpgrade(address newAssetMigrator) public onlyAdmin {
-    require(currentExchangeUpgrade.exists, "No asset migrator upgrade in progress");
+    require(currentExchangeUpgrade.exists, "No Asset Migrator upgrade in progress");
     require(currentExchangeUpgrade.newContract == newAssetMigrator, "Address mismatch");
     require(block.timestamp >= currentAssetMigratorUpgrade.blockTimestampThreshold, "Block threshold not yet reached");
 

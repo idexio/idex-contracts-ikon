@@ -35,7 +35,7 @@ contract USDCeMigrator is IAssetMigrator {
     nativeConverter = nativeConverter_;
   }
 
-  function migrate(address destinationAsset, uint256 quantityInAssetUnits, address sourceAsset) public onlyCustodian {
+  function migrate(address sourceAsset, address destinationAsset, uint256 quantityInAssetUnits) public onlyCustodian {
     require(destinationAsset == INativeConverter(nativeConverter).zkUSDCe(), "Invalid destination asset");
     require(sourceAsset == INativeConverter(nativeConverter).zkBWUSDC(), "Invalid source asset");
 

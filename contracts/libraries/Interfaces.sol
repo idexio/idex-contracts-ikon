@@ -11,10 +11,11 @@ interface IAssetMigrator {
   /**
    * @notice Migrate an asset quantity to a new address
    *
-   * @param destinationAsset The address of the new asset that will migrated to
    * @param sourceAsset The address of the old asset that will be migrated from
+   * @param destinationAsset The address of the new asset that will migrated to
+   * @param quantityInAssetUnits The quantity of token to transfer in asset units
    */
-  function migrate(address destinationAsset, uint256 quantityInAssetUnits, address sourceAsset) external;
+  function migrate(address sourceAsset, address destinationAsset, uint256 quantityInAssetUnits) external;
 }
 
 /**
@@ -33,12 +34,12 @@ interface IBridgeAdapter {
  */
 interface ICustodian {
   /**
-   * @notice Migrate the entire balance of an asset to a new address using the currently whitelisted asset migrator
+   * @notice Migrate the entire balance of an asset to a new address using the currently whitelisted Asset Migrator
    *
-   * @param destinationAsset The address of the new asset that will migrated to
    * @param sourceAsset The address of the asset the Custodian currently holds a balance in
+   * @param destinationAsset The address of the new asset that will migrated to
    */
-  function migrateAsset(address destinationAsset, address sourceAsset) external;
+  function migrateAsset(address sourceAsset, address destinationAsset) external;
 
   /**
    * @notice Withdraw any asset and amount to a target wallet
@@ -59,9 +60,9 @@ interface ICustodian {
   function exchange() external view returns (address);
 
   /**
-   * @notice Sets a new asset migrator contract address
+   * @notice Sets a new Asset Migrator contract address
    *
-   * @param newAssetMigrator The address of the new whitelisted asset migrator contract or zero address to disable migration
+   * @param newAssetMigrator The address of the new whitelisted Asset Migrator contract or zero address to disable migration
    */
   function setAssetMigrator(address newAssetMigrator) external;
 
@@ -73,9 +74,9 @@ interface ICustodian {
   function setExchange(address newExchange) external;
 
   /**
-   * @notice Load address of the currently whitelisted asset migrator contract
+   * @notice Load address of the currently whitelisted Asset Migrator contract
    *
-   * @return The address of the currently whitelisted asset migrator contract
+   * @return The address of the currently whitelisted Asset Migrator contract
    */
   function assetMigrator() external view returns (address);
 

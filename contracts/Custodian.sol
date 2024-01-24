@@ -15,7 +15,7 @@ contract Custodian is ICustodian {
   // Events //
 
   /**
-   * @notice Emitted when Governance upgrades the asset migrator contract address
+   * @notice Emitted when Governance upgrades the Asset Migrator contract address
    */
   event AssetMigratorChanged(address oldAssetMigrator, address newAssetMigrator);
   /**
@@ -62,14 +62,20 @@ contract Custodian is ICustodian {
     emit GovernanceChanged(address(0x0), governance);
   }
 
-  function migrateAsset(address destinationAsset, address sourceAsset) public onlyExchange {
+  /**
+   * @notice Migrate the entire balance of an asset to a new address using the currently whitelisted asset migrator
+   *
+   * @param sourceAsset The address of the asset the Custodian currently holds a balance in
+   * @param destinationAsset The address of the new asset that will migrated to
+   */
+  function migrateAsset(address sourceAsset, address destinationAsset) public onlyExchange {
     require(Address.isContract(sourceAsset), "Invalid source asset address");
     require(Address.isContract(destinationAsset), "Invalid destination asset address");
 
     uint256 quantityInAssetUnits = IERC20(sourceAsset).balanceOf(address(this));
 
     require(IERC20(sourceAsset).transfer(assetMigrator, quantityInAssetUnits), "Quote asset transfer failed");
-    IAssetMigrator(assetMigrator).migrate(destinationAsset, quantityInAssetUnits, sourceAsset);
+    IAssetMigrator(assetMigrator).migrate(sourceAsset, destinationAsset, quantityInAssetUnits);
 
     // Entire balance must be migrated
     require(
@@ -94,13 +100,13 @@ contract Custodian is ICustodian {
   /**
    * @notice Sets a new asset migrator contract address
    *
-   * @param newAssetMigrator The address of the new whitelisted asset migrator contract
+   * @param newAssetMigrator The address of the new whitelisted asset migrator contract or zero address to disable migration
    */
   function setAssetMigrator(address newAssetMigrator) public override onlyGovernance {
     require(newAssetMigrator == address(0x0) || Address.isContract(newAssetMigrator), "Invalid contract address");
 
     address oldAssetMigrator = assetMigrator;
-    exchange = newAssetMigrator;
+    assetMigrator = newAssetMigrator;
 
     emit AssetMigratorChanged(oldAssetMigrator, newAssetMigrator);
   }
