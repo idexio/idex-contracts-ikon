@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { ICustodian } from "./libraries/Interfaces.sol";
+import { IAssetMigrator, ICustodian } from "./libraries/Interfaces.sol";
 
 /**
  * @notice The Custodian contract. Holds custody of all deposited funds for whitelisted Exchange
@@ -15,6 +15,10 @@ contract Custodian is ICustodian {
   // Events //
 
   /**
+   * @notice Emitted when Governance upgrades the asset migrator contract address
+   */
+  event AssetMigratorChanged(address oldAssetMigrator, address newAssetMigrator);
+  /**
    * @notice Emitted on construction and when Governance upgrades the Exchange contract address
    */
   event ExchangeChanged(address oldExchange, address newExchange);
@@ -23,6 +27,7 @@ contract Custodian is ICustodian {
    */
   event GovernanceChanged(address oldGovernance, address newGovernance);
 
+  address public assetMigrator;
   address public exchange;
   address public governance;
 
@@ -57,6 +62,22 @@ contract Custodian is ICustodian {
     emit GovernanceChanged(address(0x0), governance);
   }
 
+  function migrateAsset(address destinationAsset, address sourceAsset) public onlyExchange {
+    require(Address.isContract(sourceAsset), "Invalid source asset address");
+    require(Address.isContract(destinationAsset), "Invalid destination asset address");
+
+    uint256 quantityInAssetUnits = IERC20(sourceAsset).balanceOf(address(this));
+
+    require(IERC20(sourceAsset).transfer(assetMigrator, quantityInAssetUnits), "Quote asset transfer failed");
+    IAssetMigrator(assetMigrator).migrate(destinationAsset, quantityInAssetUnits, sourceAsset);
+
+    // Entire balance must be migrated
+    require(
+      IERC20(destinationAsset).balanceOf(address(this)) == quantityInAssetUnits,
+      "Balance was not completely migrated"
+    );
+  }
+
   /**
    * @notice Withdraw any asset and amount to a target wallet
    *
@@ -68,6 +89,20 @@ contract Custodian is ICustodian {
    */
   function withdraw(address wallet, address asset, uint256 quantityInAssetUnits) public override onlyExchange {
     require(IERC20(asset).transfer(wallet, quantityInAssetUnits), "Quote asset transfer failed");
+  }
+
+  /**
+   * @notice Sets a new asset migrator contract address
+   *
+   * @param newAssetMigrator The address of the new whitelisted asset migrator contract
+   */
+  function setAssetMigrator(address newAssetMigrator) public override onlyGovernance {
+    require(newAssetMigrator == address(0x0) || Address.isContract(newAssetMigrator), "Invalid contract address");
+
+    address oldAssetMigrator = assetMigrator;
+    exchange = newAssetMigrator;
+
+    emit AssetMigratorChanged(oldAssetMigrator, newAssetMigrator);
   }
 
   /**

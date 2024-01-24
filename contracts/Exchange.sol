@@ -82,8 +82,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   mapping(bytes32 => uint64) private _partiallyFilledOrderQuantities;
   // Mapping of wallet address to total pending deposit quantity
   mapping(address => uint64) public pendingDepositQuantityByWallet;
-  // Address of ERC20 contract used as collateral and quote for all markets
-  address public immutable quoteTokenAddress;
+  // Address of ERC-20 contract used as collateral and quote for all markets
+  address public quoteTokenAddress;
   // Exits
   mapping(address => WalletExit) public walletExits;
 
@@ -596,6 +596,16 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   function setOraclePriceAdapter(IOraclePriceAdapter newOraclePriceAdapter) public onlyGovernance {
     oraclePriceAdapter = newOraclePriceAdapter;
+  }
+
+  /**
+   * @notice Sets new `quoteTokenAddress` and migrates all funds from old tokens to new tokens
+   *
+   * @param newQuoteTokenAddress The address of the new ERC20 contract used as collateral and quote for all markets
+   */
+  function setQuoteTokenAddress(address newQuoteTokenAddress) public onlyGovernance {
+    custodian.migrateAsset(newQuoteTokenAddress, quoteTokenAddress);
+    quoteTokenAddress = newQuoteTokenAddress;
   }
 
   /**

@@ -121,7 +121,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   bool public isWithdrawEnabled;
   // Multiplier in pips used to calculate minimum withdraw quantity after slippage
   uint64 public minimumWithdrawQuantityMultiplier;
-  // Address of ERC20 contract used as collateral and quote for all markets
+  // Address of ERC-20 contract used as collateral and quote for all markets
   IERC20 public immutable quoteAsset;
   // Address of Stargate router contract
   IStargateRouter public immutable router;

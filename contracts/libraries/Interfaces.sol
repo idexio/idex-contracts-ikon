@@ -4,7 +4,26 @@ pragma solidity 0.8.18;
 
 import { Balance, IndexPrice, Market, OverridableMarketFields } from "./Structs.sol";
 
+/*
+ * @notice Interface to Asset Migrator contract used by Custodian to migrate funds from one ERC-20 contract to another
+ */
+interface IAssetMigrator {
+  /**
+   * @notice Migrate an asset quantity to a new address
+   *
+   * @param destinationAsset The address of the new asset that will migrated to
+   * @param sourceAsset The address of the old asset that will be migrated from
+   */
+  function migrate(address destinationAsset, uint256 quantityInAssetUnits, address sourceAsset) external;
+}
+
+/**
+ * @notice Interface to Bridge Adapter contracts used by Exchange for routing withdrawals
+ */
 interface IBridgeAdapter {
+  /**
+   * @notice Withdraw quote asset quantity to destination wallet using bridge-specific payload
+   */
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) external;
 }
 
@@ -13,6 +32,14 @@ interface IBridgeAdapter {
  * calls
  */
 interface ICustodian {
+  /**
+   * @notice Migrate the entire balance of an asset to a new address using the currently whitelisted asset migrator
+   *
+   * @param destinationAsset The address of the new asset that will migrated to
+   * @param sourceAsset The address of the asset the Custodian currently holds a balance in
+   */
+  function migrateAsset(address destinationAsset, address sourceAsset) external;
+
   /**
    * @notice Withdraw any asset and amount to a target wallet
    *
@@ -32,11 +59,25 @@ interface ICustodian {
   function exchange() external view returns (address);
 
   /**
+   * @notice Sets a new asset migrator contract address
+   *
+   * @param newAssetMigrator The address of the new whitelisted asset migrator contract or zero address to disable migration
+   */
+  function setAssetMigrator(address newAssetMigrator) external;
+
+  /**
    * @notice Sets a new Exchange contract address
    *
    * @param newExchange The address of the new whitelisted Exchange contract
    */
   function setExchange(address newExchange) external;
+
+  /**
+   * @notice Load address of the currently whitelisted asset migrator contract
+   *
+   * @return The address of the currently whitelisted asset migrator contract
+   */
+  function assetMigrator() external view returns (address);
 
   /**
    * @notice Load address of the currently whitelisted Governance contract
