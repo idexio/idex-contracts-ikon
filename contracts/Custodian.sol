@@ -66,16 +66,16 @@ contract Custodian is ICustodian {
    * @notice Migrate the entire balance of an asset to a new address using the currently whitelisted asset migrator
    *
    * @param sourceAsset The address of the asset the Custodian currently holds a balance in
-   * @param destinationAsset The address of the new asset that will migrated to
+   *
+   * @return destinationAsset The address of the new asset that will migrated to
    */
-  function migrateAsset(address sourceAsset, address destinationAsset) public onlyExchange {
+  function migrateAsset(address sourceAsset) public onlyExchange returns (address destinationAsset) {
     require(Address.isContract(sourceAsset), "Invalid source asset address");
-    require(Address.isContract(destinationAsset), "Invalid destination asset address");
 
     uint256 quantityInAssetUnits = IERC20(sourceAsset).balanceOf(address(this));
 
     require(IERC20(sourceAsset).transfer(assetMigrator, quantityInAssetUnits), "Quote asset transfer failed");
-    IAssetMigrator(assetMigrator).migrate(sourceAsset, destinationAsset, quantityInAssetUnits);
+    destinationAsset = IAssetMigrator(assetMigrator).migrate(sourceAsset, quantityInAssetUnits);
 
     // Entire balance must be migrated
     require(

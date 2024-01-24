@@ -14,7 +14,7 @@ interface INativeConverter {
   // https://github.com/omnifient/usdc-lxly/blob/054dc46/src/NativeConverter.sol#L40
   function zkBWUSDC() external returns (address);
 
-  // https://github.com/omnifient/usdc-lxly/blob/054dc46/src/NativeConverter.sol#L37C18-L37C25
+  // https://github.com/omnifient/usdc-lxly/blob/054dc46/src/NativeConverter.sol#L37
   function zkUSDCe() external returns (address);
 }
 
@@ -35,9 +35,20 @@ contract USDCeMigrator is IAssetMigrator {
     nativeConverter = nativeConverter_;
   }
 
-  function migrate(address sourceAsset, address destinationAsset, uint256 quantityInAssetUnits) public onlyCustodian {
-    require(destinationAsset == INativeConverter(nativeConverter).zkUSDCe(), "Invalid destination asset");
+  /**
+   * @notice Migrate an asset quantity to a new address
+   *
+   * @param sourceAsset The address of the old asset that will be migrated from
+   * @param destinationAsset The address of the new asset that will migrated to
+   * @param quantityInAssetUnits The quantity of token to transfer in asset units
+   */
+  function migrate(
+    address sourceAsset,
+    uint256 quantityInAssetUnits
+  ) public onlyCustodian returns (address destinationAsset) {
     require(sourceAsset == INativeConverter(nativeConverter).zkBWUSDC(), "Invalid source asset");
+
+    destinationAsset = INativeConverter(nativeConverter).zkUSDCe();
 
     IERC20(sourceAsset).approve(nativeConverter, quantityInAssetUnits);
     INativeConverter(sourceAsset).convert(custodian, quantityInAssetUnits, "");

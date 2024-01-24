@@ -12,10 +12,11 @@ interface IAssetMigrator {
    * @notice Migrate an asset quantity to a new address
    *
    * @param sourceAsset The address of the old asset that will be migrated from
-   * @param destinationAsset The address of the new asset that will migrated to
    * @param quantityInAssetUnits The quantity of token to transfer in asset units
+   *
+   * @return destinationAsset The address of the new asset that will migrated to
    */
-  function migrate(address sourceAsset, address destinationAsset, uint256 quantityInAssetUnits) external;
+  function migrate(address sourceAsset, uint256 quantityInAssetUnits) external returns (address destinationAsset);
 }
 
 /**
@@ -37,9 +38,10 @@ interface ICustodian {
    * @notice Migrate the entire balance of an asset to a new address using the currently whitelisted Asset Migrator
    *
    * @param sourceAsset The address of the asset the Custodian currently holds a balance in
-   * @param destinationAsset The address of the new asset that will migrated to
+   *
+   * @return destinationAsset The address of the new asset that will migrated to
    */
-  function migrateAsset(address sourceAsset, address destinationAsset) external;
+  function migrateAsset(address sourceAsset) external returns (address destinationAsset);
 
   /**
    * @notice Withdraw any asset and amount to a target wallet
