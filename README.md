@@ -262,6 +262,8 @@ Previous versions of IDEX introduced an upgrade model that allows contract logic
 - `Constants.EIP_712_DOMAIN_VERSION` is incremented as part of any upgrade. As a result, open orders and active delegated keys must be replaced, and it is unnecessary to migrate `_completedOrderHashes`, `_completedTransferHashes`, `_completedWithdrawalHashes`, `_partiallyFilledOrderQuantitiesInPips`, and `_nonceInvalidations`. `_walletExits` are also unnecessary to migrate as users may exit wallets again.
 - `_depositIndex` is manually set on deployment via a call to `setDepositIndex`.
 
+The Custodian contract also includes the ability to migrate a held asset from one token contract to another. Asset migrations are subject to a governance delay for safety. See [controls and governance](#controls-and-governance) for details.
+
 ### Offline Operation
 
 While not expected as part of normal operations, IDEX’s off-chain components occasionally may not be available for online operation. Ikon includes support for recovery to online operation and ensures access to user funds during offline operation.
