@@ -5,6 +5,10 @@ pragma solidity 0.8.18;
 interface IGovernanceMockCustodian {
   receive() external payable;
 
+  function migrateAsset(address sourceAsset) external returns (address destinationAsset);
+
+  function setAssetMigrator(address assetMigrator) external;
+
   function setExchange(address exchange) external;
 
   function setGovernance(address governance) external;
@@ -12,6 +16,14 @@ interface IGovernanceMockCustodian {
 
 contract GovernanceMock {
   IGovernanceMockCustodian _custodian;
+
+  function migrateAsset(address sourceAsset) external {
+    _custodian.migrateAsset(sourceAsset);
+  }
+
+  function setAssetMigrator(address assetMigrator) external {
+    _custodian.setAssetMigrator(assetMigrator);
+  }
 
   function setCustodian(IGovernanceMockCustodian newCustodian) external {
     _custodian = newCustodian;

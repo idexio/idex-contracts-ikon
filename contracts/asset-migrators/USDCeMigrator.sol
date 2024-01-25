@@ -39,8 +39,9 @@ contract USDCeMigrator is IAssetMigrator {
    * @notice Migrate an asset quantity to a new address
    *
    * @param sourceAsset The address of the old asset that will be migrated from
-   * @param destinationAsset The address of the new asset that will migrated to
    * @param quantityInAssetUnits The quantity of token to transfer in asset units
+   *
+   * @return destinationAsset The address of the new asset that will migrated to
    */
   function migrate(
     address sourceAsset,
@@ -51,6 +52,6 @@ contract USDCeMigrator is IAssetMigrator {
     destinationAsset = INativeConverter(nativeConverter).zkUSDCe();
 
     IERC20(sourceAsset).approve(nativeConverter, quantityInAssetUnits);
-    INativeConverter(sourceAsset).convert(custodian, quantityInAssetUnits, "");
+    INativeConverter(nativeConverter).convert(custodian, quantityInAssetUnits, "");
   }
 }

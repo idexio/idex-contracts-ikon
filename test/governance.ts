@@ -8,6 +8,8 @@ import {
   Governance,
   Governance__factory,
   USDC,
+  NativeConverterMock,
+  USDCeMigrator__factory,
 } from '../typechain-types';
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
@@ -154,6 +156,290 @@ describe('Governance', function () {
           .connect((await ethers.getSigners())[1])
           .setCustodian(await governance.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('initiateAssetMigratorUpgrade', () => {
+    let custodian: Custodian;
+    let governance: Governance;
+    let ownerWallet: SignerWithAddress;
+    let nativeConverterMock: NativeConverterMock;
+    let newUsdc: USDC;
+    let USDCeMigratorFactory: USDCeMigrator__factory;
+
+    beforeEach(async () => {
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
+      custodian = results.custodian;
+      governance = results.governance;
+      newUsdc = await (await ethers.getContractFactory('USDC')).deploy();
+      nativeConverterMock = await (
+        await ethers.getContractFactory('NativeConverterMock')
+      ).deploy(await results.usdc.getAddress(), await newUsdc.getAddress());
+      USDCeMigratorFactory = await ethers.getContractFactory('USDCeMigrator');
+    });
+
+    it('should work for valid contract address', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+    });
+
+    it('should revert for zero contract address', async () => {
+      await expect(
+        governance.initiateAssetMigratorUpgrade(ethers.ZeroAddress),
+      ).to.eventually.be.rejectedWith(/invalid address/i);
+    });
+
+    it('should revert for same Asset Migrator address', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+      await governance.finalizeAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+
+      await expect(
+        governance.initiateAssetMigratorUpgrade(
+          await assetMigrator.getAddress(),
+        ),
+      ).to.eventually.be.rejectedWith(
+        /must be different from current asset migrator/i,
+      );
+    });
+
+    it('should revert when upgrade already in progress', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+      await expect(
+        governance.initiateAssetMigratorUpgrade(
+          await assetMigrator.getAddress(),
+        ),
+      ).to.eventually.be.rejectedWith(
+        /asset migrator upgrade already in progress/i,
+      );
+    });
+
+    it('should revert when not called by admin', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .initiateAssetMigratorUpgrade(await assetMigrator.getAddress()),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('cancelAssetMigratorUpgrade', () => {
+    let custodian: Custodian;
+    let governance: Governance;
+    let ownerWallet: SignerWithAddress;
+    let nativeConverterMock: NativeConverterMock;
+    let newUsdc: USDC;
+    let USDCeMigratorFactory: USDCeMigrator__factory;
+
+    beforeEach(async () => {
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
+      custodian = results.custodian;
+      governance = results.governance;
+      newUsdc = await (await ethers.getContractFactory('USDC')).deploy();
+      nativeConverterMock = await (
+        await ethers.getContractFactory('NativeConverterMock')
+      ).deploy(await results.usdc.getAddress(), await newUsdc.getAddress());
+      USDCeMigratorFactory = await ethers.getContractFactory('USDCeMigrator');
+    });
+
+    it('should work when upgrade was initiated', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+      await governance.cancelAssetMigratorUpgrade();
+    });
+
+    it('should revert when no upgrade was initiated', async () => {
+      await expect(
+        governance.cancelAssetMigratorUpgrade(),
+      ).to.eventually.be.rejectedWith(/no asset migrator upgrade in progress/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .cancelAssetMigratorUpgrade(),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('finalizeExchangeUpgrade', () => {
+    let custodian: Custodian;
+    let governance: Governance;
+    let ownerWallet: SignerWithAddress;
+    let newUsdc: USDC;
+    let nativeConverterMock: NativeConverterMock;
+    let USDCeMigratorFactory: USDCeMigrator__factory;
+
+    beforeEach(async () => {
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
+      custodian = results.custodian;
+      governance = results.governance;
+      newUsdc = await (await ethers.getContractFactory('USDC')).deploy();
+      nativeConverterMock = await (
+        await ethers.getContractFactory('NativeConverterMock')
+      ).deploy(await results.usdc.getAddress(), await newUsdc.getAddress());
+      USDCeMigratorFactory = await ethers.getContractFactory('USDCeMigrator');
+    });
+
+    it('should work when upgrade was initiated and addresses match', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+      await governance.finalizeAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+
+      await expect(custodian.assetMigrator()).to.eventually.equal(
+        await assetMigrator.getAddress(),
+      );
+    });
+
+    it('should revert when no upgrade was initiated', async () => {
+      await expect(
+        governance.finalizeAssetMigratorUpgrade(ethers.ZeroAddress),
+      ).to.eventually.be.rejectedWith(/no asset migrator upgrade in progress/i);
+    });
+
+    it('should revert when upgrade was initiated and addresses mismatch', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+      await expect(
+        governance.finalizeAssetMigratorUpgrade(await governance.getAddress()),
+      ).to.eventually.be.rejectedWith(/address mismatch/i);
+    });
+
+    it('should revert when block threshold not yet reached', async () => {
+      const results = await deployAndAssociateContracts(
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        ownerWallet,
+        100,
+      );
+      governance = results.governance;
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+      await expect(
+        governance.finalizeAssetMigratorUpgrade(
+          await assetMigrator.getAddress(),
+        ),
+      ).to.eventually.be.rejectedWith(/block threshold not yet reached/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      await expect(
+        governance
+          .connect((await ethers.getSigners())[1])
+          .finalizeAssetMigratorUpgrade(await governance.getAddress()),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+  });
+
+  describe('clearAssetMigrator', () => {
+    let custodian: Custodian;
+    let governance: Governance;
+    let ownerWallet: SignerWithAddress;
+    let nativeConverterMock: NativeConverterMock;
+    let newUsdc: USDC;
+    let USDCeMigratorFactory: USDCeMigrator__factory;
+
+    beforeEach(async () => {
+      [ownerWallet] = await ethers.getSigners();
+      const results = await deployAndAssociateContracts(ownerWallet);
+      custodian = results.custodian;
+      governance = results.governance;
+      newUsdc = await (await ethers.getContractFactory('USDC')).deploy();
+      nativeConverterMock = await (
+        await ethers.getContractFactory('NativeConverterMock')
+      ).deploy(await results.usdc.getAddress(), await newUsdc.getAddress());
+      USDCeMigratorFactory = await ethers.getContractFactory('USDCeMigrator');
+    });
+
+    it('should work migrator is set', async () => {
+      const assetMigrator = await USDCeMigratorFactory.deploy(
+        await custodian.getAddress(),
+        await nativeConverterMock.getAddress(),
+      );
+
+      await governance.initiateAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+      await governance.finalizeAssetMigratorUpgrade(
+        await assetMigrator.getAddress(),
+      );
+
+      await governance.clearAssetMigrator();
+
+      await expect(custodian.assetMigrator()).to.eventually.equal(
+        ethers.ZeroAddress,
+      );
+    });
+
+    it('should revert when not sent by admin', async () => {
+      await expect(
+        governance.connect((await ethers.getSigners())[1]).clearAssetMigrator(),
+      ).to.eventually.be.rejectedWith(/caller must be admin/i);
+    });
+
+    it('should revert when migrator is not set', async () => {
+      await expect(
+        governance.clearAssetMigrator(),
+      ).to.eventually.be.rejectedWith(/asset migrator not set/i);
     });
   });
 

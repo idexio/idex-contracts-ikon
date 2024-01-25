@@ -70,6 +70,7 @@ contract Custodian is ICustodian {
    * @return destinationAsset The address of the new asset that will migrated to
    */
   function migrateAsset(address sourceAsset) public onlyExchange returns (address destinationAsset) {
+    require(assetMigrator != address(0x0), "Asset Migrator not set");
     require(Address.isContract(sourceAsset), "Invalid source asset address");
 
     uint256 quantityInAssetUnits = IERC20(sourceAsset).balanceOf(address(this));

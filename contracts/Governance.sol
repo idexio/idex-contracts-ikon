@@ -263,8 +263,8 @@ contract Governance is Owned {
    * `initiateAssetMigratorUpgrade`
    */
   function finalizeAssetMigratorUpgrade(address newAssetMigrator) public onlyAdmin {
-    require(currentExchangeUpgrade.exists, "No Asset Migrator upgrade in progress");
-    require(currentExchangeUpgrade.newContract == newAssetMigrator, "Address mismatch");
+    require(currentAssetMigratorUpgrade.exists, "No Asset Migrator upgrade in progress");
+    require(currentAssetMigratorUpgrade.newContract == newAssetMigrator, "Address mismatch");
     require(block.timestamp >= currentAssetMigratorUpgrade.blockTimestampThreshold, "Block threshold not yet reached");
 
     address oldAssetMigrator = address(_loadAssetMigrator());
