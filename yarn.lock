@@ -1032,7 +1032,7 @@ __metadata:
     "@nomicfoundation/hardhat-network-helpers": "npm:^1.0.8"
     "@nomicfoundation/hardhat-verify": "npm:^2.0.0"
     "@openzeppelin/contracts": "npm:^4.8.0"
-    "@pythnetwork/pyth-sdk-solidity": "npm:^2.2.1"
+    "@pythnetwork/pyth-sdk-solidity": "npm:^2.4.0"
     "@typechain/ethers-v6": "npm:0.5.1"
     "@typechain/hardhat": "npm:9.1.0"
     "@types/chai": "npm:^4.3.4"
@@ -1561,10 +1561,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@pythnetwork/pyth-sdk-solidity@npm:^2.2.1":
-  version: 2.2.1
-  resolution: "@pythnetwork/pyth-sdk-solidity@npm:2.2.1"
-  checksum: 399fb164013c261a24fb2142d68a61ed4cf475066d25f04aca8f21388e0815d7134a57014c12b19f56209e22ca937aa7865fab892788088be882d9f02457592c
+"@pythnetwork/pyth-sdk-solidity@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@pythnetwork/pyth-sdk-solidity@npm:2.4.0"
+  checksum: 9dff7f994ca6da16614af8eeaa5659b3f1f563693e5f1cb3a079bb6fb07d321bce9fae4f4b5789a1820ab6c337a32900203e56e6f616fa426da3dcd30df25989
   languageName: node
   linkType: hard
 
