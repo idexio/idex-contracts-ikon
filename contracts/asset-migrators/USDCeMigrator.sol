@@ -40,18 +40,20 @@ contract USDCeMigrator is IAssetMigrator {
    *
    * @param sourceAsset The address of the old asset that will be migrated from
    * @param quantityInAssetUnits The quantity of token to transfer in asset units
-   *
-   * @return destinationAsset The address of the new asset that will migrated to
    */
-  function migrate(
-    address sourceAsset,
-    uint256 quantityInAssetUnits
-  ) public onlyCustodian returns (address destinationAsset) {
+  function migrate(address sourceAsset, uint256 quantityInAssetUnits) public onlyCustodian {
     require(sourceAsset == INativeConverter(nativeConverter).zkBWUSDC(), "Invalid source asset");
-
-    destinationAsset = INativeConverter(nativeConverter).zkUSDCe();
 
     IERC20(sourceAsset).approve(nativeConverter, quantityInAssetUnits);
     INativeConverter(nativeConverter).convert(custodian, quantityInAssetUnits, "");
+  }
+
+  /**
+   * @notice Load the address of the destination asset that will be migrated to
+   *
+   * @return destinationAsset The address of the new asset that will migrated to
+   */
+  function destinationAsset() external returns (address) {
+    return INativeConverter(nativeConverter).zkUSDCe();
   }
 }

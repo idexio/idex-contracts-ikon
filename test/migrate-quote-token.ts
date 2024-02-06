@@ -79,6 +79,33 @@ describe('Exchange', function () {
       );
     });
 
+    it('should work with valid migrator when destination token has been sent to Custodian', async () => {
+      const balance = decimalToAssetUnits('200.00000000', quoteAssetDecimals);
+      await usdc.transfer(await custodian.getAddress(), balance);
+
+      const extraAmount = BigInt(10000);
+      await newUsdc.transfer(await custodian.getAddress(), extraAmount);
+
+      await governanceMock.setAssetMigrator(await assetMigrator.getAddress());
+
+      await expect(
+        usdc.balanceOf(await custodian.getAddress()),
+      ).to.eventually.equal(balance);
+
+      await exchange.migrateQuoteTokenAddress();
+
+      await expect(
+        usdc.balanceOf(await custodian.getAddress()),
+      ).to.eventually.equal('0');
+      await expect(
+        newUsdc.balanceOf(await custodian.getAddress()),
+      ).to.eventually.equal(BigInt(balance) + extraAmount);
+
+      await expect(exchange.quoteTokenAddress()).to.eventually.equal(
+        await newUsdc.getAddress(),
+      );
+    });
+
     it('should revert for invalid source asset', async () => {
       await governanceMock.setAssetMigrator(await assetMigrator.getAddress());
 

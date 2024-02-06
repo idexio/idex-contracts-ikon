@@ -13,10 +13,15 @@ interface IAssetMigrator {
    *
    * @param sourceAsset The address of the old asset that will be migrated from
    * @param quantityInAssetUnits The quantity of token to transfer in asset units
+   */
+  function migrate(address sourceAsset, uint256 quantityInAssetUnits) external;
+
+  /**
+   * @notice Load the address of the destination asset that will be migrated to
    *
    * @return destinationAsset The address of the new asset that will migrated to
    */
-  function migrate(address sourceAsset, uint256 quantityInAssetUnits) external returns (address destinationAsset);
+  function destinationAsset() external returns (address);
 }
 
 /**

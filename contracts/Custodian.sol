@@ -73,14 +73,17 @@ contract Custodian is ICustodian {
     require(assetMigrator != address(0x0), "Asset Migrator not set");
     require(Address.isContract(sourceAsset), "Invalid source asset address");
 
-    uint256 quantityInAssetUnits = IERC20(sourceAsset).balanceOf(address(this));
+    uint256 sourceAssetBalanceInAssetUnits = IERC20(sourceAsset).balanceOf(address(this));
+    destinationAsset = IAssetMigrator(assetMigrator).destinationAsset();
+    uint256 initialDestinationAssetBalanceInAssetUnits = IERC20(destinationAsset).balanceOf(address(this));
 
-    require(IERC20(sourceAsset).transfer(assetMigrator, quantityInAssetUnits), "Quote asset transfer failed");
-    destinationAsset = IAssetMigrator(assetMigrator).migrate(sourceAsset, quantityInAssetUnits);
+    require(IERC20(sourceAsset).transfer(assetMigrator, sourceAssetBalanceInAssetUnits), "Quote asset transfer failed");
+    IAssetMigrator(assetMigrator).migrate(sourceAsset, sourceAssetBalanceInAssetUnits);
 
     // Entire balance must be migrated
     require(
-      IERC20(destinationAsset).balanceOf(address(this)) == quantityInAssetUnits,
+      IERC20(destinationAsset).balanceOf(address(this)) ==
+        initialDestinationAssetBalanceInAssetUnits + sourceAssetBalanceInAssetUnits,
       "Balance was not completely migrated"
     );
   }
