@@ -282,7 +282,7 @@ describe('EarningsEscrow', function () {
               ),
             ),
           ),
-      ).to.eventually.be.rejectedWith(/ETH transfer failed/i);
+      ).to.eventually.be.rejectedWith(/native asset transfer failed/i);
     });
 
     it('should work for token', async () => {
@@ -329,6 +329,46 @@ describe('EarningsEscrow', function () {
       expect(tokenEvents[2].args?.value).to.equal(quantity);
     });
 
+    it('should work for token that takes fees', async () => {
+      const targetWallet = (await ethers.getSigners())[1];
+      const quantity = BigInt(20000000);
+      const distributionQuantity = BigInt(10000000);
+
+      const feeToken = await (
+        await (await ethers.getContractFactory('USDC')).connect(owner).deploy()
+      ).waitForDeployment();
+      await feeToken.setFee(1);
+
+      const escrow = await EarningsEscrowFactory.deploy(
+        await feeToken.getAddress(),
+        owner,
+      );
+
+      await feeToken.transfer(await escrow.getAddress(), quantity);
+
+      await escrow
+        .connect(targetWallet)
+        .distribute(
+          ...getStakingEscrowDistributeArguments(
+            await getSignedDistribution(
+              await escrow.getAddress(),
+              '00000000-0000-0000-0000-000000000000',
+              owner,
+              targetWallet.address,
+              await feeToken.getAddress(),
+              distributionQuantity,
+            ),
+          ),
+        );
+
+      const events = await escrow.queryFilter(
+        escrow.filters.AssetsDistributed(),
+      );
+
+      expect(events).to.be.an('array');
+      expect(events).to.have.lengthOf(1);
+    });
+
     it('should fail when underfunded', async () => {
       const targetWallet = (await ethers.getSigners())[1];
       const quantity = BigInt(10000000);
@@ -360,22 +400,19 @@ describe('EarningsEscrow', function () {
       );
     });
 
-    it('should fail for a token that takes fees', async () => {
+    it('should fail when quote asset transfer fails', async () => {
       const targetWallet = (await ethers.getSigners())[1];
       const quantity = BigInt(20000000);
       const distributionQuantity = BigInt(10000000);
 
-      const feeToken = await (
-        await (await ethers.getContractFactory('USDC')).connect(owner).deploy()
-      ).waitForDeployment();
-      await feeToken.setFee(1);
+      await usdc.setIsTransferDisabled(true);
 
       const escrow = await EarningsEscrowFactory.deploy(
-        await feeToken.getAddress(),
+        await usdc.getAddress(),
         owner,
       );
 
-      await feeToken.transfer(await escrow.getAddress(), quantity);
+      await usdc.transfer(await escrow.getAddress(), quantity);
 
       await expect(
         escrow
@@ -387,14 +424,12 @@ describe('EarningsEscrow', function () {
                 '00000000-0000-0000-0000-000000000000',
                 owner,
                 targetWallet.address,
-                await feeToken.getAddress(),
+                await usdc.getAddress(),
                 distributionQuantity,
               ),
             ),
           ),
-      ).to.eventually.be.rejectedWith(
-        /token contract returned transfer success without expected balance change/i,
-      );
+      ).to.eventually.be.rejectedWith(/token transfer failed/i);
     });
 
     it('should work for multiple distributions', async () => {

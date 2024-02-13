@@ -185,18 +185,10 @@ contract EarningsEscrow is Owned {
 
   function _transferTo(address payable walletOrContract, address asset, uint256 quantityInAssetUnits) private {
     if (asset == address(0x0)) {
-      require(walletOrContract.send(quantityInAssetUnits), "ETH transfer failed");
+      (bool success, ) = walletOrContract.call{ value: quantityInAssetUnits }("");
+      require(success, "Native asset transfer failed");
     } else {
-      uint256 balanceBefore = IERC20(asset).balanceOf(walletOrContract);
-
-      // Because we check for the expected balance change we can safely ignore the return value of transfer
-      IERC20(asset).transfer(walletOrContract, quantityInAssetUnits);
-
-      uint256 balanceAfter = IERC20(asset).balanceOf(walletOrContract);
-      require(
-        balanceAfter - balanceBefore == quantityInAssetUnits,
-        "Token contract returned transfer success without expected balance change"
-      );
+      require(IERC20(asset).transfer(walletOrContract, quantityInAssetUnits), "Token transfer failed");
     }
   }
 }

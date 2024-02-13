@@ -55,6 +55,7 @@ Ikon supports trading a wide range of synthetic assets via perpetual futures con
 Users must deposit funds into the Ikon contracts before they are available for trading on IDEX. [Only USDC may be deposited](#quote-asset-and-quote-token), and depositing requires an `approve` call on the token contract before calling `deposit` on the Exchange contract.
 
 - The `deposit` function is exposed by the Exchange contract, but funds are ultimately held in the Custodian contract. As part of the deposit process, tokens are transferred from the funding wallet to the Custodian contract while the Exchange contract’s storage tracks wallet asset balances. Separate exchange logic and fund custody supports Ikon’s [upgrade design](#upgradability).
+- Deposits are credited to a wallet’s Exchange balance tracking via a two-step process. On the initial `deposit` call, funds are credited to temporary storage in `pendingDepositQuantityByWallet`; once the off-chain systems process the deposit, the quantity is moved to the wallet’s quote balance in `_balanceTracking` by a whitelisted dispatcher wallet. This two-step process avoids race conditions by ensuring that margin calculations and other contract checks are synchronized between off- and on-chain systems.
 - In order to support [seamless cross-chain deposits](#cross-chain-bridge-protocol-support), deposits may be credited to any destination wallet address. Leaving `destinationWallet` as 0x0 credits funds to the calling wallet’s address. **Funds deposited to a destination wallet address to which the user does not have access are permanently lost.**
 - Deposits from [exited wallets](#wallet-exits) are rejected.
 
@@ -65,7 +66,7 @@ Ikon includes support for order book trades only; unlike its predecessor, [Silve
 - Unlike deposits, trade settlement can only be initiated via a whitelisted dispatcher wallet controlled by IDEX. Users do not settle trades directly; only IDEX can submit trades for settlement. Because IDEX alone controls dispatch, IDEX’s off-chain components can guarantee the eventual on-chain trade settlement order and thus allow users to trade in real-time without waiting for dispatch or mining.
 - The primary responsibility of the trade functions is order and trade validation. In the case that IDEX off-chain infrastructure is compromised, the validations ensure that funds can only move in accordance with orders signed by the depositing wallet. Ikon additionally supports orders signed by a [delegated key](#delegated-keys) that is authorized by the depositing wallet.
 - Like all actions that change wallet balances, trade settlement applies outstanding [funding payments](#funding-payments) to the participating wallets.
-- As traders may take on leverage, trade settlement enforces [margin requirements](#margin) on any resulting positions.
+- As traders may take on leverage, trade settlement enforces [margin requirements](#margin) on any resulting positions. Wallets must meet the initial margin requirement following any trade that increases the absolute quantity of a position and must meet the maintenance margin requirement following any trade that decreases the absolute quantity of a position.
 - Due to business requirements, order quantity and price are specified as strings in [pip precision](#precision-and-pips), hence the need for order signature validation to convert the provided values to strings.
 - Ikon supports partial fills on orders, which requires additional bookkeeping to prevent overfills and replays.
 - [Fees](#fees) are assessed as part of trade settlement. The off-chain trading engine computes fees, but the contract logic is responsible for enforcing that fees are within [previously defined limits](#controls-and-governance). Because only an IDEX-controlled dispatcher wallet can make the settlement calls, IDEX is the immediate gas payer for trade settlement. IDEX passes along the estimated gas costs to users by including them in the trade fees.
@@ -76,7 +77,7 @@ Similar to trade settlement, withdrawals are initiated by users via IDEX’s off
 
 - Users may withdraw USDC collateral up to the [initial margin requirements](#margin) of the wallet without first liquidating positions.
 - Ikon supports seamless cross-chain withdrawals via [bridge adapter contracts](#cross-chain-bridge-protocol-support).
-- IDEX collects fees on withdrawals in order to cover the gas costs of the `withdraw` function call. Because only an IDEX-controlled dispatcher wallet can make the `withdraw` call, IDEX is the immediate gas payer for user withdrawals. IDEX passes along the estimated gas costs to users by collecting a fee out of the withdrawn amount.
+- IDEX collects fees on withdrawals in order to cover the gas costs of the `withdraw` function call. Because only an IDEX-controlled dispatcher wallet can make the `withdraw` call, IDEX is the immediate gas payer for user withdrawals. IDEX passes along the estimated gas costs to users by collecting a fee out of the withdrawn amount. Withdrawal gas fees are limited to a `maximumGasFee` parameter signed by the wallet, or the withdrawal request is rejected.
 - Like all actions that change wallet balances, withdrawals apply outstanding funding payments to the withdrawing wallet.
 - Despite the `withdraw` function being part of the Exchange contract, funds are returned to the user’s wallet from the Custodian contract.
 
@@ -96,7 +97,6 @@ In some situations, Ikon proactively liquidates wallets or balances to ensure th
 
 Condition: Liquidation of a single position that is smaller than the minimum position size of the market. Positions may fall below the market minimum as a result of partial fills during trading.
 
-- Wallet must meet its margin requirements.
 - The insurance fund acquires the position at the current index price with a small additional price tolerance. The price tolerance allows Ikon to account for slippage and processing fees when liquidating positions. See [controls and governance](#controls-and-governance) for limits. Price validation is skipped for very small positions where rounding issues may preclude expected pricing.
 
 ### Position In Deactivated Market
@@ -145,7 +145,6 @@ In some situations, Ikon closes open positions directly against select counterpa
 
 Condition: Reduction of a single position of a wallet that does not meet its maintenance margin requirements against a counterparty position during normal system operation.
 
-- Validations confirm that the insurance fund cannot liquidate the wallet in maintenance via a standard [Wallet In Maintenance](#wallet-in-maintenance) liquidation.
 - Validates that ADL happens at the bankruptcy price of the liquidating wallet’s position up to the quantity available from the counterparty position.
 
 ### Insurance Fund Closure
@@ -158,7 +157,6 @@ Condition: Reduction of a single position held by the insurance fund against a c
 
 Condition: Reduction of a single position of an exited wallet, regardless of maintenance margin requirements, against a counterparty position during normal system operation.
 
-- Validations confirm that the insurance fund cannot liquidate the wallet in maintenance via a standard [Wallet Exited](#wallet-exited) liquidation.
 - Positions are deleveraged at the exit price or bankruptcy price. The exit price of a position is the worse of the entry price or current index price, and the exit account value is the total value of a wallet using exit pricing. During each Exit Acquisition settlement, contract logic checks whether the exit account value of the wallet is positive. If so, the deleverage proceeds using the exit price. If the exit account value is not positive, however, contract logic selects the bankruptcy price, persists the decision, and uses the bankruptcy price for the current and all subsequent deleverage settlements for the wallet. Because closing all positions of a wallet via Exit Acquisition ADL may require several settlements, the exit account value of a wallet may change between settlements.
 - Validates ADL happens at either the exit or bankruptcy price of the liquidating wallet’s position up to the quantity available from the counterparty position.
 
@@ -224,7 +222,7 @@ Funding payments are a common mechanism for incentivizing the convergence of ord
 
 Previous versions of IDEX introduced a wallet exit mechanism, allowing users to withdraw funds in the case that IDEX is offline or maliciously censoring withdrawals. Calling `exitWallet` initiates the exit process, which prevents the wallet from subsequent deposits, trades, or normal withdrawals. Wallet exits are a two-step process as defined in [controls](#controls-and-governance).
 
-In Ikon, wallet exit withdrawals via Exchange’s `withdrawExit` close any open positions and return the remaining USDC quote balance to the wallet. In order to support offline operation, exit withdrawals must execute deterministically in contract logic without the user supplying counterparty positions for closure. To achieve this behavior, all positions liquidated in an exit withdrawal are acquired by a designated exit fund wallet. The exit fund does not have any margin requirements, which maximizes the range of positions it can acquire, and is excluded from a number of exchange activities. See [offline operation](#offline-operation) for details.
+In Ikon, wallet exit withdrawals via Exchange’s `withdrawExit` close any open positions and return the remaining USDC quote balance, including any pending deposits, to the wallet. In order to support offline operation, exit withdrawals must execute deterministically in contract logic without the user supplying counterparty positions for closure. To achieve this behavior, all positions liquidated in an exit withdrawal are acquired by a designated exit fund wallet. The exit fund does not have any margin requirements, which maximizes the range of positions it can acquire, and is excluded from a number of exchange activities. See [offline operation](#offline-operation) for details.
 
 **Importantly, in order to ensure the solvency of the system, the exit value of positions differs from their order book or index price values.** During exit withdrawals, positions are acquired by the exit fund at the exit price or bankruptcy price. The exit price of a position is the worse of the entry price or current index price, and the exit account value is the total value of a wallet using exit pricing. Exit pricing is used in the acquisition of positions if the exit account value of a wallet is positive, otherwise bankruptcy pricing is used. As a result, wallets with a negative exit account value due to unrealized losses receive zero USDC during a `withdrawExit`. Wallet positions are still closed in this scenario. Exchange includes `loadQuoteQuantityAvailableForExitWithdrawal` to query the exit value of a wallet before exiting or calling `withdrawExit`.
 
@@ -246,7 +244,7 @@ In order to support seamless cross-chain [deposits](#deposit) and [withdrawals](
 
 For deposits, adapters receive bridged funds and call Exchange’s `deposit` function with the provided destination wallet address. Only protocols that implement single transaction bridge-and-call functionality are supported.
 
-Cross-chain withdrawal requests are signed by custody wallets, similar to withdrawal requests to the local chain, but include an additional `payload` field. Ikon’s withdrawal logic validates the request’s adapter address, transfers the funds to the adapter, then calls the adapter’s `withdrawQuoteAsset` with the `payload` parameter. `payload` ABI-encodes the necessary parameters for the protocol’s bridge function to deliver funds to the destination chain. If the bridge call fails, funds are delivered to the destination wallet address on the local chain.
+Cross-chain withdrawal requests are signed by custody wallets, similar to withdrawal requests to the local chain, but include an additional `payload` field. Ikon’s withdrawal logic validates the request’s adapter address, transfers the funds to the adapter, then calls the adapter’s `withdrawQuoteAsset` with the `payload` parameter. `payload` ABI-encodes the necessary parameters for the protocol’s bridge function to deliver funds to the destination chain. If the bridge call fails, funds are redeposited to the Exchange.
 
 Updates to the set of valid adapter contract addresses are subject to a governance delay for safety. See [controls and governance](#controls-and-governance) for details.
 
@@ -263,6 +261,8 @@ Previous versions of IDEX introduced an upgrade model that allows contract logic
 - In Ikon, exchange state data continues to be stored in the Exchange contract rather than an external contract. Wallet balance information, captured in `_balanceTracking`, is the primary data that must migrate in the case of an upgrade. Ikon includes a lazy balance loading mechanism in the form of BalanceTracking’s `loadBalance*` functions to seamlessly maintain balance information at a minimum of gas overhead.
 - `Constants.EIP_712_DOMAIN_VERSION` is incremented as part of any upgrade. As a result, open orders and active delegated keys must be replaced, and it is unnecessary to migrate `_completedOrderHashes`, `_completedTransferHashes`, `_completedWithdrawalHashes`, `_partiallyFilledOrderQuantitiesInPips`, and `_nonceInvalidations`. `_walletExits` are also unnecessary to migrate as users may exit wallets again.
 - `_depositIndex` is manually set on deployment via a call to `setDepositIndex`.
+
+The Custodian contract also includes the ability to migrate a held asset from one token contract to another. Asset migrations are subject to a governance delay for safety. See [controls and governance](#controls-and-governance) for details.
 
 ### Offline Operation
 

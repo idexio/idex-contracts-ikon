@@ -4,7 +4,28 @@ pragma solidity 0.8.18;
 
 import { Balance, IndexPrice, Market, OverridableMarketFields } from "./Structs.sol";
 
+/*
+ * @notice Interface to Asset Migrator contract used by Custodian to migrate funds from one ERC-20 contract to another
+ */
+interface IAssetMigrator {
+  /**
+   * @notice Migrate an asset quantity to a new address
+   *
+   * @param sourceAsset The address of the old asset that will be migrated from
+   * @param quantityInAssetUnits The quantity of token to transfer in asset units
+   *
+   * @return destinationAsset The address of the new asset that will migrated to
+   */
+  function migrate(address sourceAsset, uint256 quantityInAssetUnits) external returns (address destinationAsset);
+}
+
+/**
+ * @notice Interface to Bridge Adapter contracts used by Exchange for routing withdrawals
+ */
 interface IBridgeAdapter {
+  /**
+   * @notice Withdraw quote asset quantity to destination wallet using bridge-specific payload
+   */
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) external;
 }
 
@@ -13,6 +34,15 @@ interface IBridgeAdapter {
  * calls
  */
 interface ICustodian {
+  /**
+   * @notice Migrate the entire balance of an asset to a new address using the currently whitelisted Asset Migrator
+   *
+   * @param sourceAsset The address of the asset the Custodian currently holds a balance in
+   *
+   * @return destinationAsset The address of the new asset that will migrated to
+   */
+  function migrateAsset(address sourceAsset) external returns (address destinationAsset);
+
   /**
    * @notice Withdraw any asset and amount to a target wallet
    *
@@ -32,11 +62,25 @@ interface ICustodian {
   function exchange() external view returns (address);
 
   /**
+   * @notice Sets a new Asset Migrator contract address
+   *
+   * @param newAssetMigrator The address of the new whitelisted Asset Migrator contract or zero address to disable migration
+   */
+  function setAssetMigrator(address newAssetMigrator) external;
+
+  /**
    * @notice Sets a new Exchange contract address
    *
    * @param newExchange The address of the new whitelisted Exchange contract
    */
   function setExchange(address newExchange) external;
+
+  /**
+   * @notice Load address of the currently whitelisted Asset Migrator contract
+   *
+   * @return The address of the currently whitelisted Asset Migrator contract
+   */
+  function assetMigrator() external view returns (address);
 
   /**
    * @notice Load address of the currently whitelisted Governance contract
