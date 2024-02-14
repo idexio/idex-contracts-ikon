@@ -13,6 +13,7 @@ import ExchangeWalletStateAggregatorContract from './ExchangeWalletStateAggregat
 import GovernanceContract from './GovernanceContract';
 import IDEXIndexAndOraclePriceAdapterContract from './IDEXIndexAndOraclePriceAdapterContract';
 import PythIndexPriceAdapterContract from './PythIndexPriceAdapterContract';
+import PythOraclePriceAdapterContract from './PythOraclePriceAdapterContract';
 import StorkIndexAndOraclePriceAdapterContract from './StorkIndexAndOraclePriceAdapterContract';
 import USDCContract from './USDCContract';
 
@@ -28,6 +29,7 @@ export {
   GovernanceContract,
   IDEXIndexAndOraclePriceAdapterContract,
   PythIndexPriceAdapterContract,
+  PythOraclePriceAdapterContract,
   StorkIndexAndOraclePriceAdapterContract,
   USDCContract,
 };
