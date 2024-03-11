@@ -89,14 +89,29 @@ const config: HardhatUserConfig = {
       url: 'https://rpc-dev-geth.idex-dev.com:8545',
     },
     zkevm: {
-      chainId: 23432,
-      url: 'https://rpc-devnet-idex.hardfork.dev',
+      chainId: 671276500,
+      url: 'https://xchain-testnet-rpc.ap-northeast-1.gateway.fm',
+    },
+    polygonAmoy: {
+      chainId: 80002,
+      url: 'https://rpc-amoy.polygon.technology',
+    },
+    polygonMumbai: {
+      chainId: 80001,
+      url: 'https://polygon-mumbai.infura.io/v3/f893932c1fc54aa592bbe1b7419c8761',
+    },
+    polygonMainnet: {
+      chainId: 137,
+      url: 'https://polygon-mainnet.infura.io/v3/8a369d58e1a54e22a71b559a2aa92001',
     },
   },
   etherscan: {
     apiKey: {
       private: 'abc',
       zkevm: 'abc',
+      polygonAmoy: 'bad22612-5107-4e49-b6d9-861b9f613cd5',
+      polygonMumbai: 'K7QYKN8XKGTR5J3W6D8A7625N7CH5RWITF',
+      polygonMainnet: 'K7QYKN8XKGTR5J3W6D8A7625N7CH5RWITF',
     },
     customChains: [
       {
@@ -109,10 +124,35 @@ const config: HardhatUserConfig = {
       },
       {
         network: 'zkevm',
-        chainId: 23432,
+        chainId: 671276500,
         urls: {
           apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api/v1',
           browserURL: 'https://explorer-staging-zkevm.idex-dev.com/',
+        },
+      },
+      {
+        network: 'polygonAmoy',
+        chainId: 80002,
+        urls: {
+          apiURL:
+            'https://www.oklink.com/api/explorer/v1/contract/verify/async/api/amoy',
+          browserURL: 'https://www.oklink.com/amoy',
+        },
+      },
+      {
+        network: 'polygonMumbai',
+        chainId: 80001,
+        urls: {
+          apiURL: 'https://api-testnet.polygonscan.com/api',
+          browserURL: 'https://mumbai.polygonscan.com/',
+        },
+      },
+      {
+        network: 'polygonMainnet',
+        chainId: 137,
+        urls: {
+          apiURL: 'https://api.polygonscan.com/api',
+          browserURL: 'https://polygonscan.com/',
         },
       },
     ],
