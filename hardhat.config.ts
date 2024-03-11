@@ -89,8 +89,8 @@ const config: HardhatUserConfig = {
       url: 'https://rpc-dev-geth.idex-dev.com:8545',
     },
     zkevm: {
-      chainId: 2122,
-      url: 'https://rpc.internal.zklidium-test.net',
+      chainId: 23432,
+      url: 'https://rpc-devnet-idex.hardfork.dev',
     },
   },
   etherscan: {
@@ -103,15 +103,15 @@ const config: HardhatUserConfig = {
         network: 'private',
         chainId: 1001,
         urls: {
-          apiURL: 'https://explorer-dev-geth.idex-dev.com/api',
+          apiURL: 'https://explorer-dev-geth.idex-dev.com/api/v1',
           browserURL: 'https://explorer-dev-geth.idex-dev.com/',
         },
       },
       {
         network: 'zkevm',
-        chainId: 2122,
+        chainId: 23432,
         urls: {
-          apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api',
+          apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api/v1',
           browserURL: 'https://explorer-staging-zkevm.idex-dev.com/',
         },
       },
