@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { expect } from 'chai';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import type {
@@ -41,7 +41,7 @@ describe('Exchange', function () {
       ownerWallet,
       0,
       true,
-      ethers.constants.AddressZero,
+      ethers.ZeroAddress,
       [baseAssetSymbol, 'XYZ'],
     );
     exchange = results.exchange;
@@ -125,7 +125,10 @@ describe('Exchange', function () {
 
         await (
           oraclePriceAdapter as ChainlinkOraclePriceAdapter
-        ).addBaseAssetSymbolAndAggregator(`XYZ${i}`, aggregator.address);
+        ).addBaseAssetSymbolAndAggregator(
+          `XYZ${i}`,
+          await aggregator.getAddress(),
+        );
         await exchange.addMarket({
           ...marketStruct,
           baseAssetSymbol: `XYZ${i}`,
@@ -258,18 +261,24 @@ describe('Exchange', function () {
       await exchange.activateMarket('XYZ');
 
       const indexPrice = await buildIndexPrice(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
       );
       const indexPrice2 = await buildIndexPrice(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
         'XYZ',
       );
 
       await exchange.publishIndexPrices([
-        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
-        indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice2),
+        indexPriceToArgumentStruct(
+          await indexPriceAdapter.getAddress(),
+          indexPrice,
+        ),
+        indexPriceToArgumentStruct(
+          await indexPriceAdapter.getAddress(),
+          indexPrice2,
+        ),
       ]);
 
       const events = await exchange.queryFilter(
@@ -290,35 +299,41 @@ describe('Exchange', function () {
 
     it('should revert when not called by dispatcher', async () => {
       const indexPrice = await buildIndexPrice(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
       );
       await expect(
         exchange
           .connect((await ethers.getSigners())[1])
           .publishIndexPrices([
-            indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+            indexPriceToArgumentStruct(
+              await indexPriceAdapter.getAddress(),
+              indexPrice,
+            ),
           ]),
       ).to.eventually.be.rejectedWith(/caller must be dispatcher wallet/i);
     });
 
     it('should revert when market not found', async () => {
       const indexPrice = await buildIndexPrice(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
         'XYZ',
       );
 
       await expect(
         exchange.publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]),
       ).to.eventually.be.rejectedWith(/active market not found/i);
     });
 
     it('should revert when index price is outdated', async () => {
       const indexPrice = await buildIndexPriceWithTimestamp(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
         (await getLatestBlockTimestampInSeconds()) * 1000 -
           2 * 24 * 60 * 60 * 1000,
@@ -326,14 +341,17 @@ describe('Exchange', function () {
 
       await expect(
         exchange.publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]),
       ).to.eventually.be.rejectedWith(/outdated index price/i);
     });
 
     it('should revert when index price is too far in future', async () => {
       const indexPrice = await buildIndexPriceWithTimestamp(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
         (await getLatestBlockTimestampInSeconds()) * 1000 +
           2 * 24 * 60 * 60 * 1000,
@@ -341,35 +359,41 @@ describe('Exchange', function () {
 
       await expect(
         exchange.publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]),
       ).to.eventually.be.rejectedWith(/index price timestamp too high/i);
     });
 
     it('should revert when index price adapter is not whitelisted', async () => {
       const indexPrice = await buildIndexPrice(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
       );
       indexPrice.timestampInMs += 5;
 
       await expect(
         exchange.publishIndexPrices([
-          indexPriceToArgumentStruct(exchange.address, indexPrice),
+          indexPriceToArgumentStruct(await exchange.getAddress(), indexPrice),
         ]),
       ).to.eventually.be.rejectedWith(/invalid index price adapter/i);
     });
 
     it('should revert when IPS signature is invalid', async () => {
       const indexPrice = await buildIndexPrice(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
       );
       indexPrice.timestampInMs += 5;
 
       await expect(
         exchange.publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]),
       ).to.eventually.be.rejectedWith(/invalid index price signature/i);
     });

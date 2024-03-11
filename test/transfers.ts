@@ -1,8 +1,8 @@
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 import { Exchange_v4, USDC } from '../typechain-types';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import {
   decimalToPips,
   getTransferArguments,
@@ -59,16 +59,20 @@ describe('Exchange', function () {
     exchange = results.exchange;
     usdc = results.usdc;
 
-    const depositQuantity = ethers.utils.parseUnits('5.0', quoteAssetDecimals);
+    const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
     await usdc.transfer(trader1Wallet.address, depositQuantity);
     await usdc
       .connect(trader1Wallet)
-      .approve(exchange.address, depositQuantity);
-    await (
-      await exchange
-        .connect(trader1Wallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero)
-    ).wait();
+      .approve(await exchange.getAddress(), depositQuantity);
+    await exchange
+      .connect(trader1Wallet)
+      .deposit(depositQuantity, ethers.ZeroAddress);
+    await exchange
+      .connect(dispatcherWallet)
+      .applyPendingDepositsForWallet(
+        decimalToPips('5.00000000'),
+        trader1Wallet.address,
+      );
 
     transfer = {
       nonce: uuidv1(),
@@ -76,8 +80,8 @@ describe('Exchange', function () {
       destinationWallet: trader2Wallet.address,
       quantity: '1.00000000',
     };
-    signature = await trader1Wallet._signTypedData(
-      ...getTransferSignatureTypedData(transfer, exchange.address),
+    signature = await trader1Wallet.signTypedData(
+      ...getTransferSignatureTypedData(transfer, await exchange.getAddress()),
     );
   });
 
@@ -166,8 +170,8 @@ describe('Exchange', function () {
 
     it('should revert for self-transfer', async function () {
       transfer.destinationWallet = transfer.sourceWallet;
-      signature = await trader1Wallet._signTypedData(
-        ...getTransferSignatureTypedData(transfer, exchange.address),
+      signature = await trader1Wallet.signTypedData(
+        ...getTransferSignatureTypedData(transfer, await exchange.getAddress()),
       );
 
       await expect(
@@ -198,7 +202,7 @@ describe('Exchange', function () {
     });
 
     it('should revert for zero destination', async function () {
-      transfer.destinationWallet = ethers.constants.AddressZero;
+      transfer.destinationWallet = ethers.ZeroAddress;
 
       await expect(
         exchange

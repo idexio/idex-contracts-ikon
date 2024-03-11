@@ -1,6 +1,6 @@
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { ethers, network } from 'hardhat';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 
 import {
@@ -62,52 +62,64 @@ describe('Exchange', function () {
     indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
-    const depositQuantity = ethers.utils.parseUnits('5.0', quoteAssetDecimals);
+    const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
     await results.usdc.transfer(traderWallet.address, depositQuantity);
     await results.usdc
       .connect(traderWallet)
-      .approve(exchange.address, depositQuantity);
+      .approve(await exchange.getAddress(), depositQuantity);
     await (
       await exchange
         .connect(traderWallet)
-        .deposit(depositQuantity, ethers.constants.AddressZero)
+        .deposit(depositQuantity, ethers.ZeroAddress)
     ).wait();
+    await exchange
+      .connect(dispatcherWallet)
+      .applyPendingDepositsForWallet(
+        decimalToPips('5.00000000'),
+        traderWallet.address,
+      );
 
     withdrawal = {
       nonce: uuidv1(),
       wallet: traderWallet.address,
       quantity: '1.00000000',
-      bridgeAdapter: ethers.constants.AddressZero,
+      maximumGasFee: '0.10000000',
+      bridgeAdapter: ethers.ZeroAddress,
       bridgeAdapterPayload: '0x',
     };
-    signature = await traderWallet._signTypedData(
-      ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+    signature = await traderWallet.signTypedData(
+      ...getWithdrawalSignatureTypedData(
+        withdrawal,
+        await exchange.getAddress(),
+      ),
     );
   });
 
   describe('skim', function () {
     it('should work when Exchange is holding token', async function () {
       const tokenQuantity = 100000;
-      await usdc.transfer(exchange.address, tokenQuantity);
-      await exchange.skim(usdc.address);
+      await usdc.transfer(await exchange.getAddress(), tokenQuantity);
+      await exchange.skim(await usdc.getAddress());
 
       const transferEvents = await usdc.queryFilter(usdc.filters.Transfer());
       const transferToFeeWalletEvent =
         transferEvents[transferEvents.length - 1];
-      expect(transferToFeeWalletEvent.args?.from).to.equal(exchange.address);
+      expect(transferToFeeWalletEvent.args?.from).to.equal(
+        await exchange.getAddress(),
+      );
       expect(transferToFeeWalletEvent.args?.to).to.equal(feeWallet.address);
       expect(transferToFeeWalletEvent.args?.value).to.equal(tokenQuantity);
     });
 
     it('should revert when not called by admin wallet', async function () {
       await expect(
-        exchange.connect(dispatcherWallet).skim(usdc.address),
+        exchange.connect(dispatcherWallet).skim(await usdc.getAddress()),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
 
     it('should revert for invalid token address', async function () {
       await expect(
-        exchange.skim(ethers.constants.AddressZero),
+        exchange.skim(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid token address/i);
     });
   });
@@ -143,13 +155,21 @@ describe('Exchange', function () {
 
     it('should work for EF after block delay', async function () {
       const trader2Wallet = (await ethers.getSigners())[10];
-      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [traderWallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         traderWallet,
         trader2Wallet,
       );
@@ -161,9 +181,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1900.00000000',
               baseAssetSymbol,
@@ -184,8 +204,11 @@ describe('Exchange', function () {
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1.00000000';
-      signature = await exitFundWallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await exitFundWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await exchange
@@ -215,13 +238,21 @@ describe('Exchange', function () {
 
     it('should revert if EF balance would be negative', async function () {
       const trader2Wallet = (await ethers.getSigners())[10];
-      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [traderWallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         traderWallet,
         trader2Wallet,
       );
@@ -242,8 +273,11 @@ describe('Exchange', function () {
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1000.00000000';
-      signature = await exitFundWallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await exitFundWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await expect(
@@ -259,13 +293,21 @@ describe('Exchange', function () {
 
     it('should revert for EF before block delay', async function () {
       const trader2Wallet = (await ethers.getSigners())[10];
-      await fundWallets([traderWallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [traderWallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         traderWallet,
         trader2Wallet,
       );
@@ -277,9 +319,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithValue(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               '1900.00000000',
               baseAssetSymbol,
@@ -297,8 +339,11 @@ describe('Exchange', function () {
 
       withdrawal.wallet = exitFundWallet.address;
       withdrawal.quantity = '1.00000000';
-      signature = await exitFundWallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await exitFundWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await expect(
@@ -329,7 +374,22 @@ describe('Exchange', function () {
         exchange
           .connect(dispatcherWallet)
           .withdraw(
-            ...getWithdrawArguments(withdrawal, '1.00000000', signature),
+            ...getWithdrawArguments(withdrawal, '0.70000000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/excessive withdrawal fee/i);
+
+      withdrawal.maximumGasFee = '1.10000000';
+      signature = await traderWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
+      );
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.10000000', signature),
           ),
       ).to.eventually.be.rejectedWith(/excessive withdrawal fee/i);
     });
@@ -356,8 +416,11 @@ describe('Exchange', function () {
     });
 
     it('should revert for invalid signature', async function () {
-      signature = await dispatcherWallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await dispatcherWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await expect(
@@ -371,8 +434,11 @@ describe('Exchange', function () {
 
     it('should revert for invalid bridge adapter', async function () {
       withdrawal.bridgeAdapter = dispatcherWallet.address;
-      signature = await traderWallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await traderWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
 
       await expect(

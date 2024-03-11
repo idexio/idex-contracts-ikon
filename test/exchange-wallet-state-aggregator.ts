@@ -1,36 +1,26 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
 
 import {
   baseAssetSymbol,
   buildIndexPrice,
-  buildIndexPriceWithValue,
   deployAndAssociateContracts,
-  executeTrade,
   expect,
   fundWallets,
-  quoteAssetDecimals,
   quoteAssetSymbol,
 } from './helpers';
 import {
-  decimalToPips,
-  getDelegatedKeyAuthorizationSignatureTypedData,
   getExecuteTradeArguments,
   getOrderSignatureTypedData,
   indexPriceToArgumentStruct,
   Order,
   OrderSide,
-  OrderTimeInForce,
-  OrderTriggerType,
   OrderType,
   Trade,
-  uuidToHexString,
 } from '../lib';
 import type {
   Exchange_v4,
-  Governance,
   IDEXIndexAndOraclePriceAdapter,
   USDC,
 } from '../typechain-types';
@@ -41,7 +31,6 @@ describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
   let exchange: Exchange_v4;
   let exitFundWallet: SignerWithAddress;
-  let governance: Governance;
   let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
   let indexPriceServiceWallet: SignerWithAddress;
   let insuranceFundWallet: SignerWithAddress;
@@ -80,20 +69,27 @@ describe('Exchange', function () {
       insuranceFundWallet,
     );
     exchange = results.exchange;
-    governance = results.governance;
     indexPriceAdapter = results.indexPriceAdapter;
     usdc = results.usdc;
 
     await usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      results.usdc,
+    );
 
     await exchange
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          indexPriceAdapter.address,
-          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+          await indexPriceAdapter.getAddress(),
+          await buildIndexPrice(
+            await exchange.getAddress(),
+            indexPriceServiceWallet,
+          ),
         ),
       ]);
 
@@ -106,8 +102,8 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    buyOrderSignature = await trader2Wallet._signTypedData(
-      ...getOrderSignatureTypedData(buyOrder, exchange.address),
+    buyOrderSignature = await trader2Wallet.signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
     );
 
     sellOrder = {
@@ -119,8 +115,8 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    sellOrderSignature = await trader1Wallet._signTypedData(
-      ...getOrderSignatureTypedData(sellOrder, exchange.address),
+    sellOrderSignature = await trader1Wallet.signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
     );
 
     trade = {
@@ -150,7 +146,7 @@ describe('Exchange', function () {
 
       const aggregator = await (
         await ethers.getContractFactory('ExchangeWalletStateAggregator')
-      ).deploy(exchange.address);
+      ).deploy(await exchange.getAddress());
 
       const results = await aggregator.loadWalletStates([
         trader1Wallet.address,

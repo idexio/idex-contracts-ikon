@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { IStargateReceiver, IStargateRouter } from "../bridge-adapters/ExchangeStargateAdapter.sol";
+import { IStargateFactory, IStargateReceiver, IStargateRouter } from "../bridge-adapters/ExchangeStargateAdapter.sol";
 
 contract StargateRouterMock is IStargateRouter {
   uint256 public fee;
@@ -13,6 +13,10 @@ contract StargateRouterMock is IStargateRouter {
   constructor(uint256 fee_, address quoteTokenAddress_) {
     quoteTokenAddress = quoteTokenAddress_;
     fee = fee_;
+  }
+
+  function factory() external pure returns (IStargateFactory) {
+    return IStargateFactory(address(0x0));
   }
 
   function sgReceive(

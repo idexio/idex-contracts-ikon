@@ -4,10 +4,48 @@ pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+import { AssetUnitConversions } from "../libraries/AssetUnitConversions.sol";
 import { Constants } from "../libraries/Constants.sol";
 import { Owned } from "../Owned.sol";
 import { IBridgeAdapter, ICustodian, IExchange } from "../libraries/Interfaces.sol";
+
+error InvalidSourcePoolId(uint256 poolId);
+
+// https://github.com/stargate-protocol/stargate/blob/main/contracts/Pool.sol
+interface IPool {
+  struct SwapObj {
+    uint256 amount;
+    uint256 eqFee;
+    uint256 eqReward;
+    uint256 lpFee;
+    uint256 protocolFee;
+    uint256 lkbRemove;
+  }
+
+  function feeLibrary() external view returns (IStargateFeeLibrary);
+
+  function sharedDecimals() external view returns (uint256);
+
+  function token() external view returns (address);
+}
+
+// https://github.com/stargate-protocol/stargate/blob/main/contracts/Factory.sol
+interface IStargateFactory {
+  function getPool(uint256) external view returns (IPool);
+}
+
+// https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateFeeLibrary.sol
+interface IStargateFeeLibrary {
+  function getFees(
+    uint256 _srcPoolId,
+    uint256 _dstPoolId,
+    uint16 _dstChainId,
+    address _from,
+    uint256 _amountSD
+  ) external view returns (IPool.SwapObj memory);
+}
 
 // https://github.com/stargate-protocol/stargate/blob/main/contracts/interfaces/IStargateReceiver.sol
 interface IStargateReceiver {
@@ -37,6 +75,8 @@ interface IStargateRouter {
     uint256 dstNativeAmount;
     bytes dstNativeAddr;
   }
+
+  function factory() external view returns (IStargateFactory);
 
   function swap(
     uint16 _dstChainId,
@@ -81,7 +121,7 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   bool public isWithdrawEnabled;
   // Multiplier in pips used to calculate minimum withdraw quantity after slippage
   uint64 public minimumWithdrawQuantityMultiplier;
-  // Address of ERC20 contract used as collateral and quote for all markets
+  // Address of ERC-20 contract used as collateral and quote for all markets
   IERC20 public immutable quoteAsset;
   // Address of Stargate router contract
   IStargateRouter public immutable router;
@@ -189,7 +229,8 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
         arguments._payload
       )
     {} catch (bytes memory errorData) {
-      quoteAsset.transfer(destinationWallet, quantity);
+      // If the swap fails, redeposit funds into Exchange so wallet can retry
+      IExchange(custodian.exchange()).deposit(quantity, destinationWallet);
       emit WithdrawQuoteAssetFailed(destinationWallet, quantity, payload, errorData);
     }
   }
@@ -221,7 +262,86 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
   /**
    * @notice Allow Admin wallet to withdraw gas fee funding
    */
-  function withdrawNativeAsset(address payable destinationWallet, uint256 quantity) public onlyAdmin {
-    destinationWallet.transfer(quantity);
+  function withdrawNativeAsset(address payable destinationContractOrWallet, uint256 quantity) public onlyAdmin {
+    (bool success, ) = destinationContractOrWallet.call{ value: quantity }("");
+    require(success, "Native asset transfer failed");
+  }
+
+  /**
+   * @notice Estimate actual quantity of quote tokens that will be delivered on target chain after pool fees
+   */
+  function estimateWithdrawQuantityInAssetUnitsAfterPoolFees(
+    bytes calldata payload,
+    uint64 quantity,
+    address wallet
+  )
+    public
+    view
+    returns (
+      uint256 estimatedWithdrawQuantityInAssetUnits,
+      uint256 minimumWithdrawQuantityInAssetUnits,
+      uint8 poolDecimals
+    )
+  {
+    (, uint256 sourcePoolId, ) = abi.decode(payload, (uint16, uint256, uint256));
+    IPool pool = router.factory().getPool(sourcePoolId);
+    if (address(pool) == address(0x0) || pool.token() != address(quoteAsset)) {
+      revert InvalidSourcePoolId(sourcePoolId);
+    }
+
+    poolDecimals = SafeCast.toUint8(pool.sharedDecimals());
+
+    uint256 quantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(quantity, poolDecimals);
+    uint256 netPoolFeesInAssetUnits = _loadNetPoolFeesInAssetUnits(payload, pool, quantityInAssetUnits, wallet);
+
+    estimatedWithdrawQuantityInAssetUnits = quantityInAssetUnits - netPoolFeesInAssetUnits;
+    minimumWithdrawQuantityInAssetUnits =
+      (quantityInAssetUnits * minimumWithdrawQuantityMultiplier) /
+      Constants.PIP_PRICE_MULTIPLIER;
+  }
+
+  /**
+   * @notice Load current gas fee for each target chain ID specified in argument array
+   *
+   * @param chainIds An array of chain IDs
+   */
+  function loadGasFeesInAssetUnits(
+    uint16[] calldata chainIds
+  ) public view returns (uint256[] memory gasFeesInAssetUnits) {
+    gasFeesInAssetUnits = new uint256[](chainIds.length);
+
+    for (uint256 i = 0; i < chainIds.length; ++i) {
+      (gasFeesInAssetUnits[i], ) = router.quoteLayerZeroFee(
+        chainIds[i],
+        1,
+        abi.encodePacked(address(this)),
+        "0x",
+        IStargateRouter.lzTxObj(0, 0, "0x")
+      );
+    }
+  }
+
+  function _loadNetPoolFeesInAssetUnits(
+    bytes calldata payload,
+    IPool pool,
+    uint256 quantityInAssetUnits,
+    address wallet
+  ) private view returns (uint256) {
+    // De-coded redundantly here to avoid stack limitations. Gas usage is not a concern since this is a read-only
+    // function
+    (uint16 targetChainId, uint256 sourcePoolId, uint256 targetPoolId) = abi.decode(
+      payload,
+      (uint16, uint256, uint256)
+    );
+
+    IPool.SwapObj memory s = pool.feeLibrary().getFees(
+      sourcePoolId,
+      targetPoolId,
+      targetChainId,
+      wallet,
+      quantityInAssetUnits
+    );
+
+    return s.protocolFee + s.lpFee + s.eqFee - s.eqReward;
   }
 }

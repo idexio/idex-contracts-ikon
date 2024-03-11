@@ -1,5 +1,5 @@
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
 
@@ -33,7 +33,7 @@ describe('ExchangeStargateAdapter', function () {
   let ExchangeStargateAdapterFactory: ExchangeStargateAdapter__factory;
   let governance: Governance;
   let ownerWallet: SignerWithAddress;
-  const routerFee = ethers.utils.parseEther('0.0001');
+  const routerFee = ethers.parseEther('0.0001');
   let stargateRouterMock: StargateRouterMock;
   let traderWallet: SignerWithAddress;
   let usdc: USDC;
@@ -71,26 +71,26 @@ describe('ExchangeStargateAdapter', function () {
     );
     stargateRouterMock = await (
       await ethers.getContractFactory('StargateRouterMock')
-    ).deploy(routerFee, usdc.address);
+    ).deploy(routerFee, await usdc.getAddress());
   });
 
   describe('deploy', async function () {
     it('should work for valid arguments', async () => {
       await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
     it('should revert for invalid Custodian address', async () => {
       await expect(
         ExchangeStargateAdapterFactory.deploy(
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
           decimalToPips('0.99900000'),
-          stargateRouterMock.address,
-          usdc.address,
+          await stargateRouterMock.getAddress(),
+          await usdc.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid custodian address/i);
     });
@@ -98,21 +98,21 @@ describe('ExchangeStargateAdapter', function () {
     it('should revert for invalid Router address', async () => {
       await expect(
         ExchangeStargateAdapterFactory.deploy(
-          custodian.address,
+          await custodian.getAddress(),
           decimalToPips('0.99900000'),
-          ethers.constants.AddressZero,
-          usdc.address,
+          ethers.ZeroAddress,
+          await usdc.getAddress(),
         ),
-      ).to.eventually.be.rejectedWith(/invalid custodian address/i);
+      ).to.eventually.be.rejectedWith(/invalid router address/i);
     });
 
     it('should revert for invalid quote asset address', async () => {
       await expect(
         ExchangeStargateAdapterFactory.deploy(
-          custodian.address,
+          await custodian.getAddress(),
           decimalToPips('0.99900000'),
-          stargateRouterMock.address,
-          ethers.constants.AddressZero,
+          await stargateRouterMock.getAddress(),
+          ethers.ZeroAddress,
         ),
       ).to.eventually.be.rejectedWith(/invalid quote asset address/i);
     });
@@ -123,10 +123,10 @@ describe('ExchangeStargateAdapter', function () {
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
@@ -135,17 +135,23 @@ describe('ExchangeStargateAdapter', function () {
         '1.00000000',
         quoteAssetDecimals,
       );
-      await usdc.transfer(adapter.address, depositQuantityInAssetUnits);
+      await usdc.transfer(
+        await adapter.getAddress(),
+        depositQuantityInAssetUnits,
+      );
       await adapter.setDepositEnabled(true);
 
       await stargateRouterMock.sgReceive(
-        adapter.address,
+        await adapter.getAddress(),
         1,
         '0x',
         0,
-        usdc.address,
+        await usdc.getAddress(),
         depositQuantityInAssetUnits,
-        ethers.utils.defaultAbiCoder.encode(['address'], [ownerWallet.address]),
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ['address'],
+          [ownerWallet.address],
+        ),
       );
     });
 
@@ -154,7 +160,10 @@ describe('ExchangeStargateAdapter', function () {
         '1.00000000',
         quoteAssetDecimals,
       );
-      await usdc.transfer(adapter.address, depositQuantityInAssetUnits);
+      await usdc.transfer(
+        await adapter.getAddress(),
+        depositQuantityInAssetUnits,
+      );
       await adapter.setDepositEnabled(true);
 
       await expect(
@@ -162,9 +171,9 @@ describe('ExchangeStargateAdapter', function () {
           1,
           '0x',
           0,
-          usdc.address,
+          await usdc.getAddress(),
           depositQuantityInAssetUnits,
-          ethers.utils.defaultAbiCoder.encode(
+          ethers.AbiCoder.defaultAbiCoder().encode(
             ['address'],
             [ownerWallet.address],
           ),
@@ -175,13 +184,13 @@ describe('ExchangeStargateAdapter', function () {
     it('should revert when deposits are disabled', async () => {
       await expect(
         stargateRouterMock.sgReceive(
-          adapter.address,
+          await adapter.getAddress(),
           1,
           '0x',
           0,
-          usdc.address,
+          await usdc.getAddress(),
           10000000000,
-          ethers.utils.defaultAbiCoder.encode(
+          ethers.AbiCoder.defaultAbiCoder().encode(
             ['address'],
             [ownerWallet.address],
           ),
@@ -194,15 +203,15 @@ describe('ExchangeStargateAdapter', function () {
 
       await expect(
         stargateRouterMock.sgReceive(
-          adapter.address,
+          await adapter.getAddress(),
           1,
           '0x',
           0,
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
           10000000000,
-          ethers.utils.defaultAbiCoder.encode(
+          ethers.AbiCoder.defaultAbiCoder().encode(
             ['address'],
-            [ethers.constants.AddressZero],
+            [ethers.ZeroAddress],
           ),
         ),
       ).to.eventually.be.rejectedWith(/invalid token/i);
@@ -213,15 +222,15 @@ describe('ExchangeStargateAdapter', function () {
 
       await expect(
         stargateRouterMock.sgReceive(
-          adapter.address,
+          await adapter.getAddress(),
           1,
           '0x',
           0,
-          usdc.address,
+          await usdc.getAddress(),
           10000000000,
-          ethers.utils.defaultAbiCoder.encode(
+          ethers.AbiCoder.defaultAbiCoder().encode(
             ['address'],
-            [ethers.constants.AddressZero],
+            [ethers.ZeroAddress],
           ),
         ),
       ).to.eventually.be.rejectedWith(/invalid destination wallet/i);
@@ -235,50 +244,59 @@ describe('ExchangeStargateAdapter', function () {
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
 
-      await governance.initiateBridgeAdaptersUpgrade([adapter.address]);
+      await governance.initiateBridgeAdaptersUpgrade([
+        await adapter.getAddress(),
+      ]);
       await time.increase(fieldUpgradeDelayInS);
-      await governance.finalizeBridgeAdaptersUpgrade([adapter.address]);
+      await governance.finalizeBridgeAdaptersUpgrade([
+        await adapter.getAddress(),
+      ]);
 
       await adapter.setWithdrawEnabled(true);
 
-      const depositQuantity = ethers.utils.parseUnits(
-        '5.0',
-        quoteAssetDecimals,
-      );
+      const depositQuantity = ethers.parseUnits('5.0', quoteAssetDecimals);
       await usdc.transfer(traderWallet.address, depositQuantity);
       await usdc
         .connect(traderWallet)
-        .approve(exchange.address, depositQuantity);
-      await (
-        await exchange
-          .connect(traderWallet)
-          .deposit(depositQuantity, ethers.constants.AddressZero)
-      ).wait();
+        .approve(await exchange.getAddress(), depositQuantity);
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.ZeroAddress);
+      await exchange
+        .connect(dispatcherWallet)
+        .applyPendingDepositsForWallet(
+          decimalToPips('5.00000000'),
+          traderWallet.address,
+        );
 
       withdrawal = {
         nonce: uuidv1(),
         wallet: traderWallet.address,
         quantity: '1.00000000',
-        bridgeAdapter: adapter.address,
-        bridgeAdapterPayload: ethers.utils.defaultAbiCoder.encode(
+        maximumGasFee: '0.10000000',
+        bridgeAdapter: await adapter.getAddress(),
+        bridgeAdapterPayload: ethers.AbiCoder.defaultAbiCoder().encode(
           ['uint16', 'uint256', 'uint256'],
           [1, 1, 1],
         ),
       };
-      signature = await traderWallet._signTypedData(
-        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      signature = await traderWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
       );
     });
 
     it('should work for valid arguments when adapter is funded', async () => {
       await ownerWallet.sendTransaction({
-        to: adapter.address,
+        to: await adapter.getAddress(),
         value: routerFee,
       });
 
@@ -289,7 +307,7 @@ describe('ExchangeStargateAdapter', function () {
 
     it('should work for when multiple adapters are whitelisted', async () => {
       await ownerWallet.sendTransaction({
-        to: adapter.address,
+        to: await adapter.getAddress(),
         value: routerFee,
       });
 
@@ -298,16 +316,16 @@ describe('ExchangeStargateAdapter', function () {
       );
       const adapter2 = await (
         await ethers.getContractFactory('StargateRouterMock')
-      ).deploy(routerFee, usdc.address);
+      ).deploy(routerFee, await usdc.getAddress());
 
       await governance.initiateBridgeAdaptersUpgrade([
-        adapter2.address,
-        adapter.address,
+        await adapter2.getAddress(),
+        await adapter.getAddress(),
       ]);
       await time.increase(fieldUpgradeDelayInS);
       await governance.finalizeBridgeAdaptersUpgrade([
-        adapter2.address,
-        adapter.address,
+        await adapter2.getAddress(),
+        await adapter.getAddress(),
       ]);
 
       await exchange
@@ -345,10 +363,10 @@ describe('ExchangeStargateAdapter', function () {
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
@@ -366,10 +384,10 @@ describe('ExchangeStargateAdapter', function () {
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
@@ -387,10 +405,10 @@ describe('ExchangeStargateAdapter', function () {
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
@@ -412,29 +430,29 @@ describe('ExchangeStargateAdapter', function () {
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
     });
 
     it('should work when caller is admin', async () => {
-      await usdc.transfer(adapter.address, 10000);
-      await adapter.skimToken(usdc.address, traderWallet.address);
+      await usdc.transfer(await adapter.getAddress(), 10000);
+      await adapter.skimToken(await usdc.getAddress(), traderWallet.address);
     });
 
     it('should revert when caller is not admin', async () => {
       await expect(
         adapter
           .connect((await ethers.getSigners())[10])
-          .skimToken(usdc.address, traderWallet.address),
+          .skimToken(await usdc.getAddress(), traderWallet.address),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
 
     it('should revert for non-token address', async () => {
       await expect(
-        adapter.skimToken(ethers.constants.AddressZero, traderWallet.address),
+        adapter.skimToken(ethers.ZeroAddress, traderWallet.address),
       ).to.eventually.be.rejectedWith(/invalid token address/i);
     });
   });
@@ -444,21 +462,21 @@ describe('ExchangeStargateAdapter', function () {
 
     beforeEach(async () => {
       adapter = await ExchangeStargateAdapterFactory.deploy(
-        custodian.address,
+        await custodian.getAddress(),
         decimalToPips('0.99900000'),
-        stargateRouterMock.address,
-        usdc.address,
+        await stargateRouterMock.getAddress(),
+        await usdc.getAddress(),
       );
       await ownerWallet.sendTransaction({
-        to: adapter.address,
-        value: ethers.utils.parseEther('1.0'),
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
       });
     });
 
     it('should work when caller is admin', async () => {
       await adapter.withdrawNativeAsset(
         traderWallet.address,
-        ethers.utils.parseEther('1.0'),
+        ethers.parseEther('1.0'),
       );
     });
 
@@ -466,10 +484,7 @@ describe('ExchangeStargateAdapter', function () {
       await expect(
         adapter
           .connect((await ethers.getSigners())[10])
-          .withdrawNativeAsset(
-            traderWallet.address,
-            ethers.utils.parseEther('1.0'),
-          ),
+          .withdrawNativeAsset(traderWallet.address, ethers.parseEther('1.0')),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
   });

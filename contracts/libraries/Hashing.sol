@@ -105,6 +105,7 @@ library Hashing {
           withdrawal.nonce,
           withdrawal.wallet,
           keccak256(bytes(String.pipsToDecimalString(withdrawal.grossQuantity))),
+          keccak256(bytes(String.pipsToDecimalString(withdrawal.maximumGasFee))),
           withdrawal.bridgeAdapter,
           keccak256(withdrawal.bridgeAdapterPayload)
         )

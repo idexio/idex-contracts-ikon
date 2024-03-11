@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { expect } from 'chai';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 import {
   increase,
@@ -70,7 +70,7 @@ describe('Exchange', function () {
     await increase(fundingPeriodLengthInMs / 1000);
 
     indexPrice = await buildIndexPrice(
-      exchange.address,
+      await exchange.getAddress(),
       indexPriceServiceWallet,
     );
   });
@@ -80,7 +80,10 @@ describe('Exchange', function () {
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]);
 
       await exchange
@@ -96,8 +99,11 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+            await indexPriceAdapter.getAddress(),
+            await buildIndexPrice(
+              await exchange.getAddress(),
+              indexPriceServiceWallet,
+            ),
           ),
         ]);
 
@@ -133,7 +139,10 @@ describe('Exchange', function () {
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]);
 
       await exchange
@@ -149,8 +158,11 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+            await indexPriceAdapter.getAddress(),
+            await buildIndexPrice(
+              await exchange.getAddress(),
+              indexPriceServiceWallet,
+            ),
           ),
         ]);
 
@@ -187,18 +199,21 @@ describe('Exchange', function () {
 
     it('should work for outdated but not yet stale index price', async function () {
       indexPrice.timestampInMs -= fundingPeriodLengthInMs / 4;
-      indexPrice.signature = await indexPriceServiceWallet._signTypedData(
+      indexPrice.signature = await indexPriceServiceWallet.signTypedData(
         ...getIndexPriceSignatureTypedData(
           indexPrice,
           quoteAssetSymbol,
-          exchange.address,
+          await exchange.getAddress(),
         ),
       );
 
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]);
 
       exchange
@@ -212,8 +227,11 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+            await indexPriceAdapter.getAddress(),
+            await buildIndexPrice(
+              await exchange.getAddress(),
+              indexPriceServiceWallet,
+            ),
           ),
         ]);
     });
@@ -272,7 +290,10 @@ describe('Exchange', function () {
       await exchange
         .connect(dispatcherWallet)
         .publishIndexPrices([
-          indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
+          indexPriceToArgumentStruct(
+            await indexPriceAdapter.getAddress(),
+            indexPrice,
+          ),
         ]);
 
       await exchange
@@ -284,13 +305,21 @@ describe('Exchange', function () {
 
       const trader1Wallet = (await ethers.getSigners())[6];
       const trader2Wallet = (await ethers.getSigners())[7];
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       const trade = await executeTrade(
         exchange,
         dispatcherWallet,
-        await buildIndexPrice(exchange.address, indexPriceServiceWallet),
-        indexPriceAdapter.address,
+        await buildIndexPrice(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+        ),
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
       );
@@ -320,9 +349,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithTimestamp(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               indexPrice.timestampInMs + fundingPeriodLengthInMs,
             ),
@@ -448,10 +477,15 @@ describe('Exchange', function () {
     it('should correctly round individual funding payments', async function () {
       const trader1Wallet = (await ethers.getSigners())[6];
       const trader2Wallet = (await ethers.getSigners())[7];
-      await fundWallets([trader1Wallet, trader2Wallet], exchange, usdc);
+      await fundWallets(
+        [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       indexPrice = await buildIndexPriceWithValue(
-        exchange.address,
+        await exchange.getAddress(),
         indexPriceServiceWallet,
         '29897.98017846',
       );
@@ -460,7 +494,7 @@ describe('Exchange', function () {
         exchange,
         dispatcherWallet,
         indexPrice,
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         trader1Wallet,
         trader2Wallet,
         baseAssetSymbol,
@@ -472,9 +506,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithTimestamp(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               indexPrice.timestampInMs + fundingPeriodLengthInMs,
               baseAssetSymbol,
@@ -502,9 +536,9 @@ describe('Exchange', function () {
         .connect(dispatcherWallet)
         .publishIndexPrices([
           indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
+            await indexPriceAdapter.getAddress(),
             await buildIndexPriceWithTimestamp(
-              exchange.address,
+              await exchange.getAddress(),
               indexPriceServiceWallet,
               indexPrice.timestampInMs + fundingPeriodLengthInMs * 2,
               baseAssetSymbol,

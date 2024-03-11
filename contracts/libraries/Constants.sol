@@ -30,7 +30,7 @@ library Constants {
 
   bytes32 public constant EIP_712_TYPE_HASH_WITHDRAWAL =
     keccak256(
-      "Withdrawal(uint128 nonce,address wallet,string quantity,address bridgeAdapter,bytes bridgeAdapterPayload)"
+      "Withdrawal(uint128 nonce,address wallet,string quantity,string maximumGasFee,address bridgeAdapter,bytes bridgeAdapterPayload)"
     );
 
   string public constant EMPTY_DECIMAL_STRING = "0.00000000";

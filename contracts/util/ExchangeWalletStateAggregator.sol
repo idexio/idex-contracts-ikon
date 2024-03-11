@@ -15,11 +15,14 @@ interface IExchangeExtended is IExchange {
 
   function loadOutstandingWalletFunding(address wallet) external view returns (int64);
 
+  function pendingDepositQuantityByWallet(address wallet) external view returns (uint64);
+
   function walletExits(address wallet) external view returns (WalletExit memory walletExit);
 }
 
 struct WalletState {
   Balance[] balances;
+  uint64 pendingDepositQuantity;
   WalletExit walletExit;
   NonceInvalidation nonceInvalidation;
 }
@@ -44,13 +47,15 @@ contract ExchangeWalletStateAggregator {
     }
 
     for (uint256 i = 0; i < wallets.length; ++i) {
+      walletStates[i].pendingDepositQuantity = exchange.pendingDepositQuantityByWallet(wallets[i]);
       walletStates[i].nonceInvalidation = exchange.loadLastNonceInvalidationForWallet(wallets[i]);
       walletStates[i].walletExit = exchange.walletExits(wallets[i]);
 
       // The first element in the balances array is reserved for the quote asset
       walletStates[i].balances = new Balance[](marketsLength + 1);
-      walletStates[i].balances[0] = exchange.loadBalanceStructBySymbol(wallets[i], Constants.QUOTE_ASSET_SYMBOL);
-      walletStates[i].balances[0].balance += exchange.loadOutstandingWalletFunding(wallets[i]);
+      walletStates[i].balances[0].balance = exchange.loadBalanceBySymbol(wallets[i], Constants.QUOTE_ASSET_SYMBOL);
+      // Other struct fields are not relevant to quote asset
+
       for (uint8 j = 0; j < marketsLength; ++j) {
         walletStates[i].balances[j + 1] = exchange.loadBalanceStructBySymbol(wallets[i], baseAssetSymbols[j]);
       }

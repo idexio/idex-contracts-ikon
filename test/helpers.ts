@@ -2,9 +2,9 @@ import BigNumber from 'bignumber.js';
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { ethers } from 'hardhat';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { v1 as uuidv1 } from 'uuid';
-import type { BigNumber as EthersBigNumber, Contract } from 'ethers';
 
 chai.use(chaiAsPromised);
 export const { expect } = chai;
@@ -12,6 +12,7 @@ export const { expect } = chai;
 import {
   decimalToAssetUnits,
   decimalToPips,
+  fieldUpgradeDelayInS,
   getExecuteTradeArguments,
   getIndexPriceSignatureTypedData,
   getOrderSignatureTypedData,
@@ -24,7 +25,7 @@ import {
   signatureHashVersion,
   Trade,
 } from '../lib';
-import { Exchange_v4, USDC } from '../typechain-types';
+import { Exchange_v4, Governance, USDC } from '../typechain-types';
 
 export const quoteAssetDecimals = 6;
 
@@ -82,12 +83,13 @@ export async function bootstrapLiquidatedWallet() {
 
   await fundWallets(
     [trader1Wallet, trader2Wallet, insuranceFundWallet],
+    dispatcherWallet,
     exchange,
     usdc,
   );
 
   const indexPrice = await buildIndexPrice(
-    exchange.address,
+    await exchange.getAddress(),
     indexPriceServiceWallet,
   );
 
@@ -95,13 +97,13 @@ export async function bootstrapLiquidatedWallet() {
     exchange,
     dispatcherWallet,
     indexPrice,
-    indexPriceAdapter.address,
+    await indexPriceAdapter.getAddress(),
     trader1Wallet,
     trader2Wallet,
   );
 
   const liquidationIndexPrice = await buildIndexPriceWithValue(
-    exchange.address,
+    await exchange.getAddress(),
     indexPriceServiceWallet,
     '2150.00000000',
     baseAssetSymbol,
@@ -111,7 +113,7 @@ export async function bootstrapLiquidatedWallet() {
     .connect(dispatcherWallet)
     .publishIndexPrices([
       indexPriceToArgumentStruct(
-        indexPriceAdapter.address,
+        await indexPriceAdapter.getAddress(),
         liquidationIndexPrice,
       ),
     ]);
@@ -131,6 +133,7 @@ export async function bootstrapLiquidatedWallet() {
     liquidationIndexPrice,
     liquidatedWallet: trader1Wallet,
     counterpartyWallet: trader2Wallet,
+    ownerWallet,
   };
 }
 
@@ -168,7 +171,7 @@ export async function buildIndexPriceWithTimestamp(
     timestampInMs,
     price,
   };
-  const signature = await indexPriceServiceWallet._signTypedData(
+  const signature = await indexPriceServiceWallet.signTypedData(
     ...getIndexPriceSignatureTypedData(
       indexPrice,
       quoteAssetSymbol,
@@ -190,7 +193,7 @@ export async function buildIndexPriceWithValue(
     timestampInMs: (await getLatestBlockTimestampInSeconds()) * 1000 + 1000,
     price,
   };
-  const signature = await indexPriceServiceWallet._signTypedData(
+  const signature = await indexPriceServiceWallet.signTypedData(
     ...getIndexPriceSignatureTypedData(
       indexPrice,
       quoteAssetSymbol,
@@ -218,7 +221,7 @@ export async function buildLimitOrder(
     quantity,
     price,
   };
-  const signature = await signer._signTypedData(
+  const signature = await signer.signTypedData(
     ...getOrderSignatureTypedData(order, exchangeAddress),
   );
 
@@ -256,49 +259,54 @@ export async function deployContractsExceptCustodian(
 
   const chainlinkAggregator = await (
     await ChainlinkAggregatorFactory.connect(owner).deploy()
-  ).deployed();
+  ).waitForDeployment();
 
   (await chainlinkAggregator.setPrice(decimalToPips('2000.00000000'))).wait();
 
-  const usdc = await (await USDCFactory.connect(owner).deploy()).deployed();
+  const usdc = await (
+    await USDCFactory.connect(owner).deploy()
+  ).waitForDeployment();
 
-  const oraclePriceAdapter = await (useMockOraclePriceAdapter
+  const oraclePriceAdapter = useMockOraclePriceAdapter
     ? await OraclePriceAdapterMockFactory.connect(owner).deploy()
-    : await ChainlinkOraclePriceAdapterFactory.connect(owner).deploy(
-        baseAssetSymbols,
-        // TODO Do we need to set on-chain prices separately per market?
-        Array.from(Array(baseAssetSymbols.length).keys()).map(
-          () => chainlinkAggregator.address,
-        ),
-      )
-  ).deployed();
+    : await (
+        await ChainlinkOraclePriceAdapterFactory.connect(owner).deploy(
+          baseAssetSymbols,
+          // TODO Do we need to set on-chain prices separately per market?
+          await Promise.all(
+            Array.from(Array(baseAssetSymbols.length).keys()).map((_) =>
+              chainlinkAggregator.getAddress(),
+            ),
+          ),
+        )
+      ).waitForDeployment();
 
   const indexPriceAdapter = await (
     await IDEXIndexAndOraclePriceAdapterFactory.connect(owner).deploy(
       owner.address,
       [indexPriceServiceWallet.address],
     )
-  ).deployed();
+  ).waitForDeployment();
 
   const [exchange, governance] = await Promise.all([
     (
       await ExchangeFactory.connect(owner).deploy(
-        balanceMigrationSource || ethers.constants.AddressZero,
+        balanceMigrationSource || ethers.ZeroAddress,
         exitFundWallet.address,
         feeWallet.address,
-        [indexPriceAdapter.address],
+        [await indexPriceAdapter.getAddress()],
         insuranceFund.address,
-        oraclePriceAdapter.address,
-        usdc.address,
+        await oraclePriceAdapter.getAddress(),
+        await usdc.getAddress(),
       )
-    ).deployed(),
+    ).waitForDeployment(),
     (
       await GovernanceFactory.connect(owner).deploy(governanceBlockDelay)
-    ).deployed(),
+    ).waitForDeployment(),
   ]);
 
-  await indexPriceAdapter.setActive(exchange.address);
-  await oraclePriceAdapter.setActive(exchange.address);
+  await indexPriceAdapter.setActive(await exchange.getAddress());
+  await oraclePriceAdapter.setActive(await exchange.getAddress());
 
   return {
     chainlinkAggregator,
@@ -346,15 +354,18 @@ export async function deployAndAssociateContracts(
 
   const Custodian = await ethers.getContractFactory('Custodian');
   const custodian = await (
-    await Custodian.deploy(exchange.address, governance.address)
-  ).deployed();
+    await Custodian.deploy(
+      await exchange.getAddress(),
+      await governance.getAddress(),
+    )
+  ).waitForDeployment();
 
   await Promise.all([
-    (await exchange.setCustodian(custodian.address, [])).wait(),
+    (await exchange.setCustodian(await custodian.getAddress(), [])).wait(),
     (await exchange.setDepositIndex()).wait(),
     (await exchange.setDepositEnabled(true)).wait(),
     (await exchange.setDispatcher(dispatcher.address)).wait(),
-    (await governance.setCustodian(custodian.address)).wait(),
+    (await governance.setCustodian(await custodian.getAddress())).wait(),
   ]);
 
   if (addDefaultMarket) {
@@ -428,45 +439,49 @@ export async function deployLibraryContracts() {
     walletInMaintenanceLiquidation,
     withdrawing,
   ] = await Promise.all([
-    (await ClosureDeleveraging.deploy()).deployed(),
-    (await Depositing.deploy()).deployed(),
-    (await Funding.deploy()).deployed(),
-    (await IndexPriceMargin.deploy()).deployed(),
-    (await MarketAdmin.deploy()).deployed(),
-    (await NonceInvalidations.deploy()).deployed(),
-    (await OraclePriceMargin.deploy()).deployed(),
-    (await PositionBelowMinimumLiquidation.deploy()).deployed(),
-    (await PositionInDeactivatedMarketLiquidation.deploy()).deployed(),
-    (await Trading.deploy()).deployed(),
-    (await Transferring.deploy()).deployed(),
-    (await WalletExitAcquisitionDeleveraging.deploy()).deployed(),
-    (await WalletExitLiquidation.deploy()).deployed(),
-    (await WalletInMaintenanceAcquisitionDeleveraging.deploy()).deployed(),
-    (await WalletInMaintenanceLiquidation.deploy()).deployed(),
-    (await Withdrawing.deploy()).deployed(),
+    (await ClosureDeleveraging.deploy()).waitForDeployment(),
+    (await Depositing.deploy()).waitForDeployment(),
+    (await Funding.deploy()).waitForDeployment(),
+    (await IndexPriceMargin.deploy()).waitForDeployment(),
+    (await MarketAdmin.deploy()).waitForDeployment(),
+    (await NonceInvalidations.deploy()).waitForDeployment(),
+    (await OraclePriceMargin.deploy()).waitForDeployment(),
+    (await PositionBelowMinimumLiquidation.deploy()).waitForDeployment(),
+    (await PositionInDeactivatedMarketLiquidation.deploy()).waitForDeployment(),
+    (await Trading.deploy()).waitForDeployment(),
+    (await Transferring.deploy()).waitForDeployment(),
+    (await WalletExitAcquisitionDeleveraging.deploy()).waitForDeployment(),
+    (await WalletExitLiquidation.deploy()).waitForDeployment(),
+    (
+      await WalletInMaintenanceAcquisitionDeleveraging.deploy()
+    ).waitForDeployment(),
+    (await WalletInMaintenanceLiquidation.deploy()).waitForDeployment(),
+    (await Withdrawing.deploy()).waitForDeployment(),
   ]);
 
   return ethers.getContractFactory('Exchange_v4', {
     libraries: {
-      ClosureDeleveraging: closureDeleveraging.address,
-      Depositing: depositing.address,
-      Funding: funding.address,
-      IndexPriceMargin: indexPriceMargin.address,
-      MarketAdmin: marketAdmin.address,
-      NonceInvalidations: nonceInvalidations.address,
-      OraclePriceMargin: onChainPriceFeedMargin.address,
-      PositionBelowMinimumLiquidation: positionBelowMinimumLiquidation.address,
+      ClosureDeleveraging: await closureDeleveraging.getAddress(),
+      Depositing: await depositing.getAddress(),
+      Funding: await funding.getAddress(),
+      IndexPriceMargin: await indexPriceMargin.getAddress(),
+      MarketAdmin: await marketAdmin.getAddress(),
+      NonceInvalidations: await nonceInvalidations.getAddress(),
+      OraclePriceMargin: await onChainPriceFeedMargin.getAddress(),
+      PositionBelowMinimumLiquidation:
+        await positionBelowMinimumLiquidation.getAddress(),
       PositionInDeactivatedMarketLiquidation:
-        positionInDeactivatedMarketLiquidation.address,
-      Trading: trading.address,
-      Transferring: transferring.address,
+        await positionInDeactivatedMarketLiquidation.getAddress(),
+      Trading: await trading.getAddress(),
+      Transferring: await transferring.getAddress(),
       WalletExitAcquisitionDeleveraging:
-        walletExitAcquisitionDeleveraging.address,
-      WalletExitLiquidation: walletExitLiquidation.address,
+        await walletExitAcquisitionDeleveraging.getAddress(),
+      WalletExitLiquidation: await walletExitLiquidation.getAddress(),
       WalletInMaintenanceAcquisitionDeleveraging:
-        walletInMaintenanceAcquisitionDeleveraging.address,
-      WalletInMaintenanceLiquidation: walletInMaintenanceLiquidation.address,
-      Withdrawing: withdrawing.address,
+        await walletInMaintenanceAcquisitionDeleveraging.getAddress(),
+      WalletInMaintenanceLiquidation:
+        await walletInMaintenanceLiquidation.getAddress(),
+      Withdrawing: await withdrawing.getAddress(),
     },
   });
 }
@@ -481,6 +496,8 @@ export async function executeTrade(
   baseAssetSymbol_ = baseAssetSymbol,
   price = '2000.00000000',
   quantity = '10.00000000',
+  makerFeeQuantity = '20.00000000',
+  takerFeeQuantity = '40.00000000',
 ): Promise<Trade> {
   if (indexPrice) {
     await exchange
@@ -499,8 +516,8 @@ export async function executeTrade(
     quantity,
     price,
   };
-  const sellOrderSignature = await trader1._signTypedData(
-    ...getOrderSignatureTypedData(sellOrder, exchange.address),
+  const sellOrderSignature = await trader1.signTypedData(
+    ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
   );
 
   const buyOrder: Order = {
@@ -512,8 +529,8 @@ export async function executeTrade(
     quantity,
     price,
   };
-  const buyOrderSignature = await trader2._signTypedData(
-    ...getOrderSignatureTypedData(buyOrder, exchange.address),
+  const buyOrderSignature = await trader2.signTypedData(
+    ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
   );
 
   const trade: Trade = {
@@ -522,8 +539,8 @@ export async function executeTrade(
     quoteQuantity: new BigNumber(quantity)
       .times(new BigNumber(price))
       .toFixed(8, BigNumber.ROUND_DOWN),
-    makerFeeQuantity: '20.00000000',
-    takerFeeQuantity: '40.00000000',
+    makerFeeQuantity,
+    takerFeeQuantity,
     price,
     makerSide: OrderSide.Sell,
   };
@@ -547,6 +564,7 @@ export async function executeTrade(
 
 export async function fundWallets(
   wallets: SignerWithAddress[],
+  dispatcherWallet: SignerWithAddress,
   exchange: Exchange_v4,
   usdc: USDC,
   quantity = '2000.00000000',
@@ -568,7 +586,7 @@ export async function fundWallets(
         await usdc
           .connect(wallet)
           .approve(
-            exchange.address,
+            await exchange.getAddress(),
             decimalToAssetUnits(quantity, quoteAssetDecimals),
           )
       ).wait(),
@@ -582,7 +600,20 @@ export async function fundWallets(
           .connect(wallet)
           .deposit(
             decimalToAssetUnits(quantity, quoteAssetDecimals),
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
+          )
+      ).wait(),
+    ),
+  );
+
+  await Promise.all(
+    wallets.map(async (wallet) =>
+      (
+        await exchange
+          .connect(dispatcherWallet)
+          .applyPendingDepositsForWallet(
+            decimalToPips(quantity),
+            wallet.address,
           )
       ).wait(),
     ),
@@ -590,7 +621,7 @@ export async function fundWallets(
 }
 
 export async function getLatestBlockTimestampInSeconds(): Promise<number> {
-  return (await ethers.provider.getBlock('latest')).timestamp;
+  return (await ethers.provider.getBlock('latest'))?.timestamp || 0;
 }
 
 export async function loadFundingMultipliers(
@@ -623,7 +654,7 @@ export async function loadFundingMultipliers(
 
 export async function logWalletBalances(
   wallet: string,
-  exchange: Contract,
+  exchange: Exchange_v4,
   baseAssetSymbols: string[],
 ) {
   console.log(
@@ -679,9 +710,151 @@ export async function logWalletBalances(
  * BigInt(120000000) => '1.20000000'
  * BigInt(1) => '0.00000001'
  */
-export const pipToDecimal = function pipToDecimal(
-  pips: EthersBigNumber,
-): string {
+export const pipToDecimal = function pipToDecimal(pips: BigInt): string {
   const bn = new BigNumber(pips.toString());
   return bn.shiftedBy(pipsDecimals * -1).toFixed(pipsDecimals);
 };
+
+export async function setupSingleShortPositionRequiringPositiveQuoteToClose(
+  exchange: Exchange_v4,
+  governance: Governance,
+  indexPriceAdapterAddress: string,
+  usdc: USDC,
+  dispatcherWallet: SignerWithAddress,
+  indexPriceServiceWallet: SignerWithAddress,
+  ownerWallet: SignerWithAddress,
+  trader1Wallet: SignerWithAddress,
+  trader2Wallet: SignerWithAddress,
+) {
+  const overrides = {
+    initialMarginFraction: '10000000',
+    maintenanceMarginFraction: '1000000',
+    incrementalInitialMarginFraction: '1000000',
+    baselinePositionSize: '14000000000',
+    incrementalPositionSize: '2800000000',
+    maximumPositionSize: '282000000000',
+    minimumPositionSize: '10000000000',
+  };
+  await governance
+    .connect(ownerWallet)
+    .initiateMarketOverridesUpgrade(
+      baseAssetSymbol,
+      overrides,
+      ethers.ZeroAddress,
+    );
+  await time.increase(fieldUpgradeDelayInS);
+  await governance
+    .connect(dispatcherWallet)
+    .finalizeMarketOverridesUpgrade(
+      baseAssetSymbol,
+      overrides,
+      ethers.ZeroAddress,
+    );
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+          '0.01000000',
+          baseAssetSymbol,
+        ),
+      ),
+    ]);
+
+  await exchange.addMarket({
+    exists: true,
+    isActive: false,
+    baseAssetSymbol: 'BTC',
+    indexPriceAtDeactivation: 0,
+    lastIndexPrice: 0,
+    lastIndexPriceTimestampInMs: 0,
+    overridableFields: {
+      initialMarginFraction: '2000000',
+      maintenanceMarginFraction: '500000',
+      incrementalInitialMarginFraction: '1000000',
+      baselinePositionSize: '14000000000',
+      incrementalPositionSize: '2800000000',
+      maximumPositionSize: '282000000000',
+      minimumPositionSize: '10000000',
+    },
+  });
+  await exchange.connect(dispatcherWallet).activateMarket('BTC');
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+          '0.01000000',
+          'BTC',
+        ),
+      ),
+    ]);
+
+  await fundWallets(
+    [trader1Wallet, trader2Wallet],
+    dispatcherWallet,
+    exchange,
+    usdc,
+    '8.00000000',
+  );
+
+  await executeTrade(
+    exchange,
+    dispatcherWallet,
+    null,
+    indexPriceAdapterAddress,
+    trader2Wallet,
+    trader1Wallet,
+    baseAssetSymbol,
+    '0.01000000',
+    '100.00000000',
+    '0.00000000',
+    '0.00000000',
+  );
+  await executeTrade(
+    exchange,
+    dispatcherWallet,
+    null,
+    indexPriceAdapterAddress,
+    trader2Wallet,
+    trader1Wallet,
+    'BTC',
+    '0.01000000',
+    '100.00000000',
+    '0.00000000',
+    '0.00000000',
+  );
+
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+          '1.00000000',
+          baseAssetSymbol,
+        ),
+      ),
+    ]);
+  await exchange
+    .connect(dispatcherWallet)
+    .publishIndexPrices([
+      indexPriceToArgumentStruct(
+        indexPriceAdapterAddress,
+        await buildIndexPriceWithValue(
+          await exchange.getAddress(),
+          indexPriceServiceWallet,
+          '1.00000000',
+          'BTC',
+        ),
+      ),
+    ]);
+}

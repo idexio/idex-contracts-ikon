@@ -1,5 +1,5 @@
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import {
@@ -65,10 +65,15 @@ describe('Exchange', function () {
 
     await results.usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      results.usdc,
+    );
 
     indexPrice = await buildIndexPrice(
-      exchange.address,
+      await exchange.getAddress(),
       indexPriceServiceWallet,
     );
 
@@ -76,7 +81,7 @@ describe('Exchange', function () {
       exchange,
       dispatcherWallet,
       indexPrice,
-      indexPriceAdapter.address,
+      await indexPriceAdapter.getAddress(),
       trader1Wallet,
       trader2Wallet,
     );
@@ -151,7 +156,7 @@ describe('Exchange', function () {
     describe('ChainlinkAggregatorMock', () => {
       it('should implement AggregatorV3Interface', async () => {
         await expect(chainlinkAggregator.decimals()).to.eventually.be.a(
-          'number',
+          'BigInt',
         );
         await expect(chainlinkAggregator.description()).to.eventually.be.a(
           'string',
@@ -159,8 +164,8 @@ describe('Exchange', function () {
         await expect(chainlinkAggregator.getRoundData(0)).to.eventually.be.an(
           'array',
         );
-        await expect(chainlinkAggregator.version()).to.eventually.be.an(
-          'Object',
+        await expect(chainlinkAggregator.version()).to.eventually.be.a(
+          'BigInt',
         );
       });
     });
