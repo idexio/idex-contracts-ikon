@@ -24,6 +24,7 @@ import {
   deployAndAssociateContracts,
   expect,
   quoteAssetDecimals,
+  quoteAssetSymbol,
 } from './helpers';
 
 describe('ExchangeStargateAdapter', function () {
@@ -255,11 +256,15 @@ describe('ExchangeStargateAdapter', function () {
       await usdc
         .connect(traderWallet)
         .approve(exchange.address, depositQuantity);
-      await (
-        await exchange
-          .connect(traderWallet)
-          .deposit(depositQuantity, ethers.constants.AddressZero)
-      ).wait();
+      await exchange
+        .connect(traderWallet)
+        .deposit(depositQuantity, ethers.constants.AddressZero);
+      await exchange
+        .connect(dispatcherWallet)
+        .applyPendingDepositsForWallet(
+          decimalToPips('5.00000000'),
+          traderWallet.address,
+        );
 
       withdrawal = {
         nonce: uuidv1(),

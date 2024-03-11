@@ -65,7 +65,12 @@ describe('Exchange', function () {
 
     await results.usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      results.usdc,
+    );
 
     indexPrice = await buildIndexPrice(
       exchange.address,

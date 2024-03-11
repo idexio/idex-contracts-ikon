@@ -67,7 +67,12 @@ describe('Exchange', function () {
 
     await usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      results.usdc,
+    );
 
     indexPrice = await buildIndexPrice(
       exchange.address,
@@ -191,7 +196,13 @@ describe('Exchange', function () {
       await time.increase(exitFundWithdrawDelayInS);
 
       // Deposit additional quote to allow for EF exit withdrawal
-      await fundWallets([ownerWallet], exchange, usdc, '100000.0');
+      await fundWallets(
+        [ownerWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '100000.0',
+      );
 
       expect(
         (

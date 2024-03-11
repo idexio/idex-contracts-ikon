@@ -82,7 +82,12 @@ describe('Exchange', function () {
 
     await results.usdc.faucet(dispatcherWallet.address);
 
-    await fundWallets([trader1Wallet, trader2Wallet], exchange, results.usdc);
+    await fundWallets(
+      [trader1Wallet, trader2Wallet],
+      dispatcherWallet,
+      exchange,
+      results.usdc,
+    );
 
     indexPrice = await buildIndexPrice(
       exchange.address,
@@ -145,7 +150,12 @@ describe('Exchange', function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
       const trader4Wallet = wallets[11];
-      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await executeTrade(
         exchange,
         dispatcherWallet,
@@ -166,7 +176,13 @@ describe('Exchange', function () {
             ),
           ),
         ]);
-      await fundWallets([insuranceFundWallet], exchange, usdc, '902.00000000');
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '902.00000000',
+      );
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader4Wallet.address,
@@ -201,6 +217,7 @@ describe('Exchange', function () {
       await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '51000.00000000',
@@ -267,6 +284,7 @@ describe('Exchange', function () {
 
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '22000.00000000',
@@ -319,6 +337,7 @@ describe('Exchange', function () {
         ]);
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -332,11 +351,17 @@ describe('Exchange', function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
       const trader4Wallet = wallets[11];
-      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '51000.00000000',
@@ -400,6 +425,7 @@ describe('Exchange', function () {
         ]);
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -413,11 +439,17 @@ describe('Exchange', function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
       const trader4Wallet = wallets[11];
-      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '51000.00000000',
@@ -472,7 +504,12 @@ describe('Exchange', function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
       const trader4Wallet = wallets[11];
-      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await executeTrade(
         exchange,
         dispatcherWallet,
@@ -491,7 +528,13 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
         ]);
-      await fundWallets([insuranceFundWallet], exchange, usdc, '902.00000000');
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '902.00000000',
+      );
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader4Wallet.address,
@@ -526,6 +569,7 @@ describe('Exchange', function () {
       await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '51000.00000000',
@@ -561,7 +605,13 @@ describe('Exchange', function () {
           ),
         ]);
 
-      await fundWallets([insuranceFundWallet], exchange, usdc, '9000.00000000');
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '9000.00000000',
+      );
 
       await exchange
         .connect(dispatcherWallet)
@@ -641,6 +691,7 @@ describe('Exchange', function () {
 
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '22000.00000000',
@@ -964,6 +1015,7 @@ describe('Exchange', function () {
         ]);
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -977,11 +1029,17 @@ describe('Exchange', function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
       const trader4Wallet = wallets[11];
-      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '51000.00000000',
@@ -1021,6 +1079,7 @@ describe('Exchange', function () {
     it('should maintain pricing strategy when account value stays positive', async function () {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '1000.00000000',
@@ -1140,6 +1199,7 @@ describe('Exchange', function () {
     it('should maintain pricing strategy when account value goes negative to positive', async function () {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '1000.00000000',
@@ -1232,6 +1292,7 @@ describe('Exchange', function () {
     it('should change pricing strategy when account value goes positive to negative', async function () {
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '1000.00000000',
@@ -1368,6 +1429,7 @@ describe('Exchange', function () {
         ]);
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '10000.00000000',
@@ -1381,11 +1443,17 @@ describe('Exchange', function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
       const trader4Wallet = wallets[11];
-      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
 
       await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '51000.00000000',
@@ -1428,7 +1496,12 @@ describe('Exchange', function () {
       const wallets = await ethers.getSigners();
       const trader3Wallet = wallets[10];
       const trader4Wallet = wallets[11];
-      await fundWallets([trader3Wallet, trader4Wallet], exchange, usdc);
+      await fundWallets(
+        [trader3Wallet, trader4Wallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+      );
       await executeTrade(
         exchange,
         dispatcherWallet,
@@ -1447,7 +1520,13 @@ describe('Exchange', function () {
         .publishIndexPrices([
           indexPriceToArgumentStruct(indexPriceAdapter.address, indexPrice),
         ]);
-      await fundWallets([insuranceFundWallet], exchange, usdc, '902.00000000');
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '902.00000000',
+      );
       await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
         counterpartyWallet: insuranceFundWallet.address,
         liquidatingWallet: trader4Wallet.address,
@@ -1482,6 +1561,7 @@ describe('Exchange', function () {
       await addAndActivateMarket(dispatcherWallet, exchange, 'BTC');
       await fundWallets(
         [trader1Wallet, trader2Wallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '51000.00000000',
@@ -1519,6 +1599,7 @@ describe('Exchange', function () {
 
       await fundWallets(
         [insuranceFundWallet],
+        dispatcherWallet,
         exchange,
         usdc,
         '11600.00000000',

@@ -15,6 +15,7 @@ import { Funding } from "./libraries/Funding.sol";
 import { Hashing } from "./libraries/Hashing.sol";
 import { IndexPriceMargin } from "./libraries/IndexPriceMargin.sol";
 import { MarketAdmin } from "./libraries/MarketAdmin.sol";
+import { Math } from "./libraries/Math.sol";
 import { NonceInvalidations } from "./libraries/NonceInvalidations.sol";
 import { OraclePriceMargin } from "./libraries/OraclePriceMargin.sol";
 import { Owned } from "./Owned.sol";
@@ -79,6 +80,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   IOraclePriceAdapter public oraclePriceAdapter;
   // Mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) private _partiallyFilledOrderQuantities;
+  // Mapping of wallet address to total pending deposit quantity
+  mapping(address => uint64) public pendingDepositQuantityByWallet;
   // Address of ERC20 contract used as collateral and quote for all markets
   address public immutable quoteTokenAddress;
   // Exits
@@ -156,13 +159,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   /**
    * @notice Emitted when a user deposits quote tokens with `deposit`
    */
-  event Deposited(
-    uint64 index,
-    address sourceWallet,
-    address destinationWallet,
-    uint64 quantity,
-    int64 newExchangeBalance
-  );
+  event Deposited(uint64 index, address sourceWallet, address destinationWallet, uint64 quantity);
   /**
    * @notice Emitted when an admin disables deposits with `setDepositEnabled`
    */
@@ -261,6 +258,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * @notice Emitted when a user invalidates an order nonce with `invalidateNonce`
    */
   event OrderNonceInvalidated(address wallet, uint128 nonce, uint128 timestampInMs, uint256 effectiveBlockTimestamp);
+  /**
+   * @notice Emitted when pending deposit quantity is applied via `applyPendingDepositsForWallet`
+   */
+  event PendingDepositApplied(address wallet, uint64 quantity, int64 newExchangeBalance);
   /**
    * @notice Emitted when an admin changes the position below minimum liquidation price tolerance tunable parameter
    * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
@@ -610,14 +611,16 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
     balance = _balanceTracking.loadBalanceFromMigrationSourceIfNeeded(wallet, assetSymbol);
 
     if (String.isEqual(assetSymbol, Constants.QUOTE_ASSET_SYMBOL)) {
-      balance += Funding.loadOutstandingWalletFunding_delegatecall(
-        wallet,
-        _balanceTracking,
-        baseAssetSymbolsWithOpenPositionsByWallet,
-        fundingMultipliersByBaseAssetSymbol,
-        lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol
-      );
+      balance +=
+        Funding.loadOutstandingWalletFunding_delegatecall(
+          wallet,
+          _balanceTracking,
+          baseAssetSymbolsWithOpenPositionsByWallet,
+          fundingMultipliersByBaseAssetSymbol,
+          lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
+          _marketsByBaseAssetSymbol
+        ) +
+        Math.toInt64(pendingDepositQuantityByWallet[wallet]);
     }
   }
 
@@ -711,7 +714,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
         marketOverridesByBaseAssetSymbolAndWallet,
-        _marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol,
+        pendingDepositQuantityByWallet
       );
   }
 
@@ -765,11 +769,26 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         isDepositEnabled,
         quoteTokenAddress
       ),
-      _balanceTracking,
+      pendingDepositQuantityByWallet,
       walletExits
     );
 
     depositIndex++;
+  }
+
+  /**
+   * @notice Apply pending deposits
+   *
+   * @param quantity The quantity to apply. Must be less than or equal to the total amount pending for the wallet
+   * @param wallet The wallet for which to apply pending deposits
+   */
+  function applyPendingDepositsForWallet(uint64 quantity, address wallet) public onlyAdminOrDispatcher {
+    Depositing.applyPendingDepositsForWallet_delegatecall(
+      quantity,
+      wallet,
+      _balanceTracking,
+      pendingDepositQuantityByWallet
+    );
   }
 
   // Trades //
@@ -1206,7 +1225,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol,
+        pendingDepositQuantityByWallet
       );
   }
 
@@ -1225,7 +1245,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
         baseAssetSymbolsWithOpenPositionsByWallet,
         fundingMultipliersByBaseAssetSymbol,
         lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
-        _marketsByBaseAssetSymbol
+        _marketsByBaseAssetSymbol,
+        pendingDepositQuantityByWallet
       );
   }
 
@@ -1334,6 +1355,7 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
       lastFundingRatePublishTimestampInMsByBaseAssetSymbol,
       marketOverridesByBaseAssetSymbolAndWallet,
       _marketsByBaseAssetSymbol,
+      pendingDepositQuantityByWallet,
       walletExits
     );
 
