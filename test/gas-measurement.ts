@@ -292,9 +292,6 @@ describe.skip('Gas measurement', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '22980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('22980.00000000'),
         });
@@ -310,9 +307,6 @@ describe.skip('Gas measurement', function () {
                 baseAssetSymbol,
                 counterpartyWallet: trader2Wallet.address,
                 liquidatingWallet: trader1Wallet.address,
-                validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-                  '22980.00000000',
-                ].map(decimalToPips),
                 liquidationBaseQuantity: decimalToPips('10.00000000'),
                 liquidationQuoteQuantity: decimalToPips('22980.00000000'),
               },
@@ -390,13 +384,6 @@ describe.skip('Gas measurement', function () {
           baseAssetSymbol,
           counterpartyWallet: trader2Wallet.address,
           liquidatingWallet: trader1Wallet.address,
-          validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-            '21980.00000000',
-            '21980.00000000',
-            '21980.00000000',
-            '21980.00000000',
-            '21980.00000000',
-          ].map(decimalToPips),
           liquidationBaseQuantity: decimalToPips('10.00000000'),
           liquidationQuoteQuantity: decimalToPips('21980.00000000'),
         });
@@ -412,13 +399,6 @@ describe.skip('Gas measurement', function () {
                 baseAssetSymbol,
                 counterpartyWallet: trader2Wallet.address,
                 liquidatingWallet: trader1Wallet.address,
-                validateInsuranceFundCannotLiquidateWalletQuoteQuantities: [
-                  '21980.00000000',
-                  '21980.00000000',
-                  '21980.00000000',
-                  '21980.00000000',
-                  '21980.00000000',
-                ].map(decimalToPips),
                 liquidationBaseQuantity: decimalToPips('10.00000000'),
                 liquidationQuoteQuantity: decimalToPips('21980.00000000'),
               },

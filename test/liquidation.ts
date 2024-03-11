@@ -24,6 +24,9 @@ import {
   executeTrade,
   expect,
   fundWallets,
+  logWalletBalances,
+  quoteAssetSymbol,
+  setupSingleShortPositionRequiringPositiveQuoteToClose,
 } from './helpers';
 
 describe('Exchange', function () {
@@ -70,6 +73,10 @@ describe('Exchange', function () {
       feeWallet,
       indexPriceServiceWallet,
       insuranceFundWallet,
+      0,
+      true,
+      ethers.constants.AddressZero,
+      ['ETH', 'BTC'],
     );
     exchange = results.exchange;
     governance = results.governance;
@@ -109,6 +116,28 @@ describe('Exchange', function () {
           '10000000000',
           '300000000000000',
           '0',
+        ),
+      ).to.eventually.equal('0');
+    });
+
+    it('should return 0 when quote quantity sign is same as position sign', async function () {
+      await expect(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
+          '10000000000',
+          '5000000',
+          '-1000000000',
+          '-98900000000',
+          '5000000000',
+        ),
+      ).to.eventually.equal('0');
+
+      await expect(
+        liquidationValidationsMock.calculateQuoteQuantityAtBankruptcyPrice(
+          '10000000000',
+          '5000000',
+          '1000000000',
+          '101100000000',
+          '5000000000',
         ),
       ).to.eventually.equal('0');
     });
@@ -578,6 +607,62 @@ describe('Exchange', function () {
       });
     });
 
+    it('should work for valid wallet with a short position requiring positive quote to close', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+
+      await setupSingleShortPositionRequiringPositiveQuoteToClose(
+        exchange,
+        governance,
+        indexPriceAdapter.address,
+        usdc,
+        dispatcherWallet,
+        indexPriceServiceWallet,
+        ownerWallet,
+        trader3Wallet,
+        trader4Wallet,
+      );
+
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '10000.00000000',
+      );
+
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader4Wallet.address,
+        liquidationQuoteQuantities: ['0.00000000', '36.66666667'].map(
+          decimalToPips,
+        ),
+      });
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(trader4Wallet.address, 'BTC')
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+    });
+
     it('should revert when wallet is not in maintenance', async function () {
       await expect(
         exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
@@ -586,6 +671,62 @@ describe('Exchange', function () {
           liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
         }),
       ).to.eventually.be.rejectedWith(/maintenance margin requirement met/i);
+    });
+
+    it('should work for valid wallet with multiple short positions one of which requires positive quote to close', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+
+      await setupSingleShortPositionRequiringPositiveQuoteToClose(
+        exchange,
+        governance,
+        indexPriceAdapter.address,
+        usdc,
+        dispatcherWallet,
+        indexPriceServiceWallet,
+        ownerWallet,
+        trader3Wallet,
+        trader4Wallet,
+      );
+
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '250.00000000',
+      );
+
+      await exchange.connect(dispatcherWallet).liquidateWalletInMaintenance({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader4Wallet.address,
+        liquidationQuoteQuantities: ['0.00000000', '36.66666667'].map(
+          decimalToPips,
+        ),
+      });
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(trader4Wallet.address, 'BTC')
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
     });
 
     it('should revert when counterparty is not IF', async function () {
@@ -699,6 +840,66 @@ describe('Exchange', function () {
       expect(events[0].args?.liquidatingWallet).to.equal(trader1Wallet.address);
     });
 
+    it('should work for valid wallet with multiple short positions one of which requires positive quote to close', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+
+      await setupSingleShortPositionRequiringPositiveQuoteToClose(
+        exchange,
+        governance,
+        indexPriceAdapter.address,
+        usdc,
+        dispatcherWallet,
+        indexPriceServiceWallet,
+        ownerWallet,
+        trader3Wallet,
+        trader4Wallet,
+      );
+
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '250.00000000',
+      );
+
+      await exchange.withdrawExit(trader2Wallet.address);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .liquidateWalletInMaintenanceDuringSystemRecovery({
+          counterpartyWallet: exitFundWallet.address,
+          liquidatingWallet: trader4Wallet.address,
+          liquidationQuoteQuantities: ['0.00000000', '36.66666667'].map(
+            decimalToPips,
+          ),
+        });
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(trader4Wallet.address, 'BTC')
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+    });
+
     it('should revert when EF has no open balances', async function () {
       await expect(
         exchange
@@ -808,6 +1009,64 @@ describe('Exchange', function () {
         liquidatingWallet: trader1Wallet.address,
         liquidationQuoteQuantities: ['21980.00000000'].map(decimalToPips),
       });
+    });
+
+    it('should work for valid wallet with multiple short positions one of which requires positive quote to close', async function () {
+      const wallets = await ethers.getSigners();
+      const trader3Wallet = wallets[10];
+      const trader4Wallet = wallets[11];
+
+      await setupSingleShortPositionRequiringPositiveQuoteToClose(
+        exchange,
+        governance,
+        indexPriceAdapter.address,
+        usdc,
+        dispatcherWallet,
+        indexPriceServiceWallet,
+        ownerWallet,
+        trader3Wallet,
+        trader4Wallet,
+      );
+
+      await fundWallets(
+        [insuranceFundWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '250.00000000',
+      );
+
+      await exchange.connect(trader4Wallet).exitWallet();
+
+      await exchange.connect(dispatcherWallet).liquidateWalletExit({
+        counterpartyWallet: insuranceFundWallet.address,
+        liquidatingWallet: trader4Wallet.address,
+        liquidationQuoteQuantities: ['0.00000000', '36.66666667'].map(
+          decimalToPips,
+        ),
+      });
+
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            trader4Wallet.address,
+            baseAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(trader4Wallet.address, 'BTC')
+        ).toString(),
+      ).to.equal(decimalToPips('0.00000000'));
     });
 
     it('should revert when not sent by dispatcher', async function () {

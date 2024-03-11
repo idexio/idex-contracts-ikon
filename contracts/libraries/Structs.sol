@@ -13,8 +13,6 @@ struct AcquisitionDeleverageArguments {
   string baseAssetSymbol;
   address counterpartyWallet;
   address liquidatingWallet;
-  // Liquidation quote quantities for union of liquidating and IF wallet positions
-  uint64[] validateInsuranceFundCannotLiquidateWalletQuoteQuantities;
   // Base quantity to decrease position being liquidated
   uint64 liquidationBaseQuantity;
   // Quote quantity for the position being liquidated
