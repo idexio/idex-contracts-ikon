@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { ethers, network } from 'hardhat';
 
 import { decimalToAssetUnits } from '../lib';
@@ -39,7 +39,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid wallet', async () => {
       await expect(
-        exchange.setExitFundWallet(ethers.constants.AddressZero),
+        exchange.setExitFundWallet(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid EF wallet/i);
     });
 
@@ -104,7 +104,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid wallet', async () => {
       await expect(
-        exchange.setFeeWallet(ethers.constants.AddressZero),
+        exchange.setFeeWallet(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid fee wallet/i);
     });
 
@@ -145,7 +145,7 @@ describe('Exchange', function () {
 
     it('should revert for invalid wallet', async () => {
       await expect(
-        exchange.setDispatcher(ethers.constants.AddressZero),
+        exchange.setDispatcher(ethers.ZeroAddress),
       ).to.eventually.be.rejectedWith(/invalid wallet/i);
     });
 
@@ -196,7 +196,7 @@ async function bootstrapExitedWallet() {
   );
 
   const indexPrice = await buildIndexPrice(
-    exchange.address,
+    await exchange.getAddress(),
     indexPriceServiceWallet,
   );
 
@@ -204,21 +204,20 @@ async function bootstrapExitedWallet() {
     exchange,
     dispatcherWallet,
     indexPrice,
-    indexPriceAdapter.address,
+    await indexPriceAdapter.getAddress(),
     trader1Wallet,
     trader2Wallet,
   );
 
   // Deposit additional quote to allow for EF exit withdrawal
-  const depositQuantity = ethers.utils.parseUnits(
-    '100000.0',
-    quoteAssetDecimals,
-  );
-  await usdc.connect(ownerWallet).approve(exchange.address, depositQuantity);
+  const depositQuantity = ethers.parseUnits('100000.0', quoteAssetDecimals);
+  await usdc
+    .connect(ownerWallet)
+    .approve(await exchange.getAddress(), depositQuantity);
   await (
     await exchange
       .connect(ownerWallet)
-      .deposit(depositQuantity, ethers.constants.AddressZero)
+      .deposit(depositQuantity, ethers.ZeroAddress)
   ).wait();
 
   await exchange.connect(trader1Wallet).exitWallet();

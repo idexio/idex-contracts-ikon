@@ -33,7 +33,7 @@ describe('oracle price adapters', function () {
       it('should work for valid arguments', async () => {
         await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [(await ChainlinkAggregatorFactory.deploy()).address],
+          [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
         );
       });
 
@@ -41,7 +41,7 @@ describe('oracle price adapters', function () {
         await expect(
           ChainlinkOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol, baseAssetSymbol],
-            [(await ChainlinkAggregatorFactory.deploy()).address],
+            [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
       });
@@ -50,7 +50,7 @@ describe('oracle price adapters', function () {
         await expect(
           ChainlinkOraclePriceAdapterFactory.deploy(
             [''],
-            [(await ChainlinkAggregatorFactory.deploy()).address],
+            [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
           ),
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
       });
@@ -60,8 +60,8 @@ describe('oracle price adapters', function () {
           ChainlinkOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol, baseAssetSymbol],
             [
-              (await ChainlinkAggregatorFactory.deploy()).address,
-              ethers.constants.AddressZero,
+              await (await ChainlinkAggregatorFactory.deploy()).getAddress(),
+              ethers.ZeroAddress,
             ],
           ),
         ).to.eventually.be.rejectedWith(
@@ -74,21 +74,19 @@ describe('oracle price adapters', function () {
       it('should work for valid base asset symbol and aggregator', async () => {
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [(await ChainlinkAggregatorFactory.deploy()).address],
+          [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
         );
 
         await adapter.addBaseAssetSymbolAndAggregator(
           'XYZ',
-          (
-            await ChainlinkAggregatorFactory.deploy()
-          ).address,
+          await (await ChainlinkAggregatorFactory.deploy()).getAddress(),
         );
       });
 
       it('should revert when not sent by admin', async () => {
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [(await ChainlinkAggregatorFactory.deploy()).address],
+          [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
         );
 
         await expect(
@@ -96,9 +94,7 @@ describe('oracle price adapters', function () {
             .connect((await ethers.getSigners())[5])
             .addBaseAssetSymbolAndAggregator(
               'XYZ',
-              (
-                await ChainlinkAggregatorFactory.deploy()
-              ).address,
+              await (await ChainlinkAggregatorFactory.deploy()).getAddress(),
             ),
         ).to.eventually.be.rejectedWith(/caller must be admin/i);
       });
@@ -106,45 +102,38 @@ describe('oracle price adapters', function () {
       it('should revert for invalid base asset symbol', async () => {
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [(await ChainlinkAggregatorFactory.deploy()).address],
+          [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
         );
 
         await expect(
           adapter.addBaseAssetSymbolAndAggregator(
             '',
-            (
-              await ChainlinkAggregatorFactory.deploy()
-            ).address,
+            await (await ChainlinkAggregatorFactory.deploy()).getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
       });
 
-      it('should revert for invalid aggregator address', async () => {
+      it('should revert for invalid await aggregator.getAddress()', async () => {
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [(await ChainlinkAggregatorFactory.deploy()).address],
+          [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
         );
 
         await expect(
-          adapter.addBaseAssetSymbolAndAggregator(
-            'XYZ',
-            ethers.constants.AddressZero,
-          ),
+          adapter.addBaseAssetSymbolAndAggregator('XYZ', ethers.ZeroAddress),
         ).to.eventually.be.rejectedWith(/invalid chainlink aggregator/i);
       });
 
       it('should revert for already added base asset symbol', async () => {
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [(await ChainlinkAggregatorFactory.deploy()).address],
+          [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
         );
 
         await expect(
           adapter.addBaseAssetSymbolAndAggregator(
             baseAssetSymbol,
-            (
-              await ChainlinkAggregatorFactory.deploy()
-            ).address,
+            await (await ChainlinkAggregatorFactory.deploy()).getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
       });
@@ -153,11 +142,14 @@ describe('oracle price adapters', function () {
         const aggregator = await ChainlinkAggregatorFactory.deploy();
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [aggregator.address],
+          [await aggregator.getAddress()],
         );
 
         await expect(
-          adapter.addBaseAssetSymbolAndAggregator('XYZ', aggregator.address),
+          adapter.addBaseAssetSymbolAndAggregator(
+            'XYZ',
+            await aggregator.getAddress(),
+          ),
         ).to.eventually.be.rejectedWith(/already added chainlink aggregator/i);
       });
     });
@@ -166,7 +158,7 @@ describe('oracle price adapters', function () {
       it('should revert for invalid symbol', async () => {
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [(await ChainlinkAggregatorFactory.deploy()).address],
+          [await (await ChainlinkAggregatorFactory.deploy()).getAddress()],
         );
 
         await expect(
@@ -179,7 +171,7 @@ describe('oracle price adapters', function () {
 
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [chainlinkAggregator.address],
+          [await chainlinkAggregator.getAddress()],
         );
 
         await chainlinkAggregator.setPrice(-100);
@@ -193,7 +185,7 @@ describe('oracle price adapters', function () {
 
         const adapter = await ChainlinkOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [chainlinkAggregator.address],
+          [await chainlinkAggregator.getAddress()],
         );
 
         await chainlinkAggregator.setPrice(1000);
@@ -230,8 +222,8 @@ describe('oracle price adapters', function () {
 
         await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [ethers.utils.randomBytes(32)],
-          pyth.address,
+          [ethers.randomBytes(32)],
+          await pyth.getAddress(),
         );
       });
 
@@ -239,8 +231,8 @@ describe('oracle price adapters', function () {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol],
-            [ethers.utils.randomBytes(32)],
-            ethers.constants.AddressZero,
+            [ethers.randomBytes(32)],
+            ethers.ZeroAddress,
           ),
         ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
       });
@@ -249,16 +241,16 @@ describe('oracle price adapters', function () {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol, baseAssetSymbol],
-            [ethers.utils.randomBytes(32)],
-            pyth.address,
+            [ethers.randomBytes(32)],
+            await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
 
         await expect(
           PythOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol],
-            [ethers.utils.randomBytes(32), ethers.utils.randomBytes(32)],
-            pyth.address,
+            [ethers.randomBytes(32), ethers.randomBytes(32)],
+            await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
       });
@@ -267,8 +259,8 @@ describe('oracle price adapters', function () {
         await expect(
           PythOraclePriceAdapterFactory.deploy(
             [''],
-            [ethers.utils.randomBytes(32)],
-            pyth.address,
+            [ethers.randomBytes(32)],
+            await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
       });
@@ -280,7 +272,7 @@ describe('oracle price adapters', function () {
             [
               '0x0000000000000000000000000000000000000000000000000000000000000000',
             ],
-            pyth.address,
+            await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/invalid price id/i);
       });
@@ -288,20 +280,20 @@ describe('oracle price adapters', function () {
 
     describe('addBaseAssetSymbolAndPriceId', async function () {
       let adapter: PythOraclePriceAdapter;
-      const priceId = ethers.utils.randomBytes(32);
+      const priceId = ethers.randomBytes(32);
 
       beforeEach(async () => {
         adapter = await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
           [priceId],
-          pyth.address,
+          await pyth.getAddress(),
         );
       });
 
       it('should work for valid base asset symbol and price ID', async () => {
         await adapter.addBaseAssetSymbolAndPriceId(
           'XYZ',
-          ethers.utils.randomBytes(32),
+          ethers.randomBytes(32),
         );
       });
 
@@ -309,16 +301,13 @@ describe('oracle price adapters', function () {
         await expect(
           adapter
             .connect((await ethers.getSigners())[5])
-            .addBaseAssetSymbolAndPriceId('XYZ', ethers.utils.randomBytes(32)),
+            .addBaseAssetSymbolAndPriceId('XYZ', ethers.randomBytes(32)),
         ).to.eventually.be.rejectedWith(/caller must be admin/i);
       });
 
       it('should revert for invalid base asset symbol', async () => {
         await expect(
-          adapter.addBaseAssetSymbolAndPriceId(
-            '',
-            ethers.utils.randomBytes(32),
-          ),
+          adapter.addBaseAssetSymbolAndPriceId('', ethers.randomBytes(32)),
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
       });
 
@@ -335,7 +324,7 @@ describe('oracle price adapters', function () {
         await expect(
           adapter.addBaseAssetSymbolAndPriceId(
             baseAssetSymbol,
-            ethers.utils.randomBytes(32),
+            ethers.randomBytes(32),
           ),
         ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
       });
@@ -350,13 +339,13 @@ describe('oracle price adapters', function () {
     describe('loadPriceForBaseAssetSymbol', async function () {
       let adapter: PythOraclePriceAdapter;
       const price = decimalToPips('2000.00000000');
-      const priceId = ethers.utils.randomBytes(32);
+      const priceId = ethers.randomBytes(32);
 
       beforeEach(async () => {
         adapter = await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
           [priceId],
-          pyth.address,
+          await pyth.getAddress(),
         );
       });
 
@@ -461,10 +450,10 @@ describe('oracle price adapters', function () {
       it('should work', async () => {
         const adapter = await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
-          [ethers.utils.randomBytes(32)],
-          pyth.address,
+          [ethers.randomBytes(32)],
+          await pyth.getAddress(),
         );
-        await adapter.setActive(ethers.constants.AddressZero);
+        await adapter.setActive(ethers.ZeroAddress);
       });
     });
   });
@@ -479,7 +468,7 @@ async function updatePythPrice(
 ) {
   await pyth.updatePriceFeeds(
     [
-      ethers.utils.defaultAbiCoder.encode(
+      ethers.AbiCoder.defaultAbiCoder().encode(
         [
           'tuple(bytes32,tuple(int64,uint64,int32,uint256),tuple(int64,uint64,int32,uint256))',
         ],

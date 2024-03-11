@@ -1,5 +1,4 @@
-import { mine } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 import { ethers, network } from 'hardhat';
 
@@ -86,8 +85,11 @@ describe('Exchange', function () {
       .connect(dispatcherWallet)
       .publishIndexPrices([
         indexPriceToArgumentStruct(
-          indexPriceAdapter.address,
-          await buildIndexPrice(exchange.address, indexPriceServiceWallet),
+          await indexPriceAdapter.getAddress(),
+          await buildIndexPrice(
+            await exchange.getAddress(),
+            indexPriceServiceWallet,
+          ),
         ),
       ]);
 
@@ -100,8 +102,8 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    buyOrderSignature = await trader2Wallet._signTypedData(
-      ...getOrderSignatureTypedData(buyOrder, exchange.address),
+    buyOrderSignature = await trader2Wallet.signTypedData(
+      ...getOrderSignatureTypedData(buyOrder, await exchange.getAddress()),
     );
 
     sellOrder = {
@@ -113,8 +115,8 @@ describe('Exchange', function () {
       quantity: '10.00000000',
       price: '2000.00000000',
     };
-    sellOrderSignature = await trader1Wallet._signTypedData(
-      ...getOrderSignatureTypedData(sellOrder, exchange.address),
+    sellOrderSignature = await trader1Wallet.signTypedData(
+      ...getOrderSignatureTypedData(sellOrder, await exchange.getAddress()),
     );
 
     trade = {
@@ -144,7 +146,7 @@ describe('Exchange', function () {
 
       const aggregator = await (
         await ethers.getContractFactory('ExchangeWalletStateAggregator')
-      ).deploy(exchange.address);
+      ).deploy(await exchange.getAddress());
 
       const results = await aggregator.loadWalletStates([
         trader1Wallet.address,

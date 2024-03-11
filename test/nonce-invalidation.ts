@@ -2,7 +2,7 @@ import { ethers, network } from 'hardhat';
 import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 
 import { Exchange_v4 } from '../typechain-types';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { uuidToHexString } from '../lib';
 import {
   deployAndAssociateContracts,

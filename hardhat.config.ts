@@ -1,10 +1,10 @@
 import * as dotenv from 'dotenv';
 
-import '@nomiclabs/hardhat-etherscan';
-import '@nomiclabs/hardhat-waffle';
 import '@typechain/hardhat';
+import '@nomicfoundation/hardhat-ethers';
+import '@nomicfoundation/hardhat-chai-matchers';
+import '@nomicfoundation/hardhat-verify';
 import 'hardhat-contract-sizer';
-import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 import { HardhatUserConfig } from 'hardhat/config';
 
@@ -116,10 +116,6 @@ const config: HardhatUserConfig = {
         },
       },
     ],
-  },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
-    currency: 'USD',
   },
 };
 

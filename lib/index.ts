@@ -155,8 +155,8 @@ export const hardhatChainId = 31337;
 
 export const compareBaseAssetSymbols = (a: string, b: string): number =>
   Buffer.compare(
-    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [a])),
-    ethers.utils.arrayify(ethers.utils.solidityKeccak256(['string'], [b])),
+    ethers.getBytes(ethers.solidityPackedKeccak256(['string'], [a])),
+    ethers.getBytes(ethers.solidityPackedKeccak256(['string'], [b])),
   );
 
 export const decimalToAssetUnits = (
@@ -193,7 +193,7 @@ export const getDelegatedKeyAuthorizationSignatureTypedData = (
   delegatedKeyAuthorization: Omit<DelegatedKeyAuthorization, 'signature'>,
   contractAddress: string,
   chainId = hardhatChainId,
-): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+): Parameters<ethers.JsonRpcSigner['signTypedData']> => {
   return [
     getDomainSeparator(contractAddress, chainId),
     {
@@ -204,7 +204,7 @@ export const getDelegatedKeyAuthorizationSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(delegatedKeyAuthorization.nonce),
+      nonce: uuidToUint128(delegatedKeyAuthorization.nonce),
       delegatedPublicKey: delegatedKeyAuthorization.delegatedPublicKey,
       message: delegatedKeyAuthorizationMessage,
     },
@@ -216,7 +216,7 @@ export const getIndexPriceSignatureTypedData = (
   quoteAssetSymbol: string,
   contractAddress: string,
   chainId = hardhatChainId,
-): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+): Parameters<ethers.JsonRpcSigner['signTypedData']> => {
   return [
     getDomainSeparator(contractAddress, chainId),
     {
@@ -240,7 +240,7 @@ export const getOrderSignatureTypedData = (
   order: Order,
   contractAddress: string,
   chainId = hardhatChainId,
-): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+): Parameters<ethers.JsonRpcSigner['signTypedData']> => {
   const emptyPipString = '0.00000000';
 
   return [
@@ -267,7 +267,7 @@ export const getOrderSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(order.nonce),
+      nonce: uuidToUint128(order.nonce),
       wallet: order.wallet,
       marketSymbol: order.market,
       orderType: order.type,
@@ -278,14 +278,13 @@ export const getOrderSignatureTypedData = (
       triggerType: order.triggerType || 0,
       callbackRate: order.callbackRate || emptyPipString,
       conditionalOrderId: order.conditionalOrderId
-        ? uuidToUint8Array(order.conditionalOrderId)
+        ? uuidToUint128(order.conditionalOrderId)
         : '0',
       isReduceOnly: !!order.isReduceOnly,
       timeInForce: order.timeInForce || 0,
       selfTradePrevention: order.selfTradePrevention || 0,
       isLiquidationAcquisitionOnly: !!order.isLiquidationAcquisitionOnly,
-      delegatedPublicKey:
-        order.delegatedPublicKey || ethers.constants.AddressZero,
+      delegatedPublicKey: order.delegatedPublicKey || ethers.ZeroAddress,
       clientOrderId: order.clientOrderId || '',
     },
   ];
@@ -295,7 +294,7 @@ export const getTransferSignatureTypedData = (
   transfer: Transfer,
   contractAddress: string,
   chainId = hardhatChainId,
-): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+): Parameters<ethers.JsonRpcSigner['signTypedData']> => {
   return [
     getDomainSeparator(contractAddress, chainId),
     {
@@ -307,7 +306,7 @@ export const getTransferSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(transfer.nonce),
+      nonce: uuidToUint128(transfer.nonce),
       sourceWallet: transfer.sourceWallet,
       destinationWallet: transfer.destinationWallet,
       quantity: transfer.quantity,
@@ -319,7 +318,7 @@ export const getWithdrawalSignatureTypedData = (
   withdrawal: Withdrawal,
   contractAddress: string,
   chainId = hardhatChainId,
-): Parameters<ethers.providers.JsonRpcSigner['_signTypedData']> => {
+): Parameters<ethers.JsonRpcSigner['signTypedData']> => {
   return [
     getDomainSeparator(contractAddress, chainId),
     {
@@ -333,7 +332,7 @@ export const getWithdrawalSignatureTypedData = (
       ],
     },
     {
-      nonce: uuidToUint8Array(withdrawal.nonce),
+      nonce: uuidToUint128(withdrawal.nonce),
       wallet: withdrawal.wallet,
       quantity: withdrawal.quantity,
       maximumGasFee: withdrawal.maximumGasFee,
@@ -414,18 +413,26 @@ export const getWithdrawArguments = (
 
 export const indexPriceToArgumentStruct = (
   indexPriceAdapter: string,
-  o: IndexPrice,
+  indexPrice: IndexPrice,
 ): IndexPricePayloadStruct => {
   return {
     indexPriceAdapter,
-    payload: ethers.utils.defaultAbiCoder.encode(
-      ['tuple(string,uint64,uint64)', 'bytes'],
-      [
-        [o.baseAssetSymbol, o.timestampInMs, decimalToPips(o.price)],
-        o.signature,
-      ],
-    ),
+    payload: indexPriceToArgumentPayload(indexPrice),
   };
+};
+
+export const indexPriceToArgumentPayload = (indexPrice: IndexPrice): string => {
+  return ethers.AbiCoder.defaultAbiCoder().encode(
+    ['tuple(string,uint64,uint64)', 'bytes'],
+    [
+      [
+        indexPrice.baseAssetSymbol,
+        indexPrice.timestampInMs,
+        decimalToPips(indexPrice.price),
+      ],
+      indexPrice.signature,
+    ],
+  );
 };
 
 /**
@@ -473,7 +480,7 @@ const orderToArgumentStruct = (
         }
       : {
           nonce: 0,
-          delegatedPublicKey: ethers.constants.AddressZero,
+          delegatedPublicKey: ethers.ZeroAddress,
           signature: '0x',
         },
   };
@@ -492,5 +499,5 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
   };
 };
 
-const uuidToUint8Array = (uuid: string): Uint8Array =>
-  ethers.utils.arrayify(uuidToHexString(uuid));
+const uuidToUint128 = (uuid: string): BigInt =>
+  BigInt.asUintN(128, BigInt(uuidToHexString(uuid)));
