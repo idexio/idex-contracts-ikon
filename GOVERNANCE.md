@@ -11,7 +11,7 @@ The Custodian contract custodies user funds with minimal additional logic. Speci
 - Exchange: the Exchange contract address is the only agent whitelisted to authorize transfers of funds out of the Custodian.
 - Governance: the Governance contract address is the only agent whitelisted to authorize changing the Exchange and Governance contract addresses within the Custodian.
 
-The Custodian has no control logic itself beyond the above authorizations. Its logic is limited by design to maximize future upgradability without requiring fund migration.
+Additionally, the Custodian contract includes the ability to migrate a held asset from one token contract to another. No Asset Migrator contract is specified at deployment time. Specifying an Asset Migrator is exclusively controlled by the Governance contract subject to a delay for safety. 
 
 ## Governance Contract
 
@@ -19,10 +19,11 @@ The Governance contract implements the contract upgrade logic while enforcing go
 
 - The Governance contract has a single owner, and the owner can be changed with no delay by the owner.
 - The Governance contract has a single admin, and the admin can be changed with no delay by the owner.
-- The admin is the only agent whitelisted to change the Custodian’s Exchange or Governance contract addresses, but the change is a two-step process.
+- The admin is the only agent whitelisted to change the Custodian’s Exchange or Governance contract addresses, or specify an Asset Migrator contract, but the change is a two-step process.
   - The admin first calls an upgrade authorization with the new contract address, which initiates the Contract Upgrade Period.
   - Once the Contract Upgrade Period expires, the admin can make a second call that completes the change to the new contract address.
 - At any time during the Contract Upgrade Period, the admin can cancel the upgrade immediately.
+- The admin can clear the Asset Migrator contract address immediately.
 
 The Governance contract also implements field update logic for sensitive Exchange settings.
 
@@ -61,6 +62,7 @@ The Exchange contract implements the majority of exchange functionality, includi
 - Exchange tracks a single exit fund wallet address, and the exit fund wallet can be changed with no delay by the admin, provided that neither the existing nor new wallet has any open positions or quote balance.
 - The admin can withdraw any positive quote balance from the exit fund after a fixed delay after the exit fund opens its first non-quote position.
 - Exchange tracks a single fee wallet address, and the fee wallet can be changed with no delay by the admin.
+- The admin can change the quote token address with no delay once an Asset Migrator has been added to the Custodian via Governance. Governance introduces its own delay for adding an Asset Migrator to the Custodian for safety.
 - The admin can change or remove an address as the dispatcher wallet with no delay. The dispatcher wallet is authorized to call operator-only contract functions: `executeTrade`, `liquidatePositionBelowMinimum`, `liquidatePositionInDeactivatedMarket`, `liquidateWalletInMaintenance`, `liquidateWalletInMaintenanceDuringSystemRecovery`, `liquidateWalletExited`, `deleverageInMaintenanceAcquisition`, `deleverageInsuranceFundClosure`, `deleverageExitAcquisition`, `deleverageExitFundClosure`, `transfer`, `withdraw`, `activateMarket`, `deactivateMarket`, `publishIndexPrices`, and `publishFundingMultiplier`.
 - The admin can add new markets with no delay, up to the maximum number of markets, with new market fields subject to limits. The dispatcher wallet can activate and deactivate markets.
 - The admin can skim any tokens mistakenly sent to the Exchange contract rather than deposited.

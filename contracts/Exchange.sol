@@ -82,8 +82,8 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
   mapping(bytes32 => uint64) private _partiallyFilledOrderQuantities;
   // Mapping of wallet address to total pending deposit quantity
   mapping(address => uint64) public pendingDepositQuantityByWallet;
-  // Address of ERC20 contract used as collateral and quote for all markets
-  address public immutable quoteTokenAddress;
+  // Address of ERC-20 contract used as collateral and quote for all markets
+  address public quoteTokenAddress;
   // Exits
   mapping(address => WalletExit) public walletExits;
 
@@ -267,6 +267,10 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    * with `setPositionBelowMinimumLiquidationPriceToleranceMultiplier`
    */
   event PositionBelowMinimumLiquidationPriceToleranceMultiplierChanged(uint256 previousValue, uint256 newValue);
+  /**
+   * @notice Emitted when an admin changes the quote token address with `setQuoteTokenAddress`
+   */
+  event QuoteTokenAddressChanged(address previousValue, address newValue);
   /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
@@ -596,6 +600,18 @@ contract Exchange_v4 is EIP712, IExchange, Owned {
    */
   function setOraclePriceAdapter(IOraclePriceAdapter newOraclePriceAdapter) public onlyGovernance {
     oraclePriceAdapter = newOraclePriceAdapter;
+  }
+
+  /**
+   * @notice Migrates all quote asset funds held by Custodian to new token contract and sets new `quoteTokenAddress`
+   */
+  function migrateQuoteTokenAddress() public onlyAdmin {
+    address oldQuoteTokenAddress = quoteTokenAddress;
+
+    address newQuoteTokenAddress = custodian.migrateAsset(quoteTokenAddress);
+    quoteTokenAddress = newQuoteTokenAddress;
+
+    emit QuoteTokenAddressChanged(oldQuoteTokenAddress, newQuoteTokenAddress);
   }
 
   /**

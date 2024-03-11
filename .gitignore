@@ -13,3 +13,6 @@ artifacts
 exchangeArguments.js
 governanaceArguments.js
 indexArguments.js
+
+# Yarn
+.yarn/install-state.gz

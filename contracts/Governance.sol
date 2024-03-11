@@ -9,7 +9,7 @@ import { Owned } from "./Owned.sol";
 import { String } from "./libraries/String.sol";
 import { Validations } from "./libraries/Validations.sol";
 import { OverridableMarketFields } from "./libraries/Structs.sol";
-import { IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "./libraries/Interfaces.sol";
+import { IAssetMigrator, IBridgeAdapter, ICustodian, IExchange, IIndexPriceAdapter, IOraclePriceAdapter } from "./libraries/Interfaces.sol";
 
 contract Governance is Owned {
   // State variables //
@@ -19,6 +19,7 @@ contract Governance is Owned {
 
   // State variables - upgrade tracking //
 
+  ContractUpgrade public currentAssetMigratorUpgrade;
   BridgeAdaptersUpgrade public currentBridgeAdaptersUpgrade;
   ContractUpgrade public currentExchangeUpgrade;
   ContractUpgrade public currentGovernanceUpgrade;
@@ -60,6 +61,27 @@ contract Governance is Owned {
     uint256 blockTimestampThreshold;
   }
 
+  /**
+   * @notice Emitted when admin clears the currently whitelisted Asset Migrator with `clearAssetMigrator`
+   */
+  event AssetMigratorCleared(address oldAssetMigrator, address newAssetMigrator);
+  /**
+   * @notice Emitted when admin initiates Asset Migrator upgrade with
+   * `initiateAssetMigratorUpgrade`
+   */
+  event AssetMigratorUpgradeInitiated(
+    address oldAssetMigrator,
+    address newAssetMigrator,
+    uint256 blockTimestampThreshold
+  );
+  /**
+   * @notice Emitted when admin cancels previously started Asset Migrator upgrade with `cancelAssetMigratorUpgrade`
+   */
+  event AssetMigratorUpgradeCanceled(address oldAssetMigrator, address newAssetMigrator);
+  /**
+   * @notice Emitted when admin finalizes Asset Migrator upgrade via `finalizeAssetMigratorUpgrade`
+   */
+  event AssetMigratorUpgradeFinalized(address oldAssetMigrator, address newAssetMigrator);
   /**
    * @notice Emitted when admin initiates Bridge Adapter upgrade with
    * `initiateBridgeAdaptersUpgrade`
@@ -196,6 +218,72 @@ contract Governance is Owned {
     require(Address.isContract(address(newCustodian)), "Invalid address");
 
     custodian = newCustodian;
+  }
+
+  // Asset migrator upgrade //
+
+  /**
+   * @notice Initiates Asset Migrator contract upgrade process on `Custodian`. Once `blockTimestampDelay` has passed
+   * the process can be finalized with `finalizeAssetMigratorUpgrade`
+   *
+   * @param newAssetMigrator The address of the new Asset Migrator contract
+   */
+  function initiateAssetMigratorUpgrade(address newAssetMigrator) public onlyAdmin {
+    require(Address.isContract(address(newAssetMigrator)), "Invalid address");
+    require(newAssetMigrator != address(_loadAssetMigrator()), "Must be different from current Asset Migrator");
+    require(!currentAssetMigratorUpgrade.exists, "Asset migrator upgrade already in progress");
+
+    currentAssetMigratorUpgrade = ContractUpgrade(true, newAssetMigrator, block.timestamp + blockTimestampDelay);
+
+    emit AssetMigratorUpgradeInitiated(
+      address(_loadAssetMigrator()),
+      newAssetMigrator,
+      currentAssetMigratorUpgrade.blockTimestampThreshold
+    );
+  }
+
+  /**
+   * @notice Cancels an in-flight Asset Migrator contract upgrade that has not yet been finalized
+   */
+  function cancelAssetMigratorUpgrade() public onlyAdmin {
+    require(currentAssetMigratorUpgrade.exists, "No Asset Migrator upgrade in progress");
+
+    address newAssetMigrator = currentAssetMigratorUpgrade.newContract;
+    delete currentAssetMigratorUpgrade;
+
+    emit AssetMigratorUpgradeCanceled(address(_loadAssetMigrator()), newAssetMigrator);
+  }
+
+  /**
+   * @notice Finalizes the Asset Migrator contract upgrade by changing the contract address on the `Custodian`
+   * contract with `setAssetMigrator`. The number of seconds specified by `blockTimestampDelay` must have passed since
+   * calling `initiateAssetMigratorUpgrade`
+   *
+   * @param newAssetMigrator The address of the new Asset Migrator contract. Must equal the address provided to
+   * `initiateAssetMigratorUpgrade`
+   */
+  function finalizeAssetMigratorUpgrade(address newAssetMigrator) public onlyAdmin {
+    require(currentAssetMigratorUpgrade.exists, "No Asset Migrator upgrade in progress");
+    require(currentAssetMigratorUpgrade.newContract == newAssetMigrator, "Address mismatch");
+    require(block.timestamp >= currentAssetMigratorUpgrade.blockTimestampThreshold, "Block threshold not yet reached");
+
+    address oldAssetMigrator = address(_loadAssetMigrator());
+    custodian.setAssetMigrator(newAssetMigrator);
+    delete currentAssetMigratorUpgrade;
+
+    emit AssetMigratorUpgradeFinalized(oldAssetMigrator, newAssetMigrator);
+  }
+
+  /**
+   * @notice Clears any currently set Asset Migrator without delay by setting the address whitelisted on the Custodian to zero
+   */
+  function clearAssetMigrator() public onlyAdmin {
+    address oldAssetMigrator = custodian.assetMigrator();
+    require(oldAssetMigrator != address(0x0), "Asset Migrator not set");
+
+    custodian.setAssetMigrator(address(0x0));
+
+    emit AssetMigratorCleared(oldAssetMigrator, address(0x0));
   }
 
   // Exchange upgrade //
@@ -642,6 +730,10 @@ contract Governance is Owned {
     delete (currentOraclePriceAdapterUpgrade);
 
     emit OraclePriceAdapterUpgradeFinalized(newOraclePriceAdapter);
+  }
+
+  function _loadAssetMigrator() private view returns (IAssetMigrator) {
+    return IAssetMigrator(custodian.assetMigrator());
   }
 
   function _loadExchange() private view returns (IExchange) {
