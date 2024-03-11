@@ -265,6 +265,7 @@ describe('ExchangeStargateAdapter', function () {
         nonce: uuidv1(),
         wallet: traderWallet.address,
         quantity: '1.00000000',
+        maximumGasFee: '0.10000000',
         bridgeAdapter: adapter.address,
         bridgeAdapterPayload: ethers.utils.defaultAbiCoder.encode(
           ['uint16', 'uint256', 'uint256'],

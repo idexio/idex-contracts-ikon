@@ -189,7 +189,8 @@ contract ExchangeStargateAdapter is IBridgeAdapter, IStargateReceiver, Owned {
         arguments._payload
       )
     {} catch (bytes memory errorData) {
-      quoteAsset.transfer(destinationWallet, quantity);
+      // If the swap fails, redeposit funds into Exchange so wallet can retry
+      IExchange(custodian.exchange()).deposit(quantity, destinationWallet);
       emit WithdrawQuoteAssetFailed(destinationWallet, quantity, payload, errorData);
     }
   }

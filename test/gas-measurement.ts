@@ -692,6 +692,7 @@ describe.skip('Gas measurement', function () {
         nonce: uuidv1(),
         wallet: trader1Wallet.address,
         quantity: '1.00000000',
+        maximumGasFee: '0.10000000',
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
@@ -753,6 +754,7 @@ describe.skip('Gas measurement', function () {
         nonce: uuidv1(),
         wallet: trader1Wallet.address,
         quantity: '1.00000000',
+        maximumGasFee: '0.10000000',
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };
@@ -814,6 +816,7 @@ describe.skip('Gas measurement', function () {
         nonce: uuidv1(),
         wallet: trader1Wallet.address,
         quantity: '1.00000000',
+        maximumGasFee: '0.10000000',
         bridgeAdapter: ethers.constants.AddressZero,
         bridgeAdapterPayload: '0x',
       };

@@ -111,7 +111,8 @@ library Withdrawing {
       _validateExitFundWithdrawDelayElapsed(arguments.exitFundPositionOpenedAtBlockTimestamp);
     }
     require(
-      Validations.isFeeQuantityValid(arguments.withdrawal.gasFee, arguments.withdrawal.grossQuantity),
+      arguments.withdrawal.gasFee <= arguments.withdrawal.maximumGasFee &&
+        arguments.withdrawal.maximumGasFee <= arguments.withdrawal.grossQuantity,
       "Excessive withdrawal fee"
     );
     bytes32 withdrawalHash = _validateWithdrawalSignature(arguments);

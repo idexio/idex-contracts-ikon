@@ -177,32 +177,43 @@ library TradeValidations {
     bytes32 domainSeparator,
     Order memory order,
     bool isBuy
-  ) private pure returns (bytes32) {
+  ) private pure returns (bytes32 orderHash) {
     require(order.side == (isBuy ? OrderSide.Buy : OrderSide.Sell), "Order arguments do not match sides");
 
-    bytes32 orderHash = Hashing.getOrderHash(order, baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL);
+    orderHash = Hashing.getOrderHash(order, baseAssetSymbol, Constants.QUOTE_ASSET_SYMBOL);
 
-    bool isSignatureValid = order.isSignedByDelegatedKey
-      ? (Hashing.isSignatureValid(
-        domainSeparator,
-        Hashing.getDelegatedKeyAuthorizationHash(order.delegatedKeyAuthorization),
-        order.delegatedKeyAuthorization.signature,
-        order.wallet
-      ) &&
+    if (order.isSignedByDelegatedKey) {
+      require(
+        Hashing.isSignatureValid(
+          domainSeparator,
+          Hashing.getDelegatedKeyAuthorizationHash(order.delegatedKeyAuthorization),
+          order.delegatedKeyAuthorization.signature,
+          order.wallet
+        ),
+        order.side == OrderSide.Buy
+          ? "Invalid DK authorization signature for buy order"
+          : "Invalid DK authorization signature for sell order"
+      );
+
+      require(
         Hashing.isSignatureValid(
           domainSeparator,
           orderHash,
           order.walletSignature,
           order.delegatedKeyAuthorization.delegatedPublicKey
-        ))
-      : Hashing.isSignatureValid(domainSeparator, orderHash, order.walletSignature, order.wallet);
-
-    require(
-      isSignatureValid,
-      order.side == OrderSide.Buy ? "Invalid wallet signature for buy order" : "Invalid wallet signature for sell order"
-    );
-
-    return orderHash;
+        ),
+        order.side == OrderSide.Buy
+          ? "Invalid wallet signature for buy order"
+          : "Invalid wallet signature for sell order"
+      );
+    } else {
+      require(
+        Hashing.isSignatureValid(domainSeparator, orderHash, order.walletSignature, order.wallet),
+        order.side == OrderSide.Buy
+          ? "Invalid wallet signature for buy order"
+          : "Invalid wallet signature for sell order"
+      );
+    }
   }
 
   function _validateTimeInForce(Order memory order, Trade memory trade, bool isBuy) private pure {

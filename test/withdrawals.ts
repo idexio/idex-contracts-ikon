@@ -77,6 +77,7 @@ describe('Exchange', function () {
       nonce: uuidv1(),
       wallet: traderWallet.address,
       quantity: '1.00000000',
+      maximumGasFee: '0.10000000',
       bridgeAdapter: ethers.constants.AddressZero,
       bridgeAdapterPayload: '0x',
     };
@@ -329,7 +330,19 @@ describe('Exchange', function () {
         exchange
           .connect(dispatcherWallet)
           .withdraw(
-            ...getWithdrawArguments(withdrawal, '1.00000000', signature),
+            ...getWithdrawArguments(withdrawal, '0.70000000', signature),
+          ),
+      ).to.eventually.be.rejectedWith(/excessive withdrawal fee/i);
+
+      withdrawal.maximumGasFee = '1.10000000';
+      signature = await traderWallet._signTypedData(
+        ...getWithdrawalSignatureTypedData(withdrawal, exchange.address),
+      );
+      await expect(
+        exchange
+          .connect(dispatcherWallet)
+          .withdraw(
+            ...getWithdrawArguments(withdrawal, '0.10000000', signature),
           ),
       ).to.eventually.be.rejectedWith(/excessive withdrawal fee/i);
     });

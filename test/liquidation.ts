@@ -207,6 +207,30 @@ describe('Exchange', function () {
       });
     });
 
+    it('should work when wallet is in maintenance', async function () {
+      await fundWallets([insuranceFundWallet], exchange, usdc);
+
+      await exchange
+        .connect(dispatcherWallet)
+        .publishIndexPrices([
+          indexPriceToArgumentStruct(
+            indexPriceAdapter.address,
+            await buildIndexPriceWithValue(
+              exchange.address,
+              indexPriceServiceWallet,
+              '2150.00000000',
+              baseAssetSymbol,
+            ),
+          ),
+        ]);
+
+      await exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
+        baseAssetSymbol,
+        liquidatingWallet: trader1Wallet.address,
+        liquidationQuoteQuantity: decimalToPips('21500.00000000'),
+      });
+    });
+
     it('should revert when expected quote quantity is below validation threshold but provided quote quantity is not', async function () {
       await fundWallets([insuranceFundWallet], exchange, usdc);
       await exchange
@@ -275,32 +299,6 @@ describe('Exchange', function () {
           liquidationQuoteQuantity: decimalToPips('20000.00000000'),
         }),
       ).to.eventually.be.rejectedWith(/position size above minimum/i);
-    });
-
-    it('should revert when wallet is in maintenance', async function () {
-      await exchange
-        .connect(dispatcherWallet)
-        .publishIndexPrices([
-          indexPriceToArgumentStruct(
-            indexPriceAdapter.address,
-            await buildIndexPriceWithValue(
-              exchange.address,
-              indexPriceServiceWallet,
-              '2150.00000000',
-              baseAssetSymbol,
-            ),
-          ),
-        ]);
-
-      await expect(
-        exchange.connect(dispatcherWallet).liquidatePositionBelowMinimum({
-          baseAssetSymbol,
-          liquidatingWallet: trader1Wallet.address,
-          liquidationQuoteQuantity: decimalToPips('20000.00000000'),
-        }),
-      ).to.eventually.be.rejectedWith(
-        /maintenance margin requirement not met/i,
-      );
     });
 
     it('should revert for invalid quote value', async function () {
