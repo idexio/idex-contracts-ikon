@@ -1,0 +1,27 @@
+{
+  // this is used by eslint as well as `lint:types`, which is essentially the previous
+  // method of compiling
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "../dist/**",
+    "../data/**",
+    "**/node_modules",
+    "node_modules",
+    "dist",
+    "data"
+  ],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.json",
+    "**/*.mjs",
+    "**/*.cjs",
+    "./db/**/*.js",
+    "eslint.config.cjs",
+    ".prettierrc.cjs",
+    // "**/.eslintrc.js",
+    // "./register.cjs",
+    "./.env-cmdrc.js",
+    "./pm2.config.js"
+  ]
+}

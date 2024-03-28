@@ -10,6 +10,19 @@ library String {
     return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
   }
 
+  function startsWith(string memory self, string memory prefix) internal pure returns (bool selfStartsWithPrefix) {
+    if (bytes(self).length < bytes(prefix).length) {
+      return false;
+    }
+
+    assembly {
+      let length := mload(prefix)
+      let selfPtr := mload(add(self, 0x20))
+      let prefixPtr := mload(add(prefix, 0x20))
+      selfStartsWithPrefix := eq(keccak256(selfPtr, length), keccak256(prefixPtr, length))
+    }
+  }
+
   /**
    * @dev Converts an integer pip quantity back into the fixed-precision decimal pip string
    * originally signed by the wallet. For example, 1234567890 becomes '12.34567890'

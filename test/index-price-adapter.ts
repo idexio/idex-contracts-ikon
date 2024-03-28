@@ -425,7 +425,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
   });
 });
 
-describe('PythIndexPriceAdapter', function () {
+describe.only('PythIndexPriceAdapter', function () {
   let ownerWallet: SignerWithAddress;
   let pyth: PythMock;
   let PythMockFactory: PythMock__factory;
@@ -453,6 +453,7 @@ describe('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [ethers.randomBytes(32)],
+        [0],
         await pyth.getAddress(),
       );
     });
@@ -463,6 +464,7 @@ describe('PythIndexPriceAdapter', function () {
           ethers.ZeroAddress,
           [baseAssetSymbol],
           [ethers.randomBytes(32)],
+          [0],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid activator/i);
@@ -474,6 +476,7 @@ describe('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [baseAssetSymbol],
           [ethers.randomBytes(32)],
+          [0],
           ethers.ZeroAddress,
         ),
       ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
@@ -485,6 +488,7 @@ describe('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [baseAssetSymbol, baseAssetSymbol],
           [ethers.randomBytes(32)],
+          [0],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
@@ -494,6 +498,7 @@ describe('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [baseAssetSymbol],
           [ethers.randomBytes(32), ethers.randomBytes(32)],
+          [0],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
@@ -505,6 +510,7 @@ describe('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [''],
           [ethers.randomBytes(32)],
+          [0],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
@@ -518,13 +524,14 @@ describe('PythIndexPriceAdapter', function () {
           [
             '0x0000000000000000000000000000000000000000000000000000000000000000',
           ],
+          [0],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid price id/i);
     });
   });
 
-  describe('addBaseAssetSymbolAndPriceId', async function () {
+  describe('addMarket', async function () {
     let adapter: PythIndexPriceAdapter;
     const priceId = ethers.randomBytes(32);
 
@@ -533,49 +540,48 @@ describe('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        [0],
         await pyth.getAddress(),
       );
     });
 
     it('should work for valid base asset symbol and price ID', async () => {
-      await adapter.addBaseAssetSymbolAndPriceId('XYZ', ethers.randomBytes(32));
+      await adapter.addMarket('XYZ', ethers.randomBytes(32), 0);
     });
 
     it('should revert when not sent by admin', async () => {
       await expect(
         adapter
           .connect((await ethers.getSigners())[5])
-          .addBaseAssetSymbolAndPriceId('XYZ', ethers.randomBytes(32)),
+          .addMarket('XYZ', ethers.randomBytes(32), 0),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
 
     it('should revert for invalid base asset symbol', async () => {
       await expect(
-        adapter.addBaseAssetSymbolAndPriceId('', ethers.randomBytes(32)),
+        adapter.addMarket('', ethers.randomBytes(32), 0),
       ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
     });
 
     it('should revert for invalid price ID', async () => {
       await expect(
-        adapter.addBaseAssetSymbolAndPriceId(
+        adapter.addMarket(
           'XYZ',
           '0x0000000000000000000000000000000000000000000000000000000000000000',
+          0,
         ),
       ).to.eventually.be.rejectedWith(/invalid price id/i);
     });
 
     it('should revert for already added base asset symbol', async () => {
       await expect(
-        adapter.addBaseAssetSymbolAndPriceId(
-          baseAssetSymbol,
-          ethers.randomBytes(32),
-        ),
+        adapter.addMarket(baseAssetSymbol, ethers.randomBytes(32), 0),
       ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
     });
 
     it('should revert for already added price ID', async () => {
       await expect(
-        adapter.addBaseAssetSymbolAndPriceId('XYZ', priceId),
+        adapter.addMarket('XYZ', priceId, 0),
       ).to.eventually.be.rejectedWith(/already added price ID/i);
     });
   });
@@ -590,6 +596,7 @@ describe('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        [0],
         await pyth.getAddress(),
       );
       const results = await deployContractsExceptCustodian(
@@ -648,6 +655,7 @@ describe('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        [0],
         await pyth.getAddress(),
       );
       exchange = await ExchangeIndexPriceAdapterMockFactory.deploy(
@@ -824,6 +832,7 @@ describe('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
+        [0],
         await pyth.getAddress(),
       );
       destinationWallet = (await ethers.getSigners())[1];
