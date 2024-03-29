@@ -4,7 +4,7 @@ import { expect } from './helpers';
 
 import type { StringMock } from '../typechain-types';
 
-describe.only('String', function () {
+describe('String', function () {
   let stringMock: StringMock;
 
   before(async () => {
@@ -17,6 +17,14 @@ describe.only('String', function () {
   describe('startsWith', async function () {
     it('should return true for valid prefixes', async () => {
       expect(await stringMock.startsWith('abc', 'a')).to.equal(true);
+      expect(await stringMock.startsWith('abc', 'ab')).to.equal(true);
+      expect(await stringMock.startsWith('abc', 'abc')).to.equal(true);
+    });
+
+    it('should return false for invalid prefixes', async () => {
+      expect(await stringMock.startsWith('abc', 'b')).to.equal(false);
+      expect(await stringMock.startsWith('abc', 'aaa')).to.equal(false);
+      expect(await stringMock.startsWith('abc', 'abcd')).to.equal(false);
     });
   });
 });

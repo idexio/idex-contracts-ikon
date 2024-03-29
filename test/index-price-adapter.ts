@@ -586,6 +586,20 @@ describe('PythIndexPriceAdapter', function () {
         adapter.addMarket('XYZ', priceId, 1),
       ).to.eventually.be.rejectedWith(/already added price ID/i);
     });
+
+    it('should revert for invalid price multiplier', async () => {
+      await expect(
+        adapter.addMarket('XYZ', ethers.randomBytes(32), 0),
+      ).to.eventually.be.rejectedWith(/invalid price multiplier/i);
+    });
+
+    it('should revert for market not prefixed with price multiplier', async () => {
+      await expect(
+        adapter.addMarket('XYZ', ethers.randomBytes(32), 100),
+      ).to.eventually.be.rejectedWith(
+        /base asset symbol does not start with price multiplier/i,
+      );
+    });
   });
 
   describe('setActive', async function () {
@@ -729,6 +743,41 @@ describe('PythIndexPriceAdapter', function () {
       expect(events).to.have.lengthOf(1);
       expect(events[0].args?.indexPrice.price).to.equal(
         decimalToPips('20.00000000'),
+      );
+    });
+
+    it('should work with price multiplier', async () => {
+      const priceMultiplier = BigInt(100);
+      const multiplierBaseAssetSymbol = `${priceMultiplier}baseAssetSymbol`;
+
+      adapter = await PythIndexPriceAdapterFactory.deploy(
+        ownerWallet.address,
+        [multiplierBaseAssetSymbol],
+        [priceId],
+        [priceMultiplier],
+        await pyth.getAddress(),
+      );
+      exchange = await ExchangeIndexPriceAdapterMockFactory.deploy(
+        await adapter.getAddress(),
+      );
+
+      await adapter.setActive(await exchange.getAddress());
+
+      await ownerWallet.sendTransaction({
+        to: await adapter.getAddress(),
+        value: ethers.parseEther('1.0'),
+      });
+
+      await exchange.validateIndexPricePayload(
+        await buildPythPricePayload(priceId, decimalToPips('2000.00000000'), 8),
+      );
+
+      const events = await exchange.queryFilter(
+        exchange.filters.ValidatedIndexPrice(),
+      );
+      expect(events).to.have.lengthOf(1);
+      expect(events[0].args?.indexPrice.price).to.equal(
+        decimalToPips('200000.00000000'), // * priceMultiplier
       );
     });
 
