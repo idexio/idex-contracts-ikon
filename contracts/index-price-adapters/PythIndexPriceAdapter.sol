@@ -4,23 +4,32 @@ pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IPyth, PythStructs } from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 
 import { IndexPrice } from "../libraries/Structs.sol";
 import { Owned } from "../Owned.sol";
 import { PythOraclePriceAdapter } from "../oracle-price-adapters/PythOraclePriceAdapter.sol";
+import { String } from "../libraries/String.sol";
 import { Time } from "../libraries/Time.sol";
 import { IExchange, IIndexPriceAdapter } from "../libraries/Interfaces.sol";
+
+struct PythMarket {
+  bool exists;
+  string baseAssetSymbol;
+  bytes32 priceId;
+  uint256 priceMultiplier;
+}
 
 contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
   // Address whitelisted to call `setActive`
   address public immutable activator;
-  // Mapping of Pyth price IDs to market base asset symbols
-  mapping(bytes32 => string) public baseAssetSymbolsByPriceId;
+  // Mapping of Pyth price IDs to market structs
+  mapping(bytes32 => PythMarket) public marketsByPriceId;
   // Address of Exchange contract
   IExchange public exchange;
-  // Mapping of market base asset symbols to Pyth price IDs
-  mapping(string => bytes32) public priceIdsByBaseAssetSymbol;
+  // Mapping of market base asset symbols to market structs
+  mapping(string => PythMarket) public marketsByBaseAssetSymbol;
   // Address of Pyth contract
   IPyth public immutable pyth;
 
@@ -30,20 +39,26 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
    * @param activator_ Address whitelisted to call `setActive`
    * @param baseAssetSymbols List of base asset symbols to associate with price IDs
    * @param priceIds List of price IDs to associate with base asset symbols
+   * @param priceMultipliers List of price multipliers to use when loading the price for a market
    * @param pyth_ Address of Pyth contract
    */
-  constructor(address activator_, string[] memory baseAssetSymbols, bytes32[] memory priceIds, address pyth_) Owned() {
+  constructor(
+    address activator_,
+    string[] memory baseAssetSymbols,
+    bytes32[] memory priceIds,
+    uint256[] memory priceMultipliers,
+    address pyth_
+  ) Owned() {
     require(activator_ != address(0x0), "Invalid activator address");
     activator = activator_;
 
-    require(baseAssetSymbols.length == priceIds.length, "Argument length mismatch");
+    require(
+      baseAssetSymbols.length == priceIds.length && priceIds.length == priceMultipliers.length,
+      "Argument length mismatch"
+    );
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      require(bytes(baseAssetSymbols[i]).length > 0, "Invalid base asset symbol");
-      require(priceIds[i] != bytes32(0x0), "Invalid price ID");
-
-      baseAssetSymbolsByPriceId[priceIds[i]] = baseAssetSymbols[i];
-      priceIdsByBaseAssetSymbol[baseAssetSymbols[i]] = priceIds[i];
+      addMarket(baseAssetSymbols[i], priceIds[i], priceMultipliers[i]);
     }
 
     require(Address.isContract(pyth_), "Invalid Pyth contract address");
@@ -71,16 +86,35 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
    *
    * @param baseAssetSymbol The symbol of the base asset symbol
    * @param priceId The Pyth price feed ID
+   * @param priceMultiplier The price multiplier to use when loading the price for a market. If greater than 1, the
+   * base asset symbol must include the price multiplier as a prefix
    */
-  function addBaseAssetSymbolAndPriceId(string memory baseAssetSymbol, bytes32 priceId) public onlyAdmin {
+  function addMarket(string memory baseAssetSymbol, bytes32 priceId, uint256 priceMultiplier) public onlyAdmin {
     require(priceId != bytes32(0x0), "Invalid price ID");
-    require(bytes(baseAssetSymbolsByPriceId[priceId]).length == 0, "Already added price ID");
+    require(!marketsByPriceId[priceId].exists, "Already added price ID");
 
     require(bytes(baseAssetSymbol).length > 0, "Invalid base asset symbol");
-    require(priceIdsByBaseAssetSymbol[baseAssetSymbol] == bytes32(0x0), "Already added base asset symbol");
+    require(!marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Already added base asset symbol");
 
-    baseAssetSymbolsByPriceId[priceId] = baseAssetSymbol;
-    priceIdsByBaseAssetSymbol[baseAssetSymbol] = priceId;
+    require(priceMultiplier > 0, "Invalid price multiplier");
+
+    if (priceMultiplier > 1) {
+      string memory priceMultiplierAsString = Strings.toString(priceMultiplier);
+      require(
+        String.startsWith(baseAssetSymbol, priceMultiplierAsString),
+        "Base asset symbol does not start with price multiplier"
+      );
+    }
+
+    PythMarket memory pythMarket = PythMarket({
+      exists: true,
+      baseAssetSymbol: baseAssetSymbol,
+      priceId: priceId,
+      priceMultiplier: priceMultiplier
+    });
+
+    marketsByPriceId[priceId] = pythMarket;
+    marketsByBaseAssetSymbol[baseAssetSymbol] = pythMarket;
   }
 
   /**
@@ -116,17 +150,17 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
       Time.getOneDayFromNowInS()
     );
 
-    string memory baseAssetSymbol = baseAssetSymbolsByPriceId[priceId];
-    require(bytes(baseAssetSymbol).length > 0, "Unknown price ID");
+    PythMarket memory market = marketsByPriceId[priceId];
+    require(market.exists, "Unknown price ID");
 
     uint64 priceInPips = _priceToPips(priceFeeds[0].price.price, priceFeeds[0].price.expo);
     require(priceInPips > 0, "Unexpected non-positive price");
 
     return
       IndexPrice({
-        baseAssetSymbol: baseAssetSymbol,
+        baseAssetSymbol: market.baseAssetSymbol,
         timestampInMs: SafeCast.toUint64(priceFeeds[0].price.publishTime * 1000),
-        price: priceInPips
+        price: SafeCast.toUint64(priceInPips * market.priceMultiplier)
       });
   }
 
