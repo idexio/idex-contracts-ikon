@@ -12,6 +12,7 @@ import { Owned } from "../Owned.sol";
 import { String } from "../libraries/String.sol";
 import { IExchange, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 
+// Struct for tracking currently configured markets
 struct PythMarket {
   bool exists;
   string baseAssetSymbol;
@@ -32,6 +33,7 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
    *
    * @param baseAssetSymbols List of base asset symbols to associate with price IDs
    * @param priceIds List of price IDs to associate with base asset symbols
+   * @param priceMultipliers List of price multipliers to use when loading the price for a market
    * @param pyth_ Address of Pyth contract
    */
   constructor(
@@ -57,6 +59,8 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
    *
    * @param baseAssetSymbol The symbol of the base asset symbol
    * @param priceId The Pyth price feed ID
+   * @param priceMultiplier The price multiplier to use when loading the price for a market. If greater than 1, the
+   * base asset symbol must include the price multiplier as a prefix
    */
   function addMarket(string memory baseAssetSymbol, bytes32 priceId, uint64 priceMultiplier) public onlyAdmin {
     require(priceId != bytes32(0x0), "Invalid price ID");
