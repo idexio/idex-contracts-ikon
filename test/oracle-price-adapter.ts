@@ -1,7 +1,14 @@
 import { ethers, network } from 'hardhat';
+
 import { decimalToPips } from '../lib';
 
 import {
+  baseAssetSymbol,
+  expect,
+  getLatestBlockTimestampInSeconds,
+} from './helpers';
+
+import type {
   ChainlinkAggregatorMock__factory,
   ChainlinkOraclePriceAdapter__factory,
   PythMock,
@@ -9,11 +16,6 @@ import {
   PythOraclePriceAdapter,
   PythOraclePriceAdapter__factory,
 } from '../typechain-types';
-import {
-  baseAssetSymbol,
-  expect,
-  getLatestBlockTimestampInSeconds,
-} from './helpers';
 
 describe('oracle price adapters', function () {
   describe('ChainlinkOraclePriceAdapter', function () {
@@ -197,7 +199,7 @@ describe('oracle price adapters', function () {
     });
   });
 
-  describe('PythOraclePriceAdapter', function () {
+  describe.only('PythOraclePriceAdapter', function () {
     let pyth: PythMock;
     let PythMockFactory: PythMock__factory;
     let PythOraclePriceAdapterFactory: PythOraclePriceAdapter__factory;
@@ -218,11 +220,10 @@ describe('oracle price adapters', function () {
 
     describe('deploy', async function () {
       it('should work for valid arguments', async () => {
-        const pyth = await PythMockFactory.deploy(oneDayInSeconds, 1);
-
         await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
           [ethers.randomBytes(32)],
+          [1],
           await pyth.getAddress(),
         );
       });
@@ -232,6 +233,7 @@ describe('oracle price adapters', function () {
           PythOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol],
             [ethers.randomBytes(32)],
+            [1],
             ethers.ZeroAddress,
           ),
         ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
@@ -242,6 +244,7 @@ describe('oracle price adapters', function () {
           PythOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol, baseAssetSymbol],
             [ethers.randomBytes(32)],
+            [1],
             await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
@@ -250,6 +253,7 @@ describe('oracle price adapters', function () {
           PythOraclePriceAdapterFactory.deploy(
             [baseAssetSymbol],
             [ethers.randomBytes(32), ethers.randomBytes(32)],
+            [1],
             await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/argument length mismatch/i);
@@ -260,6 +264,7 @@ describe('oracle price adapters', function () {
           PythOraclePriceAdapterFactory.deploy(
             [''],
             [ethers.randomBytes(32)],
+            [1],
             await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
@@ -272,13 +277,14 @@ describe('oracle price adapters', function () {
             [
               '0x0000000000000000000000000000000000000000000000000000000000000000',
             ],
+            [1],
             await pyth.getAddress(),
           ),
         ).to.eventually.be.rejectedWith(/invalid price id/i);
       });
     });
 
-    describe('addBaseAssetSymbolAndPriceId', async function () {
+    describe('addMarket', async function () {
       let adapter: PythOraclePriceAdapter;
       const priceId = ethers.randomBytes(32);
 
@@ -286,52 +292,48 @@ describe('oracle price adapters', function () {
         adapter = await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
           [priceId],
+          [1],
           await pyth.getAddress(),
         );
       });
 
       it('should work for valid base asset symbol and price ID', async () => {
-        await adapter.addBaseAssetSymbolAndPriceId(
-          'XYZ',
-          ethers.randomBytes(32),
-        );
+        await adapter.addMarket('XYZ', ethers.randomBytes(32), 1);
       });
 
       it('should revert when not sent by admin', async () => {
         await expect(
           adapter
             .connect((await ethers.getSigners())[5])
-            .addBaseAssetSymbolAndPriceId('XYZ', ethers.randomBytes(32)),
+            .addMarket('XYZ', ethers.randomBytes(32), 1),
         ).to.eventually.be.rejectedWith(/caller must be admin/i);
       });
 
       it('should revert for invalid base asset symbol', async () => {
         await expect(
-          adapter.addBaseAssetSymbolAndPriceId('', ethers.randomBytes(32)),
+          adapter.addMarket('', ethers.randomBytes(32), 1),
         ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
       });
 
       it('should revert for invalid price ID', async () => {
         await expect(
-          adapter.addBaseAssetSymbolAndPriceId(
+          adapter.addMarket(
             'XYZ',
             '0x0000000000000000000000000000000000000000000000000000000000000000',
+            1,
           ),
         ).to.eventually.be.rejectedWith(/invalid price id/i);
       });
 
       it('should revert for already added base asset symbol', async () => {
         await expect(
-          adapter.addBaseAssetSymbolAndPriceId(
-            baseAssetSymbol,
-            ethers.randomBytes(32),
-          ),
+          adapter.addMarket(baseAssetSymbol, ethers.randomBytes(32), 1),
         ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
       });
 
       it('should revert for already added price ID', async () => {
         await expect(
-          adapter.addBaseAssetSymbolAndPriceId('XYZ', priceId),
+          adapter.addMarket('XYZ', priceId, 1),
         ).to.eventually.be.rejectedWith(/already added price ID/i);
       });
     });
@@ -345,6 +347,7 @@ describe('oracle price adapters', function () {
         adapter = await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
           [priceId],
+          [1],
           await pyth.getAddress(),
         );
       });
@@ -397,10 +400,34 @@ describe('oracle price adapters', function () {
         ).to.equal(decimalToPips('20.00000000'));
       });
 
+      it('should work with price multiplier', async () => {
+        const priceMultiplier = BigInt(100);
+        const multiplierBaseAssetSymbol = `${priceMultiplier}baseAssetSymbol`;
+
+        adapter = await PythOraclePriceAdapterFactory.deploy(
+          [multiplierBaseAssetSymbol],
+          [priceId],
+          [priceMultiplier],
+          await pyth.getAddress(),
+        );
+
+        await updatePythPrice(
+          pyth,
+          priceId,
+          price,
+          await getLatestBlockTimestampInSeconds(),
+          8,
+        );
+
+        expect(
+          await adapter.loadPriceForBaseAssetSymbol(multiplierBaseAssetSymbol),
+        ).to.equal(BigInt(price) * priceMultiplier);
+      });
+
       it('should revert for invalid base asset symbol', async () => {
         await expect(
           adapter.loadPriceForBaseAssetSymbol('XYZ'),
-        ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
+        ).to.eventually.be.rejectedWith(/unknown base asset symbol/i);
       });
 
       it('should revert for zero price', async () => {
@@ -451,6 +478,7 @@ describe('oracle price adapters', function () {
         const adapter = await PythOraclePriceAdapterFactory.deploy(
           [baseAssetSymbol],
           [ethers.randomBytes(32)],
+          [1],
           await pyth.getAddress(),
         );
         await adapter.setActive(ethers.ZeroAddress);

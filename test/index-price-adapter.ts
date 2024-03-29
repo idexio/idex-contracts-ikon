@@ -1,6 +1,12 @@
 import BigNumber from 'bignumber.js';
 import { ethers, network } from 'hardhat';
-import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
+
+import {
+  hardhatChainId,
+  getDomainSeparator,
+  indexPriceToArgumentStruct,
+  decimalToPips,
+} from '../lib';
 
 import {
   baseAssetSymbol,
@@ -12,13 +18,8 @@ import {
   getLatestBlockTimestampInSeconds,
   quoteAssetSymbol,
 } from './helpers';
-import {
-  hardhatChainId,
-  getDomainSeparator,
-  indexPriceToArgumentStruct,
-  decimalToPips,
-} from '../lib';
-import {
+
+import type {
   ExchangeIndexPriceAdapterMock,
   ExchangeIndexPriceAdapterMock__factory,
   Exchange_v4,
@@ -33,6 +34,7 @@ import {
   StorkIndexAndOraclePriceAdapter,
   StorkIndexAndOraclePriceAdapter__factory,
 } from '../typechain-types';
+import type { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 describe('IDEXIndexAndOraclePriceAdapter', function () {
   let ExchangeIndexPriceAdapterMockFactory: ExchangeIndexPriceAdapterMock__factory;
@@ -252,7 +254,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
     });
   });
 
-  describe('validateIndexPricePayload', async function () {
+  describe('validateIndexPricePayload', async () => {
     let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
 
     beforeEach(async () => {
@@ -267,7 +269,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
         indexPriceAdapter.validateIndexPricePayload('0x00'),
       ).to.eventually.be.rejectedWith(/exchange not set/i);
 
-      const exchange = (await deployContractsExceptCustodian(owner)).exchange;
+      const { exchange } = await deployContractsExceptCustodian(owner);
       await indexPriceAdapter.setActive(await exchange.getAddress());
       await expect(
         indexPriceAdapter.validateIndexPricePayload('0x00'),
@@ -297,7 +299,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
     });
   });
 
-  describe('validateInitialIndexPricePayloadAdmin', async function () {
+  describe('validateInitialIndexPricePayloadAdmin', async () => {
     let exchange: Exchange_v4;
     let indexPriceAdapter: IDEXIndexAndOraclePriceAdapter;
 
@@ -425,7 +427,7 @@ describe('IDEXIndexAndOraclePriceAdapter', function () {
   });
 });
 
-describe.only('PythIndexPriceAdapter', function () {
+describe('PythIndexPriceAdapter', function () {
   let ownerWallet: SignerWithAddress;
   let pyth: PythMock;
   let PythMockFactory: PythMock__factory;
@@ -453,7 +455,7 @@ describe.only('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [ethers.randomBytes(32)],
-        [0],
+        [1],
         await pyth.getAddress(),
       );
     });
@@ -464,7 +466,7 @@ describe.only('PythIndexPriceAdapter', function () {
           ethers.ZeroAddress,
           [baseAssetSymbol],
           [ethers.randomBytes(32)],
-          [0],
+          [1],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid activator/i);
@@ -476,7 +478,7 @@ describe.only('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [baseAssetSymbol],
           [ethers.randomBytes(32)],
-          [0],
+          [1],
           ethers.ZeroAddress,
         ),
       ).to.eventually.be.rejectedWith(/invalid pyth contract address/i);
@@ -488,7 +490,7 @@ describe.only('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [baseAssetSymbol, baseAssetSymbol],
           [ethers.randomBytes(32)],
-          [0],
+          [1],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
@@ -498,7 +500,7 @@ describe.only('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [baseAssetSymbol],
           [ethers.randomBytes(32), ethers.randomBytes(32)],
-          [0],
+          [1],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/argument length mismatch/i);
@@ -510,7 +512,7 @@ describe.only('PythIndexPriceAdapter', function () {
           ownerWallet.address,
           [''],
           [ethers.randomBytes(32)],
-          [0],
+          [1],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
@@ -524,7 +526,7 @@ describe.only('PythIndexPriceAdapter', function () {
           [
             '0x0000000000000000000000000000000000000000000000000000000000000000',
           ],
-          [0],
+          [1],
           await pyth.getAddress(),
         ),
       ).to.eventually.be.rejectedWith(/invalid price id/i);
@@ -540,26 +542,26 @@ describe.only('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        [0],
+        [1],
         await pyth.getAddress(),
       );
     });
 
     it('should work for valid base asset symbol and price ID', async () => {
-      await adapter.addMarket('XYZ', ethers.randomBytes(32), 0);
+      await adapter.addMarket('XYZ', ethers.randomBytes(32), 1);
     });
 
     it('should revert when not sent by admin', async () => {
       await expect(
         adapter
           .connect((await ethers.getSigners())[5])
-          .addMarket('XYZ', ethers.randomBytes(32), 0),
+          .addMarket('XYZ', ethers.randomBytes(32), 1),
       ).to.eventually.be.rejectedWith(/caller must be admin/i);
     });
 
     it('should revert for invalid base asset symbol', async () => {
       await expect(
-        adapter.addMarket('', ethers.randomBytes(32), 0),
+        adapter.addMarket('', ethers.randomBytes(32), 1),
       ).to.eventually.be.rejectedWith(/invalid base asset symbol/i);
     });
 
@@ -568,20 +570,20 @@ describe.only('PythIndexPriceAdapter', function () {
         adapter.addMarket(
           'XYZ',
           '0x0000000000000000000000000000000000000000000000000000000000000000',
-          0,
+          1,
         ),
       ).to.eventually.be.rejectedWith(/invalid price id/i);
     });
 
     it('should revert for already added base asset symbol', async () => {
       await expect(
-        adapter.addMarket(baseAssetSymbol, ethers.randomBytes(32), 0),
+        adapter.addMarket(baseAssetSymbol, ethers.randomBytes(32), 1),
       ).to.eventually.be.rejectedWith(/already added base asset symbol/i);
     });
 
     it('should revert for already added price ID', async () => {
       await expect(
-        adapter.addMarket('XYZ', priceId, 0),
+        adapter.addMarket('XYZ', priceId, 1),
       ).to.eventually.be.rejectedWith(/already added price ID/i);
     });
   });
@@ -596,7 +598,7 @@ describe.only('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        [0],
+        [1],
         await pyth.getAddress(),
       );
       const results = await deployContractsExceptCustodian(
@@ -655,7 +657,7 @@ describe.only('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        [0],
+        [1],
         await pyth.getAddress(),
       );
       exchange = await ExchangeIndexPriceAdapterMockFactory.deploy(
@@ -832,7 +834,7 @@ describe.only('PythIndexPriceAdapter', function () {
         ownerWallet.address,
         [baseAssetSymbol],
         [priceId],
-        [0],
+        [1],
         await pyth.getAddress(),
       );
       destinationWallet = (await ethers.getSigners())[1];
@@ -1114,8 +1116,7 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         indexPriceAdapter.validateIndexPricePayload('0x00'),
       ).to.eventually.be.rejectedWith(/exchange not set/i);
 
-      const exchange = (await deployContractsExceptCustodian(ownerWallet))
-        .exchange;
+      const { exchange } = await deployContractsExceptCustodian(ownerWallet);
       await indexPriceAdapter.setActive(await exchange.getAddress());
       await expect(
         indexPriceAdapter.validateIndexPricePayload('0x00'),
@@ -1291,8 +1292,8 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
 
       const signature = await ownerWallet.signMessage(ethers.getBytes(hash));
       const r = signature.slice(0, 66);
-      const s = '0x' + signature.slice(66, 130);
-      const v = '0x' + signature.slice(130, 132);
+      const s = `0x${signature.slice(66, 130)}`;
+      const v = `0x${signature.slice(130, 132)}`;
 
       const payload = ethers.AbiCoder.defaultAbiCoder().encode(
         [
@@ -1346,8 +1347,8 @@ describe('StorkIndexAndOraclePriceAdapter', function () {
         ethers.getBytes(hash),
       );
       const r = signature.slice(0, 66);
-      const s = '0x' + signature.slice(66, 130);
-      const v = '0x' + signature.slice(130, 132);
+      const s = `0x${signature.slice(66, 130)}`;
+      const v = `0x${signature.slice(130, 132)}`;
 
       const payload = ethers.AbiCoder.defaultAbiCoder().encode(
         [
@@ -1428,8 +1429,8 @@ async function buildStorkPricePayload(
 
   const signature = await publisherWallet.signMessage(ethers.getBytes(hash));
   const r = signature.slice(0, 66);
-  const s = '0x' + signature.slice(66, 130);
-  const v = '0x' + signature.slice(130, 132);
+  const s = `0x${signature.slice(66, 130)}`;
+  const v = `0x${signature.slice(130, 132)}`;
 
   return ethers.AbiCoder.defaultAbiCoder().encode(
     ['address', 'string', 'uint256', 'uint256', 'bytes32', 'bytes32', 'uint8'],

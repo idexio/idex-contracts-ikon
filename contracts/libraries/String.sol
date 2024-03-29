@@ -10,17 +10,18 @@ library String {
     return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
   }
 
-  function startsWith(string memory self, string memory prefix) internal pure returns (bool selfStartsWithPrefix) {
+  function startsWith(string memory self, string memory prefix) internal pure returns (bool) {
+    uint256 prefixLength = bytes(prefix).length;
     if (bytes(self).length < bytes(prefix).length) {
       return false;
     }
 
-    assembly {
-      let length := mload(prefix)
-      let selfPtr := mload(add(self, 0x20))
-      let prefixPtr := mload(add(prefix, 0x20))
-      selfStartsWithPrefix := eq(keccak256(selfPtr, length), keccak256(prefixPtr, length))
+    bytes memory selfPrefix = new bytes(prefixLength);
+    for (uint i = 0; i < prefixLength; i++) {
+      selfPrefix[i] = bytes(self)[i];
     }
+
+    return isEqual(string(selfPrefix), prefix);
   }
 
   /**

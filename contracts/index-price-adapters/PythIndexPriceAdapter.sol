@@ -18,7 +18,7 @@ struct PythMarket {
   bool exists;
   string baseAssetSymbol;
   bytes32 priceId;
-  uint256 priceMultiplierExponent;
+  uint256 priceMultiplier;
 }
 
 contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
@@ -45,19 +45,19 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     address activator_,
     string[] memory baseAssetSymbols,
     bytes32[] memory priceIds,
-    uint256[] memory priceMultiplierExponents,
+    uint256[] memory priceMultipliers,
     address pyth_
   ) Owned() {
     require(activator_ != address(0x0), "Invalid activator address");
     activator = activator_;
 
     require(
-      baseAssetSymbols.length == priceIds.length && priceIds.length == priceMultiplierExponents.length,
+      baseAssetSymbols.length == priceIds.length && priceIds.length == priceMultipliers.length,
       "Argument length mismatch"
     );
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      addMarket(baseAssetSymbols[i], priceIds[i], priceMultiplierExponents[i]);
+      addMarket(baseAssetSymbols[i], priceIds[i], priceMultipliers[i]);
     }
 
     require(Address.isContract(pyth_), "Invalid Pyth contract address");
@@ -86,15 +86,17 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
    * @param baseAssetSymbol The symbol of the base asset symbol
    * @param priceId The Pyth price feed ID
    */
-  function addMarket(string memory baseAssetSymbol, bytes32 priceId, uint256 priceMultiplierExponent) public onlyAdmin {
+  function addMarket(string memory baseAssetSymbol, bytes32 priceId, uint256 priceMultiplier) public onlyAdmin {
     require(priceId != bytes32(0x0), "Invalid price ID");
     require(!marketsByPriceId[priceId].exists, "Already added price ID");
 
     require(bytes(baseAssetSymbol).length > 0, "Invalid base asset symbol");
     require(!marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Already added base asset symbol");
 
-    if (priceMultiplierExponent > 0) {
-      string memory priceMultiplierAsString = Strings.toString(10 ** priceMultiplierExponent);
+    require(priceMultiplier > 0, "Invalid price multiplier");
+
+    if (priceMultiplier > 1) {
+      string memory priceMultiplierAsString = Strings.toString(priceMultiplier);
       require(
         String.startsWith(baseAssetSymbol, priceMultiplierAsString),
         "Base asset symbol does not start with price multiplier"
@@ -105,7 +107,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
       exists: true,
       baseAssetSymbol: baseAssetSymbol,
       priceId: priceId,
-      priceMultiplierExponent: priceMultiplierExponent
+      priceMultiplier: priceMultiplier
     });
 
     marketsByPriceId[priceId] = pythMarket;
@@ -155,7 +157,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
       IndexPrice({
         baseAssetSymbol: market.baseAssetSymbol,
         timestampInMs: SafeCast.toUint64(priceFeeds[0].price.publishTime * 1000),
-        price: SafeCast.toUint64(priceInPips * (10 ** market.priceMultiplierExponent))
+        price: SafeCast.toUint64(priceInPips * market.priceMultiplier)
       });
   }
 
