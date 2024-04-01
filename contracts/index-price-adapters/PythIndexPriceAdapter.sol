@@ -18,7 +18,7 @@ struct PythMarket {
   bool exists;
   string baseAssetSymbol;
   bytes32 priceId;
-  uint256 priceMultiplier;
+  uint64 priceMultiplier;
 }
 
 contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
@@ -46,7 +46,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     address activator_,
     string[] memory baseAssetSymbols,
     bytes32[] memory priceIds,
-    uint256[] memory priceMultipliers,
+    uint64[] memory priceMultipliers,
     address pyth_
   ) Owned() {
     require(activator_ != address(0x0), "Invalid activator address");
@@ -89,7 +89,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
    * @param priceMultiplier The price multiplier to use when loading the price for a market. If greater than 1, the
    * base asset symbol must include the price multiplier as a prefix
    */
-  function addMarket(string memory baseAssetSymbol, bytes32 priceId, uint256 priceMultiplier) public onlyAdmin {
+  function addMarket(string memory baseAssetSymbol, bytes32 priceId, uint64 priceMultiplier) public onlyAdmin {
     require(priceId != bytes32(0x0), "Invalid price ID");
     require(!marketsByPriceId[priceId].exists, "Already added price ID");
 
@@ -153,7 +153,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     PythMarket memory market = marketsByPriceId[priceId];
     require(market.exists, "Unknown price ID");
 
-    uint64 priceInPips = _priceToPips(priceFeeds[0].price.price, priceFeeds[0].price.expo);
+    uint64 priceInPips = _priceToPips(priceFeeds[0].price.price, priceFeeds[0].price.expo, market.priceMultiplier);
     require(priceInPips > 0, "Unexpected non-positive price");
 
     return
@@ -175,15 +175,19 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     return address(exchange) != address(0x0);
   }
 
-  function _priceToPips(int64 price, int32 exponent) internal pure returns (uint64 priceInPips) {
+  function _priceToPips(
+    int64 price,
+    int32 exponent,
+    uint64 priceMultiplier
+  ) internal pure returns (uint64 priceInPips) {
     require(price > 0, "Unexpected non-positive price");
 
     // Solidity exponents cannot be negative, so divide or multiply based on exponent signedness after pip correction
     int32 exponentCorrectedForPips = exponent + 8;
     if (exponentCorrectedForPips < 0) {
-      priceInPips = uint64(price) / (uint64(10) ** (uint32(-1 * exponentCorrectedForPips)));
+      priceInPips = (uint64(price) * priceMultiplier) / (uint64(10) ** (uint32(-1 * exponentCorrectedForPips)));
     } else {
-      priceInPips = uint64(price) * (uint64(10) ** (uint32(exponentCorrectedForPips)));
+      priceInPips = uint64(price) * priceMultiplier * (uint64(10) ** (uint32(exponentCorrectedForPips)));
     }
   }
 }
