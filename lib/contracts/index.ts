@@ -1,8 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { ethers } from 'ethers';
 
-import { initRpcApi, loadProvider } from './utils';
+import { ethers } from 'ethers';
 
 import ChainlinkAggregator from './ChainlinkAggregator';
 import CustodianContract from './CustodianContract';
@@ -12,8 +11,11 @@ import ExchangeStargateAdapterContract from './ExchangeStargateAdapterContract';
 import ExchangeWalletStateAggregatorContract from './ExchangeWalletStateAggregatorContract';
 import GovernanceContract from './GovernanceContract';
 import IDEXIndexAndOraclePriceAdapterContract from './IDEXIndexAndOraclePriceAdapterContract';
+import PythIndexPriceAdapterContract from './PythIndexPriceAdapterContract';
+import PythOraclePriceAdapterContract from './PythOraclePriceAdapterContract';
 import StorkIndexAndOraclePriceAdapterContract from './StorkIndexAndOraclePriceAdapterContract';
 import USDCContract from './USDCContract';
+import { initRpcApi, loadProvider } from './utils';
 
 export {
   initRpcApi,
@@ -26,6 +28,8 @@ export {
   ExchangeWalletStateAggregatorContract,
   GovernanceContract,
   IDEXIndexAndOraclePriceAdapterContract,
+  PythIndexPriceAdapterContract,
+  PythOraclePriceAdapterContract,
   StorkIndexAndOraclePriceAdapterContract,
   USDCContract,
 };
