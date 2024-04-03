@@ -1111,7 +1111,7 @@ __metadata:
     eslint-plugin-react: "npm:7.34.0"
     eslint-plugin-react-hooks: "npm:4.6.0"
     eslint-plugin-ts-import: "npm:^1.2.2"
-    ethers: "npm:6.8.0"
+    ethers: "npm:6.9.0"
     hardhat: "npm:2.18.3"
     hardhat-contract-sizer: "npm:^2.8.0"
     mkdirp: "npm:^3.0.1"
@@ -4730,9 +4730,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethers@npm:6.8.0":
-  version: 6.8.0
-  resolution: "ethers@npm:6.8.0"
+"ethers@npm:6.9.0":
+  version: 6.9.0
+  resolution: "ethers@npm:6.9.0"
   dependencies:
     "@adraffy/ens-normalize": "npm:1.10.0"
     "@noble/curves": "npm:1.2.0"
@@ -4741,7 +4741,7 @@ __metadata:
     aes-js: "npm:4.0.0-beta.5"
     tslib: "npm:2.4.0"
     ws: "npm:8.5.0"
-  checksum: 1beb568c1044ab446249982a7a14584f0e7b6aa0db70d9875d25c5c9c3f6355dde33a3d35e3fd47728b2af0084f2f77309c09b8ed378927e3d6cc02a3f19d6aa
+  checksum: d5ff036b3749549b8d5470d9c972c4713a7ad399eeb65ac6aa59d060f2429407dd80621913550314dcbb25e8a05cf1ce76186d24058ffc8d18ac034093539e81
   languageName: node
   linkType: hard
 
