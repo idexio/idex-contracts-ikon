@@ -6,7 +6,7 @@ import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomicfoundation/hardhat-verify';
 import 'hardhat-contract-sizer';
 import 'solidity-coverage';
-import { HardhatUserConfig } from 'hardhat/config';
+import type { HardhatUserConfig } from 'hardhat/config';
 
 /*
 import * as path from 'path';
@@ -34,7 +34,7 @@ dotenv.config();
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
-const SOLC_VERSION = '0.8.18' as const;
+const SOLC_VERSION = '0.8.18';
 
 // Solidity coverage tool does not support the viaIR compiler option
 // https://github.com/sc-forks/solidity-coverage/issues/715
@@ -88,9 +88,13 @@ const config: HardhatUserConfig = {
       chainId: 1001,
       url: 'https://rpc-dev-geth.idex-dev.com:8545',
     },
-    zkevm: {
-      chainId: 671276500,
-      url: 'https://xchain-testnet-rpc.ap-northeast-1.gateway.fm',
+    arbitrumSepolia: {
+      chainId: 421614,
+      url: 'https://sepolia-rollup.arbitrum.io/rpc',
+    },
+    xchainTestnet: {
+      chainId: 64002,
+      url: 'https://xchain-testnet-rpc.idex.io/',
     },
     polygonAmoy: {
       chainId: 80002,
@@ -108,7 +112,8 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       private: 'abc',
-      zkevm: 'abc',
+      arbitrumSepolia: 'H6U42K28KCMQ2NRFXFE28I9UCP5HYV6M8U',
+      xchainTestnet: 'abc',
       polygonAmoy: 'bad22612-5107-4e49-b6d9-861b9f613cd5',
       polygonMumbai: 'K7QYKN8XKGTR5J3W6D8A7625N7CH5RWITF',
       polygonMainnet: 'K7QYKN8XKGTR5J3W6D8A7625N7CH5RWITF',
@@ -123,11 +128,19 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: 'zkevm',
-        chainId: 671276500,
+        network: 'xchainTestnet',
+        chainId: 64002,
         urls: {
-          apiURL: 'https://explorer-staging-zkevm.idex-dev.com/api/v1',
-          browserURL: 'https://explorer-staging-zkevm.idex-dev.com/',
+          apiURL: 'https://explorer-staging-orbit.idex-dev.com/api/v1',
+          browserURL: 'https://explorer-staging-orbit.idex-dev.com/',
+        },
+      },
+      {
+        network: 'arbitrumSepolia',
+        chainId: 421614,
+        urls: {
+          apiURL: 'https://api-sepolia.arbiscan.io/api',
+          browserURL: 'https://sepolia.arbiscan.io/',
         },
       },
       {
