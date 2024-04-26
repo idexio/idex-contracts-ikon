@@ -6,7 +6,7 @@ import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomicfoundation/hardhat-verify';
 import 'hardhat-contract-sizer';
 import 'solidity-coverage';
-import { HardhatUserConfig } from 'hardhat/config';
+import type { HardhatUserConfig } from 'hardhat/config';
 
 /*
 import * as path from 'path';
@@ -34,7 +34,7 @@ dotenv.config();
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
-const SOLC_VERSION = '0.8.18' as const;
+const SOLC_VERSION = '0.8.18';
 
 // Solidity coverage tool does not support the viaIR compiler option
 // https://github.com/sc-forks/solidity-coverage/issues/715
@@ -60,6 +60,16 @@ const solidity = process.env.COVERAGE
             viaIR: true,
           },
         },
+        {
+          version: '0.8.25',
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 1000000,
+            },
+            viaIR: true,
+          },
+        },
       ],
       overrides: {
         'contracts/Exchange.sol': {
@@ -71,6 +81,9 @@ const solidity = process.env.COVERAGE
             },
             viaIR: true,
           },
+        },
+        'contracts/bridge-adapters/ExchangeStargateV2Adapter.sol': {
+          version: '0.8.25',
         },
       },
     };
