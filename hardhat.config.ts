@@ -60,6 +60,16 @@ const solidity = process.env.COVERAGE
             viaIR: true,
           },
         },
+        {
+          version: '0.8.25',
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 1000000,
+            },
+            viaIR: true,
+          },
+        },
       ],
       overrides: {
         'contracts/Exchange.sol': {
@@ -71,6 +81,9 @@ const solidity = process.env.COVERAGE
             },
             viaIR: true,
           },
+        },
+        'contracts/bridge-adapters/ExchangeStargateV2Adapter.sol': {
+          version: '0.8.25',
         },
       },
     };
