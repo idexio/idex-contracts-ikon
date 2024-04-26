@@ -99,7 +99,7 @@ interface IStargate is IOFT {}
  * End Stargate types
  */
 
-contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
+contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
   // Address of Custodian contract
   ICustodian public immutable custodian;
   // Must be true or `lzCompose` will revert
