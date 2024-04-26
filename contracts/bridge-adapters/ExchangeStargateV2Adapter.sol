@@ -18,6 +18,7 @@ interface IExchange {
 
 /*
  * @notice Mixin that provide separate owner and admin roles for RBAC
+ * @dev Copied here from Owned.sol due to Solidity version mismatch
  */
 abstract contract Owned {
   address public ownerWallet;
@@ -173,7 +174,7 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
     bytes calldata _message,
     address /* _executor */,
     bytes calldata /* _extraData */
-  ) external payable override {
+  ) public payable override {
     require(msg.sender == lzEndpoint, "Caller must be LZ Endpoint");
     require(_from == address(stargate), "OApp must be Stargate");
     require(isDepositEnabled, "Deposits disabled");
@@ -186,6 +187,14 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
     require(destinationWallet != address(0x0), "Invalid destination wallet");
 
     IExchange(custodian.exchange()).deposit(amountLD, destinationWallet);
+  }
+
+  /**
+   * @notice Allow Admin wallet to withdraw gas fee funding
+   */
+  function withdrawNativeAsset(address payable destinationContractOrWallet, uint256 quantity) public onlyAdmin {
+    (bool success, ) = destinationContractOrWallet.call{ value: quantity }("");
+    require(success, "Native asset transfer failed");
   }
 
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
@@ -205,12 +214,12 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
     }
   }
 
-  /**
-   * @notice Allow Admin wallet to withdraw gas fee funding
-   */
-  function withdrawNativeAsset(address payable destinationContractOrWallet, uint256 quantity) public onlyAdmin {
-    (bool success, ) = destinationContractOrWallet.call{ value: quantity }("");
-    require(success, "Native asset transfer failed");
+  function setMinimumWithdrawQuantityMultiplier(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
+    minimumWithdrawQuantityMultiplier = newMinimumWithdrawQuantityMultiplier;
+  }
+
+  function setWithdrawEnabled(bool isEnabled) public onlyAdmin {
+    isWithdrawEnabled = isEnabled;
   }
 
   /**
@@ -228,14 +237,6 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
     (, , OFTReceipt memory receipt) = stargate.quoteOFT(sendParam);
 
     return receipt.amountReceivedLD;
-  }
-
-  function setMinimumWithdrawQuantityMultiplier(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
-    minimumWithdrawQuantityMultiplier = newMinimumWithdrawQuantityMultiplier;
-  }
-
-  function setWithdrawEnabled(bool isEnabled) public onlyAdmin {
-    isWithdrawEnabled = isEnabled;
   }
 
   function _getSendParamForWithdraw(
@@ -257,6 +258,9 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
       });
   }
 
+  /*
+   * @dev Copied here from AssetUnitConversions.sol due to Solidity version mismatch
+   */
   function _pipsToAssetUnits(uint64 quantity, uint8 assetDecimals) private pure returns (uint256) {
     require(assetDecimals <= 32, "Asset cannot have more than 32 decimals");
 
