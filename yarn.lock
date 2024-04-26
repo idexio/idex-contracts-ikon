@@ -1076,6 +1076,8 @@ __metadata:
     "@commitlint/config-conventional": "npm:^17.7.0"
     "@eslint/eslintrc": "npm:^3.0.2"
     "@eslint/js": "npm:^8.57.0"
+    "@layerzerolabs/lz-evm-oapp-v2": "npm:^2.3.3"
+    "@layerzerolabs/lz-evm-protocol-v2": "npm:^2.3.3"
     "@nomicfoundation/hardhat-chai-matchers": "npm:2.0.2"
     "@nomicfoundation/hardhat-ethers": "npm:^3.0.4"
     "@nomicfoundation/hardhat-network-helpers": "npm:^1.0.8"
@@ -1162,6 +1164,33 @@ __metadata:
     "@jridgewell/resolve-uri": "npm:^3.0.3"
     "@jridgewell/sourcemap-codec": "npm:^1.4.10"
   checksum: fa425b606d7c7ee5bfa6a31a7b050dd5814b4082f318e0e4190f991902181b4330f43f4805db1dd4f2433fd0ed9cc7a7b9c2683f1deeab1df1b0a98b1e24055b
+  languageName: node
+  linkType: hard
+
+"@layerzerolabs/lz-evm-oapp-v2@npm:^2.3.3":
+  version: 2.3.3
+  resolution: "@layerzerolabs/lz-evm-oapp-v2@npm:2.3.3"
+  peerDependencies:
+    "@layerzerolabs/lz-evm-messagelib-v2": ^2.3.3
+    "@layerzerolabs/lz-evm-protocol-v2": ^2.3.3
+    "@layerzerolabs/lz-evm-v1-0.7": ^2.3.3
+    "@openzeppelin/contracts": ^4.8.1 || ^5.0.0
+    "@openzeppelin/contracts-upgradeable": ^4.8.1 || ^5.0.0
+    hardhat-deploy: ^0.11.44
+    solidity-bytes-utils: ^0.8.0
+  checksum: 51cff9591b10cf948d3bb0338f9f5ab581743e06fbf9ed945ede756a6e0c6ccf59e383c409d93a6e83e9dc3f6714e6a55a51abf66a85622f444b644f88385aea
+  languageName: node
+  linkType: hard
+
+"@layerzerolabs/lz-evm-protocol-v2@npm:^2.3.3":
+  version: 2.3.3
+  resolution: "@layerzerolabs/lz-evm-protocol-v2@npm:2.3.3"
+  peerDependencies:
+    "@openzeppelin/contracts": ^4.8.1 || ^5.0.0
+    "@openzeppelin/contracts-upgradeable": ^4.8.1 || ^5.0.0
+    hardhat-deploy: ^0.11.44
+    solidity-bytes-utils: ^0.8.0
+  checksum: 837c0be1c548b1b17512edd6d718fc19c68279c9a6e644dfca2973c1a4249b42320c8d4b257d13507bb0adb0cc1c70b1a7eceee862d910125eac58a6d7625fd8
   languageName: node
   linkType: hard
 
