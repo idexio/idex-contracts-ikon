@@ -92,15 +92,7 @@ struct Ticket {
   bytes passenger;
 }
 
-interface IStargate is IOFT {
-  /// @dev This function is same as `send` in OFT interface but returns the passenger data if in the bus ride mode,
-  /// which allows the caller to ride and drive the bus in the same transaction.
-  function sendToken(
-    SendParam calldata _sendParam,
-    MessagingFee calldata _fee,
-    address _refundAddress
-  ) external payable returns (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt, Ticket memory ticket);
-}
+interface IStargate is IOFT {}
 
 /**
  * End Stargate types
@@ -163,6 +155,11 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
   }
 
   /**
+   * @notice Allow incoming native asset to fund contract for gas fees, as well as incoming gas fee refunds
+   */
+  receive() external payable {}
+
+  /**
    * @notice Composes a LayerZero message from an OApp.
    * @param _from The address initiating the composition, typically the OApp where the lzReceive was called.
    * param _guid The unique identifier for the corresponding LayerZero src/dst tx.
@@ -194,22 +191,12 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
     require(isWithdrawEnabled, "Withdraw disabled");
 
-    uint32 destinationEndpointId = abi.decode(payload, (uint32));
-
-    SendParam memory sendParam = SendParam({
-      dstEid: destinationEndpointId,
-      to: OFTComposeMsgCodec.addressToBytes32(destinationWallet),
-      amountLD: quantity,
-      minAmountLD: (quantity * minimumWithdrawQuantityMultiplier) / PIP_PRICE_MULTIPLIER,
-      extraOptions: "0x",
-      composeMsg: "0x",
-      oftCmd: "0x"
-    });
+    SendParam memory sendParam = _getSendParamForWithdraw(destinationWallet, quantity, payload);
 
     // https://github.com/LayerZero-Labs/LayerZero-v2/blob/1fde89479fdc68b1a54cda7f19efa84483fcacc4/oapp/contracts/oft/interfaces/IOFT.sol#L127C14-L127C23
     MessagingFee memory messagingFee = stargate.quoteSend(sendParam, false);
 
-    try stargate.sendToken{ value: messagingFee.nativeFee }(sendParam, messagingFee, payable(address(this))) {} catch (
+    try stargate.send{ value: messagingFee.nativeFee }(sendParam, messagingFee, payable(address(this))) {} catch (
       bytes memory errorData
     ) {
       // If the swap fails, redeposit funds into Exchange so wallet can retry
@@ -218,11 +205,65 @@ contract ExchangeStargateAdapter is ILayerZeroComposer, Owned {
     }
   }
 
+  /**
+   * @notice Allow Admin wallet to withdraw gas fee funding
+   */
+  function withdrawNativeAsset(address payable destinationContractOrWallet, uint256 quantity) public onlyAdmin {
+    (bool success, ) = destinationContractOrWallet.call{ value: quantity }("");
+    require(success, "Native asset transfer failed");
+  }
+
+  /**
+   * @notice Estimate actual quantity of quote tokens that will be delivered on target chain after pool fees
+   */
+  function estimateWithdrawQuantityInAssetUnits(
+    address destinationWallet,
+    uint64 quantity,
+    bytes memory payload
+  ) public view returns (uint256 estimatedWithdrawQuantityInAssetUnits) {
+    uint256 quantityInAssetUnits = _pipsToAssetUnits(quantity, stargate.sharedDecimals());
+
+    SendParam memory sendParam = _getSendParamForWithdraw(destinationWallet, quantityInAssetUnits, payload);
+
+    (, , OFTReceipt memory receipt) = stargate.quoteOFT(sendParam);
+
+    return receipt.amountReceivedLD;
+  }
+
   function setMinimumWithdrawQuantityMultiplier(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
     minimumWithdrawQuantityMultiplier = newMinimumWithdrawQuantityMultiplier;
   }
 
   function setWithdrawEnabled(bool isEnabled) public onlyAdmin {
     isWithdrawEnabled = isEnabled;
+  }
+
+  function _getSendParamForWithdraw(
+    address destinationWallet,
+    uint256 quantityInAssetUnits,
+    bytes memory payload
+  ) private view returns (SendParam memory) {
+    uint32 destinationEndpointId = abi.decode(payload, (uint32));
+
+    return
+      SendParam({
+        dstEid: destinationEndpointId,
+        to: OFTComposeMsgCodec.addressToBytes32(destinationWallet),
+        amountLD: quantityInAssetUnits,
+        minAmountLD: (quantityInAssetUnits * minimumWithdrawQuantityMultiplier) / PIP_PRICE_MULTIPLIER,
+        extraOptions: "0x",
+        composeMsg: "0x",
+        oftCmd: "0x"
+      });
+  }
+
+  function _pipsToAssetUnits(uint64 quantity, uint8 assetDecimals) private pure returns (uint256) {
+    require(assetDecimals <= 32, "Asset cannot have more than 32 decimals");
+
+    // Exponents cannot be negative, so divide or multiply based on exponent signedness
+    if (assetDecimals > 8) {
+      return uint256(quantity) * (uint256(10) ** (assetDecimals - 8));
+    }
+    return uint256(quantity) / (uint256(10) ** (8 - assetDecimals));
   }
 }
