@@ -205,6 +205,10 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
     // https://github.com/LayerZero-Labs/LayerZero-v2/blob/1fde89479fdc68b1a54cda7f19efa84483fcacc4/oapp/contracts/oft/interfaces/IOFT.sol#L127C14-L127C23
     MessagingFee memory messagingFee = stargate.quoteSend(sendParam, false);
 
+    stargate.send{ value: messagingFee.nativeFee }(sendParam, messagingFee, payable(address(this)));
+
+    // TODO Re-enable try/catch once tested
+    /*
     try stargate.send{ value: messagingFee.nativeFee }(sendParam, messagingFee, payable(address(this))) {} catch (
       bytes memory errorData
     ) {
@@ -212,6 +216,11 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
       IExchange(custodian.exchange()).deposit(quantity, destinationWallet);
       emit WithdrawQuoteAssetFailed(destinationWallet, quantity, payload, errorData);
     }
+   */
+  }
+
+  function setDepositEnabled(bool isEnabled) public onlyAdmin {
+    isDepositEnabled = isEnabled;
   }
 
   function setMinimumWithdrawQuantityMultiplier(uint64 newMinimumWithdrawQuantityMultiplier) public onlyAdmin {
@@ -229,14 +238,44 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
     address destinationWallet,
     uint64 quantity,
     bytes memory payload
-  ) public view returns (uint256 estimatedWithdrawQuantityInAssetUnits) {
+  )
+    public
+    view
+    returns (
+      uint256 estimatedWithdrawQuantityInAssetUnits,
+      uint256 minimumWithdrawQuantityInAssetUnits,
+      uint8 poolDecimals
+    )
+  {
     uint256 quantityInAssetUnits = _pipsToAssetUnits(quantity, stargate.sharedDecimals());
 
     SendParam memory sendParam = _getSendParamForWithdraw(destinationWallet, quantityInAssetUnits, payload);
 
     (, , OFTReceipt memory receipt) = stargate.quoteOFT(sendParam);
 
-    return receipt.amountReceivedLD;
+    estimatedWithdrawQuantityInAssetUnits = receipt.amountReceivedLD;
+    minimumWithdrawQuantityInAssetUnits =
+      (quantityInAssetUnits * minimumWithdrawQuantityMultiplier) /
+      PIP_PRICE_MULTIPLIER;
+    poolDecimals = stargate.sharedDecimals();
+  }
+
+  /**
+   * @notice Load current gas fee for each target endpoint ID specified in argument array
+   *
+   * @param layerZeroEndpointIds An array of LZ Endpoint IDs
+   */
+  function loadGasFeesInAssetUnits(
+    uint32[] calldata layerZeroEndpointIds
+  ) public view returns (uint256[] memory gasFeesInAssetUnits) {
+    gasFeesInAssetUnits = new uint256[](layerZeroEndpointIds.length);
+
+    for (uint256 i = 0; i < layerZeroEndpointIds.length; ++i) {
+      SendParam memory sendParam = _getSendParamForWithdraw(msg.sender, 100000000, abi.encode(layerZeroEndpointIds[i]));
+
+      MessagingFee memory messagingFee = stargate.quoteSend(sendParam, false);
+      gasFeesInAssetUnits[i] = messagingFee.nativeFee;
+    }
   }
 
   function _getSendParamForWithdraw(
