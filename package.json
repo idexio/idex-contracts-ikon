@@ -1,6 +1,6 @@
 {
   "name": "@idexio/idex-contracts-ikon",
-  "version": "0.9.0",
+  "version": "0.9.0-sandbox-stargate-v2.9",
   "description": "Collects source code, tests, and documentation for the IDEX Ikon release Solidity contracts",
   "homepage": "https://github.com/idexio/idex-contracts-ikon",
   "repository": "https://github.com/idexio/idex-contracts-ikon",
