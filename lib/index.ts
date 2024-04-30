@@ -58,7 +58,7 @@ export const fundingPeriodLengthInMs = 8 * 60 * 60 * 1000;
 /** The fixed number of digits following the decimal in quantities expressed as pips */
 export const pipsDecimals = 8;
 
-export const signatureHashVersion = '4.0.0-sandbox';
+export const signatureHashVersion = '4.0.0';
 
 export enum OrderSelfTradePrevention {
   DecreaseAndCancel,
@@ -531,7 +531,7 @@ const orderToArgumentStruct = (
 
 type TypeValuePair =
   | ['string' | 'address', string]
-  | ['uint256' | 'uint128', BigInt]
+  | ['uint256' | 'uint128', bigint]
   | ['uint8' | 'uint64', number]
   | ['bool', boolean];
 
@@ -554,5 +554,5 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
   };
 };
 
-const uuidToUint128 = (uuid: string): BigInt =>
+const uuidToUint128 = (uuid: string): bigint =>
   BigInt.asUintN(128, BigInt(uuidToHexString(uuid)));
