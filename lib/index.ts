@@ -531,7 +531,7 @@ const orderToArgumentStruct = (
 
 type TypeValuePair =
   | ['string' | 'address', string]
-  | ['uint256' | 'uint128', BigInt]
+  | ['uint256' | 'uint128', bigint]
   | ['uint8' | 'uint64', number]
   | ['bool', boolean];
 
@@ -554,5 +554,5 @@ const tradeToArgumentStruct = (t: Trade, order: Order) => {
   };
 };
 
-const uuidToUint128 = (uuid: string): BigInt =>
+const uuidToUint128 = (uuid: string): bigint =>
   BigInt.asUintN(128, BigInt(uuidToHexString(uuid)));
