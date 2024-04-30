@@ -205,10 +205,6 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
     // https://github.com/LayerZero-Labs/LayerZero-v2/blob/1fde89479fdc68b1a54cda7f19efa84483fcacc4/oapp/contracts/oft/interfaces/IOFT.sol#L127C14-L127C23
     MessagingFee memory messagingFee = stargate.quoteSend(sendParam, false);
 
-    stargate.send{ value: messagingFee.nativeFee }(sendParam, messagingFee, payable(address(this)));
-
-    // TODO Re-enable try/catch once tested
-    /*
     try stargate.send{ value: messagingFee.nativeFee }(sendParam, messagingFee, payable(address(this))) {} catch (
       bytes memory errorData
     ) {
@@ -216,7 +212,6 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
       IExchange(custodian.exchange()).deposit(quantity, destinationWallet);
       emit WithdrawQuoteAssetFailed(destinationWallet, quantity, payload, errorData);
     }
-   */
   }
 
   function setDepositEnabled(bool isEnabled) public onlyAdmin {
@@ -271,7 +266,11 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
     gasFeesInAssetUnits = new uint256[](layerZeroEndpointIds.length);
 
     for (uint256 i = 0; i < layerZeroEndpointIds.length; ++i) {
-      SendParam memory sendParam = _getSendParamForWithdraw(msg.sender, 100000000, abi.encode(layerZeroEndpointIds[i]));
+      SendParam memory sendParam = _getSendParamForWithdraw(
+        address(this),
+        100000000,
+        abi.encode(layerZeroEndpointIds[i])
+      );
 
       MessagingFee memory messagingFee = stargate.quoteSend(sendParam, false);
       gasFeesInAssetUnits[i] = messagingFee.nativeFee;
@@ -291,9 +290,9 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
         to: OFTComposeMsgCodec.addressToBytes32(destinationWallet),
         amountLD: quantityInAssetUnits,
         minAmountLD: (quantityInAssetUnits * minimumWithdrawQuantityMultiplier) / PIP_PRICE_MULTIPLIER,
-        extraOptions: "0x",
-        composeMsg: "0x",
-        oftCmd: "0x"
+        extraOptions: bytes(""),
+        composeMsg: bytes(""),
+        oftCmd: bytes("")
       });
   }
 
