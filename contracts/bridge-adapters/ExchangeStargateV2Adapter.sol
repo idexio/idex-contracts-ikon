@@ -81,23 +81,11 @@ abstract contract Owned {
   }
 }
 
-/**
- * Stargate types
- */
-
-// https://github.com/stargate-protocol/x-stargate-v2/blob/05de001e429a82234b184290656b14b4fcac3a5f/packages/stg-evm-v2/src/interfaces/IStargate.sol
 // https://github.com/LayerZero-Labs/LayerZero-v2/blob/1fde89479fdc68b1a54cda7f19efa84483fcacc4/oapp/contracts/oft/interfaces/IOFT.sol
 
-struct Ticket {
-  uint56 ticketId;
-  bytes passenger;
+interface IStargate is IOFT {
+
 }
-
-interface IStargate is IOFT {}
-
-/**
- * End Stargate types
- */
 
 contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
   // Address of Custodian contract
@@ -285,6 +273,7 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
     uint32 destinationEndpointId = abi.decode(payload, (uint32));
 
     return
+      // https://docs.layerzero.network/v2/developers/evm/oft/quickstart#estimating-gas-fees
       SendParam({
         dstEid: destinationEndpointId,
         to: OFTComposeMsgCodec.addressToBytes32(destinationWallet),
@@ -292,7 +281,7 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
         minAmountLD: (quantityInAssetUnits * minimumWithdrawQuantityMultiplier) / PIP_PRICE_MULTIPLIER,
         extraOptions: bytes(""),
         composeMsg: bytes(""),
-        oftCmd: bytes("")
+        oftCmd: bytes("") // Taxi mode
       });
   }
 
