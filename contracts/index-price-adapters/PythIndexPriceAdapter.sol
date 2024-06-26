@@ -160,7 +160,7 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
       IndexPrice({
         baseAssetSymbol: market.baseAssetSymbol,
         timestampInMs: SafeCast.toUint64(priceFeeds[0].price.publishTime * 1000),
-        price: SafeCast.toUint64(priceInPips * market.priceMultiplier)
+        price: SafeCast.toUint64(priceInPips)
       });
   }
 
