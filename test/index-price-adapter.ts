@@ -1437,6 +1437,7 @@ async function buildPythPricePayload(
   const pythPrice = ethers.AbiCoder.defaultAbiCoder().encode(
     [
       'tuple(bytes32,tuple(int64,uint64,int32,uint256),tuple(int64,uint64,int32,uint256))',
+      'uint64',
     ],
     [
       [
@@ -1444,6 +1445,7 @@ async function buildPythPricePayload(
         [price, 100, -1 * decimals, timestamp],
         [price, 100, -1 * decimals, timestamp],
       ],
+      timestamp - 1, // Previous publish time
     ],
   );
 
