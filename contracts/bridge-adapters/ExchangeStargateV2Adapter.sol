@@ -6,7 +6,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ILayerZeroComposer } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroComposer.sol";
 import { OFTComposeMsgCodec } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTComposeMsgCodec.sol";
-import { IOFT, MessagingFee, MessagingReceipt, OFTReceipt, SendParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
+import { IOFT, MessagingFee, OFTReceipt, SendParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
 
 interface ICustodian {
   function exchange() external view returns (address);
@@ -82,7 +82,9 @@ abstract contract Owned {
 }
 
 // https://github.com/LayerZero-Labs/LayerZero-v2/blob/1fde89479fdc68b1a54cda7f19efa84483fcacc4/oapp/contracts/oft/interfaces/IOFT.sol
-
+// https://github.com/stargate-protocol/stargate-v2/blob/main/packages/stg-evm-v2/src/interfaces/IStargate.sol#L22
+// We are not using any Stargate-specific extensions to the IOFT interface, so they are omitted from the
+// interface declared below
 interface IStargate is IOFT {
 
 }
@@ -185,6 +187,9 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
     require(success, "Native asset transfer failed");
   }
 
+  /**
+   * @dev quantity is in asset units
+   */
   function withdrawQuoteAsset(address destinationWallet, uint256 quantity, bytes memory payload) public onlyExchange {
     require(isWithdrawEnabled, "Withdraw disabled");
 
@@ -216,6 +221,8 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
 
   /**
    * @notice Estimate actual quantity of quote tokens that will be delivered on target chain after pool fees
+   *
+   * @dev quantity is in pips since this function is used in conjunction with the off-chain SDK and REST API
    */
   function estimateWithdrawQuantityInAssetUnits(
     address destinationWallet,

@@ -36,17 +36,32 @@ dotenv.config();
 
 const SOLC_VERSION = '0.8.18';
 
+const SOLC_VERSION_STARGATE = '0.8.25';
+
 // Solidity coverage tool does not support the viaIR compiler option
 // https://github.com/sc-forks/solidity-coverage/issues/715
 const solidity = process.env.COVERAGE
   ? {
-      version: SOLC_VERSION,
-      settings: {
-        optimizer: {
-          enabled: true,
-          runs: 1,
+      compilers: [
+        {
+          version: SOLC_VERSION,
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 1,
+            },
+          },
         },
-      },
+        {
+          version: SOLC_VERSION_STARGATE,
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 1,
+            },
+          },
+        },
+      ],
     }
   : {
       compilers: [
@@ -61,7 +76,7 @@ const solidity = process.env.COVERAGE
           },
         },
         {
-          version: '0.8.25',
+          version: SOLC_VERSION_STARGATE,
           settings: {
             optimizer: {
               enabled: true,
@@ -83,7 +98,7 @@ const solidity = process.env.COVERAGE
           },
         },
         'contracts/bridge-adapters/ExchangeStargateV2Adapter.sol': {
-          version: '0.8.25',
+          version: SOLC_VERSION_STARGATE,
         },
       },
     };

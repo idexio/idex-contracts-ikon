@@ -826,7 +826,7 @@ describe('PythIndexPriceAdapter', function () {
         exchange.validateIndexPricePayload(
           await buildPythPricePayload(priceId, decimalToPips('0.00000001'), 20),
         ),
-      ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+      ).to.eventually.be.rejectedWith(/unexpected zero price/i);
     });
 
     it('should revert for negative price', async () => {

@@ -21,7 +21,7 @@ library String {
    */
   function startsWith(string memory self, string memory prefix) internal pure returns (bool) {
     uint256 prefixLength = bytes(prefix).length;
-    if (bytes(self).length < bytes(prefix).length) {
+    if (bytes(self).length < prefixLength) {
       return false;
     }
 
