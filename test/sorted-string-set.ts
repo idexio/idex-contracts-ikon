@@ -2,7 +2,9 @@ import BigNumber from 'bignumber.js';
 import { ethers, network } from 'hardhat';
 
 import { compareBaseAssetSymbols } from '../lib';
+
 import { expect } from './helpers';
+
 import type { SortedStringSetMock } from '../typechain-types';
 
 describe('SortedStringSet', function () {
@@ -31,8 +33,10 @@ describe('SortedStringSet', function () {
 
   describe('insertSorted', async function () {
     it('should work for valid arguments', async () => {
-      let beforeInsert = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
-      let afterInsert = ['a', 'b', 'c', 'd', 'e'].sort(compareBaseAssetSymbols);
+      const beforeInsert = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
+      const afterInsert = ['a', 'b', 'c', 'd', 'e'].sort(
+        compareBaseAssetSymbols,
+      );
       await expect(
         sortedStringSetMock.insertSorted(beforeInsert, 'e'),
       ).to.eventually.deep.equal(afterInsert);
@@ -45,9 +49,9 @@ describe('SortedStringSet', function () {
 
   describe('merge', async function () {
     it('should work for valid arguments', async () => {
-      let before1 = ['a', 'b'].sort(compareBaseAssetSymbols);
-      let before2 = ['b', 'c', 'd'].sort(compareBaseAssetSymbols);
-      let afterMerge = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
+      const before1 = ['a', 'b'].sort(compareBaseAssetSymbols);
+      const before2 = ['b', 'c', 'd'].sort(compareBaseAssetSymbols);
+      const afterMerge = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
       await expect(
         sortedStringSetMock.merge(before1, before2),
       ).to.eventually.deep.equal(afterMerge);
@@ -59,7 +63,7 @@ describe('SortedStringSet', function () {
       let beforeRemove = ['a', 'b', 'c', 'd', 'e'].sort(
         compareBaseAssetSymbols,
       );
-      let afterRemove = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
+      const afterRemove = ['a', 'b', 'c', 'd'].sort(compareBaseAssetSymbols);
       await expect(
         sortedStringSetMock.remove(beforeRemove, 'e'),
       ).to.eventually.deep.equal(afterRemove);
@@ -71,7 +75,7 @@ describe('SortedStringSet', function () {
     });
 
     it('should revert for invalid argument', async () => {
-      let beforeRemove = ['a', 'b', 'c', 'd', 'e'].sort(
+      const beforeRemove = ['a', 'b', 'c', 'd', 'e'].sort(
         compareBaseAssetSymbols,
       );
       await expect(

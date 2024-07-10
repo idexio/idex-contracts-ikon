@@ -5,9 +5,32 @@ pragma solidity 0.8.18;
 import { Constants } from "./Constants.sol";
 
 library String {
-  // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays
+  /**
+   * @dev Returns true if the two strings are equal, false otherwise
+   *
+   * See https://docs.soliditylang.org/en/latest/types.html#bytes-and-string-as-arrays
+   */
   function isEqual(string memory a, string memory b) internal pure returns (bool) {
     return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
+  }
+
+  /**
+   * @dev Returns true if self starts with the provided prefix, false otherwise
+   *
+   * See https://docs.soliditylang.org/en/latest/types.html#bytes-and-string-as-arrays
+   */
+  function startsWith(string memory self, string memory prefix) internal pure returns (bool) {
+    uint256 prefixLength = bytes(prefix).length;
+    if (bytes(self).length < bytes(prefix).length) {
+      return false;
+    }
+
+    bytes memory selfPrefix = new bytes(prefixLength);
+    for (uint i = 0; i < prefixLength; i++) {
+      selfPrefix[i] = bytes(self)[i];
+    }
+
+    return isEqual(string(selfPrefix), prefix);
   }
 
   /**

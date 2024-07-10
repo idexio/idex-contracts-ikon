@@ -3,17 +3,28 @@
 pragma solidity 0.8.18;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IPyth, PythStructs } from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 
 import { Math } from "../libraries/Math.sol";
 import { Owned } from "../Owned.sol";
+import { String } from "../libraries/String.sol";
 import { IExchange, IOraclePriceAdapter } from "../libraries/Interfaces.sol";
 
+// Struct for tracking currently configured markets
+struct PythMarket {
+  bool exists;
+  string baseAssetSymbol;
+  bytes32 priceId;
+  uint64 priceMultiplier;
+}
+
 contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
-  // Mapping of Pyth price IDs to market base asset symbols
-  mapping(bytes32 => string) public baseAssetSymbolsByPriceId;
-  // Mapping of market base asset symbols to Pyth price IDs
-  mapping(string => bytes32) public priceIdsByBaseAssetSymbol;
+  // Mapping of Pyth price IDs to market structs
+  mapping(bytes32 => PythMarket) public marketsByPriceId;
+  // Mapping of market base asset symbols to market structs
+  mapping(string => PythMarket) public marketsByBaseAssetSymbol;
   // Address of Pyth contract
   IPyth public immutable pyth;
 
@@ -22,9 +33,15 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
    *
    * @param baseAssetSymbols List of base asset symbols to associate with price IDs
    * @param priceIds List of price IDs to associate with base asset symbols
+   * @param priceMultipliers List of price multipliers to use when loading the price for a market
    * @param pyth_ Address of Pyth contract
    */
-  constructor(string[] memory baseAssetSymbols, bytes32[] memory priceIds, address pyth_) Owned() {
+  constructor(
+    string[] memory baseAssetSymbols,
+    bytes32[] memory priceIds,
+    uint64[] memory priceMultipliers,
+    address pyth_
+  ) Owned() {
     require(Address.isContract(pyth_), "Invalid Pyth contract address");
 
     pyth = IPyth(pyth_);
@@ -32,11 +49,7 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
     require(baseAssetSymbols.length == priceIds.length, "Argument length mismatch");
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
-      require(bytes(baseAssetSymbols[i]).length > 0, "Invalid base asset symbol");
-      require(priceIds[i] != bytes32(0x0), "Invalid price ID");
-
-      baseAssetSymbolsByPriceId[priceIds[i]] = baseAssetSymbols[i];
-      priceIdsByBaseAssetSymbol[baseAssetSymbols[i]] = priceIds[i];
+      addMarket(baseAssetSymbols[i], priceIds[i], priceMultipliers[i]);
     }
   }
 
@@ -46,31 +59,50 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
    *
    * @param baseAssetSymbol The symbol of the base asset symbol
    * @param priceId The Pyth price feed ID
+   * @param priceMultiplier The price multiplier to use when loading the price for a market. If greater than 1, the
+   * base asset symbol must include the price multiplier as a prefix
    */
-  function addBaseAssetSymbolAndPriceId(string memory baseAssetSymbol, bytes32 priceId) public onlyAdmin {
+  function addMarket(string memory baseAssetSymbol, bytes32 priceId, uint64 priceMultiplier) public onlyAdmin {
     require(priceId != bytes32(0x0), "Invalid price ID");
-    require(bytes(baseAssetSymbolsByPriceId[priceId]).length == 0, "Already added price ID");
+    require(!marketsByPriceId[priceId].exists, "Already added price ID");
 
     require(bytes(baseAssetSymbol).length > 0, "Invalid base asset symbol");
-    require(priceIdsByBaseAssetSymbol[baseAssetSymbol] == bytes32(0x0), "Already added base asset symbol");
+    require(!marketsByBaseAssetSymbol[baseAssetSymbol].exists, "Already added base asset symbol");
 
-    baseAssetSymbolsByPriceId[priceId] = baseAssetSymbol;
-    priceIdsByBaseAssetSymbol[baseAssetSymbol] = priceId;
+    require(priceMultiplier > 0, "Invalid price multiplier");
+
+    if (priceMultiplier > 1) {
+      string memory priceMultiplierAsString = Strings.toString(priceMultiplier);
+      require(
+        String.startsWith(baseAssetSymbol, priceMultiplierAsString),
+        "Base asset symbol does not start with price multiplier"
+      );
+    }
+
+    PythMarket memory pythMarket = PythMarket({
+      exists: true,
+      baseAssetSymbol: baseAssetSymbol,
+      priceId: priceId,
+      priceMultiplier: priceMultiplier
+    });
+
+    marketsByPriceId[priceId] = pythMarket;
+    marketsByBaseAssetSymbol[baseAssetSymbol] = pythMarket;
   }
 
   /**
    * @notice Return latest price for base asset symbol in quote asset terms. Reverts if no price is available
    */
   function loadPriceForBaseAssetSymbol(string memory baseAssetSymbol) public view returns (uint64 price) {
-    bytes32 priceId = priceIdsByBaseAssetSymbol[baseAssetSymbol];
-    require(priceId != bytes32(0x0), "Invalid base asset symbol");
+    PythMarket memory market = marketsByBaseAssetSymbol[baseAssetSymbol];
+    require(market.exists, "Unknown base asset symbol");
 
-    PythStructs.Price memory pythPrice = pyth.getPriceUnsafe(priceId);
+    PythStructs.Price memory pythPrice = pyth.getPriceUnsafe(market.priceId);
 
-    uint64 priceInPips = _priceToPips(pythPrice.price, pythPrice.expo);
+    uint64 priceInPips = _priceToPips(pythPrice.price, pythPrice.expo, market.priceMultiplier);
     require(priceInPips > 0, "Unexpected non-positive price");
 
-    return priceInPips;
+    return SafeCast.toUint64(priceInPips);
   }
 
   /**
@@ -80,15 +112,19 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
    */
   function setActive(IExchange exchange_) public {}
 
-  function _priceToPips(int64 price, int32 exponent) internal pure returns (uint64 priceInPips) {
+  function _priceToPips(
+    int64 price,
+    int32 exponent,
+    uint64 priceMultiplier
+  ) internal pure returns (uint64 priceInPips) {
     require(price > 0, "Unexpected non-positive price");
 
     // Solidity exponents cannot be negative, so divide or multiply based on exponent signedness after pip correction
     int32 exponentCorrectedForPips = exponent + 8;
     if (exponentCorrectedForPips < 0) {
-      priceInPips = uint64(price) / (uint64(10) ** (uint32(-1 * exponentCorrectedForPips)));
+      priceInPips = (uint64(price) * priceMultiplier) / (uint64(10) ** (uint32(-1 * exponentCorrectedForPips)));
     } else {
-      priceInPips = uint64(price) * (uint64(10) ** (uint32(exponentCorrectedForPips)));
+      priceInPips = uint64(price) * priceMultiplier * (uint64(10) ** (uint32(exponentCorrectedForPips)));
     }
   }
 }
