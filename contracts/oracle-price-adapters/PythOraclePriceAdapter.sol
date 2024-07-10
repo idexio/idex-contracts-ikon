@@ -46,7 +46,10 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
 
     pyth = IPyth(pyth_);
 
-    require(baseAssetSymbols.length == priceIds.length, "Argument length mismatch");
+    require(
+      baseAssetSymbols.length == priceIds.length && priceIds.length == priceMultipliers.length,
+      "Argument length mismatch"
+    );
 
     for (uint8 i = 0; i < baseAssetSymbols.length; i++) {
       addMarket(baseAssetSymbols[i], priceIds[i], priceMultipliers[i]);
@@ -100,9 +103,9 @@ contract PythOraclePriceAdapter is IOraclePriceAdapter, Owned {
     PythStructs.Price memory pythPrice = pyth.getPriceUnsafe(market.priceId);
 
     uint64 priceInPips = _priceToPips(pythPrice.price, pythPrice.expo, market.priceMultiplier);
-    require(priceInPips > 0, "Unexpected non-positive price");
+    require(priceInPips > 0, "Unexpected zero price");
 
-    return SafeCast.toUint64(priceInPips);
+    return priceInPips;
   }
 
   /**

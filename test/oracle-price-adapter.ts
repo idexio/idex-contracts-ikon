@@ -469,7 +469,7 @@ describe('oracle price adapters', function () {
 
         await expect(
           adapter.loadPriceForBaseAssetSymbol(baseAssetSymbol),
-        ).to.eventually.be.rejectedWith(/unexpected non-positive price/i);
+        ).to.eventually.be.rejectedWith(/unexpected zero price/i);
       });
 
       it('should revert for negative price', async () => {

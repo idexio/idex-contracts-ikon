@@ -154,13 +154,13 @@ contract PythIndexPriceAdapter is IIndexPriceAdapter, Owned {
     require(market.exists, "Unknown price ID");
 
     uint64 priceInPips = _priceToPips(priceFeeds[0].price.price, priceFeeds[0].price.expo, market.priceMultiplier);
-    require(priceInPips > 0, "Unexpected non-positive price");
+    require(priceInPips > 0, "Unexpected zero price");
 
     return
       IndexPrice({
         baseAssetSymbol: market.baseAssetSymbol,
         timestampInMs: SafeCast.toUint64(priceFeeds[0].price.publishTime * 1000),
-        price: SafeCast.toUint64(priceInPips)
+        price: priceInPips
       });
   }
 

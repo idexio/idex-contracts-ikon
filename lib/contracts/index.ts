@@ -8,6 +8,7 @@ import CustodianContract from './CustodianContract';
 import EarningsEscrowContract from './EarningsEscrow';
 import ExchangeContract from './ExchangeContract';
 import ExchangeStargateAdapterContract from './ExchangeStargateAdapterContract';
+import ExchangeStargateV2AdapterContract from './ExchangeStargateV2AdapterContract';
 import ExchangeWalletStateAggregatorContract from './ExchangeWalletStateAggregatorContract';
 import GovernanceContract from './GovernanceContract';
 import IDEXIndexAndOraclePriceAdapterContract from './IDEXIndexAndOraclePriceAdapterContract';
@@ -25,6 +26,7 @@ export {
   EarningsEscrowContract,
   ExchangeContract,
   ExchangeStargateAdapterContract,
+  ExchangeStargateV2AdapterContract,
   ExchangeWalletStateAggregatorContract,
   GovernanceContract,
   IDEXIndexAndOraclePriceAdapterContract,
