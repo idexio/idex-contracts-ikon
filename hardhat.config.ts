@@ -120,6 +120,10 @@ const config: HardhatUserConfig = {
       chainId: 421614,
       url: 'https://sepolia-rollup.arbitrum.io/rpc',
     },
+    xchain: {
+      chainId: 94524,
+      url: 'https://xchain-rpc.idex.io',
+    },
     xchainTestnet: {
       chainId: 64002,
       url: 'https://xchain-testnet-rpc.idex.io/',
@@ -141,6 +145,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       private: 'abc',
       arbitrumSepolia: 'H6U42K28KCMQ2NRFXFE28I9UCP5HYV6M8U',
+      xchain: 'abc',
       xchainTestnet: 'abc',
       polygonAmoy: 'bad22612-5107-4e49-b6d9-861b9f613cd5',
       polygonMumbai: 'K7QYKN8XKGTR5J3W6D8A7625N7CH5RWITF',
@@ -156,11 +161,19 @@ const config: HardhatUserConfig = {
         },
       },
       {
+        network: 'xchain',
+        chainId: 94524,
+        urls: {
+          apiURL: 'https://xchain-explorer.idex.io/api/v1',
+          browserURL: 'https://xchain-explorer.idex.io/',
+        },
+      },
+      {
         network: 'xchainTestnet',
         chainId: 64002,
         urls: {
-          apiURL: 'https://explorer-staging-orbit.idex-dev.com/api/v1',
-          browserURL: 'https://explorer-staging-orbit.idex-dev.com/',
+          apiURL: 'https://xchain-testnet-explorer.idex.io/api/v1',
+          browserURL: 'https://xchain-testnet-explorer.idex.io/',
         },
       },
       {
