@@ -1,6 +1,5 @@
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { ethers, network } from 'hardhat';
-import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { v1 as uuidv1 } from 'uuid';
 
 import {
@@ -9,13 +8,8 @@ import {
   getWithdrawArguments,
   getWithdrawalSignatureTypedData,
   indexPriceToArgumentStruct,
-  Withdrawal,
 } from '../lib';
-import {
-  Exchange_v4,
-  IDEXIndexAndOraclePriceAdapter,
-  USDC,
-} from '../typechain-types';
+
 import {
   baseAssetSymbol,
   buildIndexPrice,
@@ -25,7 +19,16 @@ import {
   executeTrade,
   fundWallets,
   quoteAssetDecimals,
+  quoteAssetSymbol,
 } from './helpers';
+
+import type { Withdrawal } from '../lib';
+import type {
+  Exchange_v4,
+  IDEXIndexAndOraclePriceAdapter,
+  USDC,
+} from '../typechain-types';
+import type { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 
 describe('Exchange', function () {
   let dispatcherWallet: SignerWithAddress;
@@ -151,6 +154,50 @@ describe('Exchange', function () {
       expect(withdrawnEvents[0].args?.quantity).to.equal(
         decimalToPips('1.00000000'),
       );
+    });
+
+    it('should work with gas fee for fee wallet', async function () {
+      const gasFeeCharged = '0.00100000';
+
+      await fundWallets(
+        [feeWallet],
+        dispatcherWallet,
+        exchange,
+        usdc,
+        '1.00000000',
+      );
+
+      withdrawal.wallet = feeWallet.address;
+      signature = await feeWallet.signTypedData(
+        ...getWithdrawalSignatureTypedData(
+          withdrawal,
+          await exchange.getAddress(),
+        ),
+      );
+
+      await exchange
+        .connect(dispatcherWallet)
+        .withdraw(
+          ...getWithdrawArguments(withdrawal, gasFeeCharged, signature),
+        );
+
+      const withdrawnEvents = await exchange.queryFilter(
+        exchange.filters.Withdrawn(),
+      );
+      expect(withdrawnEvents).to.have.lengthOf(1);
+      expect(withdrawnEvents[0].args?.quantity).to.equal(
+        decimalToPips('1.00000000'),
+      );
+
+      // Gas fee sent back to wallet
+      expect(
+        (
+          await exchange.loadBalanceBySymbol(
+            feeWallet.address,
+            quoteAssetSymbol,
+          )
+        ).toString(),
+      ).to.equal(decimalToPips(gasFeeCharged));
     });
 
     it('should work for EF after block delay', async function () {
