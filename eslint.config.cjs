@@ -313,8 +313,10 @@ const config = tseslint.config(
     },
     rules: {
       // 'no-only-tests/no-only-tests': 'error',
+      'func-names': 'off',
       'no-unused-expressions': 'off',
       'no-await-in-loop': 'off',
+      'prefer-destructuring': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
     },

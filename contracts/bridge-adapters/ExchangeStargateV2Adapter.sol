@@ -109,6 +109,8 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
   // decimals places
   uint64 public constant PIP_PRICE_MULTIPLIER = 10 ** 8;
 
+  event LzComposeFailed(address destinationWallet, uint256 quantity, bytes errorData);
+
   event WithdrawQuoteAssetFailed(address destinationWallet, uint256 quantity, bytes payload, bytes errorData);
 
   modifier onlyExchange() {
@@ -167,16 +169,34 @@ contract ExchangeStargateV2Adapter is ILayerZeroComposer, Owned {
   ) public payable override {
     require(msg.sender == lzEndpoint, "Caller must be LZ Endpoint");
     require(_from == address(stargate), "OApp must be Stargate");
-    require(isDepositEnabled, "Deposits disabled");
 
     // https://github.com/LayerZero-Labs/LayerZero-v2/blob/1fde89479fdc68b1a54cda7f19efa84483fcacc4/oapp/contracts/oft/libs/OFTComposeMsgCodec.sol#L52
     uint256 amountLD = OFTComposeMsgCodec.amountLD(_message);
 
     // https://github.com/LayerZero-Labs/LayerZero-v2/blob/1fde89479fdc68b1a54cda7f19efa84483fcacc4/oapp/contracts/oft/libs/OFTComposeMsgCodec.sol#L61
     address destinationWallet = abi.decode(OFTComposeMsgCodec.composeMsg(_message), (address));
-    require(destinationWallet != address(0x0), "Invalid destination wallet");
 
-    IExchange(custodian.exchange()).deposit(amountLD, destinationWallet);
+    // Incoming bridge deposits consists of 2 separate transactions. The first calls lzReceive and
+    // mints tokens to the bridge contract. The second calls lzCompose which deposits the tokens
+    // into the Exchange. If lzCompose fails without transferring out the tokens, then the tokens
+    // could end up stuck in this contract as there is no way to directly transfer them out. To
+    // avoid this, if the deposit cannot be completed successfully for any reason then we transfer
+    // the tokens directly to the destination wallet so they can retry later
+    if (!isDepositEnabled) {
+      IERC20(quoteAsset).transfer(destinationWallet, amountLD);
+      emit LzComposeFailed(destinationWallet, amountLD, "Deposits disabled");
+    } else if (destinationWallet == address(0x0)) {
+      // If the provided destination wallet is invalid, then it is unclear where the tokens should
+      // go. Rather than have them stuck in this contract we transfer the tokens to the admin
+      // wallet so they can be appropriately disbursed manually
+      IERC20(quoteAsset).transfer(adminWallet, amountLD);
+      emit LzComposeFailed(destinationWallet, amountLD, "Invalid destination wallet");
+    } else {
+      try IExchange(custodian.exchange()).deposit(amountLD, destinationWallet) {} catch (bytes memory errorData) {
+        IERC20(quoteAsset).transfer(destinationWallet, amountLD);
+        emit LzComposeFailed(destinationWallet, amountLD, errorData);
+      }
+    }
   }
 
   /**
