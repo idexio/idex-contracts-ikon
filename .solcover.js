@@ -10,6 +10,7 @@ module.exports = {
     'bridge-adapters/ExchangeStargateV2Adapter.sol',
     'test/OraclePriceAdapterMock.sol',
     'test/StargateRouterMock.sol',
+    'test/StargateV2PoolMock.sol',
     'util/ExchangeWalletStateAggregator.sol',
   ],
 };
